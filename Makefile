@@ -7,19 +7,19 @@ CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
-build: target/debug/$(APP) ## Build debug binary
-release: target/release/$(APP) ## Build release binary
+build: ## Build all workspace crates in debug mode
+	$(CARGO) build --workspace $(BUILD_JOBS)
 
-all: release ## Default target builds release binary
+release: ## Build all workspace crates in release mode
+	$(CARGO) build --workspace --release $(BUILD_JOBS)
+
+all: build ## Default target builds the workspace in debug mode
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
 
 test: ## Run tests with warnings treated as errors
-	RUSTFLAGS="-D warnings" $(CARGO) test --all-targets --all-features $(BUILD_JOBS)
-
-target/%/$(APP): ## Build binary in debug or release mode
-	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(APP)
+	RUSTFLAGS="-D warnings" $(CARGO) test --workspace --all-targets --all-features $(BUILD_JOBS)
 
 lint: ## Run Clippy with warnings denied
 	$(CARGO) clippy $(CLIPPY_FLAGS)

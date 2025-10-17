@@ -1,0 +1,16 @@
+[package]
+name = "tei-py"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tei-core = { path = "../tei-core" }
+tei-xml = { path = "../tei-xml" }
+
+[dev-dependencies]
+rstest = { workspace = true }

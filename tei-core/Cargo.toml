@@ -1,0 +1,15 @@
+[package]
+name = "tei-core"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }

@@ -38,6 +38,29 @@ and Python. Throughout, we focus on writing clear, maintainable code – **Rust
 remains idiomatic and free of Python-specific cruft, and Python APIs feel
 natural to Python users**.
 
+## Workspace scaffolding decisions
+
+The workspace now follows the layout described in `docs/workspace-layout.md`.
+Three crates ship with the repository:
+
+- `tei-core` defines early placeholder types that exercise crate boundaries.
+  The new `DocumentTitle` newtype rejects empty titles at construction time and
+  surfaces an idiomatic `thiserror` error enum so that future data-model code
+  can build on consistent validation primitives.
+- `tei-xml` depends on `tei-core` and offers a `serialise_document_title`
+  helper. The function demonstrates how XML-facing crates will transform the
+  core types while keeping validation in the domain layer.
+- `tei-py` depends on both crates and forwards the serialisation helper so that
+  PyO3 integration work inherits the existing validation logic.
+
+The workspace manifest centralises metadata, lint rules, and shared dependency
+versions. Each crate opts into the shared configuration via `workspace = true`
+stanzas, ensuring that future crates inherit the same guard rails. Behavioural
+coverage for the scaffolding relies on `rstest-bdd`, providing both a happy
+path scenario (serialising a valid title) and a failure scenario (rejecting an
+empty title). These scenarios will evolve into richer contract tests as the
+feature set grows.
+
 ## TEI P5 Subset for Podcast Use Cases
 
 **TEI P5** is a comprehensive and extensible XML schema for encoding texts, but

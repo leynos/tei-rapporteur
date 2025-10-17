@@ -17,15 +17,15 @@ integration.
 This step creates the monorepo structure that will house all crates and
 configuration, ensuring a clean separation of concerns from the outset.
 
-- [ ] Initialize a new project using the `leynos/agent-template-rust` copier.
-- [ ] Convert the generated project into a Cargo workspace by creating a root
+- [x] Initialize a new project using the `leynos/agent-template-rust` copier.
+- [x] Convert the generated project into a Cargo workspace by creating a root
       `Cargo.toml` file.
-- [ ] Define the initial workspace members: `tei-core`, `tei-xml`, and `tei-py`.
-- [ ] Create the directory structure for each crate (`/tei-core`, `/tei-xml`,
+- [x] Define the initial workspace members: `tei-core`, `tei-xml`, and `tei-py`.
+- [x] Create the directory structure for each crate (`/tei-core`, `/tei-xml`,
       `/tei-py`), each containing a basic `Cargo.toml` and `src/lib.rs`.
-- [ ] Configure inter-crate dependencies (e.g., `tei-xml` depends on
+- [x] Configure inter-crate dependencies (e.g., `tei-xml` depends on
       `tei-core`).
-- [ ] Set up the root `.gitignore` file to handle workspace and build artefacts.
+- [x] Set up the root `.gitignore` file to handle workspace and build artefacts.
 
 ### Step 1.2: Core Data Model (`tei-core`)
 
