@@ -3,6 +3,7 @@ members = [
     "tei-core",
     "tei-xml",
     "tei-py",
+    "tei-test-helpers",
 ]
 resolver = "2"
 
@@ -16,7 +17,7 @@ authors = ["Payton McIntosh <pmcintosh@df12.net>"]
 rstest = { version = "0.21.0" }
 rstest-bdd = { version = "0.1.0-alpha4" }
 rstest-bdd-macros = { version = "0.1.0-alpha4" }
-thiserror = { version = "1.0.61" }
+thiserror = { version = "2.0" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }

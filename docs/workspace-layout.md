@@ -49,6 +49,10 @@ The repository has the following high-level layout:
 │   ├── Cargo.toml
 │   └── src/
 │
+├── tei-test-helpers/   # Crate with shared testing utilities for all crates.
+│   ├── Cargo.toml
+│   └── src/
+│
 ├── tei-rapporteur/     # (Optional) Python package source directory.
 │   └── __init__.py
 │
@@ -70,7 +74,9 @@ The repository has the following high-level layout:
 - **Crate Directories (**`tei-*`**)**: Each directory is a self-contained Rust
   crate with its own `Cargo.toml`. Dependencies between crates (e.g., `tei-py`
   depending on `tei-core`) are defined within these individual manifests using
-  relative path dependencies.
+  relative path dependencies. Test-only helpers live in `tei-test-helpers`,
+  which keeps the unit and behaviour tests expressive without duplicating
+  scaffolding logic across crates.
 
 This layout ensures that the project is simultaneously a first-class Rust
 workspace and a well-defined Python package, directly reflecting the

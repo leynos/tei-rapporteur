@@ -31,13 +31,7 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, DocumentTitleError> 
 mod tests {
     use super::*;
     use rstest::rstest;
-
-    fn expect_markup(result: Result<String, DocumentTitleError>) -> String {
-        match result {
-            Ok(value) => value,
-            Err(error) => panic!("expected valid title: {error}"),
-        }
-    }
+    use tei_test_helpers::expect_markup;
 
     #[rstest]
     #[case("Archive 81", "<title>Archive 81</title>")]

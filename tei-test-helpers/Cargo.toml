@@ -1,5 +1,5 @@
 [package]
-name = "tei-py"
+name = "tei-test-helpers"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
@@ -10,8 +10,3 @@ workspace = true
 
 [dependencies]
 tei-core = { path = "../tei-core" }
-tei-xml = { path = "../tei-xml" }
-
-[dev-dependencies]
-rstest = { workspace = true }
-tei-test-helpers = { path = "../tei-test-helpers" }

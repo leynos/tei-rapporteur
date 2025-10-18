@@ -15,4 +15,4 @@ tei-core = { path = "../tei-core" }
 rstest = { workspace = true }
 rstest-bdd = { workspace = true }
 rstest-bdd-macros = { workspace = true }
-tei-core = { path = "../tei-core" }
+tei-test-helpers = { path = "../tei-test-helpers" }

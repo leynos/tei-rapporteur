@@ -41,7 +41,7 @@ natural to Python users**.
 ## Workspace scaffolding decisions
 
 The workspace now follows the layout described in `docs/workspace-layout.md`.
-Three crates ship with the repository:
+Four crates ship with the repository:
 
 - `tei-core` defines early placeholder types that exercise crate boundaries.
   The new `DocumentTitle` newtype rejects empty titles at construction time and
@@ -52,6 +52,8 @@ Three crates ship with the repository:
   core types while keeping validation in the domain layer.
 - `tei-py` depends on both crates and forwards the serialization helper so that
   PyO3 integration work inherits the existing validation logic.
+- `tei-test-helpers` exposes shared assertion utilities so that the XML and
+  Python crates can reuse markup expectations without duplicating boilerplate.
 
 The workspace manifest centralises metadata, lint rules, and shared dependency
 versions. Each crate opts into the shared configuration via `workspace = true`

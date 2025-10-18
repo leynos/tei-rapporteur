@@ -88,6 +88,7 @@ pub fn serialize_document_title(raw_title: &str) -> Result<String, DocumentTitle
 mod tests {
     use super::*;
     use rstest::rstest;
+    use tei_test_helpers::expect_markup;
 
     #[rstest]
     #[case("Plain", "Plain")]
@@ -98,13 +99,6 @@ mod tests {
     #[case("'Single'", "&apos;Single&apos;")]
     fn escapes_xml_text(#[case] input: &str, #[case] expected: &str) {
         assert_eq!(escape_xml_text(input), expected);
-    }
-
-    fn expect_markup(result: Result<String, DocumentTitleError>) -> String {
-        match result {
-            Ok(value) => value,
-            Err(error) => panic!("expected valid title: {error}"),
-        }
     }
 
     fn expect_title_error(result: Result<String, DocumentTitleError>) -> DocumentTitleError {

@@ -14,6 +14,8 @@ available today and how to exercise it.
   `<title>` snippet.
 - `tei-py` depends on both crates and re-exports the serialization helper as
   `emit_title_markup`. This crate is the future home of the PyO3 bindings.
+- `tei-test-helpers` captures assertion helpers that multiple crates reuse in
+  their unit and behaviour-driven tests.
 
 ## Building and testing
 
