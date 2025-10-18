@@ -24,9 +24,9 @@ passed into Rust; Rust returns validated data back as bytes, which Python code
 decodes into `msgspec.Struct` objects. This ensures that no parsing or schema
 validation logic is duplicated in Python – the Python side is essentially
 stateless with respect to TEI structure. By centralizing all XML handling in
-Rust, we achieve a **deterministic, single-source-of-truth** conversion: for
-any given TEI input, Rust produces a canonical normalized output, and the
-semantic content remains consistent across round-trips.
+Rust, the design achieves a **deterministic, single-source-of-truth**
+conversion: for any given TEI input, Rust produces a canonical normalized
+output, and the semantic content remains consistent across round-trips.
 
 This document outlines the design of the `tei-rapporteur` library, including
 the TEI P5 subset definition, Rust data model and crate architecture,
@@ -34,9 +34,9 @@ parsing/emitting strategy, Python integration layer, a proposed streaming
 parser extension, and considerations for validation and performance. Example
 Rust and Python code are provided to illustrate usage, along with an
 architectural overview and a comparison of serialization pathways between Rust
-and Python. Throughout, we focus on writing clear, maintainable code – **Rust
-remains idiomatic and free of Python-specific cruft, and Python APIs feel
-natural to Python users**.
+and Python. Throughout, the design focuses on writing clear, maintainable code
+– **Rust remains idiomatic and free of Python-specific cruft, and Python APIs
+feel natural to Python users**.
 
 ## Workspace scaffolding decisions
 
@@ -66,11 +66,11 @@ feature set grows.
 ## TEI P5 Subset for Podcast Use Cases
 
 **TEI P5** is a comprehensive and extensible XML schema for encoding texts, but
-using all of TEI would be overkill. We define a **profiled subset of TEI P5**
-(informally, *TEI Episodic Profile*) that includes only the elements and
-attributes needed for our podcasting scenarios. This focused subset makes the
-data model simpler to implement and guarantees round-trip fidelity for the
-features we actually use.
+using all of TEI would be overkill. The design defines a **profiled subset of
+TEI P5** (informally, *TEI Episodic Profile*) that includes only the elements
+and attributes needed for the intended podcasting scenarios. This focused
+subset makes the data model simpler to implement and guarantees round-trip
+fidelity for the features actually used in production workflows.
 
 Key inclusions in the TEI subset (to be formally specified via an ODD
 customization) are:
@@ -95,7 +95,8 @@ customization) are:
   script is in `<text><body>` with a structure for spoken dialogue and
   narration:
 
-- For a **single-host or conversational script**, we use TEI’s spoken text or
+- For a **single-host or conversational script**, the model uses TEI’s spoken
+  text or
   drama notation. Two possible approaches were considered:
 
 - *Spoken Transcripts Module*: Use `<u>` elements (utterances) for each speaker
@@ -109,7 +110,7 @@ customization) are:
   paragraphs. This approach is more verbose but explicitly tags the speaker
   name in the text flow.
 
-- We will initially support one approach (using `<u>` for simplicity), but the
+- Initial support targets one approach (using `<u>` for simplicity), but the
   data model is flexible enough to extend to the other. In either case, the
   content of an utterance can include **mixed content**: plain text
   interspersed with inline tags like `<hi>` (for emphasis or styled text),
@@ -150,18 +151,18 @@ customization) are:
   so that the semantics of `@ana` codes and custom element usage are clear and
   versioned.
 
-By constraining ourselves to this profile (let’s call it **TEI P5
-Episodic-Core**), we avoid the complexity of the entire TEI schema. This subset
-will be rigorously documented and accompanied by a Relax NG schema and
-Schematron rules generated from the ODD. That way, we have a contract for what
-constitutes a valid Episodic TEI document. Any TEI features outside this
-profile (unknown elements or attributes) are either dropped or preserved in a
-generic way (e.g., as untyped `extra` fields) so that the parser doesn’t break
-on unexpected input. The goal is to **accept and preserve all relevant
-information** for our use cases, while being forward-compatible with minor
-extensions. If an input uses a TEI construct we haven’t modeled, the design
-should either ignore it safely or store it in a placeholder structure for
-round-trip output, rather than erroring out.
+By constraining the implementation to this profile (let’s call it **TEI P5
+Episodic-Core**), the design avoids the complexity of the entire TEI schema.
+This subset will be rigorously documented and accompanied by a Relax NG schema
+and Schematron rules generated from the ODD. That approach provides a contract
+for what constitutes a valid Episodic TEI document. Any TEI features outside
+this profile (unknown elements or attributes) are either dropped or preserved
+in a generic way (e.g., as untyped `extra` fields) so that the parser doesn’t
+break on unexpected input. The goal is to **accept and preserve all relevant
+information** for the intended use cases, while being forward-compatible with
+minor extensions. If an input uses a TEI construct that has not yet been
+modeled, the design should either ignore it safely or store it in a placeholder
+structure for round-trip output, rather than erroring out.
 
 ## Architecture Overview
 
@@ -178,14 +179,14 @@ clarity and allows reuse or independent testing of components:
   applications without any Python involvement.
 
 - **`tei-xml`**: The XML parsing and writing logic built on a high-performance
-  XML library (we use `quick-xml`). This crate provides functions to parse TEI
-  XML into `tei-core` data structures and to serialize `tei-core` structures
-  back to XML. It may also include streaming parse utilities (pull parser) and
-  pretty-printing or canonicalization logic. In practice, `tei-xml` might be
-  merged with `tei-core` if tightly coupled, but conceptually it’s a separate
-  concern (XML I/O). This separation can help if we later support alternative
-  input formats (e.g., if someone wanted to import a Markdown transcript and
-  produce TEI).
+  XML library (the implementation uses `quick-xml`). This crate provides
+  functions to parse TEI XML into `tei-core` data structures and to serialize
+  `tei-core` structures back to XML. It may also include streaming parse
+  utilities (pull parser) and pretty-printing or canonicalization logic. In
+  practice, `tei-xml` might be merged with `tei-core` if tightly coupled, but
+  conceptually it’s a separate concern (XML I/O). This separation can help if
+  later iterations support alternative input formats (e.g., if someone wanted
+  to import a Markdown transcript and produce TEI).
 
 - **`tei-serde`**: (Optional) A crate providing serde serializers/deserializers
   for converting the TEI data structures to/from other formats like JSON or
@@ -209,30 +210,33 @@ clarity and allows reuse or independent testing of components:
   classes, marshalling data to and from Rust. **Importantly, `tei-py` is a thin
   layer**: it should primarily accept Python byte arrays or simple types,
   delegate to Rust for actual work, and then return results back to Python
-  (often as bytes). We avoid exposing complex Rust structures directly through
-  PyO3, which keeps the Rust API idiomatic and prevents Python-specific
+  (often as bytes). The design avoids exposing complex Rust structures directly
+  through PyO3, which keeps the Rust API idiomatic and prevents Python-specific
   concepts from leaking into `tei-core`. Rust developers working on `tei-core`
   do not need to even be aware of the Python wrapper if they don’t use it.
 
 All crates are versioned together in a single repository (monorepo), ensuring
-that changes to `tei-core` stay in sync with `tei-py` and others. We plan to
-distribute `tei-core` on crates.io for Rust use, and `tei-py` as a Python wheel
-(via maturin) for easy pip installation. This way, Rust-only projects and
-Python projects can each consume the library through their natural channels.
+that changes to `tei-core` stay in sync with `tei-py` and others. The release
+plan is to distribute `tei-core` on crates.io for Rust use, and `tei-py` as a
+Python wheel (via maturin) for easy pip installation. This approach allows
+Rust-only projects and Python projects to consume the library through their
+natural channels.
 
 **Crate Dependency and Feature Flags**: To maintain a separation of concerns,
-the core crates do not depend on PyO3. If needed, we can create an intermediate
-crate or feature for conversion glue:
+the core crates do not depend on PyO3. If needed, the architecture can create
+an intermediate crate or feature for conversion glue:
 
-- We might introduce a `tei-bridge` crate (or a feature in `tei-core`), which
+- One option is to introduce a `tei-bridge` crate (or a feature in `tei-core`),
+  which
   when enabled pulls in `pyo3` and implements traits like `FromPyObject` and
-  `ToPyObject` for our core types. This would allow directly accepting Python
+  `ToPyObject` for the core types. This would allow directly accepting Python
   `dict` or `list` structures in Rust functions via serde, using `pyo3-serde`
   under the hood. This approach is purely optional and kept behind a feature
   flag (e.g., a `python` feature) so that by default `tei-core` remains free of
   any Python code.
 
-- Whether we use a separate `tei-bridge` crate or just put these behind a
+- Whether the implementation uses a separate `tei-bridge` crate or simply puts
+  these behind a
   feature, the Python extension (`tei-py`) will enable that and thus gain the
   ability to easily convert Python objects. However, an even simpler strategy
   (described below) is to avoid passing rich Python objects at all and stick to
@@ -286,36 +290,36 @@ communication with Rust.*
 
 ### Data Model Design
 
-In `tei-core`, we define Rust structs and enums to represent the TEI document
-structure. The model closely mirrors the TEI XML hierarchy for our chosen
-subset, while using Rust’s type system to enforce validity as much as possible.
-For example:
+In `tei-core`, the design defines Rust structs and enums to represent the TEI
+document structure. The model closely mirrors the TEI XML hierarchy for the
+chosen subset, while using Rust’s type system to enforce validity as much as
+possible. For example:
 
 - A top-level `TeiDocument` struct represents the `<TEI>` element (root of a
   TEI file). It contains a `tei_header: TeiHeader` and a `text: TeiText` (which
-  in turn contains the `<body>` etc.). We might also include metadata like a
-  version number for the model or a provenance field if needed (to track which
-  version of the schema or tools produced it).
+  in turn contains the `<body>` etc.). The model might also include metadata
+  like a version number for the model or a provenance field if needed (to track
+  which version of the schema or tools produced it).
 
 - `TeiHeader`, `TeiText`, `TeiBody`, etc. are structs for those sections. For
   instance, `TeiHeader` would have fields corresponding to the allowed child
   elements (fileDesc, profileDesc, encodingDesc, revisionDesc), each likely
   optional except fileDesc. A `TeiBody` might contain a list of top-level
   divisions or utterances. In a simple podcast script, the body could be just a
-  sequence of paragraphs/utterances without further nesting, or we could allow
-  a two-level hierarchy (e.g., `<div>` for sections like "Intro", "Interview",
-  "Outro", each containing paragraphs or utterances).
+  sequence of paragraphs/utterances without further nesting, or the design
+  could allow a two-level hierarchy (e.g., `<div>` for sections like "Intro",
+  "Interview", "Outro", each containing paragraphs or utterances).
 
-- For narrative text like paragraphs we use a struct `P` with a content field.
-  For dialogue, if using `<u>`, we might model it similarly to `P` (since an
-  utterance can be treated as a special kind of paragraph with a speaker
-  attribute). If using `<sp>`, we’d have an `Sp` struct with a
+- For narrative text like paragraphs the implementation uses a struct `P` with a
+  content field. For dialogue, if using `<u>`, the model might mirror `P`
+  (since an utterance can be treated as a special kind of paragraph with a
+  speaker attribute). If using `<sp>`, the implementation would have an `Sp`
   `speaker: String` field and either text content or sub-elements.
 
 - **Mixed Content**: TEI often allows text mixed with inline elements. For
   example, an utterance could contain plain text, interspersed with `<hi>`
-  elements for emphasis and `<pause/>` empty elements. To model this, we use an
-  enum for inline content. E.g.:
+  elements for emphasis and `<pause/>` empty elements. To model this, the
+  design uses an enum for inline content. E.g.:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -351,8 +355,8 @@ child elements.
 
 - **Attributes and Identifiers**: Attributes of TEI elements become struct
   fields, using `serde(rename = "...")` to map to the actual XML attribute
-  names. For example, if we have a `<u who="s1">...</u>`, our `Utterance`
-  struct might be:
+  names. For example, if the XML contains `<u who="s1">...</u>`, the
+  corresponding `Utterance` struct might be:
 
 ```rust
 struct Utterance {
@@ -363,35 +367,35 @@ struct Utterance {
 }
 ```
 
-We use `Option<String>` for the speaker reference (since it might be omitted if
-there's only one speaker or if using a different markup). Similarly, global
-attributes like `xml:id` can be included. We will include an
+The model uses `Option<String>` for the speaker reference (since it might be
+omitted if there's only one speaker or if using a different markup). Similarly,
+global attributes like `xml:id` can be included. The design includes an
 `id: Option<String>` field on any element that can carry an `xml:id`. This
 allows references between elements (e.g., a `<span from="#u42:...">`
-referencing an utterance with `xml:id="u42"`). We ensure in validation that if
-an element says `xml:id="X"` then `X` is unique within the document.
+referencing an utterance with `xml:id="u42"`). Validation ensures that if an
+element says `xml:id="X"` then `X` is unique within the document.
 
-- **Preservation of Unknowns**: Because TEI is extensible, our model should not
+- **Preservation of Unknowns**: Because TEI is extensible, the model should not
   choke on unexpected attributes or child elements that might appear if the
-  input slightly exceeds our subset. We use catch-all structures to handle
-  these cases:
+  input slightly exceeds the subset. The implementation uses catch-all
+  structures to handle these cases:
 
-- For attributes, we can include a field like
+- For attributes, the implementation can include a field like
   `#[serde(flatten)] extra_attrs: HashMap<String, String>` in each struct to
-  collect any attribute that isn’t explicitly modeled. This way, unknown
-  attributes round-trip (they’ll be output again on serialization) even if our
-  code doesn’t interpret them.
+  collect any attribute that isn’t explicitly modeled. This approach ensures
+  that unknown attributes round-trip (they’ll be output again on serialization)
+  even if the code doesn’t interpret them.
 
 - For unknown child elements, the strategy is trickier; one approach is to
   treat the content of an element as a list of an `Inline`-like enum that has a
   variant for “UnknownElement” carrying maybe a generic name and a list of
-  children. This can get complex, so as a first step we might decide to simply
-  ignore/drop children we don’t recognize (with a warning) or treat them as
-  text if possible. But since we are profiling the input via ODD, ideally users
-  won’t supply out-of-profile elements except via forward-compatible extension
-  which we can handle via optional updates to the model.
+  children. This can get complex, so as a first step the implementation might
+  simply ignore/drop children that aren’t recognized (with a warning) or treat
+  them as text if possible. Because the input is profiled via ODD, the
+  expectation is that users won’t supply out-of-profile elements except via
+  forward-compatible extension, which optional updates to the model can handle.
 
-- **Error Handling**: We define a central error type `TeiError` (using
+- **Error Handling**: The design defines a central error type `TeiError` (using
   `thiserror` for convenience) to capture parse errors, validation errors,
   etc.. For example, `TeiError::Xml(String)` for an XML syntax or
   well-formedness error (wrapping the message from quick-xml if any), and
@@ -402,101 +406,104 @@ an element says `xml:id="X"` then `X` is unique within the document.
 
 Parsing TEI XML in Rust is done entirely in the `tei-xml` layer using
 **quick-xml** with Serde serialization. Quick-xml is a speedy pull-parser that
-also provides Serde integration: we can simply derive `serde::Deserialize` on
-our structs and then call `quick_xml::de::from_str::<TeiDocument>(&xml_string)`
-to get a `TeiDocument` in memory. Similarly, we derive `Serialize` and use
-`quick_xml::se::to_string(&doc)` to generate an XML string. This approach
-yields a **semantic round-trip**: as long as the input adheres to our data
-model, `emit_tei(parse_tei(input))` will produce an XML document equivalent in
-content to the original. The output may not be byte-for-byte identical
-(whitespace, attribute ordering, and namespace prefixes are normalized), but it
-is equivalent at the XML node level. We consider this acceptable, even
+also provides Serde integration: the code simply derives `serde::Deserialize`
+on the structs and then calls
+`quick_xml::de::from_str::<TeiDocument>(&xml_string)` to get a `TeiDocument` in
+memory. Similarly, `Serialize` is derived and `quick_xml::se::to_string(&doc)`
+is used to generate an XML string. This approach yields a **semantic
+round-trip**: as long as the input adheres to the data model,
+`emit_tei(parse_tei(input))` will produce an XML document equivalent in content
+to the original. The output may not be byte-for-byte identical (whitespace,
+attribute ordering, and namespace prefixes are normalized), but it is
+equivalent at the XML node level. This behaviour is considered acceptable, even
 desirable, for a canonicalization perspective – it ensures consistent
 formatting for downstream processing and diffing.
 
 Some specifics of the parse/emit implementation:
 
-- **Insignificant Whitespace**: By default, our model will not preserve
+- **Insignificant Whitespace**: By default, the model will not preserve
   insignificant whitespace. For instance, pretty-printing line breaks and
   indentation inside the XML are not retained (quick-xml’s Serde will treat
-  them as either ignored or as empty text nodes that we drop). We normalize
-  text where appropriate. If whitespace is meaningful (e.g., within `<u>` text,
-  spaces between words are of course preserved exactly as in the text content),
-  but leading/trailing whitespace in certain contexts or between block elements
-  will be trimmed or made consistent. The design goal is to have a *clean,
-  normalized XML output* that tools or version control can reliably compare.
+  them as either ignored or as empty text nodes that are dropped). The
+  implementation normalizes text where appropriate. If whitespace is meaningful
+  (e.g., within `<u>` text, spaces between words are of course preserved
+  exactly as in the text content), but leading/trailing whitespace in certain
+  contexts or between block elements will be trimmed or made consistent. The
+  design goal is to have a *clean, normalized XML output* that tools or version
+  control can reliably compare.
 
-- **Comments and PIs**: We do not parse or round-trip XML comments and
-  processing instructions in the initial design. These are outside the scope of
-  Serde mapping (which deals with data content). The round-trip is therefore
+- **Comments and PIs**: The initial design does not parse or round-trip XML
+  comments and processing instructions. These are outside the scope of Serde
+  mapping (which deals with data content). The round-trip is therefore
   *semantic, not fully lossless*. Any comments in the source will be dropped
-  when parsing to Rust types. This is acceptable for our use cases (we don’t
-  anticipate users adding manual comments in an auto-generated script, but it
-  could happen). As a future-proofing measure, we have considered adding an
-  **annotation field for comments** – for example, each element struct could
+  when parsing to Rust types. This is acceptable for the intended use cases
+  (manual comments in auto-generated scripts are not anticipated, though they
+  could appear). As a future-proofing measure, the design has considered adding
+  an **annotation field for comments** – for example, each element struct could
   have an optional `comments: Vec<String>` to collect comments that appeared
   immediately inside it (or perhaps just a special field at the document level
   for all comments). By marking such a field with
-  `#[serde(skip_deserializing, skip_serializing)]`, we could populate it via a
-  custom parse routine if needed. However, implementing that would require a
-  custom parser loop (since quick-xml Serde will ignore comments entirely). A
-  more robust future solution is a *dual-layer* approach: maintain a parallel
-  lossless representation for exact round-trips. In such a design, we would
-  have an `XmlDocument` (or a low-level tree of XML nodes) that can capture
-  everything including comments, entity references, etc., and then a conversion
-  to `TeiDocument`. If exact re-serialization is needed for some editing tools,
-  we could use the original `XmlDocument` for output when no semantic changes
-  have been made. For now, we explicitly choose **normalized, not fully
-  lossless, output**, and we document that choice to avoid future confusion.
+  `#[serde(skip_deserializing, skip_serializing)]`, the implementation could
+  populate it via a custom parse routine if needed. However, implementing that
+  would require a custom parser loop (since quick-xml Serde will ignore
+  comments entirely). A more robust future solution is a *dual-layer* approach:
+  maintain a parallel lossless representation for exact round-trips. Such a
+  design would have an `XmlDocument` (or a low-level tree of XML nodes) that
+  can capture everything including comments, entity references, etc., and then
+  a conversion to `TeiDocument`. If exact re-serialization is needed for some
+  editing tools, the system could use the original `XmlDocument` for output
+  when no semantic changes have been made. For now, the implementation
+  explicitly chooses **normalized, not fully lossless, output**, and documents
+  that choice to avoid future confusion.
 
-- **Namespaces**: TEI uses the default TEI namespace for most elements. We will
-  preserve the namespace URI in the output. Quick-xml can handle namespaces,
-  especially if we ensure our structs carry the correct names (possibly using
-  `serde(rename = "tei:elementName")` if needed to bind to a prefix). When
-  emitting, we can choose a stable prefix, e.g., always use `tei:` prefix on
-  all TEI elements for clarity. The library will ensure the XML root has the
-  proper namespace declaration. Since we likely only have the TEI namespace
-  (and perhaps none others except xml: for IDs and lang), this is
-  straightforward. We will not rely on the exact prefixes from input; those
-  might be normalized in output.
+- **Namespaces**: TEI uses the default TEI namespace for most elements. The
+  implementation preserves the namespace URI in the output. Quick-xml can
+  handle namespaces, especially if the structs carry the correct names
+  (possibly using `serde(rename = "tei:elementName")` if needed to bind to a
+  prefix). When emitting, the code can choose a stable prefix, e.g., always use
+  `tei:` on all TEI elements for clarity. The library ensures the XML root has
+  the proper namespace declaration. Since the design likely only requires the
+  TEI namespace (and perhaps none others except xml: for IDs and lang), this is
+  straightforward. The implementation does not rely on the exact prefixes from
+  input; those may be normalized in output.
 
 - **Mixed Content Handling**: As shown earlier, by modeling mixed content with
   enums and `$value` placeholders, Serde with quick-xml handles most cases. One
   corner is that **empty elements** like `<pause/>` need to be represented
-  appropriately. We might model `<pause>` as a unit struct or as an enum
-  variant with no associated data. Quick-xml’s serialize will emit an empty tag
-  for an empty string or unit struct. We will test these to ensure, for
-  example, a `<pause/>` in the XML becomes something like `Inline::Pause` in
-  Rust and back.
+  appropriately. The design might model `<pause>` as a unit struct or as an
+  enum variant with no associated data. Quick-xml’s serializer emits an empty
+  tag for an empty string or unit struct. These scenarios are tested to ensure,
+  for example, a `<pause/>` in the XML becomes something like `Inline::Pause`
+  in Rust and back.
 
 - **Performance**: Quick-xml and Serde are known to be efficient. The parse is
-  done in one pass and directly fills our structs without intermediate DOM
+  done in one pass and directly fills the structs without intermediate DOM
   creation. The emit is similarly streaming. This means memory overhead is
-  proportional to the size of the data (we allocate Rust structs for the
+  proportional to the size of the data (allocating Rust structs for the
   content) and does not hold the entire file as a heavy DOM with overhead.
   Benchmarks have shown quick-xml to be significantly faster than DOM-based
-  parsers in Rust, making it suitable for even large transcripts. If we
-  encounter extremely large documents (say transcripts of many hours, tens of
-  thousands of utterances), the memory usage of holding the entire
-  `TeiDocument` at once might become a concern, which motivates the streaming
-  approach described later. But for reasonably sized episodes (on the order of
-  a few thousand words), this approach should be very fast and use only a few
-  MBs of memory.
+  parsers in Rust, making it suitable for even large transcripts. If the
+  implementation encounters extremely large documents (say transcripts of many
+  hours, tens of thousands of utterances), the memory usage of holding the
+  entire `TeiDocument` at once might become a concern, which motivates the
+  streaming approach described later. But for reasonably sized episodes (on the
+  order of a few thousand words), this approach should be very fast and use
+  only a few MBs of memory.
 
 ### JSON/MessagePack Serialization
 
 In addition to XML, the Rust data model can be serialized to and from JSON or
 MessagePack, facilitating two things:
 
-- **Persistence/Interchange**: We may store episodes in a database as JSON
-  (e.g., in Postgres JSONB) or send them over a network as MessagePack.
+- **Persistence/Interchange**: Episodes may be stored in a database as JSON
+  (e.g., in Postgres JSONB) or sent over a network as MessagePack.
 
 - **Python Interop**: The Python side `msgspec.Struct` classes have a schema
   that matches this JSON structure, so serializing in Rust to JSON/MsgPack and
   decoding in Python (or vice versa) allows easy data exchange.
 
-We derive `serde::Serialize`/`Deserialize` on all our core types, which
-automatically gives us JSON and MessagePack support via `serde_json` and
+The implementation derives `serde::Serialize`/`Deserialize` on all core types,
+which automatically provides JSON and MessagePack support via `serde_json` and
 `rmp-serde` respectively. The JSON structure is a **semantic projection** of
 the TEI. For instance, a TEI `<spanGrp type="cliche">` might be represented in
 JSON as an object like:
@@ -506,29 +513,29 @@ JSON as an object like:
 ```
 
 (This is illustrative; the actual JSON schema will be defined so that it aligns
-with our Python `Struct` definitions exactly, including any nesting.)
+with the Python `Struct` definitions exactly, including any nesting.)
 Attributes become JSON fields, element names become object keys or struct field
-names, and lists of elements become JSON arrays. We include a top-level field
-like `"model_version": 1` in the JSON to allow evolution of the schema over
+names, and lists of elements become JSON arrays. The JSON payload includes a
+top-level field like `"model_version": 1` to allow evolution of the schema over
 time.
 
 One important design consideration is that the JSON output should be
-**deterministic**. If we serialize the same `TeiDocument` twice, we should get
-the exact same JSON string (apart from spacing if any). Serde generally
-guarantees field ordering as defined in the struct, but we will document the
-JSON format and possibly provide a canonical serialization (for example, always
-sort certain map keys if we have maps, etc.) to ensure consistency. This
-deterministic JSON (and XML) is helpful for content-addressing and change
-detection – e.g., a given script always produces the same XML, so a hash can
-identify it uniquely.
+**deterministic**. If the system serializes the same `TeiDocument` twice, it
+should produce the exact same JSON string (apart from spacing if any). Serde
+generally guarantees field ordering as defined in the struct, but the
+documentation will detail the JSON format and may provide a canonical
+serialization (for example, always sorting certain map keys if the
+implementation uses maps) to ensure consistency. This deterministic JSON (and
+XML) is helpful for content-addressing and change detection – e.g., a given
+script always produces the same XML, so a hash can identify it uniquely.
 
-Testing round-trip integrity is crucial: we will verify that
+Testing round-trip integrity is crucial: the test suite verifies that
 
 - `TEI XML -> parse -> JSON -> emit -> TEI XML` yields the same canonical TEI
   XML (losing only insignificant differences), and
 
 - `JSON -> serde (Rust) -> XML -> parse -> JSON` yields the same JSON
-  (idempotent normalization). These invariants ensure that our projections
+  (idempotent normalization). These invariants ensure that the projections
   don’t accidentally drop or corrupt information.
 
 ## Python Integration via PyO3 and msgspec
@@ -564,7 +571,7 @@ include:
 
 - `from_dict(py_obj: Mapping | Sequence) -> Document` – Accept a plain Python
   nested dict/list (for instance, something that could be the result of
-  `json.loads` on our JSON serialization) and convert it to a `TeiDocument`.
+  `json.loads` on the JSON serialization) and convert it to a `TeiDocument`.
   This uses serde via `pyo3-serde` to map Python built-ins into Rust
   structures. It allows quick testing or construction from Python without
   writing XML.
@@ -587,16 +594,16 @@ include:
 - `to_msgpack(doc: Document) -> bytes` – Serialize the `TeiDocument` to
   MessagePack bytes (using `rmp_serde`).
 
-- `to_json(doc: Document) -> bytes|str` – Serialize to JSON (we can allow
+- `to_json(doc: Document) -> bytes|str` – Serialize to JSON (the API can allow
   returning either a Python bytes or str for the JSON text).
 
-We also define a Python-visible class, say `Document`, using `#[pyclass]` in
-Rust. This class primarily holds `inner: TeiDocument` (as in the example code)
-and perhaps implements `__repr__` or other niceties. We provide `__iter__` or
-data accessors only if needed, but the expectation is that users will usually
-convert the document into their own `msgspec.Struct` classes for any intensive
-work. The `Document` class is mostly a vessel to carry data between functions
-in this minimal API approach.
+The Python module also defines a Python-visible class, say `Document`, using
+`#[pyclass]` in Rust. This class primarily holds `inner: TeiDocument` (as in
+the example code) and perhaps implements `__repr__` or other niceties.
+Iterators or data accessors are provided only if needed, but the expectation is
+that users will usually convert the document into their own `msgspec.Struct`
+classes for any intensive work. The `Document` class is mostly a vessel to
+carry data between functions in this minimal API approach.
 
 Here’s a sketch of what calling the Python API might look like:
 
@@ -610,9 +617,9 @@ doc.validate()          # Raises if anything invalid
 
 # 2. Convert Document to a Python dict (JSON form) and to a msgspec struct
 episode_dict = tei.to_dict(doc)
-# Suppose we have defined a msgspec.Struct corresponding to the Episode:
-episode = EpisodeStruct(**episode_dict)   # or msgspec.structs aren't dataclasses but we can decode via msgspec
-# (Alternatively, we could do: encoded = tei.to_msgpack(doc); episode = msgspec.msgpack.decode(encoded, type=EpisodeStruct))
+# Suppose a msgspec.Struct corresponding to the Episode is defined:
+episode = EpisodeStruct(**episode_dict)   # msgspec.structs aren't dataclasses but can be decoded via msgspec
+# (Alternatively, encoded = tei.to_msgpack(doc); episode = msgspec.msgpack.decode(encoded, type=EpisodeStruct))
 
 # 3. Manipulate the episode via msgspec object (e.g., add an utterance)
 episode.utterances.append(Utterance(speaker="guest1", content=["Thank you all for listening!"]))
@@ -623,40 +630,40 @@ xml_out = tei.emit_xml(new_doc)
 ```
 
 In this example, `from_struct` would be a convenience that detects a
-`msgspec.Struct` and converts it. We haven't explicitly listed `from_struct`
-above, but it can be implemented to call `msgspec.to_builtins` on the object in
-Python and then call our `from_dict` internally. The reason to support
-`from_struct` is to save the user from manually encoding to bytes or dict – we
-can do it for them by leveraging the `msgspec` API at runtime. The PyO3
-function for `from_struct` can check if the passed Python object has a
+`msgspec.Struct` and converts it. The design hasn't explicitly listed
+`from_struct` above, but it can be implemented to call `msgspec.to_builtins` on
+the object in Python and then call `from_dict` internally. The reason to
+support `from_struct` is to save the user from manually encoding to bytes or
+dict – the extension can do it by leveraging the `msgspec` API at runtime. The
+PyO3 function for `from_struct` can check if the passed Python object has a
 `__struct_fields__` attribute (which `msgspec.Struct` objects do) and if so, do
 the conversion as shown in the pseudo-code snippet.
 
 ### Why `msgspec.Struct`?
 
-We choose `msgspec.Struct` for the Python representation because it offers
-dataclass-like convenience with built-in serialization support. By defining
-Python classes that subclass `msgspec.Struct`, we get automatic `msgspec.json`
-and `msgspec.msgpack` encoding/decoding for those classes. This means Python
-code can easily turn a nested object tree into a bytes buffer (JSON or
-MessagePack) with one call, which is exactly what we need to send data to Rust.
-Likewise, when Rust returns bytes, `msgspec` can decode them right back into
-class instances. This approach saves us from writing a lot of boilerplate in
-PyO3 to map Python attributes to Rust fields.
+The architecture favours `msgspec.Struct` for the Python representation because
+it offers dataclass-like convenience with built-in serialization support. By
+defining Python classes that subclass `msgspec.Struct`, the module gains
+automatic `msgspec.json` and `msgspec.msgpack` encoding/decoding for those
+classes. This means Python code can easily turn a nested object tree into a
+bytes buffer (JSON or MessagePack) with one call, which is exactly what is
+needed to send data to Rust. Likewise, when Rust returns bytes, `msgspec` can
+decode them right back into class instances. This approach avoids a large
+amount of boilerplate in PyO3 to map Python attributes to Rust fields.
 
-Furthermore, using `msgspec.Struct` means we **do not need to maintain parallel
-class hierarchies** in Python and Rust manually. We define the schema in one
-place (we can even generate the Python `Struct` definitions from the Rust
-definitions or vice versa). The Python classes are lightweight and do not
-contain behavior – they are purely data containers. All the real logic
-(parsing, validation, etc.) is in Rust. This separation aligns with our
-philosophy: *Rust for core logic, Python for orchestration*. The earlier design
-discussion concluded that this strategy keeps the Python side “pure” (no C
-extensions needed for every class, just the one extension module) and the Rust
-side idiomatic.
+Furthermore, using `msgspec.Struct` means the project **does not need to
+maintain parallel class hierarchies** in Python and Rust manually. The schema
+is defined in one place (the Python `Struct` definitions can even be generated
+from the Rust definitions or vice versa). The Python classes are lightweight
+and do not contain behaviour – they are purely data containers. All the real
+logic (parsing, validation, etc.) resides in Rust. This separation aligns with
+the design philosophy: *Rust for core logic, Python for orchestration*. The
+earlier design discussion concluded that this strategy keeps the Python side
+“pure” (no C extensions needed for every class, just the one extension module)
+and the Rust side idiomatic.
 
-To illustrate, imagine we have the following `msgspec.Struct` classes in Python
-corresponding to our Rust model (simplified):
+To illustrate, imagine the following `msgspec.Struct` classes in Python
+corresponding to the Rust model (simplified):
 
 ```python
 import msgspec
@@ -684,7 +691,7 @@ class Episode(msgspec.Struct):
 *(In practice, `msgspec` can also support recursive types and union types; the
 inline element could be better represented as a proper nested Struct class
 instead of dict, e.g., a class `Hi(msgspec.Struct)` and then content:
-`list[str | Hi]`. For brevity we use dict in content above.)*
+`list[str | Hi]`. For brevity the example uses a dict in the content above.)*
 
 Now, a Python user can create and manipulate an `Episode` instance easily. When
 it's time to send it to Rust for validation or XML export, they can do:
@@ -696,16 +703,15 @@ tei_rapporteur.validate(doc)
 xml = tei_rapporteur.emit_xml(doc)
 ```
 
-This sequence does a single fast binary serialization of the whole object
+This sequence performs a single fast binary serialization of the whole object
 (`msgspec` uses a performant native implementation), and Rust deserializes it
 in one go (`rmp_serde` directly to `TeiDocument`). This **binary boundary**
 approach is extremely efficient for large data because it avoids per-field
-conversions across the FFI boundary. By contrast, if we tried to manually set
-attributes on a PyO3 class for each field, we’d incur a lot of Python C-API
-calls.
+conversions across the FFI boundary. By contrast, manually setting attributes
+on PyO3 classes for each field would incur many Python C-API calls.
 
-For smaller documents or convenience, we also allow passing Python dicts or
-even the `Struct` object directly:
+For smaller documents or convenience, the API also allows passing Python dicts
+or even the `Struct` object directly:
 
 ```python
 doc = tei_rapporteur.from_struct(my_episode_obj)
@@ -755,14 +761,14 @@ parsing of XML and enforcement of rules happens in Rust, keeping Python’s role
 to encoding/decoding and high-level orchestration.
 
 Another benefit: by not creating elaborate Python classes (no need for
-per-element PyClasses or dataclasses), we keep the Python package lightweight.
-If down the road we want to provide a more Pythonic OO interface (with methods
-on classes, etc.), we can still do that – perhaps by making richer PyClasses
-that wrap `TeiDocument` or parts of it. But that’s optional and can be layered
-later. The current approach already gives Python users a comfortable experience
-using Pydantic-like or dataclass-like objects that can be easily printed,
-accessed, and even validated on the Python side if needed (msgspec can do
-schema validation).
+per-element PyClasses or dataclasses), the Python package stays lightweight. If
+future iterations aim to provide a more Pythonic OO interface (with methods on
+classes, etc.), that can still happen – perhaps by making richer PyClasses that
+wrap `TeiDocument` or parts of it. However, that remains optional and can be
+layered later. The current approach already gives Python users a comfortable
+experience using Pydantic-like or dataclass-like objects that can be easily
+printed, accessed, and even validated on the Python side if needed (msgspec can
+perform schema validation).
 
 ## Pull-Parser Interface (Streaming Parsing)
 
@@ -785,15 +791,15 @@ are parsed.
   object) that the user can work with directly. This is higher-level than
   typical SAX parsing, but lower-level than a full document parse.
 
-- **Shared use in Rust and Python**: The implementation will be in Rust, but we
-  will expose it to Python in a natural way (e.g., as an iterator or generator
-  of `msgspec`-serializable objects).
+- **Shared use in Rust and Python**: The implementation lives in Rust, but the
+  library exposes it to Python in a natural way (e.g., as an iterator or
+  generator of `msgspec`-serializable objects).
 
 - **Opt-in and possibly experimental**: Because Rust’s stable APIs for
   generators are limited, this feature might rely on unstable features or
-  external crates. We will likely gate it behind a Cargo feature (e.g.,
-  `streaming_parser`) so users can turn it on if needed, without affecting the
-  stable core.
+  external crates. The implementation will likely gate it behind a Cargo
+  feature (e.g., `streaming_parser`) so users can turn it on if needed without
+  affecting the stable core.
 
 ### Rust Implementation Approaches
 
@@ -806,36 +812,38 @@ pull-parser:
   `Iterator` trait for it. The `next()` method would read from the XML until it
   completes one unit (e.g., one `<u>` element and its content) and then return
   a `TeiElement` enum or a specific struct. Internally, this requires managing
-  the nesting and ensuring that when we yield an element, we don’t consume
-  beyond it. Quick-xml’s low-level API gives events like “StartElement",
-  “Text", “EndElement". We can leverage that: for example, on seeing `<u>`, we
-  could accumulate events until the matching `</u>` and then deserialize that
-  chunk (perhaps by using `quick_xml::de::from_str` on the slice representing
-  the `<u>` element) into an `Utterance` struct. This might be tricky with
-  borrowing, but one could copy out the slice of XML for the element.
-  Alternatively, we might construct the struct by hand as events come (like
-  building the string content and any inline elements).
+  the nesting and ensuring that when the iterator yields an element, it doesn’t
+  consume beyond it. Quick-xml’s low-level API gives events like
+  “StartElement", “Text", “EndElement". That can be leveraged: for example, on
+  seeing `<u>`, the iterator could accumulate events until the matching `</u>`
+  and then deserialize that chunk (perhaps by using `quick_xml::de::from_str`
+  on the slice representing the `<u>` element) into an `Utterance` struct. This
+  might be tricky with borrowing, but one option is to copy out the slice of
+  XML for the element. Alternatively, the implementation might construct the
+  struct by hand as events arrive (for example, building the string content and
+  any inline elements).
 
 - The manual iterator approach can be done on stable Rust and gives fine
   control. The downside is complexity in implementation.
 
 - **Generator/Coroutine (Nightly)**: Rust nightly has a `Generator` trait and
-  the `yield` keyword (unstable). We could write a generator that yields
-  `TeiElement` as it parses. This would likely make the code simpler (we can
-  `yield` an Utterance when done parsing it, then continue parsing for the next
-  one). However, this requires nightly Rust or a generator library.
+  the `yield` keyword (unstable). The parser could be written as a generator
+  that yields `TeiElement` as it parses. This would likely make the code
+  simpler (the generator could `yield` an Utterance when finished parsing it,
+  then continue parsing the next one). However, this requires nightly Rust or a
+  generator library.
 
 - **Async Stream**: Using an async context with something like the
-  `async-stream` crate, we can create an asynchronous generator. For example,
-  `async_stream::try_stream!` allows `yield`ing values within an async
-  function. We could treat the file input as an async stream (or just wrap a
-  synchronous read in a future) and yield parsed elements. The result would be
-  a `Stream<Item = TeiElement>` that can be consumed either with async or by
-  blocking. Async-stream is stable (it uses proc macros), but it introduces a
-  dependency on the futures ecosystem.
+  `async-stream` crate, the library can create an asynchronous generator. For
+  example, `async_stream::try_stream!` allows `yield`ing values within an async
+  function. The file input could be treated as an async stream (or a
+  synchronous read wrapped in a future) and parsed elements yielded. The result
+  would be a `Stream<Item = TeiElement>` that can be consumed either with async
+  or by blocking. Async-stream is stable (it uses proc macros), but it
+  introduces a dependency on the futures ecosystem.
 
-We might prototype with approach (1) for full control. The end result could be
-an API like:
+An initial prototype might start with approach (1) for full control. The end
+result could be an API like:
 
 ```rust
 // in tei-xml crate:
@@ -860,47 +868,47 @@ impl<R: BufRead> Iterator for TeiPullParser<R> {
 }
 ```
 
-This iterator would yield events. Possibly we simplify to yield only high-level
-elements (skipping StartDocument, etc., unless needed for signaling). The
-`ElementEnum` could be an enum of our domain objects: e.g.,
+This iterator would yield events. It might be simplified to emit only
+high-level elements (skipping StartDocument, etc., unless needed for
+signalling). The `ElementEnum` could be an enum of the domain objects: e.g.,
 `ElementEnum::Utterance(Utterance)`, `ElementEnum::Span(Span)`, etc., for each
-top-level or annotation element we care to yield. We might not yield low-level
-things like an `<hi>` because that will come as part of its parent Utterance’s
-inline content. Our focus is likely on yielding each utterance or each
-top-level division in the body.
+top-level or annotation element worth yielding. The iterator might not emit
+low-level elements like `<hi>` because those appear as part of the parent
+Utterance’s inline content. The likely focus is on yielding each utterance or
+each top-level division in the body.
 
-**Python Exposure**: To expose this to Python, we can either:
+**Python Exposure**: To expose this to Python, the API can either:
 
-- Provide a function that returns an iterator (PyO3 can convert a Rust Iterator
-  into a Python iterator if we implement the PyIterProtocol on it). We could
-  have `tei_rapporteur.iter_parse(xml_str)` that returns a Python iterable. The
-  iteration in Python would call back into Rust’s iterator `next()`. Each
-  yielded item needs to be converted to a Python object. We have choices: we
-  could yield a PyO3 `Document` or similar for each element, but that may be
-  heavy. Perhaps yielding a Python dict for each element is fine (since the
-  user might immediately turn it into their struct or process it). We can
-  leverage `pyo3-serde` here: for each `ElementEnum` we yield, call
+- Provide a function that returns an iterator (PyO3 can convert a Rust
+  `Iterator` into a Python iterator if the PyIterProtocol is implemented). The
+  module could expose `tei_rapporteur.iter_parse(xml_str)` that returns a
+  Python iterable. The iteration in Python would call back into Rust’s iterator
+  `next()`. Each yielded item needs to be converted to a Python object. There
+  are choices: yielding a PyO3 `Document` or similar for each element might be
+  heavy, whereas yielding a Python dict for each element could be fine (since
+  the caller might immediately turn it into their struct or process it). The
+  binding can leverage `pyo3-serde`: for each `ElementEnum` yielded, call
   `to_builtins` to get a dict, and yield that.
 
-- Alternatively, use Python generators: PyO3 could allow writing a generator
-  function in Rust, but it's not straightforward. It's easier to stick to the
-  iterator protocol.
+- Alternatively, use Python generators: PyO3 can support writing a generator
+  function in Rust, but it's not straightforward. Sticking to the iterator
+  protocol is typically easier.
 
 **Experimental Nature**: Because this is complex and possibly requires nightly
-features, we mark it as an experimental opt-in. For example, in `Cargo.toml` of
-`tei-xml`:
+features, the streaming parser is marked as an experimental opt-in. For
+example, in `Cargo.toml` of `tei-xml`:
 
 ```toml
 [features]
 streaming = ["quick-xml", "generator"]
 ```
 
-where `generator` is the nightly generator feature. Or we use `async-stream`
-behind `streaming_async` feature.
+where `generator` is the nightly generator feature. Alternatively, the build
+can use `async-stream` behind a `streaming_async` feature.
 
-We will clearly document that the streaming interface is available but might
-require a nightly compiler or have certain limitations. The primary crate
-remains focused on full-document parse.
+The documentation will clearly state that the streaming interface is available
+but might require a nightly compiler or have certain limitations. The primary
+crate remains focused on full-document parse.
 
 **Use Cases**: A tool like Episodic might use the streaming parser to scan
 through a TEI without loading everything, maybe to calculate timings or do a
@@ -910,30 +918,30 @@ useful for extremely large inputs or integrating with pipelines that prefer
 streaming (e.g., if TEI input comes from a network stream).
 
 Nonetheless, having a pull-parser aligns with Rust’s zero-cost iterators
-philosophy and gives advanced users more flexibility. It sets us apart by not
-just offering the all-or-nothing approach typical of many XML libraries. And
-because it's built on the same data model, each yielded element is a proper
-instance of our Rust structs (or easily convertible to the same) – ensuring
+philosophy and gives advanced users more flexibility. It differentiates the
+library by avoiding the all-or-nothing approach typical of many XML libraries.
+Because it is built on the same data model, each yielded element is a proper
+instance of the Rust structs (or easily convertible to the same) – ensuring
 consistency between streaming and full parse modes.
 
 ## Validation Strategy and Data Integrity
 
 Validation of TEI documents can be incredibly complex given the full TEI
-schemas (RELAX NG grammar and Schematron rules). For our focused subset, we
-enforce correctness through a combination of **Rust type structure**,
+schemas (RELAX NG grammar and Schematron rules). For the focused subset, the
+project enforces correctness through a combination of **Rust type structure**,
 **internal checks**, and optional external schema validation for full coverage.
 
 - **By-construction validity**: Many structural constraints are ensured simply
-  by using Serde to parse into our typed structs. If the XML is not well-formed
+  by using Serde to parse into the typed structs. If the XML is not well-formed
   or violates the basic expected structure (e.g., a `<teiHeader>` is missing),
   parsing will fail immediately with an error. The Rust type definitions
-  themselves act as a schema: for example, if our `TeiDocument` requires a
+  themselves act as a schema: for example, if the `TeiDocument` requires a
   `tei_header` and `text`, the absence of those in XML will cause a deserialize
   error. Similarly, if an element that should only contain certain children
-  gets some other tag, quick-xml/Serde will error out unless we chose to ignore
-  it.
+  gets some other tag, quick-xml/Serde will error out unless configured to
+  ignore it.
 
-- **Internal Rust validation**: After parsing, we invoke
+- **Internal Rust validation**: After parsing, the library invokes
   `TeiDocument::validate(&self)` which performs deeper checks that are not
   enforced by the type system:
 
@@ -946,8 +954,8 @@ enforce correctness through a combination of **Rust type structure**,
   exists. This might involve ensuring something like “if `from="#u5:char=10"`
   then an element with id `u5` exists and has enough characters”.
 
-- **Structural rules**: Enforce any rules of our subset that Serde doesn’t
-  catch. For instance, maybe our subset says that `<body>` can contain either
+- **Structural rules**: Enforce any rules of the subset that Serde doesn’t
+  catch. For instance, maybe the subset says that `<body>` can contain either
   `<div>` or `<u>` directly but not both or not nested arbitrarily. If Serde
   allowed a list of a enum of `<div>|<u>`, it might accept a mix; if that’s not
   desired, validate can check and warn or error. Another example: If using
@@ -956,67 +964,67 @@ enforce correctness through a combination of **Rust type structure**,
 
 - **Annotation integrity**: Check that offsets in spans don’t overlap
   improperly or that spans referenced by `corresp` match an actual element id
-  of an episode, etc. Some of these might be beyond simple (like we might
-  ensure spans are within bounds of the referenced text length).
+  of an episode, etc. Some of these might be beyond simple (for instance,
+  ensuring spans are within bounds of the referenced text length).
 
-- **Value ranges and formats**: If we have any attributes that must be certain
-  values (say @type of spanGrp must be one of known values like "cliche" or
-  "accent"), we can check that against an enum or list.
+- **Value ranges and formats**: If any attributes must take certain values (say
+  @type of spanGrp must be one of known values like "cliche" or "accent"), the
+  validator can check that against an enum or list.
 
 These checks ensure that even if an XML passed parsing, it adheres to the
-semantic rules of our TEI profile.
+semantic rules of the TEI profile.
 
 - **External schema validation (optional)**: We intend to provide a RELAX NG
   schema (and Schematron if needed) for the TEI Episodic profile. Rather than
   implementing a full RELAX NG validator in Rust (which would be a major
-  project on its own), we can integrate external tools for users who need that
-  extra guarantee:
+  project on its own), the library can integrate external tools for users who
+  need that extra guarantee:
 
-- For example, we could include a function or a command-line tool
+- For example, the distribution could include a function or a command-line tool
   `tei_validate_schema(xml_str)` that, when invoked, will run the XML through
   an external validator (like `jing` for RNG or an XSLT for Schematron). This
   would not be on by default (and certainly not in the core parse path), but as
-  a utility. We might use this in our test suite or CI: after serialization,
-  call out to the schema validator to double-check that our output conforms. If
-  any discrepancy is found, that indicates a bug either in our model or
-  understanding of the schema.
+  a utility. The test suite or CI can call this after serialization to
+  double-check that the output conforms. If any discrepancy is found, that
+  indicates a bug either in the model or understanding of the schema.
 
 - This approach keeps the core library lean (no massive schema parsing code)
-  but still provides a path to high assurance when needed. We’ll document how
+  but still provides a path to high assurance when needed. Documentation will
   to run schema validation as part of a QA process (e.g., “if you have jing
   installed, run `tei-rapporteur --validate file.tei.xml`” which internally
   calls out).
 
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.
-  We will include property-based tests (using e.g. Rust’s `proptest` crate and
-  Python’s `hypothesis`) to generate random but valid structures and ensure
-  that `emit_xml(parse_xml(original_xml))` is equivalent to a canonicalized
-  `original_xml`. We’ll also test the JSON idempotence. This gives us
-  confidence in the correctness of our (de)serializers.
+  The suite will include property-based tests (using e.g. Rust’s `proptest`
+  crate and Python’s `hypothesis`) to generate random but valid structures and
+  ensure that `emit_xml(parse_xml(original_xml))` is equivalent to a
+  canonicalized `original_xml`. JSON idempotence is also tested. This provides
+  confidence in the correctness of the (de)serializers.
 
-- **Evolution and Versioning**: We include a `model_version` in the data (as
-  noted in the JSON). Our Rust library can handle version migrations by
-  detecting an older version and upgrading it (if we introduce breaking changes
-  to the JSON format in future). For example, if `model_version: 2` adds a new
-  field, we might provide a function to convert v1 -> v2 (filling defaults) so
-  that older JSON can still be parsed. All such migrations will be documented,
-  and the version field in the JSON (and perhaps in the TEI header via
-  `<revisionDesc>` or `<encodingDesc>`) will trace this. This strategy is more
-  about maintaining data integrity across versions, ensuring that user data in
-  a database doesn’t become unreadable after an update.
+- **Evolution and Versioning**: The data includes a `model_version` (as noted in
+  the JSON). The Rust library can handle version migrations by detecting an
+  older version and upgrading it (if breaking changes arise in the JSON format
+  in future). For example, if `model_version: 2` adds a new field, the library
+  might provide a function to convert v1 -> v2 (filling defaults) so that older
+  JSON can still be parsed. All such migrations will be documented, and the
+  version field in the JSON (and perhaps in the TEI header via `<revisionDesc>`
+  or `<encodingDesc>`) will trace this. This strategy is more about maintaining
+  data integrity across versions, ensuring that user data in a database doesn’t
+  become unreadable after an update.
 
-- **Database considerations**: If storing episodes in a Postgres JSONB, we’ll
-  encourage use of **database constraints** to catch major issues early (for
-  example, ensuring `model_version` field exists and is within a known range).
-  Also, since the TEI ID might be used as a key in related tables, we enforce
-  proper generation of IDs (using UUIDs or nanoid) to avoid collisions.
+- **Database considerations**: If storing episodes in a Postgres JSONB,
+  deployments are encouraged to use **database constraints** to catch major
+  issues early (for example, ensuring a `model_version` field exists and is
+  within a known range). Also, since the TEI ID might be used as a key in
+  related tables, the system should enforce proper generation of IDs (using
+  UUIDs or nanoid) to avoid collisions.
 
 Overall, the validation strategy is **pragmatic**: do as much as is reasonable
 in Rust (fast, on-the-fly checks), rely on external proven tools for full
 schema compliance when necessary, and continuously test round-trip correctness.
-By controlling the subset and documenting it, we mitigate much of TEI’s
-notorious complexity.
+By controlling the subset and documenting it, the project mitigates much of
+TEI’s notorious complexity.
 
 ## Performance Characteristics
 
@@ -1033,48 +1041,49 @@ Several aspects of performance have been touched on, but to summarize:
 - **Memory usage**: A fully parsed `TeiDocument` will use memory proportional
   to the XML size (plus overhead for pointers, enum tags, etc.). Rust’s memory
   usage should still be quite modest (likely on the order of 2-3x the XML text
-  size, since we store each string content and also allocate for each struct).
-  If an episode transcript is, say, 100KB of text, the in-memory Rust struct
-  might be a few hundred KB. This is fine for desktop/server environments. If
-  we needed to process gigabyte-scale inputs, the streaming interface would be
-  the solution.
+  size, since it stores each string content and also allocates for each
+  struct). If an episode transcript is, say, 100KB of text, the in-memory Rust
+  struct might be a few hundred KB. This is fine for desktop/server
+  environments. If processing gigabyte-scale inputs becomes necessary, the
+  streaming interface would be the solution.
 
 - **Python FFI overhead**: By minimizing the number of crossing points (i.e.,
   calling into Rust once with a large payload, rather than for every small
-  piece of data), we drastically reduce overhead. Approaches that use one big
-  serialization (like MessagePack) scale well with data size. The alternative
-  approach (passing Python data structures directly) would involve many Python
-  C-API calls (each field access or creation crossing the FFI boundary), which
-  can be 10x or more slower for large nested data. Therefore, `tei-rapporteur`
-  defaults to the efficient path whenever possible.
+  piece of data), the architecture drastically reduces overhead. Approaches
+  that use one big serialization (like MessagePack) scale well with data size.
+  The alternative approach (passing Python data structures directly) would
+  involve many Python C-API calls (each field access or creation crossing the
+  FFI boundary), which can be 10x or more slower for large nested data.
+  Therefore, `tei-rapporteur` defaults to the efficient path whenever possible.
 
 - **Concurrency**: The Rust code doesn’t use global state and can be made
-  thread-safe. PyO3 by default ensures that our extension functions acquire the
-  GIL when needed and release it during heavy Rust computations (if we mark
-  them accordingly). We should ensure to release the GIL while parsing or
-  emitting, so that Python threads are not blocked if, for example, parsing a
-  huge file. This can be done with the `Python::allow_threads` context in PyO3
-  around the call into quick-xml.
+  thread-safe. PyO3 by default ensures that extension functions acquire the GIL
+  when needed and release it during heavy Rust computations (if marked
+  accordingly). The binding should release the GIL while parsing or emitting so
+  that Python threads are not blocked if, for example, parsing a huge file.
+  This can be done with the `Python::allow_threads` context in PyO3 around the
+  call into quick-xml.
 
 - **Parallelism**: Users could potentially parse multiple TEI files in parallel
-  threads (from Python or Rust) since our code is thread-safe (no shared
+  threads (from Python or Rust) since the code is thread-safe (no shared
   mutable state except perhaps some global config). Each parse will use one
-  core; we have not implemented any internal parallelism for a single parse
-  (it’s usually not necessary given the speed, but large files could
-  theoretically be split among threads by divisions).
+  core; the implementation has not introduced any internal parallelism for a
+  single parse (it’s usually not necessary given the speed, but large files
+  could theoretically be split among threads by divisions).
 
-- **Annotation overhead**: In scenarios like Bromide, where we might add
-  thousands of `<span>` annotations for clichés, note that stand-off markup in
-  our model is just a list of `Span` objects. Handling thousands of those is
-  trivial in Rust. The serialization overhead of adding them is also linear. We
-  should ensure our design of storing spans (like using `Vec<Span>`) is
+- **Annotation overhead**: In scenarios like Bromide, where thousands of
+  `<span>`
+  annotations for clichés might be added, note that stand-off markup in the
+  model is just a list of `Span` objects. Handling thousands of those is
+  trivial in Rust. The serialization overhead of adding them is also linear.
+  The design should ensure the storage of spans (like using `Vec<Span>`) is
   efficient for lookups if needed. If one needed to frequently find which
   utterance a span refers to, an index map could be built, but that’s likely
   outside core parsing (more in analysis tools).
 
-- **Comparison and Diff**: Because our output XML is canonicalized, simple text
+- **Comparison and Diff**: Because the output XML is canonicalized, simple text
   diffing might still produce noise (due to differences in position of line
-  breaks, etc.). We plan to provide a small utility `tei-diff` that compares
+  breaks, etc.). The roadmap includes a small utility `tei-diff` that compares
   two TEI XML files in a semantic way (ignoring irrelevant differences). This
   isn't a direct performance issue, but it helps in testing and perhaps in user
   workflows to quickly identify meaningful differences between versions of a
@@ -1090,19 +1099,19 @@ choices, such as using `msgspec` and binary serialization for the Python
 bridge, are geared towards keeping the system scalable: small overhead for
 small data, and linear scaling for large data with a low constant factor. There
 is no magical zero-copy – data does get copied at boundaries – but those copies
-are predictable and efficient in Rust (memcpy of a buffer, etc.), and we avoid
-repeated conversions.
+are predictable and efficient in Rust (memcpy of a buffer, etc.), and the
+architecture avoids repeated conversions.
 
 ## Example Usage
 
-This section provides a consolidated look at how one might use the
+This section provides a consolidated look at how a developer might use the
 `tei-rapporteur` library from both Rust and Python, demonstrating the
 end-to-end workflow.
 
 ### Rust Usage Example
 
-Suppose we want to build a simple Rust program that reads a TEI file, ensures
-it’s valid, and prints out all utterances with their speakers.
+Suppose a developer wants to build a simple Rust program that reads a TEI file,
+ensures it’s valid, and prints out all utterances with their speakers.
 
 ```rust
 use tei_core::{TeiDocument, TeiError};
@@ -1139,20 +1148,20 @@ fn main() -> Result<(), TeiError> {
 
 In this snippet:
 
-- We parse the XML via `tei_xml::parse_tei`. This uses quick-xml under the hood
-  and returns a `TeiDocument`.
+- The program parses the XML via `tei_xml::parse_tei`. This uses quick-xml under
+  the hood and returns a `TeiDocument`.
 
-- We call `validate()` to perform extra checks (which could return an error if
-  something is wrong).
+- The code calls `validate()` to perform extra checks (which could return an
+  error if something is wrong).
 
-- We then use the structured data (here iterating utterances) to do something
+- The structured data (here iterating utterances) is then used to do something
   useful – in this case, print each utterance. This shows how natural it is to
   work with the Rust structs; no manual XML traversal, just normal Rust struct
   access.
 
-- We modify the document (e.g., add a revision entry).
+- The example modifies the document (e.g., add a revision entry).
 
-- Finally, we emit the modified document back to XML and save it.
+- Finally, the program emits the modified document back to XML and saves it.
 
 The Rust API is designed to be intuitive for Rust developers, with typical
 patterns (an error type for fallible functions, iterators for lists of things,
@@ -1162,9 +1171,9 @@ those concerns are completely absent in `tei-core` and `tei-xml`.
 
 ### Python Usage Example
 
-For Python, assume we have the following `msgspec.Struct` classes defined
-matching our TEI model (this could be in our library’s documentation or a
-separate package):
+For Python, assume the following `msgspec.Struct` classes are defined matching
+the TEI model (this could appear in the library’s documentation or a separate
+package):
 
 ```python
 import msgspec
@@ -1197,17 +1206,17 @@ with open("episode1.tei.xml", "r", encoding="utf-8") as f:
 doc = tei.parse_xml(xml_data)            # parse into Document
 tei.validate(doc)                        # ensure it's valid (raises exception if not)
 
-# Convert to our Episode struct for easier manipulation
+# Convert to the Episode struct for easier manipulation
 episode_json = tei.to_json(doc)          # get JSON text (or bytes) for the doc
 episode = msgspec.json.decode(episode_json, type=Episode)
 
-# Suppose we want to run Bromide analysis on the episode content:
+# Suppose a Bromide analysis should run on the episode content:
 # (Pseudo-code for Bromide, which produces a list of spans indicating cliches)
 cliche_spans = run_bromide_analysis(episode)   # returns list of {"id": ..., "start":..., "end":..., "ana":...}
 episode.spans.extend(cliche_spans)
 
 # Convert the updated episode back to TEI
-# We will send it through Rust to regenerate XML with the new spans in <standOff>
+# The script sends it through Rust to regenerate XML with the new spans in <standOff>
 new_doc = tei.from_struct(episode)       # accept msgspec Struct, converts internally
 tei.validate(new_doc)                    # validate again after modifications
 new_xml = tei.emit_xml(new_doc)
@@ -1217,22 +1226,22 @@ with open("episode1_annotated.xml", "w", encoding="utf-8") as f:
 
 In this scenario:
 
-- We parsed an XML file into a `Document` (which has the content inside, but
-  not directly accessible to Python except via the API calls).
+- The workflow parsed an XML file into a `Document` (which has the content
+  inside, but not directly accessible to Python except via the API calls).
 
-- We immediately turned that into JSON via `to_json` and decoded into our
-  `Episode` struct. Now we have a fully Python-native object `episode` that we
-  can interact with (e.g., pass to Bromide).
+- It immediately turns that into JSON via `to_json` and decodes into the
+  `Episode` struct. The result is a fully Python-native object `episode` that
+  can be passed to Bromide.
 
-- After adding Bromide’s output (spans) to the episode, we want to generate
-  updated TEI. We call `from_struct(episode)` to go back into Rust. Under the
+- After adding Bromide’s output (spans) to the episode, the workflow generates
+  updated TEI by calling `from_struct(episode)` to go back into Rust. Under the
   hood, as described, this serializes `episode` to bytes and Rust deserializes
   it.
 
-- We validate and emit new XML from Rust.
+- Rust validates and emits new XML.
 
-- Finally, we save the new XML, which now contains the `<standOff>` with spans
-  added by Bromide.
+- Finally, the script saves the new XML, which now contains the `<standOff>`
+  with spans added by Bromide.
 
 The above Python code shows how seamlessly a user can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and
@@ -1260,10 +1269,10 @@ Key design takeaways:
   isolation, and developers can work on core logic without Python knowledge and
   vice versa.
 
-- **Semantic Round-tripping**: We prioritize semantic fidelity of data over
-  exact XML byte fidelity, enabling normalization that simplifies comparisons
-  and ensures consistency. At the same time, the design leaves room for a
-  future lossless mode if needed.
+- **Semantic Round-tripping**: The project prioritises semantic fidelity of data
+  over exact XML byte fidelity, enabling normalization that simplifies
+  comparisons and ensures consistency. At the same time, the design leaves room
+  for a future lossless mode if needed.
 
 - **Performance and Scaling**: Using modern libraries like quick-xml and
   msgspec, the library scales from tiny snippets to large transcripts. The
@@ -1275,24 +1284,24 @@ Key design takeaways:
   as appropriate. The code structure (with optional features for streaming,
   etc.) allows adding advanced functionality without affecting the stable core.
 
-By grounding all podcast-related tooling on TEI-rapporteur, we ensure that
-Episodic (the script generator) and analysis modules like Bromide speak the
-same language – a structured, interoperable format. This design not only
-fosters code reuse (one parser to serve all needs) but also provides
+By grounding all podcast-related tooling on TEI-rapporteur, the architecture
+ensures that Episodic (the script generator) and analysis modules like Bromide
+speak the same language – a structured, interoperable format. This design not
+only fosters code reuse (one parser to serve all needs) but also provides
 **auditability**: an episode script can be exported as TEI XML with all
 annotations (clichés, pronunciation notes, accent metrics) embedded, offering
-transparency into what the algorithms did. We foresee this being invaluable for
-debugging and for end-users who want to see a “report” of the script’s
-stylistic and linguistic properties.
+transparency into what the algorithms did. This outcome is expected to be
+invaluable for debugging and for end-users who want to see a “report” of the
+script’s stylistic and linguistic properties.
 
 In summary, TEI-Rapporteur is the cornerstone of a modern, multi-language
 tooling stack for spoken content creation and analysis. It marries the rich
 semantics of the TEI standard with the performance of Rust and the flexibility
 of Python, enabling developers and content creators to work with complex
 structured documents in a straightforward and efficient way. The design
-outlined here will guide our implementation and ensure that we build a library
-that is both powerful and pleasant to use, for years of maintainable code and
-extensible features to come.
+outlined here will guide the implementation and ensure that the project builds
+a library that is both powerful and pleasant to use, for years of maintainable
+code and extensible features to come.
 
 **Sources:**
 
