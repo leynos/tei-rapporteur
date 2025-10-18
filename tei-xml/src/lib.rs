@@ -1,6 +1,6 @@
 //! XML helpers for TEI-Rapporteur.
 //!
-//! The module currently focuses on a title serialisation shim that exercises the
+//! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
 use tei_core::{DocumentTitleError, TeiDocument};
@@ -36,27 +36,27 @@ pub fn escape_xml_text(input: &str) -> String {
     escaped
 }
 
-/// Serialises the document title into a minimal TEI snippet.
+/// Serializes the document title into a minimal TEI snippet.
 ///
 /// # Examples
 ///
 /// ```
 /// use tei_core::TeiDocument;
-/// use tei_xml::serialise_title;
+/// use tei_xml::serialize_title;
 ///
 /// let document = TeiDocument::from_title_str("Wolf 359")?;
-/// assert_eq!(serialise_title(&document), "<title>Wolf 359</title>");
+/// assert_eq!(serialize_title(&document), "<title>Wolf 359</title>");
 /// # Ok::<(), tei_core::DocumentTitleError>(())
 /// ```
 #[must_use]
-pub fn serialise_title(document: &TeiDocument) -> String {
+pub fn serialize_title(document: &TeiDocument) -> String {
     format!(
         "<title>{}</title>",
         escape_xml_text(document.title().as_str())
     )
 }
 
-/// Validates a raw title and returns the serialised markup.
+/// Validates a raw title and returns the serialized markup.
 ///
 /// # Errors
 ///
@@ -66,22 +66,22 @@ pub fn serialise_title(document: &TeiDocument) -> String {
 /// # Examples
 ///
 /// ```
-/// use tei_xml::serialise_document_title;
+/// use tei_xml::serialize_document_title;
 ///
-/// let markup = serialise_document_title("Alice Isn't Dead")?;
+/// let markup = serialize_document_title("Alice Isn't Dead")?;
 /// assert_eq!(markup, "<title>Alice Isn't Dead</title>");
 /// # Ok::<(), tei_core::DocumentTitleError>(())
 /// ```
 ///
 /// ```
-/// use tei_xml::serialise_document_title;
+/// use tei_xml::serialize_document_title;
 ///
-/// let markup = serialise_document_title("R&D <Test>")?;
+/// let markup = serialize_document_title("R&D <Test>")?;
 /// assert_eq!(markup, "<title>R&amp;D &lt;Test&gt;</title>");
 /// # Ok::<(), tei_core::DocumentTitleError>(())
 /// ```
-pub fn serialise_document_title(raw_title: &str) -> Result<String, DocumentTitleError> {
-    TeiDocument::from_title_str(raw_title).map(|document| serialise_title(&document))
+pub fn serialize_document_title(raw_title: &str) -> Result<String, DocumentTitleError> {
+    TeiDocument::from_title_str(raw_title).map(|document| serialize_title(&document))
 }
 
 #[cfg(test)]
@@ -118,8 +118,8 @@ mod tests {
     #[case("Limetown", "<title>Limetown</title>")]
     #[case("  Wooden Overcoats  ", "<title>Wooden Overcoats</title>")]
     #[case("R&D <Test>", "<title>R&amp;D &lt;Test&gt;</title>")]
-    fn serialises_titles(#[case] input: &str, #[case] expected: &str) {
-        let markup = expect_markup(serialise_document_title(input));
+    fn serializes_titles(#[case] input: &str, #[case] expected: &str) {
+        let markup = expect_markup(serialize_document_title(input));
         assert_eq!(markup, expected);
     }
 
@@ -127,7 +127,7 @@ mod tests {
     #[case("")]
     #[case("   ")]
     fn rejects_empty_titles(#[case] input: &str) {
-        let error = expect_title_error(serialise_document_title(input));
+        let error = expect_title_error(serialize_document_title(input));
         assert_eq!(error, DocumentTitleError::Empty);
     }
 }

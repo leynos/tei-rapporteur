@@ -1,13 +1,13 @@
-Feature: Title serialisation
+Feature: Title serialization
 
-  Scenario: Serialise a valid document title
+  Scenario: Serialize a valid document title
     Given a document title "The Magnus Archives"
-    When I serialise the document title
+    When I serialize the document title
     Then the XML output is "<title>The Magnus Archives</title>"
 
   Scenario: Escape markup-significant characters
     Given a document title "R&D <Test>"
-    When I serialise the document title
+    When I serialize the document title
     Then the XML output is "<title>R&amp;D &lt;Test&gt;</title>"
 
   Scenario: Reject an empty document title

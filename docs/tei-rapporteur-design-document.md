@@ -47,17 +47,17 @@ Three crates ship with the repository:
   The new `DocumentTitle` newtype rejects empty titles at construction time and
   surfaces an idiomatic `thiserror` error enum so that future data-model code
   can build on consistent validation primitives.
-- `tei-xml` depends on `tei-core` and offers a `serialise_document_title`
+- `tei-xml` depends on `tei-core` and offers a `serialize_document_title`
   helper. The function demonstrates how XML-facing crates will transform the
   core types while keeping validation in the domain layer.
-- `tei-py` depends on both crates and forwards the serialisation helper so that
+- `tei-py` depends on both crates and forwards the serialization helper so that
   PyO3 integration work inherits the existing validation logic.
 
 The workspace manifest centralises metadata, lint rules, and shared dependency
 versions. Each crate opts into the shared configuration via `workspace = true`
 stanzas, ensuring that future crates inherit the same guard rails. Behavioural
 coverage for the scaffolding relies on `rstest-bdd`, providing both a happy
-path scenario (serialising a valid title) and a failure scenario (rejecting an
+path scenario (serializing a valid title) and a failure scenario (rejecting an
 empty title). These scenarios will evolve into richer contract tests as the
 feature set grows.
 

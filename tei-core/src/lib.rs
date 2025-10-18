@@ -19,7 +19,7 @@ pub enum DocumentTitleError {
 /// Title metadata carried by a [`TeiDocument`].
 ///
 /// Titles are trimmed and must not be empty, ensuring downstream consumers can
-/// always serialise a non-empty `<title>` element.
+/// always serialize a non-empty `<title>` element.
 ///
 /// # Examples
 ///

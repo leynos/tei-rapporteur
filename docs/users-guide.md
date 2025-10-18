@@ -1,7 +1,7 @@
 # User's guide
 
 The `tei-rapporteur` workspace currently focuses on establishing the crate
-layout that underpins the rest of the roadmap. This guide summarises what is
+layout that underpins the rest of the roadmap. This guide summarizes what is
 available today and how to exercise it.
 
 ## Workspace overview
@@ -10,9 +10,9 @@ available today and how to exercise it.
   `TeiDocument` struct. Titles are trimmed and validated at construction time
   so downstream crates never observe empty `<title>` elements.
 - `tei-xml` depends on the core crate and offers
-  `serialise_document_title(raw_title)`, which turns validated titles into a
+  `serialize_document_title(raw_title)`, which turns validated titles into a
   `<title>` snippet.
-- `tei-py` depends on both crates and re-exports the serialisation helper as
+- `tei-py` depends on both crates and re-exports the serialization helper as
   `emit_title_markup`. This crate is the future home of the PyO3 bindings.
 
 ## Building and testing
@@ -28,7 +28,7 @@ Use the Makefile targets to work with the entire workspace:
 ## Behavioural guarantees
 
 `tei-xml` ships with behaviour-driven tests that exercise happy and unhappy
-paths for title serialisation. Successful scenarios confirm the generated TEI
+paths for title serialization. Successful scenarios confirm the generated TEI
 markup, whilst failure scenarios assert that empty titles are rejected with a
 clear error message. These tests run alongside the unit tests via `cargo test`
 so developers receive fast feedback when modifying the scaffolding.

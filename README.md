@@ -4,7 +4,7 @@
 *Podcast-grade TEI P5: ergonomic, fast, and pleasantly interoperable*
 
 > **Status: Work in Progress** — This repository is an active build. Interfaces
-> and crate layout will stabilise as we converge on the design doc and roadmap.
+> and crate layout will stabilize as we converge on the design doc and roadmap.
 
 ______________________________________________________________________
 
@@ -12,7 +12,7 @@ ______________________________________________________________________
 
 `tei-rapporteur` is a Rust-first TEI P5 data model with a fast, safe parser and
 emitter, wrapped for Python via PyO3. Python consumers work with **`msgspec`
-Structs** by default for speed and clean serialisation in databases and
+Structs** by default for speed and clean serialization in databases and
 services. XML handling remains in the Rust domain; Python gets zero-copy-ish
 accessors and efficient conversions.
 
@@ -26,7 +26,7 @@ The initial focus is **Episodic** use‑cases:
 
 Lossless round‑tripping is **not** a goal; we prioritise **semantic fidelity**
 and ergonomic domain objects over XML trivia. Notes/comments may be embedded in
-deserialised objects for traceability.
+deserialized objects for traceability.
 
 Further details live in the design and planning docs:
 
@@ -64,7 +64,7 @@ Rust; elegant Python projections.*
 
 - **Rust core**: TEI domain types, fast parser/emitter, validation, transforms.
 - **Python wrapper**: thin PyO3 layer exposing Rust functionality; default
-  representation is `msgspec` Structs for low‑overhead (de)serialisation.
+  representation is `msgspec` Structs for low‑overhead (de)serialization.
 - **Experimental pull‑parser**: optional, behind a feature flag; may rely on
   Rust nightly continuations or generators.
 
