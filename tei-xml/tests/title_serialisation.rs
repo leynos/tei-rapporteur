@@ -118,6 +118,11 @@ fn serialises_a_valid_title(state: TitleState) {
 }
 
 #[scenario(path = "tests/features/title_serialisation.feature", index = 1)]
+fn escapes_markup_significant_characters(state: TitleState) {
+    let _ = state;
+}
+
+#[scenario(path = "tests/features/title_serialisation.feature", index = 2)]
 fn rejects_an_empty_title(state: TitleState) {
     let _ = state;
 }
