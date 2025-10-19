@@ -13,3 +13,5 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
+rstest-bdd = { workspace = true }
+rstest-bdd-macros = { workspace = true }

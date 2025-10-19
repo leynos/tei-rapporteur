@@ -6,9 +6,11 @@ available today and how to exercise it.
 
 ## Workspace overview
 
-- `tei-core` hosts the first domain type, `DocumentTitle`, alongside a minimal
-  `TeiDocument` struct. Titles are trimmed and validated at construction time
-  so downstream crates never observe empty `<title>` elements.
+- `tei-core` now models the top-level `TeiDocument` together with its
+  `TeiHeader` and placeholder `TeiText`. Header metadata is captured through
+  dedicated structs (`FileDesc`, `ProfileDesc`, `EncodingDesc`, and
+  `RevisionDesc`) so callers can assemble rich document context without
+  touching XML.
 - `tei-xml` depends on the core crate and offers
   `serialize_document_title(raw_title)`, which turns validated titles into a
   `<title>` snippet.
@@ -29,8 +31,8 @@ Use the Makefile targets to work with the entire workspace:
 
 ## Behavioural guarantees
 
-`tei-xml` ships with behaviour-driven tests that exercise happy and unhappy
-paths for title serialization. Successful scenarios confirm the generated TEI
-markup, whilst failure scenarios assert that empty titles are rejected with a
-clear error message. These tests run alongside the unit tests via `cargo test`
+`tei-core` and `tei-xml` ship behaviour-driven tests that exercise happy and
+unhappy paths. Core scenarios validate that header metadata can be assembled
+and that blank revision notes are rejected, whilst the XML crate confirms title
+serialization and error propagation. These tests run alongside the unit suite
 so developers receive fast feedback when modifying the scaffolding.

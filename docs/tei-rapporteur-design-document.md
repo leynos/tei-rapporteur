@@ -96,8 +96,7 @@ customization) are:
   narration:
 
 - For a **single-host or conversational script**, the model uses TEI’s spoken
-  text or
-  drama notation. Two possible approaches were considered:
+  text or drama notation. Two possible approaches were considered:
 
 - *Spoken Transcripts Module*: Use `<u>` elements (utterances) for each speaker
   turn([1](https://journals.openedition.org/corpus/4553?lang=en#:~:text=32%E2%97%8B%20,describe%20a%20%E2%80%9Cspeech%20event)).
@@ -227,21 +226,19 @@ the core crates do not depend on PyO3. If needed, the architecture can create
 an intermediate crate or feature for conversion glue:
 
 - One option is to introduce a `tei-bridge` crate (or a feature in `tei-core`),
-  which
-  when enabled pulls in `pyo3` and implements traits like `FromPyObject` and
-  `ToPyObject` for the core types. This would allow directly accepting Python
-  `dict` or `list` structures in Rust functions via serde, using `pyo3-serde`
-  under the hood. This approach is purely optional and kept behind a feature
-  flag (e.g., a `python` feature) so that by default `tei-core` remains free of
-  any Python code.
+  which when enabled pulls in `pyo3` and implements traits like `FromPyObject`
+  and `ToPyObject` for the core types. This would allow directly accepting
+  Python `dict` or `list` structures in Rust functions via serde, using
+  `pyo3-serde` under the hood. This approach is purely optional and kept behind
+  a feature flag (e.g., a `python` feature) so that by default `tei-core`
+  remains free of any Python code.
 
 - Whether the implementation uses a separate `tei-bridge` crate or simply puts
-  these behind a
-  feature, the Python extension (`tei-py`) will enable that and thus gain the
-  ability to easily convert Python objects. However, an even simpler strategy
-  (described below) is to avoid passing rich Python objects at all and stick to
-  bytes or basic types across the FFI. That reduces the need for a `tei-bridge`
-  layer.
+  these behind a feature, the Python extension (`tei-py`) will enable that and
+  thus gain the ability to easily convert Python objects. However, an even
+  simpler strategy (described below) is to avoid passing rich Python objects at
+  all and stick to bytes or basic types across the FFI. That reduces the need
+  for a `tei-bridge` layer.
 
 The overall architecture ensures a **clear API boundary** between Rust and
 Python. Rust code is written as if it’s a standalone library (no mention of
@@ -309,6 +306,28 @@ possible. For example:
   sequence of paragraphs/utterances without further nesting, or the design
   could allow a two-level hierarchy (e.g., `<div>` for sections like "Intro",
   "Interview", "Outro", each containing paragraphs or utterances).
+
+The initial implementation lands the document shell described above:
+
+- `TeiDocument` now owns a `TeiHeader` plus a placeholder `TeiText`. The text
+  structure captures an ordered list of string segments for now; later phases
+  will replace this with the richer body and inline models discussed below.
+- `FileDesc` wraps the validated `DocumentTitle` and normalises optional series
+  and synopsis strings, trimming whitespace and discarding blanks. This keeps
+  metadata consistent regardless of how callers provide it.
+- `ProfileDesc` maintains trimmed speaker names and language tags. Attempts to
+  add empty values return a `HeaderValidationError::EmptyField`, mirroring the
+  strict validation approach used for titles.
+- `EncodingDesc` records `AnnotationSystem` entries. Each system validates that
+  its identifier is non-empty while allowing an optional free-text description.
+- `RevisionDesc` stores a list of `RevisionChange` values. Changes require a
+  non-empty description and optionally track responsibility strings, again
+  reusing `HeaderValidationError::EmptyField` for invalid input.
+
+Normalisation helpers centralise the trimming logic so optional values never
+carry unintentional whitespace. This by-construction approach keeps downstream
+serialisers simple: they do not need to handle purely cosmetic differences in
+header metadata.
 
 - For narrative text like paragraphs the implementation uses a struct `P` with a
   content field. For dialogue, if using `<u>`, the model might mirror `P`
@@ -1072,9 +1091,8 @@ Several aspects of performance have been touched on, but to summarize:
   could theoretically be split among threads by divisions).
 
 - **Annotation overhead**: In scenarios like Bromide, where thousands of
-  `<span>`
-  annotations for clichés might be added, note that stand-off markup in the
-  model is just a list of `Span` objects. Handling thousands of those is
+  `<span>` annotations for clichés might be added, note that stand-off markup
+  in the model is just a list of `Span` objects. Handling thousands of those is
   trivial in Rust. The serialization overhead of adding them is also linear.
   The design should ensure the storage of spans (like using `Vec<Span>`) is
   efficient for lookups if needed. If one needed to frequently find which
