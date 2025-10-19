@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::convert::Infallible;
-use std::str::FromStr;
-
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
+use std::cell::RefCell;
 use tei_core::{DocumentTitleError, TeiDocument};
 use tei_xml::serialize_document_title;
 
@@ -12,22 +9,6 @@ struct TitleState {
     raw_title: RefCell<Option<String>>,
     serialized: RefCell<Option<Result<String, DocumentTitleError>>>,
     document: RefCell<Option<Result<TeiDocument, DocumentTitleError>>>,
-}
-
-struct StepString(String);
-
-impl StepString {
-    fn into_inner(self) -> String {
-        self.0
-    }
-}
-
-impl FromStr for StepString {
-    type Err = Infallible;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self(value.to_owned()))
-    }
 }
 
 impl TitleState {
@@ -96,20 +77,22 @@ fn i_attempt_to_build_the_document(state: &TitleState) {
 }
 
 #[then("the XML output is \"{expected}\"")]
-fn the_xml_output_is(state: &TitleState, expected: StepString) {
+fn the_xml_output_is(state: &TitleState, expected: String) {
+    let expected = expected.into_boxed_str();
     let markup = match state.serialized() {
         Ok(value) => value,
         Err(error) => panic!("expected successful serialization: {error}"),
     };
-    assert_eq!(markup, expected.into_inner());
+    assert_eq!(markup, expected.as_ref());
 }
 
 #[then("title creation fails with \"{message}\"")]
-fn title_creation_fails_with(state: &TitleState, message: StepString) {
+fn title_creation_fails_with(state: &TitleState, message: String) {
+    let message = message.into_boxed_str();
     let Err(error) = state.document() else {
         panic!("expected document creation to fail");
     };
-    assert_eq!(error.to_string(), message.into_inner());
+    assert_eq!(error.to_string(), message.as_ref());
 }
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 0)]

@@ -20,6 +20,13 @@ use tei_core::{DocumentTitleError, TeiDocument};
 /// ```
 #[must_use]
 pub fn escape_xml_text(input: &str) -> String {
+    if !input
+        .chars()
+        .any(|character| matches!(character, '&' | '<' | '>' | '"' | '\''))
+    {
+        return input.to_owned();
+    }
+
     let mut escaped = String::with_capacity(input.len());
 
     for character in input.chars() {

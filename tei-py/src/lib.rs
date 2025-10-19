@@ -39,4 +39,13 @@ mod tests {
         let markup = expect_markup(emit_title_markup(input));
         assert_eq!(markup, expected);
     }
+
+    #[test]
+    fn propagates_empty_title_error() {
+        let result = emit_title_markup("   ");
+        let Err(err) = result else {
+            panic!("expected DocumentTitleError::Empty for blank titles");
+        };
+        assert_eq!(err, DocumentTitleError::Empty);
+    }
 }
