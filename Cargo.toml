@@ -1,11 +1,25 @@
-[package]
-name = "tei-rapporteur"
-version = "0.1.0"
+[workspace]
+members = [
+    "tei-core",
+    "tei-xml",
+    "tei-py",
+    "tei-test-helpers",
+]
+resolver = "2"
+
+[workspace.package]
 edition = "2024"
+license = "ISC"
+version = "0.1.0"
+authors = ["Payton McIntosh <pmcintosh@df12.net>"]
 
-[dependencies]
+[workspace.dependencies]
+rstest = { version = "0.21.0" }
+rstest-bdd = { version = "0.1.0-alpha4" }
+rstest-bdd-macros = { version = "0.1.0-alpha4" }
+thiserror = { version = "2.0" }
 
-[lints.clippy]
+[workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 
 # 1. hygiene

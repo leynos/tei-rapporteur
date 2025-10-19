@@ -169,7 +169,9 @@ project:
 - Use `rstest` fixtures for shared setup.
 - Replace duplicated tests with `#[rstest(...)]` parameterised cases.
 - Prefer `mockall` for mocks/stubs.
-- Prefer `.expect()` over `.unwrap()`.
+- Prefer `.expect()` over `.unwrap()` in tests. Panic on `Err` is forbidden
+  outside of tests and doctests. Errors outside of tests and doctests MUST be
+  correctly propagated.
 - Use `concat!()` to combine long string literals rather than escaping newlines
   with a backslash.
 - Prefer single line versions of functions where appropriate. I.e.,

@@ -1,2 +1,9 @@
-target/
+/target/
+/**/target/
 **/*.rs.bk
+.cargo/
+.idea/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+Cargo.lock.bak

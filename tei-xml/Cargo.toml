@@ -1,0 +1,18 @@
+[package]
+name = "tei-xml"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tei-core = { path = "../tei-core" }
+
+[dev-dependencies]
+rstest = { workspace = true }
+rstest-bdd = { workspace = true }
+rstest-bdd-macros = { workspace = true }
+tei-test-helpers = { path = "../tei-test-helpers" }

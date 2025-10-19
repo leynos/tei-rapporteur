@@ -1,0 +1,12 @@
+[package]
+name = "tei-test-helpers"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tei-core = { path = "../tei-core" }
