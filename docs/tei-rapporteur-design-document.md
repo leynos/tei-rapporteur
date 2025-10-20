@@ -1,4 +1,4 @@
-# TEI-Rapporteur Design Document
+# TEI-rapporteur design document
 
 ## Introduction
 
@@ -55,7 +55,7 @@ Four crates ship with the repository:
 - `tei-test-helpers` exposes shared assertion utilities so that the XML and
   Python crates can reuse markup expectations without duplicating boilerplate.
 
-The workspace manifest centralises metadata, lint rules, and shared dependency
+The workspace manifest centralizes metadata, lint rules, and shared dependency
 versions. Each crate opts into the shared configuration via `workspace = true`
 stanzas, ensuring that future crates inherit the same guard rails. Behavioural
 coverage for the scaffolding relies on `rstest-bdd`, providing both a happy
@@ -63,7 +63,7 @@ path scenario (serializing a valid title) and a failure scenario (rejecting an
 empty title). These scenarios will evolve into richer contract tests as the
 feature set grows.
 
-## TEI P5 Subset for Podcast Use Cases
+## TEI P5 subset for podcast use cases
 
 **TEI P5** is a comprehensive and extensible XML schema for encoding texts, but
 using all of TEI would be overkill. The design defines a **profiled subset of
@@ -99,10 +99,9 @@ customization) are:
   text or drama notation. Two possible approaches were considered:
 
 - *Spoken Transcripts Module*: Use `<u>` elements (utterances) for each speaker
-  turn([1](https://journals.openedition.org/corpus/4553?lang=en#:~:text=32%E2%97%8B%20,describe%20a%20%E2%80%9Cspeech%20event)).
-  Each `<u>` may have a `who` attribute pointing to a speaker identifier
-  (defined in the header’s cast list). Within `<u>`, the transcribed speech is
-  encoded, possibly with inline elements for emphasis, pauses, etc.
+  turn.[^1] Each `<u>` may have a `who` attribute pointing to a speaker
+  identifier (defined in the header’s cast list). Within `<u>`, the transcribed
+  speech is encoded, possibly with inline elements for emphasis, pauses, etc.
 
 - *Drama Module*: Use `<sp>` elements for speech, containing a `<speaker>`
   child for the speaker’s name and the spoken text in one or more `<p>`
@@ -118,7 +117,7 @@ customization) are:
   is discussed in the data model design below.
 
 - **Stand-off Annotations**: Analytical modules like Bromide will add
-  annotations without altering the original text. We leverage TEI’s
+  annotations without altering the original text. The approach leverages TEI’s
   `<standOff>` section to hold annotations as spans that reference portions of
   the primary text. For example, Bromide could output:
 
@@ -134,17 +133,16 @@ customization) are:
   base script text remains intact, and multiple annotation layers (clichés,
   pronunciation issues, accent shifts, etc.) can coexist.
 
-- We anticipate similar usage for *Chiltern* (pronunciation QA) and *Ascorbic*
+- Similar usage is anticipated for *Chiltern* (pronunciation QA) and *Ascorbic*
   (accent drift). For instance, Chiltern might identify words with
   pronunciation questions and mark them with `<spanGrp type="pronunciation">`
   annotations, or insert a TEI `<pron>` element if inline representation is
-  needed([2](https://www.tei-c.org/Vault/P5//2.4.0/doc/tei-p5-doc/en/html/ref-pron.html#:~:text=P5%3A%20Guidelines%20for%20Electronic%20Text,s%29%20of%20the%20word)).
-   Ascorbic might mark segments of an utterance where a speaker’s accent
-  appears to shift, using a `<spanGrp type="accent">` with spans covering the
-  relevant time or text range and an `ana` value indicating the detected
-  accent. These specifics will be refined as those tools develop, but the TEI
-  framework can accommodate them via stand-off markup or inline tags (e.g., a
-  custom `<distinctPron>` tag defined in the ODD if needed).
+  needed.[^2] Ascorbic might mark segments of an utterance where a speaker’s
+  accent appears to shift, using a `<spanGrp type="accent">` with spans
+  covering the relevant time or text range and an `ana` value indicating the
+  detected accent. These specifics will be refined as those tools develop, but
+  the TEI framework can accommodate them via stand-off markup or inline tags
+  (e.g., a custom `<distinctPron>` tag defined in the ODD if needed).
 
 - All annotation types will be documented in the TEI header’s `<encodingDesc>`
   so that the semantics of `@ana` codes and custom element usage are clear and
@@ -192,8 +190,8 @@ clarity and allows reuse or independent testing of components:
   MessagePack. For example, it might use `serde_json` and `rmp-serde` to enable
   (de)serializing `TeiDocument` to JSON/MsgPack. This crate ensures that the
   Rust data model can be cleanly represented in JSON (the same structure that
-  `msgspec.Struct` expects on the Python side). We can also include versioned
-  JSON schema snapshots here for integration testing and for documentation of
+  `msgspec.Struct` expects on the Python side). Versioned JSON schema snapshots
+  can also be included here for integration testing and for documentation of
   the JSON structure.
 
 - **`tei-ann`**: (Optional/future) A helper crate for working with annotations
@@ -324,7 +322,7 @@ The initial implementation lands the document shell described above:
   non-empty description and optionally track responsibility strings, again
   reusing `HeaderValidationError::EmptyField` for invalid input.
 
-Normalisation helpers centralise the trimming logic so optional values never
+Normalization helpers centralize the trimming logic so optional values never
 carry unintentional whitespace. This by-construction approach keeps downstream
 serialisers simple: they do not need to handle purely cosmetic differences in
 header metadata.
@@ -364,13 +362,12 @@ struct Hi {
 ```
 
 In this example, `P` (paragraph or utterance) has a `content` list that can
-hold either raw text segments or specific inline elements (like `Hi`). We use
-Serde annotations `rename="$value"` to indicate that the text content is
-captured as a value in XML, not a nested tag. We mark content lists with
-`default` to allow empty content. The `untagged` enum means Serde will
-discriminate based on whether a JSON value is a string or an object to decide
-if it's `Text` vs `Hi`, which aligns with how quick-xml will treat XML text vs
-child elements.
+hold either raw text segments or specific inline elements (like `Hi`). Serde
+annotations `rename="$value"` indicate that the text content is captured as a
+value in XML, not a nested tag. Content lists are marked with `default` to
+allow empty content. The `untagged` enum means Serde will discriminate based on
+whether a JSON value is a string or an object to decide if it's `Text` vs `Hi`,
+which aligns with how quick-xml will treat XML text vs child elements.
 
 - **Attributes and Identifiers**: Attributes of TEI elements become struct
   fields, using `serde(rename = "...")` to map to the actual XML attribute
@@ -561,22 +558,22 @@ Testing round-trip integrity is crucial: the test suite verifies that
 
 The Python interface to `tei-rapporteur` is designed for ease of use in
 scripting and data analysis environments, without exposing the complexity of
-XML or Rust internals to the user. We achieve this by presenting Python
-developers with simple functions and Python data classes (via `msgspec.Struct`)
-corresponding to the TEI structures. Under the hood, the Python calls into Rust
-where the heavy lifting happens.
+XML or Rust internals. The module presents Python developers with simple
+functions and Python data classes (via `msgspec.Struct`) corresponding to the
+TEI structures while delegating the heavy lifting to Rust.
 
-### PyO3 Wrapper (`tei_py` module)
+### PyO3 wrapper (`tei_py` module)
 
-We implement a PyO3 module (let’s call it `tei_rapporteur` for Python users)
-with a set of functions to create or transform TEI data. The key functions
-include:
+The implementation exposes a PyO3 module (referred to as `tei_rapporteur` for
+Python callers) with a set of functions to create or transform TEI data. The
+key functions include:
 
 - `parse_xml(xml_str: str) -> Document` – Parse a TEI XML string into a Python
   object. Under the hood, this uses Rust’s `parse_tei` to get a `TeiDocument`.
-  We then wrap it in a PyO3 `Document` class (defined on the Rust side) or
-  immediately convert it to a Python structure. The returned `Document` is a
-  lightweight wrapper that holds the Rust `TeiDocument` internally.
+  The function then wraps it in a PyO3 `Document` class (defined on the Rust
+  side) or immediately converts it to a Python structure. The returned
+  `Document` is a lightweight wrapper that holds the Rust `TeiDocument`
+  internally.
 
 - `emit_xml(doc: Document) -> str` – Take a `Document` (Rust-backed) and emit
   it as TEI XML string by calling Rust’s emitter. This returns the canonical
@@ -624,7 +621,7 @@ that users will usually convert the document into their own `msgspec.Struct`
 classes for any intensive work. The `Document` class is mostly a vessel to
 carry data between functions in this minimal API approach.
 
-Here’s a sketch of what calling the Python API might look like:
+The following sketch illustrates how the Python API can be used:
 
 ```python
 import tei_rapporteur as tei
@@ -649,14 +646,14 @@ xml_out = tei.emit_xml(new_doc)
 ```
 
 In this example, `from_struct` would be a convenience that detects a
-`msgspec.Struct` and converts it. The design hasn't explicitly listed
+`msgspec.Struct` and converts it. The design has not explicitly listed
 `from_struct` above, but it can be implemented to call `msgspec.to_builtins` on
-the object in Python and then call `from_dict` internally. The reason to
-support `from_struct` is to save the user from manually encoding to bytes or
-dict – the extension can do it by leveraging the `msgspec` API at runtime. The
-PyO3 function for `from_struct` can check if the passed Python object has a
-`__struct_fields__` attribute (which `msgspec.Struct` objects do) and if so, do
-the conversion as shown in the pseudo-code snippet.
+the object in Python and then call `from_dict` internally. Supporting
+`from_struct` removes the need to manually encode to bytes or dictionaries –
+the extension can perform that conversion by leveraging the `msgspec` API at
+runtime. The PyO3 function for `from_struct` can check if the passed Python
+object has a `__struct_fields__` attribute (which `msgspec.Struct` objects do)
+and, if so, perform the conversion as shown in the pseudo-code snippet.
 
 ### Why `msgspec.Struct`?
 
@@ -993,25 +990,25 @@ project enforces correctness through a combination of **Rust type structure**,
 These checks ensure that even if an XML passed parsing, it adheres to the
 semantic rules of the TEI profile.
 
-- **External schema validation (optional)**: We intend to provide a RELAX NG
-  schema (and Schematron if needed) for the TEI Episodic profile. Rather than
-  implementing a full RELAX NG validator in Rust (which would be a major
-  project on its own), the library can integrate external tools for users who
-  need that extra guarantee:
+- **External schema validation (optional)**: The roadmap includes providing a
+  RELAX NG schema (and Schematron if needed) for the TEI Episodic profile.
+  Rather than implementing a full RELAX NG validator in Rust (which would be a
+  major project on its own), the library can integrate external tools for
+  callers who need that extra guarantee:
 
 - For example, the distribution could include a function or a command-line tool
-  `tei_validate_schema(xml_str)` that, when invoked, will run the XML through
-  an external validator (like `jing` for RNG or an XSLT for Schematron). This
-  would not be on by default (and certainly not in the core parse path), but as
-  a utility. The test suite or CI can call this after serialization to
+  `tei_validate_schema(xml_str)` that, when invoked, runs the XML through an
+  external validator (like `jing` for RNG or an XSLT for Schematron). This
+  behaviour would remain opt-in (and certainly not in the core parse path), but
+  act as a utility. The test suite or CI can call this after serialization to
   double-check that the output conforms. If any discrepancy is found, that
-  indicates a bug either in the model or understanding of the schema.
+  indicates a bug either in the model or the understanding of the schema.
 
 - This approach keeps the core library lean (no massive schema parsing code)
   but still provides a path to high assurance when needed. Documentation will
-  to run schema validation as part of a QA process (e.g., “if you have jing
-  installed, run `tei-rapporteur --validate file.tei.xml`” which internally
-  calls out).
+  outline how to run schema validation as part of a QA process (for example,
+  “when `jing` is available, run `tei-rapporteur --validate file.tei.xml`,”
+  which internally shells out).
 
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.
@@ -1213,7 +1210,7 @@ class Episode(msgspec.Struct):
     model_version: int = 1
 ```
 
-Now using `tei_rapporteur` in Python:
+Usage in Python:
 
 ```python
 import tei_rapporteur as tei
@@ -1261,11 +1258,10 @@ In this scenario:
 - Finally, the script saves the new XML, which now contains the `<standOff>`
   with spans added by Bromide.
 
-The above Python code shows how seamlessly a user can move between TEI (for
+The above Python code shows how seamlessly a workflow can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and
-manipulation). At no point did the user have to deal with XML libraries, or
-ensure their modifications keep the XML consistent – `tei-rapporteur` handles
-that.
+manipulation). Direct interaction with XML libraries is unnecessary, and the
+runtime keeps the XML consistent automatically.
 
 ## Conclusion
 
@@ -1287,7 +1283,7 @@ Key design takeaways:
   isolation, and developers can work on core logic without Python knowledge and
   vice versa.
 
-- **Semantic Round-tripping**: The project prioritises semantic fidelity of data
+- **Semantic Round-tripping**: The project prioritizes semantic fidelity of data
   over exact XML byte fidelity, enabling normalization that simplifies
   comparisons and ensures consistency. At the same time, the design leaves room
   for a future lossless mode if needed.
@@ -1328,3 +1324,6 @@ code and extensible features to come.
 
 - ChatGPT Rust/PyO3 Integration Strategy (detailed patterns for bridging Rust
   and Python, and TEI-specific considerations)
+
+[^1]: <https://journals.openedition.org/corpus/4553?lang=en#:~:text=32%E2%97%8B%20,describe%20a%20%E2%80%9Cspeech%20event>
+[^2]: <https://www.tei-c.org/Vault/P5//2.4.0/doc/tei-p5-doc/en/html/ref-pron.html#:~:text=P5%3A%20Guidelines%20for%20Electronic%20Text,s%29%20of%20the%20word>
