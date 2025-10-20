@@ -1,4 +1,4 @@
-# TEI-rapporteur design document
+# TEI-Rapporteur design document
 
 ## Introduction
 
@@ -1298,7 +1298,7 @@ Key design takeaways:
   as appropriate. The code structure (with optional features for streaming,
   etc.) allows adding advanced functionality without affecting the stable core.
 
-By grounding all podcast-related tooling on TEI-rapporteur, the architecture
+By grounding all podcast-related tooling on TEI-Rapporteur, the architecture
 ensures that Episodic (the script generator) and analysis modules like Bromide
 speak the same language – a structured, interoperable format. This design not
 only fosters code reuse (one parser to serve all needs) but also provides
