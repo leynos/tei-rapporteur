@@ -101,6 +101,30 @@ fn expect_document(state: &HeaderState) -> TeiDocument {
     expect_ok(state.document(), "document should be valid")
 }
 
+fn expect_profile_desc(state: &HeaderState) -> ProfileDesc {
+    expect_document(state)
+        .header()
+        .profile_desc()
+        .cloned()
+        .unwrap_or_else(|| panic!("profile metadata should be present"))
+}
+
+fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
+    expect_document(state)
+        .header()
+        .encoding_desc()
+        .cloned()
+        .unwrap_or_else(|| panic!("encoding metadata should be present"))
+}
+
+fn expect_revision_desc(state: &HeaderState) -> RevisionDesc {
+    expect_document(state)
+        .header()
+        .revision_desc()
+        .cloned()
+        .unwrap_or_else(|| panic!("revision metadata should be present"))
+}
+
 #[fixture]
 fn state() -> HeaderState {
     HeaderState::default()
@@ -202,11 +226,7 @@ fn the_document_title_should_be(state: &HeaderState, expected: String) {
 #[then("the profile languages should include \"{language}\"")]
 fn the_profile_languages_should_include(state: &HeaderState, language: String) {
     let language = language.into_boxed_str();
-    let document = expect_document(state);
-    let header = document.header();
-    let profile = header
-        .profile_desc()
-        .unwrap_or_else(|| panic!("profile metadata should be present"));
+    let profile = expect_profile_desc(state);
     assert!(
         profile
             .languages()
@@ -218,11 +238,7 @@ fn the_profile_languages_should_include(state: &HeaderState, language: String) {
 #[then("the profile speakers should include \"{speaker}\"")]
 fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
     let speaker = speaker.into_boxed_str();
-    let document = expect_document(state);
-    let header = document.header();
-    let profile = header
-        .profile_desc()
-        .unwrap_or_else(|| panic!("profile metadata should be present"));
+    let profile = expect_profile_desc(state);
     assert!(
         profile
             .speakers()
@@ -234,11 +250,7 @@ fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
 #[then("the header should record an annotation system \"{identifier}\"")]
 fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier: String) {
     let identifier = identifier.into_boxed_str();
-    let document = expect_document(state);
-    let header = document.header();
-    let encoding = header
-        .encoding_desc()
-        .unwrap_or_else(|| panic!("encoding metadata should be present"));
+    let encoding = expect_encoding_desc(state);
     assert!(
         encoding
             .annotation_systems()
@@ -250,11 +262,7 @@ fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier
 #[then("the header should record the revision note \"{description}\"")]
 fn the_header_should_record_the_revision_note(state: &HeaderState, description: String) {
     let description = description.into_boxed_str();
-    let document = expect_document(state);
-    let header = document.header();
-    let revision = header
-        .revision_desc()
-        .unwrap_or_else(|| panic!("revision metadata should be present"));
+    let revision = expect_revision_desc(state);
     assert!(
         revision
             .changes()
