@@ -7,7 +7,7 @@ available today and how to exercise it.
 ## Workspace overview
 
 - `tei-core` now models the top-level `TeiDocument` together with its
-  `TeiHeader` and placeholder `TeiText`. Header metadata is captured through
+  `TeiHeader` and placeholder `TeiText`. Header metadata is captured via
   dedicated structs (`FileDesc`, `ProfileDesc`, `EncodingDesc`, and
   `RevisionDesc`) so callers can assemble rich document context without
   touching XML.
@@ -34,5 +34,5 @@ Use the Makefile targets to work with the entire workspace:
 `tei-core` and `tei-xml` ship behaviour-driven tests that exercise happy and
 unhappy paths. Core scenarios validate that header metadata can be assembled
 and that blank revision notes are rejected, whilst the XML crate confirms title
-serialization and error propagation. These tests run alongside the unit suite
+serialization and error propagation. These tests run alongside the unit suite,
 so developers receive fast feedback when modifying the scaffolding.

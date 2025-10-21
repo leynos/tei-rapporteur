@@ -1,3 +1,9 @@
+//! Behaviour-driven tests for TEI header assembly and validation.
+#![allow(
+    clippy::expect_used,
+    reason = "Tests abort with explicit messages when scenario state is missing."
+)]
+
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::{cell::RefCell, fmt::Display};
@@ -27,7 +33,7 @@ impl HeaderState {
             .borrow()
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| panic!("scenario must declare a document title"))
+            .expect("scenario must declare a document title")
     }
 
     fn profile(&self) -> ProfileDesc {
@@ -63,7 +69,7 @@ impl HeaderState {
             .borrow()
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| panic!("document construction must run before assertions"))
+            .expect("document construction must run before assertions")
     }
 
     fn set_revision_attempt(&self, attempt: Result<RevisionChange, HeaderValidationError>) {
@@ -75,7 +81,7 @@ impl HeaderState {
             .borrow()
             .as_ref()
             .cloned()
-            .unwrap_or_else(|| panic!("revision attempt must run before assertions"))
+            .expect("revision attempt must run before assertions")
     }
 
     fn set_pending_revision_description(&self, description: String) {
@@ -106,7 +112,7 @@ fn expect_profile_desc(state: &HeaderState) -> ProfileDesc {
         .header()
         .profile_desc()
         .cloned()
-        .unwrap_or_else(|| panic!("profile metadata should be present"))
+        .expect("profile metadata should be present")
 }
 
 fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
@@ -114,7 +120,7 @@ fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
         .header()
         .encoding_desc()
         .cloned()
-        .unwrap_or_else(|| panic!("encoding metadata should be present"))
+        .expect("encoding metadata should be present")
 }
 
 fn expect_revision_desc(state: &HeaderState) -> RevisionDesc {
@@ -122,7 +128,7 @@ fn expect_revision_desc(state: &HeaderState) -> RevisionDesc {
         .header()
         .revision_desc()
         .cloned()
-        .unwrap_or_else(|| panic!("revision metadata should be present"))
+        .expect("revision metadata should be present")
 }
 
 #[fixture]
@@ -211,73 +217,91 @@ fn i_assemble_the_tei_document(state: &HeaderState) {
 fn i_attempt_to_record_the_revision(state: &HeaderState) {
     let description = state
         .pending_revision_description()
-        .unwrap_or_else(|| panic!("scenario must configure the revision attempt"));
+        .expect("scenario must configure the revision attempt");
     let attempt = RevisionChange::new(description, "");
     state.set_revision_attempt(attempt);
 }
 
 #[then("the document title should be \"{expected}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn the_document_title_should_be(state: &HeaderState, expected: String) {
-    let expected = expected.into_boxed_str();
     let document = expect_document(state);
-    assert_eq!(document.title().as_str(), expected.as_ref());
+    assert_eq!(document.title().as_str(), expected.as_str());
 }
 
 #[then("the profile languages should include \"{language}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn the_profile_languages_should_include(state: &HeaderState, language: String) {
-    let language = language.into_boxed_str();
     let profile = expect_profile_desc(state);
     assert!(
         profile
             .languages()
             .iter()
-            .any(|item| item == language.as_ref())
+            .any(|item| item == language.as_str())
     );
 }
 
 #[then("the profile speakers should include \"{speaker}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
-    let speaker = speaker.into_boxed_str();
     let profile = expect_profile_desc(state);
     assert!(
         profile
             .speakers()
             .iter()
-            .any(|item| item == speaker.as_ref())
+            .any(|item| item == speaker.as_str())
     );
 }
 
 #[then("the header should record an annotation system \"{identifier}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier: String) {
-    let identifier = identifier.into_boxed_str();
     let encoding = expect_encoding_desc(state);
     assert!(
         encoding
             .annotation_systems()
             .iter()
-            .any(|system| system.identifier() == identifier.as_ref())
+            .any(|system| system.identifier() == identifier.as_str())
     );
 }
 
 #[then("the header should record the revision note \"{description}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn the_header_should_record_the_revision_note(state: &HeaderState, description: String) {
-    let description = description.into_boxed_str();
     let revision = expect_revision_desc(state);
     assert!(
         revision
             .changes()
             .iter()
-            .any(|change| change.description() == description.as_ref())
+            .any(|change| change.description() == description.as_str())
     );
 }
 
 #[then("header validation fails with \"{message}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
 fn header_validation_fails_with(state: &HeaderState, message: String) {
-    let message = message.into_boxed_str();
     let Err(error) = state.revision_attempt() else {
         panic!("expected revision validation to fail");
     };
-    assert_eq!(error.to_string(), message.as_ref());
+    assert_eq!(error.to_string(), message);
 }
 
 #[scenario(path = "tests/features/header.feature", index = 0)]

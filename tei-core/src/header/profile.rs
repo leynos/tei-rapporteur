@@ -29,12 +29,7 @@ impl ProfileDesc {
     /// Returns [`HeaderValidationError::EmptyField`] when the speaker name is
     /// empty after trimming.
     pub fn add_speaker(&mut self, speaker: impl Into<String>) -> Result<(), HeaderValidationError> {
-        let Some(speaker) = normalise_optional_text(speaker) else {
-            return Err(HeaderValidationError::EmptyField { field: "speaker" });
-        };
-
-        self.speakers.push(speaker);
-        Ok(())
+        Self::record_value(&mut self.speakers, speaker, "speaker")
     }
 
     /// Adds a language identifier to the profile.
@@ -47,12 +42,7 @@ impl ProfileDesc {
         &mut self,
         language: impl Into<String>,
     ) -> Result<(), HeaderValidationError> {
-        let Some(language) = normalise_optional_text(language) else {
-            return Err(HeaderValidationError::EmptyField { field: "language" });
-        };
-
-        self.languages.push(language);
-        Ok(())
+        Self::record_value(&mut self.languages, language, "language")
     }
 
     /// Returns the synopsis when present.
@@ -77,6 +67,19 @@ impl ProfileDesc {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.synopsis.is_none() && self.speakers.is_empty() && self.languages.is_empty()
+    }
+
+    fn record_value(
+        target: &mut Vec<String>,
+        value: impl Into<String>,
+        field: &'static str,
+    ) -> Result<(), HeaderValidationError> {
+        let Some(value) = normalise_optional_text(value) else {
+            return Err(HeaderValidationError::EmptyField { field });
+        };
+
+        target.push(value);
+        Ok(())
     }
 }
 
