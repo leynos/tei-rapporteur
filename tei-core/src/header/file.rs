@@ -69,13 +69,12 @@ mod tests {
     use super::*;
 
     #[test]
+    #[expect(clippy::expect_used, reason = "Test asserts valid metadata fixtures")]
     fn file_desc_carries_optional_metadata() {
-        let file_desc = match FileDesc::from_title_str("Wolf 359") {
-            Ok(desc) => desc,
-            Err(error) => panic!("valid title: {error}"),
-        }
-        .with_series("Kakos Industries")
-        .with_synopsis("Drama podcast");
+        let file_desc = FileDesc::from_title_str("Wolf 359")
+            .expect("valid title")
+            .with_series("Kakos Industries")
+            .with_synopsis("Drama podcast");
 
         assert_eq!(file_desc.series(), Some("Kakos Industries"));
         assert_eq!(file_desc.synopsis(), Some("Drama podcast"));

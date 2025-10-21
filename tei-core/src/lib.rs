@@ -10,8 +10,8 @@ mod text;
 mod title;
 
 pub use header::{
-    AnnotationSystem, EncodingDesc, FileDesc, HeaderValidationError, ProfileDesc, RevisionChange,
-    RevisionDesc, TeiHeader,
+    AnnotationSystem, AnnotationSystemId, EncodingDesc, FileDesc, HeaderValidationError,
+    ProfileDesc, RevisionChange, RevisionDesc, TeiHeader,
 };
 pub use text::TeiText;
 pub use title::{DocumentTitle, DocumentTitleError};

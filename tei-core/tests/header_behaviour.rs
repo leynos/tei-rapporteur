@@ -1,8 +1,4 @@
 //! Behaviour-driven tests for TEI header assembly and validation.
-#![allow(
-    clippy::expect_used,
-    reason = "Tests abort with explicit messages when scenario state is missing."
-)]
 
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
@@ -28,6 +24,10 @@ impl HeaderState {
         *self.title.borrow_mut() = Some(title);
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Scenario titles are configured in Given steps"
+    )]
     fn title(&self) -> String {
         self.title
             .borrow()
@@ -64,6 +64,10 @@ impl HeaderState {
         *self.document.borrow_mut() = Some(result);
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Document assembly runs before Then assertions"
+    )]
     fn document(&self) -> Result<TeiDocument, DocumentTitleError> {
         self.document
             .borrow()
@@ -76,6 +80,10 @@ impl HeaderState {
         *self.revision_attempt.borrow_mut() = Some(attempt);
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "Revision attempt is configured in Given or When steps"
+    )]
     fn revision_attempt(&self) -> Result<RevisionChange, HeaderValidationError> {
         self.revision_attempt
             .borrow()
@@ -107,6 +115,10 @@ fn expect_document(state: &HeaderState) -> TeiDocument {
     expect_ok(state.document(), "document should be valid")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Metadata sections are attached during document assembly"
+)]
 fn expect_profile_desc(state: &HeaderState) -> ProfileDesc {
     expect_document(state)
         .header()
@@ -115,6 +127,10 @@ fn expect_profile_desc(state: &HeaderState) -> ProfileDesc {
         .expect("profile metadata should be present")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Metadata sections are attached during document assembly"
+)]
 fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
     expect_document(state)
         .header()
@@ -123,6 +139,10 @@ fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
         .expect("encoding metadata should be present")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "Metadata sections are attached during document assembly"
+)]
 fn expect_revision_desc(state: &HeaderState) -> RevisionDesc {
     expect_document(state)
         .header()
@@ -214,6 +234,10 @@ fn i_assemble_the_tei_document(state: &HeaderState) {
 }
 
 #[when("I attempt to record the revision")]
+#[expect(
+    clippy::expect_used,
+    reason = "Revision attempt input is staged in Given steps"
+)]
 fn i_attempt_to_record_the_revision(state: &HeaderState) {
     let description = state
         .pending_revision_description()
@@ -243,7 +267,8 @@ fn the_profile_languages_should_include(state: &HeaderState, language: String) {
         profile
             .languages()
             .iter()
-            .any(|item| item == language.as_str())
+            .any(|item| item == language.as_str()),
+        "language missing from profile: {language}"
     );
 }
 
@@ -258,7 +283,8 @@ fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
         profile
             .speakers()
             .iter()
-            .any(|item| item == speaker.as_str())
+            .any(|item| item == speaker.as_str()),
+        "speaker missing from profile: {speaker}"
     );
 }
 
@@ -273,7 +299,8 @@ fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier
         encoding
             .annotation_systems()
             .iter()
-            .any(|system| system.identifier() == identifier.as_str())
+            .any(|system| system.identifier() == identifier.as_str()),
+        "annotation system not recorded: {identifier}"
     );
 }
 
@@ -288,7 +315,8 @@ fn the_header_should_record_the_revision_note(state: &HeaderState, description: 
         revision
             .changes()
             .iter()
-            .any(|change| change.description() == description.as_str())
+            .any(|change| change.description() == description.as_str()),
+        "revision note not recorded: {description}"
     );
 }
 

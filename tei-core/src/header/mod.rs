@@ -1,3 +1,9 @@
+//! TEI header model combining bibliographic, profile, encoding, and revision
+//! metadata.
+//!
+//! Exposes the validation errors and helper types consumed throughout the
+//! `tei-core` crate.
+
 use thiserror::Error;
 
 mod encoding;
@@ -5,7 +11,7 @@ mod file;
 mod profile;
 mod revision;
 
-pub use encoding::{AnnotationSystem, EncodingDesc};
+pub use encoding::{AnnotationSystem, AnnotationSystemId, EncodingDesc};
 pub use file::FileDesc;
 pub use profile::ProfileDesc;
 pub use revision::{RevisionChange, RevisionDesc};
@@ -85,6 +91,7 @@ impl TeiHeader {
     }
 }
 
+#[must_use]
 fn normalise_optional_text(value: impl Into<String>) -> Option<String> {
     let trimmed = value.into().trim().to_owned();
 

@@ -1,3 +1,7 @@
+//! Audience and linguistic profile metadata for TEI headers.
+//!
+//! Tracks speakers and languages while normalizing optional fields.
+
 use super::{HeaderValidationError, normalise_optional_text};
 
 /// Audience and linguistic profile metadata.
