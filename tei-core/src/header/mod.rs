@@ -13,8 +13,8 @@ mod revision;
 
 pub use encoding::{AnnotationSystem, AnnotationSystemId, EncodingDesc};
 pub use file::FileDesc;
-pub use profile::ProfileDesc;
-pub use revision::{RevisionChange, RevisionDesc};
+pub use profile::{LanguageTag, ProfileDesc, SpeakerName};
+pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 
 /// Error raised when TEI header metadata fails validation.
 #[derive(Debug, Error, Clone, Eq, PartialEq)]

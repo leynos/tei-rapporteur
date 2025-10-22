@@ -267,7 +267,7 @@ fn the_profile_languages_should_include(state: &HeaderState, language: String) {
         profile
             .languages()
             .iter()
-            .any(|item| item == language.as_str()),
+            .any(|item| item.as_str() == language.as_str()),
         "language missing from profile: {language}"
     );
 }
@@ -283,7 +283,7 @@ fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
         profile
             .speakers()
             .iter()
-            .any(|item| item == speaker.as_str()),
+            .any(|item| item.as_str() == speaker.as_str()),
         "speaker missing from profile: {speaker}"
     );
 }

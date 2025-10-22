@@ -11,7 +11,8 @@ mod title;
 
 pub use header::{
     AnnotationSystem, AnnotationSystemId, EncodingDesc, FileDesc, HeaderValidationError,
-    ProfileDesc, RevisionChange, RevisionDesc, TeiHeader,
+    LanguageTag, ProfileDesc, ResponsibleParty, RevisionChange, RevisionDesc, SpeakerName,
+    TeiHeader,
 };
 pub use text::TeiText;
 pub use title::{DocumentTitle, DocumentTitleError};
@@ -76,11 +77,12 @@ mod tests {
     use super::*;
 
     #[test]
+    #[expect(
+        clippy::expect_used,
+        reason = "Test constructs a document from a valid title"
+    )]
     fn constructs_document_from_title() {
-        let document = match TeiDocument::from_title_str("King Falls AM") {
-            Ok(document) => document,
-            Err(error) => panic!("valid document: {error}"),
-        };
+        let document = TeiDocument::from_title_str("King Falls AM").expect("valid document");
         assert_eq!(document.title().as_str(), "King Falls AM");
     }
 }
