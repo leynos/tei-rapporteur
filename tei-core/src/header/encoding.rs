@@ -3,6 +3,8 @@
 //! Validates identifiers and normalizes optional descriptions to keep the TEI
 //! header consistent.
 
+use std::fmt;
+
 use super::{HeaderValidationError, normalise_optional_text};
 
 /// Aggregates encoding metadata such as annotation systems.
@@ -38,6 +40,14 @@ impl EncodingDesc {
     /// Finds an annotation system by identifier.
     #[must_use]
     pub fn find(&self, id: &AnnotationSystemId) -> Option<&AnnotationSystem> {
+        self.annotation_systems
+            .iter()
+            .find(|system| system.identifier() == id)
+    }
+
+    /// Finds an annotation system by identifier text.
+    #[must_use]
+    pub fn find_str(&self, id: &str) -> Option<&AnnotationSystem> {
         self.annotation_systems
             .iter()
             .find(|system| system.identifier() == id)
@@ -117,6 +127,12 @@ impl AsRef<str> for AnnotationSystemId {
     }
 }
 
+impl fmt::Display for AnnotationSystemId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl PartialEq<str> for AnnotationSystemId {
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
@@ -129,9 +145,18 @@ impl PartialEq<AnnotationSystemId> for str {
     }
 }
 
+impl TryFrom<&str> for AnnotationSystemId {
+    type Error = HeaderValidationError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::convert::TryFrom;
 
     #[test]
     fn annotation_system_requires_identifier() {
@@ -162,8 +187,21 @@ mod tests {
         assert!(encoding.find(&identifier).is_some());
         assert!(
             encoding
-                .find(&AnnotationSystemId::new("other").expect("valid id"))
+                .find(&AnnotationSystemId::try_from("other").expect("valid id"))
                 .is_none()
         );
+        assert!(encoding.find_str(identifier.as_str()).is_some());
+        assert!(encoding.find_str("missing").is_none());
+    }
+
+    #[test]
+    #[expect(
+        clippy::expect_used,
+        reason = "Test ensures trimmed descriptions without exposing fallible handling"
+    )]
+    fn blanks_are_removed_from_descriptions() {
+        let system = AnnotationSystem::new("tok", "   ").expect("identifier should be valid");
+
+        assert!(system.description().is_none());
     }
 }

@@ -111,11 +111,11 @@ mod tests {
     use crate::title::DocumentTitle;
 
     #[test]
+    #[expect(clippy::expect_used, reason = "Test precondition sets a valid title")]
     fn attaches_optional_sections() {
-        let header = TeiHeader::new(FileDesc::new(match DocumentTitle::new("Title") {
-            Ok(title) => title,
-            Err(error) => panic!("valid title: {error}"),
-        }))
+        let header = TeiHeader::new(FileDesc::new(
+            DocumentTitle::new("Title").expect("valid title"),
+        ))
         .with_profile_desc(ProfileDesc::new())
         .with_encoding_desc(EncodingDesc::new())
         .with_revision_desc(RevisionDesc::new());

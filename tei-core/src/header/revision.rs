@@ -95,6 +95,7 @@ impl RevisionDesc {
     }
 
     /// Returns an iterator over the recorded changes.
+    #[must_use = "Iterators must be consumed to inspect revision history"]
     pub fn iter(&self) -> std::slice::Iter<'_, RevisionChange> {
         self.changes.iter()
     }
