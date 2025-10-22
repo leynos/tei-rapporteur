@@ -1,3 +1,6 @@
+//! Provides the validated document title type used by `FileDesc` and
+//! `TeiHeader`, guaranteeing non-empty trimmed text for serialisation.
+
 use std::fmt;
 
 use thiserror::Error;
