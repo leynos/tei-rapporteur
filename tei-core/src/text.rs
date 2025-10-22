@@ -1,3 +1,4 @@
+//! Models the textual body stored alongside the TEI header metadata.
 /// Placeholder for the body of a TEI document.
 ///
 /// The text model will be expanded in future steps. For now the structure
