@@ -21,7 +21,10 @@ pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 pub enum HeaderValidationError {
     /// A textual field was empty once normalised.
     #[error("{field} may not be empty")]
-    EmptyField { field: &'static str },
+    EmptyField {
+        /// Name of the empty field.
+        field: &'static str,
+    },
 }
 
 /// Metadata container for TEI header information.

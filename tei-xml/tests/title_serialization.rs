@@ -1,3 +1,5 @@
+//! Behaviour-driven scenarios covering document title serialization.
+
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
@@ -49,8 +51,9 @@ impl TitleState {
     }
 }
 
+/// Provides shared scenario state for title serialization steps.
 #[fixture]
-pub fn state() -> TitleState {
+fn state() -> TitleState {
     TitleState::default()
 }
 

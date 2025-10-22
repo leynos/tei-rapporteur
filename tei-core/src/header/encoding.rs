@@ -5,6 +5,7 @@
 
 use super::{HeaderValidationError, normalise_optional_text};
 
+/// Aggregates encoding metadata such as annotation systems.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EncodingDesc {
     annotation_systems: Vec<AnnotationSystem>,
