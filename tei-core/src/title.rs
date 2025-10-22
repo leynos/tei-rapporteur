@@ -83,6 +83,12 @@ impl fmt::Display for DocumentTitle {
     }
 }
 
+impl AsRef<str> for DocumentTitle {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl TryFrom<&str> for DocumentTitle {
     type Error = DocumentTitleError;
 
