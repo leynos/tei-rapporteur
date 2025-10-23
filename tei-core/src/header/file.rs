@@ -1,7 +1,5 @@
-//! Bibliographic file description with validated title metadata.
-//!
-//! Captures the canonical document title alongside optional series and
-//! synopsis details used across the TEI header.
+//! Bibliographic file description (`<fileDesc>`) for TEI headers.
+//! Validates the title and normalises optional series and synopsis text.
 use crate::title::{DocumentTitle, DocumentTitleError};
 
 use super::normalise_optional_text;

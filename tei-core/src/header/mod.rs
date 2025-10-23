@@ -113,12 +113,11 @@ mod tests {
     #[test]
     #[expect(clippy::expect_used, reason = "Test precondition sets a valid title")]
     fn attaches_optional_sections() {
-        let header = TeiHeader::new(FileDesc::new(
-            DocumentTitle::new("Title").expect("valid title"),
-        ))
-        .with_profile_desc(ProfileDesc::new())
-        .with_encoding_desc(EncodingDesc::new())
-        .with_revision_desc(RevisionDesc::new());
+        let title = DocumentTitle::new("Title").expect("valid title");
+        let header = TeiHeader::new(FileDesc::new(title))
+            .with_profile_desc(ProfileDesc::new())
+            .with_encoding_desc(EncodingDesc::new())
+            .with_revision_desc(RevisionDesc::new());
 
         assert!(header.profile_desc().is_some());
         assert!(header.encoding_desc().is_some());

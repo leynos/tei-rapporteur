@@ -1,7 +1,6 @@
-//! Encoding documentation metadata and annotation tooling descriptors.
+//! Encoding documentation (`<encodingDesc>`) and annotation system metadata.
 //!
-//! Validates identifiers and normalizes optional descriptions to keep the TEI
-//! header consistent.
+//! Validates identifiers and normalizes optional descriptions to keep the TEI header consistent.
 
 use std::fmt;
 
