@@ -676,6 +676,8 @@ name = "tei-core"
 version = "0.1.0"
 dependencies = [
  "rstest",
+ "rstest-bdd",
+ "rstest-bdd-macros",
  "thiserror 2.0.17",
 ]
 

@@ -32,9 +32,9 @@ configuration, ensuring a clean separation of concerns from the outset.
 This step implements the canonical data structures in pure Rust, representing
 the TEI Episodic Profile as defined in the design document.
 
-- [ ] Define the top-level `TeiDocument` struct, containing `TeiHeader` and
+- [x] Define the top-level `TeiDocument` struct, containing `TeiHeader` and
       `TeiText`.
-- [ ] Implement the structs for the TEI Header: `TeiHeader`, `FileDesc`,
+- [x] Implement the structs for the TEI Header: `TeiHeader`, `FileDesc`,
       `ProfileDesc`, `EncodingDesc`, and `RevisionDesc`.
 - [ ] Implement the structs for the TEI Body: `TeiText`, `TeiBody`, `P`
       (paragraph), and `Utterance`.
