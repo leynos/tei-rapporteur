@@ -3,7 +3,9 @@
 //! The crate concentrates on the canonical Rust data model for the profiled TEI
 //! Episodic subset. Later phases will extend the structures, but the current
 //! focus is the document shell (`TeiDocument`, `TeiHeader`, and `TeiText`) and
-//! the header metadata types referenced throughout the design document.
+//! the header metadata types referenced throughout the design document. The
+//! text module models the TEI body using paragraphs and utterances so tests can
+//! exercise real script fragments.
 
 mod header;
 mod text;
@@ -14,7 +16,7 @@ pub use header::{
     LanguageTag, ProfileDesc, ResponsibleParty, RevisionChange, RevisionDesc, SpeakerName,
     TeiHeader,
 };
-pub use text::TeiText;
+pub use text::{BodyBlock, BodyContentError, P, TeiBody, TeiText, Utterance};
 pub use title::{DocumentTitle, DocumentTitleError};
 
 /// Root TEI document combining metadata and textual content.
@@ -50,7 +52,7 @@ impl TeiDocument {
     pub fn from_title_str(value: &str) -> Result<Self, DocumentTitleError> {
         let file_desc = FileDesc::from_title_str(value)?;
         let header = TeiHeader::new(file_desc);
-        Ok(Self::new(header, TeiText::default()))
+        Ok(Self::new(header, TeiText::empty()))
     }
 
     /// Returns the TEI header.

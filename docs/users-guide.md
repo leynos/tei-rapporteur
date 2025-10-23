@@ -7,10 +7,9 @@ available today and how to exercise it.
 ## Workspace overview
 
 - `tei-core` now models the top-level `TeiDocument` together with its
-  `TeiHeader` and placeholder `TeiText`. Header metadata is captured via
-  dedicated structs (`FileDesc`, `ProfileDesc`, `EncodingDesc`, and
-  `RevisionDesc`) so callers can assemble rich document context without
-  touching XML.
+  `TeiHeader` and body-aware `TeiText`. The text model records ordered
+  paragraphs (`P`) and utterances with optional speaker references so call
+  sites can construct realistic script fixtures without juggling XML.
 - `tei-xml` depends on the core crate and offers
   `serialize_document_title(raw_title)`, which turns validated titles into a
   `<title>` snippet.
@@ -32,7 +31,9 @@ Use the Makefile targets to work with the entire workspace:
 ## Behavioural guarantees
 
 `tei-core` and `tei-xml` ship behaviour-driven tests that exercise happy and
-unhappy paths. Core scenarios validate that header metadata can be assembled
-and that blank revision notes are rejected, whilst the XML crate confirms title
-serialization and error propagation. These tests run alongside the unit suite,
-so developers receive fast feedback when modifying the scaffolding.
+unhappy paths. Core scenarios validate that header metadata can be assembled,
+that blank revision notes are rejected, and that the body model preserves
+paragraph/utterance order while rejecting empty utterances. The XML crate
+confirms title serialization and error propagation. These tests run alongside
+the unit suite, so developers receive fast feedback when modifying the
+scaffolding.
