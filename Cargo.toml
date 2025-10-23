@@ -14,7 +14,7 @@ version = "0.1.0"
 authors = ["Payton McIntosh <pmcintosh@df12.net>"]
 
 [workspace.dependencies]
-rstest = { version = "0.21.0" }
+rstest = { version = "0.26.1" }
 rstest-bdd = { version = "0.1.0-alpha4" }
 rstest-bdd-macros = { version = "0.1.0-alpha4" }
 thiserror = { version = "2.0" }
