@@ -207,16 +207,7 @@ impl P {
     /// Returns [`BodyContentError::EmptyIdentifier`] when the identifier lacks
     /// visible characters.
     pub fn set_id(&mut self, id: impl Into<String>) -> Result<(), BodyContentError> {
-        let trimmed = trim_preserving_original(id.into());
-
-        if trimmed.is_empty() {
-            return Err(BodyContentError::EmptyIdentifier {
-                container: "paragraph",
-            });
-        }
-
-        self.id = Some(trimmed);
-        Ok(())
+        set_optional_identifier(&mut self.id, id, "paragraph")
     }
 
     /// Clears any associated `xml:id`.
@@ -246,16 +237,7 @@ impl P {
     where
         S: Into<String>,
     {
-        let segment = segment.into();
-
-        if segment.trim().is_empty() {
-            return Err(BodyContentError::EmptySegment {
-                container: "paragraph",
-            });
-        }
-
-        self.segments.push(segment);
-        Ok(())
+        push_validated_segment(&mut self.segments, segment, "paragraph")
     }
 }
 
@@ -301,16 +283,7 @@ impl Utterance {
     /// Returns [`BodyContentError::EmptyIdentifier`] when the identifier lacks
     /// visible characters.
     pub fn set_id(&mut self, id: impl Into<String>) -> Result<(), BodyContentError> {
-        let trimmed = trim_preserving_original(id.into());
-
-        if trimmed.is_empty() {
-            return Err(BodyContentError::EmptyIdentifier {
-                container: "utterance",
-            });
-        }
-
-        self.id = Some(trimmed);
-        Ok(())
+        set_optional_identifier(&mut self.id, id, "utterance")
     }
 
     /// Clears any associated `xml:id`.
@@ -368,16 +341,7 @@ impl Utterance {
     where
         S: Into<String>,
     {
-        let segment = segment.into();
-
-        if segment.trim().is_empty() {
-            return Err(BodyContentError::EmptySegment {
-                container: "utterance",
-            });
-        }
-
-        self.segments.push(segment);
-        Ok(())
+        push_validated_segment(&mut self.segments, segment, "utterance")
     }
 }
 
@@ -412,6 +376,36 @@ fn trim_preserving_original(value: String) -> String {
     } else {
         trimmed.to_owned()
     }
+}
+
+fn set_optional_identifier(
+    field: &mut Option<String>,
+    value: impl Into<String>,
+    container: &'static str,
+) -> Result<(), BodyContentError> {
+    let trimmed = trim_preserving_original(value.into());
+
+    if trimmed.is_empty() {
+        return Err(BodyContentError::EmptyIdentifier { container });
+    }
+
+    *field = Some(trimmed);
+    Ok(())
+}
+
+fn push_validated_segment(
+    segments: &mut Vec<String>,
+    segment: impl Into<String>,
+    container: &'static str,
+) -> Result<(), BodyContentError> {
+    let segment = segment.into();
+
+    if segment.trim().is_empty() {
+        return Err(BodyContentError::EmptySegment { container });
+    }
+
+    segments.push(segment);
+    Ok(())
 }
 
 #[cfg(test)]

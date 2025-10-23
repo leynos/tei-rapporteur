@@ -44,6 +44,25 @@ where
     }
 }
 
+/// Helper to retrieve a block at a 1-based index and execute an assertion on it.
+fn with_block_at_index<F>(state: &BodyState, index: usize, f: F)
+where
+    F: FnOnce(&BodyBlock),
+{
+    #[expect(
+        clippy::expect_used,
+        reason = "Scenario uses human friendly 1-based indices"
+    )]
+    let zero_based = index.checked_sub(1).expect("block indices start at 1");
+    let body = state.body();
+    #[expect(clippy::expect_used, reason = "Scenario declares existing blocks")]
+    let block = body
+        .blocks()
+        .get(zero_based)
+        .expect("scenario should configure the block");
+    f(block);
+}
+
 #[fixture]
 fn state() -> BodyState {
     BodyState::default()
@@ -89,28 +108,16 @@ fn the_body_should_report_blocks(state: &BodyState, count: usize) {
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
 fn block_should_be_paragraph(state: &BodyState, index: usize, content: String) {
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario uses human friendly 1-based indices"
-    )]
-    let zero_based = index.checked_sub(1).expect("block indices start at 1");
-    let body = state.body();
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario declares existing blocks"
-    )]
-    let block = body
-        .blocks()
-        .get(zero_based)
-        .expect("scenario should configure the block");
-    let BodyBlock::Paragraph(paragraph) = block else {
-        panic!("expected block {index} to be a paragraph");
-    };
-    assert_eq!(
-        paragraph.segments(),
-        std::slice::from_ref(&content),
-        "paragraph content mismatch",
-    );
+    with_block_at_index(state, index, |block| {
+        let BodyBlock::Paragraph(paragraph) = block else {
+            panic!("expected block {index} to be a paragraph");
+        };
+        assert_eq!(
+            paragraph.segments(),
+            std::slice::from_ref(&content),
+            "paragraph content mismatch",
+        );
+    });
 }
 
 #[then("block {index} should be an utterance for \"{speaker}\" with \"{content}\"")]
@@ -119,33 +126,21 @@ fn block_should_be_paragraph(state: &BodyState, index: usize, content: String) {
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
 fn block_should_be_utterance(state: &BodyState, index: usize, speaker: String, content: String) {
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario uses human friendly 1-based indices"
-    )]
-    let zero_based = index.checked_sub(1).expect("block indices start at 1");
-    let body = state.body();
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario declares existing blocks"
-    )]
-    let block = body
-        .blocks()
-        .get(zero_based)
-        .expect("scenario should configure the block");
-    let BodyBlock::Utterance(utterance) = block else {
-        panic!("expected block {index} to be an utterance");
-    };
-    assert_eq!(
-        utterance.speaker(),
-        Some(speaker.as_str()),
-        "speaker mismatch"
-    );
-    assert_eq!(
-        utterance.segments(),
-        std::slice::from_ref(&content),
-        "utterance content mismatch",
-    );
+    with_block_at_index(state, index, |block| {
+        let BodyBlock::Utterance(utterance) = block else {
+            panic!("expected block {index} to be an utterance");
+        };
+        assert_eq!(
+            utterance.speaker(),
+            Some(speaker.as_str()),
+            "speaker mismatch"
+        );
+        assert_eq!(
+            utterance.segments(),
+            std::slice::from_ref(&content),
+            "utterance content mismatch",
+        );
+    });
 }
 
 #[then("body validation fails with \"{message}\"")]
