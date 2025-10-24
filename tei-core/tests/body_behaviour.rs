@@ -112,11 +112,8 @@ fn block_should_be_paragraph(state: &BodyState, index: usize, content: String) {
         let BodyBlock::Paragraph(paragraph) = block else {
             panic!("expected block {index} to be a paragraph");
         };
-        assert_eq!(
-            paragraph.segments(),
-            std::slice::from_ref(&content),
-            "paragraph content mismatch",
-        );
+        let expected = std::slice::from_ref(&content);
+        assert_eq!(paragraph.segments(), expected, "paragraph content mismatch",);
     });
 }
 
@@ -130,16 +127,13 @@ fn block_should_be_utterance(state: &BodyState, index: usize, speaker: String, c
         let BodyBlock::Utterance(utterance) = block else {
             panic!("expected block {index} to be an utterance");
         };
+        let expected = std::slice::from_ref(&content);
         assert_eq!(
             utterance.speaker(),
             Some(speaker.as_str()),
             "speaker mismatch"
         );
-        assert_eq!(
-            utterance.segments(),
-            std::slice::from_ref(&content),
-            "utterance content mismatch",
-        );
+        assert_eq!(utterance.segments(), expected, "utterance content mismatch",);
     });
 }
 
