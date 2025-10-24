@@ -25,11 +25,11 @@ impl ResponsibleParty {
 
     /// Returns the marker as a string slice.
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
-    fn from_normalised(value: String) -> Self {
+    const fn from_normalised(value: String) -> Self {
         Self(value)
     }
 }
@@ -90,7 +90,7 @@ impl RevisionDesc {
 
     /// Returns the recorded revision history.
     #[must_use]
-    pub fn changes(&self) -> &[RevisionChange] {
+    pub const fn changes(&self) -> &[RevisionChange] {
         self.changes.as_slice()
     }
 
@@ -102,7 +102,7 @@ impl RevisionDesc {
 
     /// Reports whether the revision log has entries.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.changes.is_empty()
     }
 }
@@ -134,23 +134,23 @@ impl RevisionChange {
         description: impl Into<String>,
         resp: impl Into<String>,
     ) -> Result<Self, HeaderValidationError> {
-        let description = required_text(description, "revision note")?;
+        let normalised_description = required_text(description, "revision note")?;
 
         Ok(Self {
-            description,
+            description: normalised_description,
             resp: normalise_optional_text(resp).map(ResponsibleParty::from_normalised),
         })
     }
 
     /// Returns the note text.
     #[must_use]
-    pub fn description(&self) -> &str {
+    pub const fn description(&self) -> &str {
         self.description.as_str()
     }
 
     /// Returns the optional responsibility marker.
     #[must_use]
-    pub fn resp(&self) -> Option<&ResponsibleParty> {
+    pub const fn resp(&self) -> Option<&ResponsibleParty> {
         self.resp.as_ref()
     }
 }

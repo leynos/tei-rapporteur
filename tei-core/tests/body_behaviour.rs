@@ -1,8 +1,9 @@
 //! Behaviour-driven tests for TEI body composition.
 
+use anyhow::{Context, Result, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
-use std::{cell::RefCell, fmt::Display};
+use std::cell::RefCell;
 use tei_core::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
 
 #[derive(Default)]
@@ -34,72 +35,119 @@ impl BodyState {
     }
 }
 
-fn expect_ok<T, E>(result: Result<T, E>, message: &str) -> T
+fn require_ok<T, E>(result: std::result::Result<T, E>, message: &str) -> Result<T>
 where
-    E: Display,
+    E: std::error::Error + Send + Sync + 'static,
 {
-    match result {
-        Ok(value) => value,
-        Err(error) => panic!("{message}: {error}"),
-    }
+    result.with_context(|| message.to_owned())
 }
 
 /// Helper to retrieve a block at a 1-based index and execute an assertion on it.
-fn with_block_at_index<F>(state: &BodyState, index: usize, f: F)
+fn with_block_at_index<F>(state: &BodyState, index: usize, f: F) -> Result<()>
 where
-    F: FnOnce(&BodyBlock),
+    F: FnOnce(&BodyBlock) -> Result<()>,
 {
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario uses human friendly 1-based indices"
-    )]
-    let zero_based = index.checked_sub(1).expect("block indices start at 1");
+    let zero_based = index.checked_sub(1).context("block indices start at 1")?;
     let body = state.body();
-    #[expect(clippy::expect_used, reason = "Scenario declares existing blocks")]
     let block = body
         .blocks()
         .get(zero_based)
-        .expect("scenario should configure the block");
-    f(block);
+        .context("scenario should configure the block")?;
+    f(block)
+}
+
+fn build_state() -> Result<BodyState> {
+    let state = BodyState::default();
+    ensure!(
+        state.body.borrow().blocks().is_empty(),
+        "fresh body must start without blocks"
+    );
+    ensure!(
+        state.last_error.borrow().is_none(),
+        "fresh body must start without errors"
+    );
+    Ok(state)
 }
 
 #[fixture]
-fn state() -> BodyState {
-    BodyState::default()
+fn validated_state() -> BodyState {
+    match build_state() {
+        Ok(state) => state,
+        Err(error) => panic!("failed to initialise body state: {error}"),
+    }
+}
+
+#[fixture]
+fn validated_state_result() -> Result<BodyState> {
+    build_state()
 }
 
 #[given("an empty TEI body")]
-fn an_empty_body(state: &BodyState) {
+fn an_empty_body(#[from(validated_state)] state: &BodyState) -> Result<()> {
     state.reset_body();
+    let body = state.body();
+    ensure!(
+        body.blocks().is_empty(),
+        "body reset should remove all blocks"
+    );
+    ensure!(
+        state.last_error.borrow().is_none(),
+        "reset body should clear recorded errors"
+    );
+    Ok(())
 }
 
 #[when("I add a paragraph containing \"{content}\"")]
-fn i_add_a_paragraph(state: &BodyState, content: String) {
-    let paragraph = expect_ok(P::new([content]), "paragraph should be valid");
+fn i_add_a_paragraph(#[from(validated_state)] state: &BodyState, content: String) -> Result<()> {
+    let paragraph = require_ok(P::new([content]), "paragraph should be valid")?;
     state.push_paragraph(paragraph);
+    Ok(())
 }
 
 #[when("I add an utterance for \"{speaker}\" saying \"{content}\"")]
-fn i_add_an_utterance(state: &BodyState, speaker: String, content: String) {
-    let utterance = expect_ok(
+fn i_add_an_utterance(
+    #[from(validated_state)] state: &BodyState,
+    speaker: String,
+    content: String,
+) -> Result<()> {
+    let utterance = require_ok(
         Utterance::new(Some(speaker), [content]),
         "utterance should be valid",
-    );
+    )?;
     state.push_utterance(utterance);
+    Ok(())
 }
 
 #[when("I attempt to record an utterance for \"{speaker}\" saying \"{content}\"")]
-fn i_attempt_to_record_an_utterance(state: &BodyState, speaker: String, content: String) {
+fn i_attempt_to_record_an_utterance(
+    #[from(validated_state)] state: &BodyState,
+    speaker: String,
+    content: String,
+) -> Result<()> {
     match Utterance::new(Some(speaker), [content]) {
         Ok(utterance) => state.push_utterance(utterance),
         Err(error) => state.set_error(error),
     }
+
+    ensure!(
+        state.body().blocks().len() <= 1,
+        "attempting an utterance should add at most one block"
+    );
+    Ok(())
 }
 
 #[then("the body should report {count} blocks")]
-fn the_body_should_report_blocks(state: &BodyState, count: usize) {
+fn the_body_should_report_blocks(
+    #[from(validated_state)] state: &BodyState,
+    count: usize,
+) -> Result<()> {
     let body = state.body();
-    assert_eq!(body.blocks().len(), count, "unexpected block count");
+    let actual = body.blocks().len();
+    ensure!(
+        actual == count,
+        "unexpected block count: expected {count}, found {actual}"
+    );
+    Ok(())
 }
 
 #[then("block {index} should be a paragraph with \"{content}\"")]
@@ -107,17 +155,23 @@ fn the_body_should_report_blocks(state: &BodyState, count: usize) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn block_should_be_paragraph(state: &BodyState, index: usize, content: String) {
+fn block_should_be_paragraph(
+    #[from(validated_state)] state: &BodyState,
+    index: usize,
+    content: String,
+) -> Result<()> {
     with_block_at_index(state, index, |block| {
         let BodyBlock::Paragraph(paragraph) = block else {
-            panic!("expected block {index} to be a paragraph");
+            bail!("expected block {index} to be a paragraph");
         };
-        assert_eq!(
-            paragraph.segments(),
-            std::slice::from_ref(&content),
-            "paragraph content mismatch",
+        let expected = std::slice::from_ref(&content);
+        let actual_segments = paragraph.segments();
+        ensure!(
+            actual_segments == expected,
+            "paragraph content mismatch: expected {expected:?}, found {actual_segments:?}"
         );
-    });
+        Ok(())
+    })
 }
 
 #[then("block {index} should be an utterance for \"{speaker}\" with \"{content}\"")]
@@ -125,45 +179,66 @@ fn block_should_be_paragraph(state: &BodyState, index: usize, content: String) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn block_should_be_utterance(state: &BodyState, index: usize, speaker: String, content: String) {
+fn block_should_be_utterance(
+    #[from(validated_state)] state: &BodyState,
+    index: usize,
+    speaker: String,
+    content: String,
+) -> Result<()> {
     with_block_at_index(state, index, |block| {
         let BodyBlock::Utterance(utterance) = block else {
-            panic!("expected block {index} to be an utterance");
+            bail!("expected block {index} to be an utterance");
         };
-        assert_eq!(
-            utterance.speaker(),
-            Some(speaker.as_str()),
-            "speaker mismatch"
+        ensure!(
+            utterance.speaker() == Some(speaker.as_str()),
+            "speaker mismatch: expected {speaker}, found {:?}",
+            utterance.speaker()
         );
-        assert_eq!(
-            utterance.segments(),
-            std::slice::from_ref(&content),
-            "utterance content mismatch",
+        let expected = std::slice::from_ref(&content);
+        let actual_segments = utterance.segments();
+        ensure!(
+            actual_segments == expected,
+            "utterance content mismatch: expected {expected:?}, found {actual_segments:?}"
         );
-    });
+        Ok(())
+    })
 }
 
 #[then("body validation fails with \"{message}\"")]
 #[expect(
-    clippy::expect_used,
-    reason = "Scenario must attempt an utterance before asserting on the error"
-)]
-#[expect(
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn body_validation_fails_with(state: &BodyState, message: String) {
+fn body_validation_fails_with(
+    #[from(validated_state)] state: &BodyState,
+    message: String,
+) -> Result<()> {
     let binding = state.last_error.borrow();
-    let error = binding.as_ref().expect("expected an error");
-    assert_eq!(error.to_string(), message);
+    let error = binding.as_ref().context("expected an error")?;
+    let actual = error.to_string();
+    ensure!(
+        actual == message,
+        "validation error mismatch: expected {message}, found {actual}"
+    );
+    Ok(())
 }
 
 #[scenario(path = "tests/features/body.feature", index = 0)]
-fn records_paragraphs_and_utterances(state: BodyState) {
-    let _ = state;
+fn records_paragraphs_and_utterances(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
 }
 
 #[scenario(path = "tests/features/body.feature", index = 1)]
-fn rejects_empty_utterance_content(state: BodyState) {
-    let _ = state;
+fn rejects_empty_utterance_content(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
 }

@@ -60,7 +60,7 @@ impl TeiText {
     /// assert!(!text.is_empty());
     /// ```
     #[must_use]
-    pub fn new(body: TeiBody) -> Self {
+    pub const fn new(body: TeiBody) -> Self {
         Self { body }
     }
 
@@ -72,18 +72,18 @@ impl TeiText {
 
     /// Reports whether any body content has been recorded.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.body.is_empty()
     }
 
     /// Returns the stored body.
     #[must_use]
-    pub fn body(&self) -> &TeiBody {
+    pub const fn body(&self) -> &TeiBody {
         &self.body
     }
 
     /// Returns a mutable reference to the stored body.
-    pub fn body_mut(&mut self) -> &mut TeiBody {
+    pub const fn body_mut(&mut self) -> &mut TeiBody {
         &mut self.body
     }
 }
@@ -131,7 +131,7 @@ impl TeiBody {
 
     /// Returns the recorded blocks.
     #[must_use]
-    pub fn blocks(&self) -> &[BodyBlock] {
+    pub const fn blocks(&self) -> &[BodyBlock] {
         self.blocks.as_slice()
     }
 
@@ -159,7 +159,7 @@ impl TeiBody {
 
     /// Reports whether the body contains any blocks.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.blocks.is_empty()
     }
 }
@@ -223,7 +223,7 @@ impl P {
 
     /// Returns the stored segments.
     #[must_use]
-    pub fn segments(&self) -> &[String] {
+    pub const fn segments(&self) -> &[String] {
         self.segments.as_slice()
     }
 
@@ -265,13 +265,13 @@ impl Utterance {
         S: Into<String>,
         T: Into<String>,
     {
-        let speaker = normalise_optional_speaker(speaker)?;
+        let normalised_speaker = normalise_optional_speaker(speaker)?;
         let collected: Vec<String> = segments.into_iter().map(Into::into).collect();
         ensure_content(&collected, "utterance")?;
 
         Ok(Self {
             id: None,
-            speaker,
+            speaker: normalised_speaker,
             segments: collected,
         })
     }
@@ -327,7 +327,7 @@ impl Utterance {
 
     /// Returns the stored segments.
     #[must_use]
-    pub fn segments(&self) -> &[String] {
+    pub const fn segments(&self) -> &[String] {
         self.segments.as_slice()
     }
 
@@ -398,13 +398,13 @@ fn push_validated_segment(
     segment: impl Into<String>,
     container: &'static str,
 ) -> Result<(), BodyContentError> {
-    let segment = segment.into();
+    let candidate = segment.into();
 
-    if segment.trim().is_empty() {
+    if candidate.trim().is_empty() {
         return Err(BodyContentError::EmptySegment { container });
     }
 
-    segments.push(segment);
+    segments.push(candidate);
     Ok(())
 }
 
@@ -413,10 +413,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test seeds known-valid body content for positive assertions"
-    )]
     fn text_reports_emptiness() {
         let mut text = TeiText::empty();
         assert!(text.is_empty());
@@ -427,10 +423,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test seeds known-valid body content for positive assertions"
-    )]
     fn body_preserves_insertion_order() {
         let mut body = TeiBody::default();
         let paragraph = P::new(["Setup"]).expect("valid paragraph");

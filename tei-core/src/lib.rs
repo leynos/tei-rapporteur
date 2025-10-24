@@ -39,7 +39,7 @@ pub struct TeiDocument {
 impl TeiDocument {
     /// Builds a document from fully formed components.
     #[must_use]
-    pub fn new(header: TeiHeader, text: TeiText) -> Self {
+    pub const fn new(header: TeiHeader, text: TeiText) -> Self {
         Self { header, text }
     }
 
@@ -57,19 +57,19 @@ impl TeiDocument {
 
     /// Returns the TEI header.
     #[must_use]
-    pub fn header(&self) -> &TeiHeader {
+    pub const fn header(&self) -> &TeiHeader {
         &self.header
     }
 
     /// Returns the textual component.
     #[must_use]
-    pub fn text(&self) -> &TeiText {
+    pub const fn text(&self) -> &TeiText {
         &self.text
     }
 
     /// Returns the validated title.
     #[must_use]
-    pub fn title(&self) -> &DocumentTitle {
+    pub const fn title(&self) -> &DocumentTitle {
         self.header.file_desc().title()
     }
 }
@@ -79,10 +79,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test constructs a document from a valid title"
-    )]
     fn constructs_document_from_title() {
         let document = TeiDocument::from_title_str("King Falls AM").expect("valid document");
         assert_eq!(document.title().as_str(), "King Falls AM");

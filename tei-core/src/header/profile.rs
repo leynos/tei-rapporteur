@@ -24,7 +24,7 @@ impl SpeakerName {
 
     /// Returns the speaker name as a string slice.
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
@@ -88,7 +88,7 @@ impl LanguageTag {
 
     /// Returns the language identifier as a string slice.
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
@@ -164,8 +164,8 @@ impl ProfileDesc {
     /// Returns [`HeaderValidationError::EmptyField`] when the speaker name is
     /// empty after trimming.
     pub fn add_speaker(&mut self, speaker: impl Into<String>) -> Result<(), HeaderValidationError> {
-        let speaker = SpeakerName::new(speaker)?;
-        self.speakers.push(speaker);
+        let normalised_speaker = SpeakerName::new(speaker)?;
+        self.speakers.push(normalised_speaker);
         Ok(())
     }
 
@@ -179,8 +179,8 @@ impl ProfileDesc {
         &mut self,
         language: impl Into<String>,
     ) -> Result<(), HeaderValidationError> {
-        let language = LanguageTag::new(language)?;
-        self.languages.push(language);
+        let normalised_language = LanguageTag::new(language)?;
+        self.languages.push(normalised_language);
         Ok(())
     }
 
@@ -192,31 +192,31 @@ impl ProfileDesc {
 
     /// Returns the registered speakers.
     #[must_use]
-    pub fn speakers(&self) -> &[SpeakerName] {
+    pub const fn speakers(&self) -> &[SpeakerName] {
         self.speakers.as_slice()
     }
 
     /// Returns the number of speakers recorded.
     #[must_use]
-    pub fn len_speakers(&self) -> usize {
+    pub const fn len_speakers(&self) -> usize {
         self.speakers.len()
     }
 
     /// Returns the recorded languages.
     #[must_use]
-    pub fn languages(&self) -> &[LanguageTag] {
+    pub const fn languages(&self) -> &[LanguageTag] {
         self.languages.as_slice()
     }
 
     /// Returns the number of language tags recorded.
     #[must_use]
-    pub fn len_languages(&self) -> usize {
+    pub const fn len_languages(&self) -> usize {
         self.languages.len()
     }
 
     /// Reports whether any metadata has been recorded.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.synopsis.is_none() && self.speakers.is_empty() && self.languages.is_empty()
     }
 }
@@ -233,10 +233,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test exercises validated metadata constructors"
-    )]
     fn profile_desc_tracks_speakers_and_languages() {
         let mut profile = ProfileDesc::new();
         profile.add_speaker("Keisha").expect("speaker recorded");
