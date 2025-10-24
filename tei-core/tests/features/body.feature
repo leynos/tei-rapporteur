@@ -14,3 +14,13 @@ Feature: TEI body content
     Given an empty TEI body
     When I attempt to record an utterance for "guest" saying "   "
     Then body validation fails with "utterance content must include at least one non-empty segment"
+
+  Scenario: Rejecting empty paragraph content
+    Given an empty TEI body
+    When I attempt to add a paragraph containing "   "
+    Then body validation fails with "paragraph content must include at least one non-empty segment"
+
+  Scenario: Rejecting whitespace in paragraph identifiers
+    Given an empty TEI body
+    When I attempt to set paragraph identifier to "identifier with space"
+    Then body validation fails with "paragraph identifiers must not contain whitespace"

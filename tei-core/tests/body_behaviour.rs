@@ -104,6 +104,26 @@ fn i_add_a_paragraph(#[from(validated_state)] state: &BodyState, content: String
     Ok(())
 }
 
+#[when("I attempt to add a paragraph containing \"{content}\"")]
+fn i_attempt_to_add_paragraph(
+    #[from(validated_state)] state: &BodyState,
+    content: String,
+) -> Result<()> {
+    match P::new([content]) {
+        Ok(paragraph) => state.push_paragraph(paragraph),
+        Err(error) => state.set_error(error),
+    }
+
+    let recorded_error = state.last_error.borrow().is_some();
+    let block_count = state.body().blocks().len();
+    ensure!(
+        recorded_error || block_count > 0,
+        "attempting to add a paragraph should record an error or append a block",
+    );
+
+    Ok(())
+}
+
 #[when("I add an utterance for \"{speaker}\" saying \"{content}\"")]
 fn i_add_an_utterance(
     #[from(validated_state)] state: &BodyState,
@@ -115,6 +135,24 @@ fn i_add_an_utterance(
         "utterance should be valid",
     )?;
     state.push_utterance(utterance);
+    Ok(())
+}
+
+#[when("I attempt to set paragraph identifier to \"{identifier}\"")]
+fn i_attempt_to_set_paragraph_identifier(
+    #[from(validated_state)] state: &BodyState,
+    identifier: String,
+) -> Result<()> {
+    let mut paragraph = require_ok(
+        P::new(["Valid paragraph content"]),
+        "scenario baseline paragraph should be valid",
+    )?;
+
+    match paragraph.set_id(identifier) {
+        Ok(()) => state.push_paragraph(paragraph),
+        Err(error) => state.set_error(error),
+    }
+
     Ok(())
 }
 
@@ -235,6 +273,26 @@ fn records_paragraphs_and_utterances(
 
 #[scenario(path = "tests/features/body.feature", index = 1)]
 fn rejects_empty_utterance_content(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 2)]
+fn rejects_empty_paragraph_content(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 3)]
+fn rejects_whitespace_paragraph_identifier(
     #[from(validated_state)] state: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {

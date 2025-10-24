@@ -34,6 +34,13 @@ pub enum BodyContentError {
         /// Name of the container that received the invalid identifier.
         container: &'static str,
     },
+
+    /// An `xml:id` attribute contained internal whitespace, which is disallowed.
+    #[error("{container} identifiers must not contain whitespace")]
+    InvalidIdentifier {
+        /// Name of the container that received the invalid identifier.
+        container: &'static str,
+    },
 }
 
 /// Body of a TEI document, including paragraphs and utterances.
@@ -205,7 +212,9 @@ impl P {
     /// # Errors
     ///
     /// Returns [`BodyContentError::EmptyIdentifier`] when the identifier lacks
-    /// visible characters.
+    /// visible characters. Returns
+    /// [`BodyContentError::InvalidIdentifier`] when the identifier contains
+    /// internal whitespace.
     pub fn set_id(&mut self, id: impl Into<String>) -> Result<(), BodyContentError> {
         set_optional_identifier(&mut self.id, id, "paragraph")
     }
@@ -281,7 +290,9 @@ impl Utterance {
     /// # Errors
     ///
     /// Returns [`BodyContentError::EmptyIdentifier`] when the identifier lacks
-    /// visible characters.
+    /// visible characters. Returns
+    /// [`BodyContentError::InvalidIdentifier`] when the identifier contains
+    /// internal whitespace.
     pub fn set_id(&mut self, id: impl Into<String>) -> Result<(), BodyContentError> {
         set_optional_identifier(&mut self.id, id, "utterance")
     }
@@ -389,6 +400,10 @@ fn set_optional_identifier(
         return Err(BodyContentError::EmptyIdentifier { container });
     }
 
+    if trimmed.chars().any(char::is_whitespace) {
+        return Err(BodyContentError::InvalidIdentifier { container });
+    }
+
     *field = Some(trimmed);
     Ok(())
 }
@@ -462,5 +477,35 @@ mod tests {
     fn rejects_blank_speaker_reference() {
         let result = Utterance::new(Some("   "), ["Hello"]);
         assert!(matches!(result, Err(BodyContentError::EmptySpeaker)));
+    }
+
+    #[test]
+    fn paragraph_rejects_identifier_with_whitespace() {
+        let mut paragraph = P::new(["content"]).expect("valid paragraph");
+        let error = paragraph
+            .set_id("identifier with space")
+            .expect_err("identifier whitespace should be rejected");
+
+        assert_eq!(
+            error,
+            BodyContentError::InvalidIdentifier {
+                container: "paragraph",
+            }
+        );
+    }
+
+    #[test]
+    fn utterance_rejects_identifier_with_whitespace() {
+        let mut utterance = Utterance::new(Some("host"), ["hello"]).expect("valid utterance");
+        let error = utterance
+            .set_id("identifier with space")
+            .expect_err("identifier whitespace should be rejected");
+
+        assert_eq!(
+            error,
+            BodyContentError::InvalidIdentifier {
+                container: "utterance",
+            }
+        );
     }
 }
