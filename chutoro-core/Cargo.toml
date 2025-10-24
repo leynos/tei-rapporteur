@@ -1,0 +1,17 @@
+[package]
+name = "chutoro-core"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+rand = { version = "0.8", features = ["small_rng"] }
+rayon = "1.10"
+thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+
+[lints]
+workspace = true

@@ -4,6 +4,7 @@ members = [
     "tei-xml",
     "tei-py",
     "tei-test-helpers",
+    "chutoro-core",
 ]
 resolver = "2"
 
