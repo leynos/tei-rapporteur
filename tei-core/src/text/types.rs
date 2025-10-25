@@ -180,8 +180,26 @@ mod tests {
     }
 
     #[test]
+    fn xml_id_display_matches_as_str() {
+        let id = XmlId::new("intro").expect("identifier should validate");
+        assert_eq!(id.to_string(), id.as_str());
+    }
+
+    #[test]
     fn speaker_rejects_empty_values() {
         let result = Speaker::new("   ");
+        assert!(matches!(result, Err(SpeakerValidationError::Empty)));
+    }
+
+    #[test]
+    fn speaker_accepts_trimmed_values() {
+        let speaker = Speaker::new("  host  ").expect("speaker should be normalised");
+        assert_eq!(speaker.as_str(), "host");
+    }
+
+    #[test]
+    fn speaker_try_from_str_validates() {
+        let result = Speaker::try_from("   ");
         assert!(matches!(result, Err(SpeakerValidationError::Empty)));
     }
 }

@@ -90,13 +90,6 @@ impl HeaderState {
     }
 }
 
-fn require_ok<T, E>(result: std::result::Result<T, E>, message: &str) -> Result<T>
-where
-    E: std::error::Error + Send + Sync + 'static,
-{
-    result.with_context(|| message.to_owned())
-}
-
 fn expect_document(state: &HeaderState) -> Result<TeiDocument> {
     state.document()
 }
@@ -181,19 +174,19 @@ fn a_recording_language(
     #[from(validated_state)] state: &HeaderState,
     language: String,
 ) -> Result<()> {
-    require_ok(
-        state.profile_mut().add_language(language),
-        "language should be recorded",
-    )?;
+    state
+        .profile_mut()
+        .add_language(language)
+        .context("language should be recorded")?;
     Ok(())
 }
 
 #[given("a cast member \"{speaker}\"")]
 fn a_cast_member(#[from(validated_state)] state: &HeaderState, speaker: String) -> Result<()> {
-    require_ok(
-        state.profile_mut().add_speaker(speaker),
-        "speaker should be recorded",
-    )?;
+    state
+        .profile_mut()
+        .add_speaker(speaker)
+        .context("speaker should be recorded")?;
     Ok(())
 }
 
@@ -203,10 +196,8 @@ fn an_annotation_system(
     identifier: String,
     description: String,
 ) -> Result<()> {
-    let system = require_ok(
-        AnnotationSystem::new(identifier, description),
-        "annotation system should validate",
-    )?;
+    let system = AnnotationSystem::new(identifier, description)
+        .context("annotation system should validate")?;
     state.encoding_mut().add_annotation_system(system);
     Ok(())
 }
@@ -216,10 +207,8 @@ fn a_revision_change(
     #[from(validated_state)] state: &HeaderState,
     description: String,
 ) -> Result<()> {
-    let change = require_ok(
-        RevisionChange::new(description, ""),
-        "revision description should validate",
-    )?;
+    let change =
+        RevisionChange::new(description, "").context("revision description should validate")?;
     state.revision_mut().add_change(change);
     ensure!(
         !state.revision().is_empty(),
@@ -263,7 +252,7 @@ fn i_assemble_the_tei_document(#[from(validated_state)] state: &HeaderState) -> 
         Ok(TeiDocument::new(header, TeiText::empty()))
     })();
 
-    let document = require_ok(result, "document should be valid")?;
+    let document = result.context("document should be valid")?;
     state.set_document(document);
     Ok(())
 }

@@ -142,30 +142,27 @@ fn title_creation_fails_with(
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 0)]
 fn serializes_a_valid_title(
-    #[from(validated_state)] state: TitleState,
+    #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
 ) -> Result<()> {
-    drop(state);
     let _ = result?;
     Ok(())
 }
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 1)]
 fn escapes_markup_significant_characters(
-    #[from(validated_state)] state: TitleState,
+    #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
 ) -> Result<()> {
-    drop(state);
     let _ = result?;
     Ok(())
 }
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 2)]
 fn rejects_an_empty_title(
-    #[from(validated_state)] state: TitleState,
+    #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
 ) -> Result<()> {
-    drop(state);
     let _ = result?;
     Ok(())
 }
