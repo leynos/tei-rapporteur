@@ -135,19 +135,4 @@ mod tests {
         let result = Utterance::new(Some("   "), ["Hello"]);
         assert!(matches!(result, Err(BodyContentError::EmptySpeaker)));
     }
-
-    #[test]
-    fn rejects_identifier_with_whitespace() {
-        let mut utterance = Utterance::new(Some("host"), ["hello"]).expect("valid utterance");
-        let error = utterance
-            .set_id("identifier with space")
-            .expect_err("identifier whitespace should be rejected");
-
-        assert_eq!(
-            error,
-            BodyContentError::InvalidIdentifier {
-                container: "utterance"
-            }
-        );
-    }
 }

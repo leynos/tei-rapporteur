@@ -79,6 +79,20 @@ impl P {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text::body::Utterance;
+    use rstest::rstest;
+
+    fn set_paragraph_identifier(id: &str) -> Result<(), BodyContentError> {
+        let mut paragraph = P::new(["content"])?;
+
+        paragraph.set_id(id)
+    }
+
+    fn set_utterance_identifier(id: &str) -> Result<(), BodyContentError> {
+        let mut utterance = Utterance::new(Some("host"), ["hello"])?;
+
+        utterance.set_id(id)
+    }
 
     #[test]
     fn rejects_empty_paragraph_segments() {
@@ -89,18 +103,22 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn rejects_identifier_with_whitespace() {
-        let mut paragraph = P::new(["content"]).expect("valid paragraph");
-        let error = paragraph
-            .set_id("identifier with space")
+    #[rstest]
+    #[case::paragraph(
+        "paragraph",
+        set_paragraph_identifier as fn(&str) -> Result<(), BodyContentError>,
+    )]
+    #[case::utterance(
+        "utterance",
+        set_utterance_identifier as fn(&str) -> Result<(), BodyContentError>,
+    )]
+    fn rejects_identifier_with_whitespace(
+        #[case] container: &'static str,
+        #[case] constructor: fn(&str) -> Result<(), BodyContentError>,
+    ) {
+        let error = constructor("identifier with space")
             .expect_err("identifier whitespace should be rejected");
 
-        assert_eq!(
-            error,
-            BodyContentError::InvalidIdentifier {
-                container: "paragraph"
-            }
-        );
+        assert_eq!(error, BodyContentError::InvalidIdentifier { container });
     }
 }
