@@ -2,7 +2,7 @@ use std::fmt;
 
 use thiserror::Error;
 
-use super::trim_preserving_original;
+use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
 #[derive(Clone, Debug, Eq, PartialEq)]
