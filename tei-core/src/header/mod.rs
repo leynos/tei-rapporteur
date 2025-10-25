@@ -39,7 +39,7 @@ pub struct TeiHeader {
 impl TeiHeader {
     /// Creates a header from its mandatory file description.
     #[must_use]
-    pub fn new(file_desc: FileDesc) -> Self {
+    pub const fn new(file_desc: FileDesc) -> Self {
         Self {
             file: file_desc,
             profile: None,
@@ -50,25 +50,25 @@ impl TeiHeader {
 
     /// Returns the file description.
     #[must_use]
-    pub fn file_desc(&self) -> &FileDesc {
+    pub const fn file_desc(&self) -> &FileDesc {
         &self.file
     }
 
     /// Returns the profile description when provided.
     #[must_use]
-    pub fn profile_desc(&self) -> Option<&ProfileDesc> {
+    pub const fn profile_desc(&self) -> Option<&ProfileDesc> {
         self.profile.as_ref()
     }
 
     /// Returns the encoding description when provided.
     #[must_use]
-    pub fn encoding_desc(&self) -> Option<&EncodingDesc> {
+    pub const fn encoding_desc(&self) -> Option<&EncodingDesc> {
         self.encoding.as_ref()
     }
 
     /// Returns the revision description when provided.
     #[must_use]
-    pub fn revision_desc(&self) -> Option<&RevisionDesc> {
+    pub const fn revision_desc(&self) -> Option<&RevisionDesc> {
         self.revision.as_ref()
     }
 
@@ -111,7 +111,6 @@ mod tests {
     use crate::title::DocumentTitle;
 
     #[test]
-    #[expect(clippy::expect_used, reason = "Test precondition sets a valid title")]
     fn attaches_optional_sections() {
         let title = DocumentTitle::new("Title").expect("valid title");
         let header = TeiHeader::new(FileDesc::new(title))

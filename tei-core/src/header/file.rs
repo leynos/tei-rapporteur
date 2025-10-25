@@ -15,7 +15,7 @@ pub struct FileDesc {
 impl FileDesc {
     /// Builds a file description from a validated title.
     #[must_use]
-    pub fn new(title: DocumentTitle) -> Self {
+    pub const fn new(title: DocumentTitle) -> Self {
         Self {
             title,
             series: None,
@@ -49,7 +49,7 @@ impl FileDesc {
 
     /// Returns the document title.
     #[must_use]
-    pub fn title(&self) -> &DocumentTitle {
+    pub const fn title(&self) -> &DocumentTitle {
         &self.title
     }
 
@@ -71,7 +71,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[expect(clippy::expect_used, reason = "Test asserts valid metadata fixtures")]
     fn file_desc_carries_optional_metadata() {
         let file_desc = FileDesc::from_title_str("Wolf 359")
             .expect("valid title")
