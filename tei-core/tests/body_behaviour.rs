@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
+use tei_core::{BodyBlock, BodyContentError, P, Speaker, TeiBody, Utterance};
 
 #[derive(Default)]
 struct BodyState {
@@ -113,14 +113,7 @@ fn i_attempt_to_add_paragraph(
         Ok(paragraph) => state.push_paragraph(paragraph),
         Err(error) => state.set_error(error),
     }
-
-    let recorded_error = state.last_error.borrow().is_some();
-    let block_count = state.body().blocks().len();
-    ensure!(
-        recorded_error || block_count > 0,
-        "attempting to add a paragraph should record an error or append a block",
-    );
-
+    ensure_attempt_recorded_or_appended(state, "paragraph")?;
     Ok(())
 }
 
@@ -152,7 +145,7 @@ fn i_attempt_to_set_paragraph_identifier(
         Ok(()) => state.push_paragraph(paragraph),
         Err(error) => state.set_error(error),
     }
-
+    ensure_attempt_recorded_or_appended(state, "paragraph")?;
     Ok(())
 }
 
@@ -166,10 +159,35 @@ fn i_attempt_to_record_an_utterance(
         Ok(utterance) => state.push_utterance(utterance),
         Err(error) => state.set_error(error),
     }
+    ensure_attempt_recorded_or_appended(state, "utterance")?;
+    Ok(())
+}
 
+#[when("I attempt to set utterance identifier to \"{identifier}\"")]
+fn i_attempt_to_set_utterance_identifier(
+    #[from(validated_state)] state: &BodyState,
+    identifier: String,
+) -> Result<()> {
+    let mut utterance = require_ok(
+        Utterance::new(Some("Host"), ["Valid utterance content"]),
+        "scenario baseline utterance should be valid",
+    )?;
+
+    match utterance.set_id(identifier) {
+        Ok(()) => state.push_utterance(utterance),
+        Err(error) => state.set_error(error),
+    }
+
+    ensure_attempt_recorded_or_appended(state, "utterance")?;
+    Ok(())
+}
+
+fn ensure_attempt_recorded_or_appended(state: &BodyState, what: &str) -> Result<()> {
+    let recorded_error = state.last_error.borrow().is_some();
+    let block_count = state.body().blocks().len();
     ensure!(
-        state.body().blocks().len() <= 1,
-        "attempting an utterance should add at most one block"
+        recorded_error || block_count > 0,
+        "attempting to add a {what} should record an error or append a block",
     );
     Ok(())
 }
@@ -227,10 +245,10 @@ fn block_should_be_utterance(
         let BodyBlock::Utterance(utterance) = block else {
             bail!("expected block {index} to be an utterance");
         };
+        let actual_speaker = utterance.speaker().map(Speaker::as_str);
         ensure!(
-            utterance.speaker() == Some(speaker.as_str()),
-            "speaker mismatch: expected {speaker}, found {:?}",
-            utterance.speaker()
+            actual_speaker == Some(speaker.as_str()),
+            "speaker mismatch: expected {speaker}, found {actual_speaker:?}",
         );
         let expected = std::slice::from_ref(&content);
         let actual_segments = utterance.segments();
@@ -293,6 +311,26 @@ fn rejects_empty_paragraph_content(
 
 #[scenario(path = "tests/features/body.feature", index = 3)]
 fn rejects_whitespace_paragraph_identifier(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 4)]
+fn rejects_blank_speaker_reference(
+    #[from(validated_state)] state: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 5)]
+fn rejects_whitespace_utterance_identifier(
     #[from(validated_state)] state: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {

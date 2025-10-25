@@ -328,9 +328,8 @@ placeholder segments:
 - `TeiText` owns a `TeiBody`, and `TeiBody` keeps a `Vec<BodyBlock>` so the
   order of paragraphs and utterances remains faithful to the source script.
 - `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
-  variants.
-  This provides a single ordered surface today while leaving room for future
-  variants such as divisions.
+  variants. This provides a single ordered surface today while leaving room for
+  future variants such as divisions.
 - `P` and `Utterance` store linear `Vec<String>` segments until the mixed
   content model lands. Both structs expose helper methods for attaching
   optional `xml:id` values and, in the case of `Utterance`, a speaker reference.

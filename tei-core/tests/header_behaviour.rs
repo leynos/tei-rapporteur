@@ -15,7 +15,7 @@ struct HeaderState {
     profile: RefCell<ProfileDesc>,
     encoding: RefCell<EncodingDesc>,
     revision: RefCell<RevisionDesc>,
-    document: RefCell<Option<Result<TeiDocument, DocumentTitleError>>>,
+    document: RefCell<Option<TeiDocument>>,
     revision_attempt: RefCell<Option<Result<RevisionChange, HeaderValidationError>>>,
     pending_revision_description: RefCell<Option<String>>,
 }
@@ -57,11 +57,11 @@ impl HeaderState {
         self.revision.borrow_mut()
     }
 
-    fn set_document(&self, result: Result<TeiDocument, DocumentTitleError>) {
-        *self.document.borrow_mut() = Some(result);
+    fn set_document(&self, document: TeiDocument) {
+        *self.document.borrow_mut() = Some(document);
     }
 
-    fn document(&self) -> Result<Result<TeiDocument, DocumentTitleError>> {
+    fn document(&self) -> Result<TeiDocument> {
         self.document
             .borrow()
             .as_ref()
@@ -98,7 +98,7 @@ where
 }
 
 fn expect_document(state: &HeaderState) -> Result<TeiDocument> {
-    require_ok(state.document()?, "document should be valid")
+    state.document()
 }
 
 fn expect_profile_desc(state: &HeaderState) -> Result<ProfileDesc> {
@@ -241,7 +241,7 @@ fn an_empty_revision_description(#[from(validated_state)] state: &HeaderState) -
 #[when("I assemble the TEI document")]
 fn i_assemble_the_tei_document(#[from(validated_state)] state: &HeaderState) -> Result<()> {
     let title = state.title()?;
-    let result = (|| {
+    let result = (|| -> Result<TeiDocument, DocumentTitleError> {
         let file_desc = FileDesc::from_title_str(&title)?;
         let mut header = TeiHeader::new(file_desc);
 
@@ -263,7 +263,8 @@ fn i_assemble_the_tei_document(#[from(validated_state)] state: &HeaderState) -> 
         Ok(TeiDocument::new(header, TeiText::empty()))
     })();
 
-    state.set_document(result);
+    let document = require_ok(result, "document should be valid")?;
+    state.set_document(document);
     Ok(())
 }
 
@@ -391,7 +392,7 @@ fn header_validation_fails_with(
     let actual_message = error.to_string();
     ensure!(
         actual_message == message,
-        "revision validation mismatch: expected {message}, found {actual_message}"
+        "revision validation mismatch: expected {message}, found {actual_message}; error={error:?}"
     );
     Ok(())
 }

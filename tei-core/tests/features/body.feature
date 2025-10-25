@@ -24,3 +24,13 @@ Feature: TEI body content
     Given an empty TEI body
     When I attempt to set paragraph identifier to "identifier with space"
     Then body validation fails with "paragraph identifiers must not contain whitespace"
+
+  Scenario: Rejecting blank speaker reference
+    Given an empty TEI body
+    When I attempt to record an utterance for "   " saying "Hello"
+    Then body validation fails with "speaker references must not be empty"
+
+  Scenario: Rejecting whitespace in utterance identifiers
+    Given an empty TEI body
+    When I attempt to set utterance identifier to "identifier with space"
+    Then body validation fails with "utterance identifiers must not contain whitespace"

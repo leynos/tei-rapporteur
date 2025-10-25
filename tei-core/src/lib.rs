@@ -16,7 +16,10 @@ pub use header::{
     LanguageTag, ProfileDesc, ResponsibleParty, RevisionChange, RevisionDesc, SpeakerName,
     TeiHeader,
 };
-pub use text::{BodyBlock, BodyContentError, P, TeiBody, TeiText, Utterance};
+pub use text::{
+    BodyBlock, BodyContentError, IdentifierValidationError, P, Speaker, SpeakerValidationError,
+    TeiBody, TeiText, Utterance, XmlId,
+};
 pub use title::{DocumentTitle, DocumentTitleError};
 
 /// Root TEI document combining metadata and textual content.

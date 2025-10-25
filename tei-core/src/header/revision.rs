@@ -25,11 +25,19 @@ impl ResponsibleParty {
 
     /// Returns the marker as a string slice.
     #[must_use]
-    pub const fn as_str(&self) -> &str {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "String::as_str is not const-stable on current MSRV."
+    )]
+    pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
-    const fn from_normalised(value: String) -> Self {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Normalised strings may rely on non-const standard library APIs."
+    )]
+    fn from_normalised(value: String) -> Self {
         Self(value)
     }
 }
@@ -90,7 +98,11 @@ impl RevisionDesc {
 
     /// Returns the recorded revision history.
     #[must_use]
-    pub const fn changes(&self) -> &[RevisionChange] {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Vec::as_slice is not const-stable on the current toolchain."
+    )]
+    pub fn changes(&self) -> &[RevisionChange] {
         self.changes.as_slice()
     }
 
@@ -102,7 +114,11 @@ impl RevisionDesc {
 
     /// Reports whether the revision log has entries.
     #[must_use]
-    pub const fn is_empty(&self) -> bool {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Vec::is_empty is not const-stable on the current toolchain."
+    )]
+    pub fn is_empty(&self) -> bool {
         self.changes.is_empty()
     }
 }
@@ -144,13 +160,21 @@ impl RevisionChange {
 
     /// Returns the note text.
     #[must_use]
-    pub const fn description(&self) -> &str {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "String::as_str is not const-stable on current MSRV."
+    )]
+    pub fn description(&self) -> &str {
         self.description.as_str()
     }
 
     /// Returns the optional responsibility marker.
     #[must_use]
-    pub const fn resp(&self) -> Option<&ResponsibleParty> {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Option::as_ref is not const-stable on current MSRV."
+    )]
+    pub fn resp(&self) -> Option<&ResponsibleParty> {
         self.resp.as_ref()
     }
 }

@@ -52,13 +52,6 @@ impl TitleState {
     }
 }
 
-fn require_ok<T, E>(result: std::result::Result<T, E>, message: &str) -> Result<T>
-where
-    E: std::error::Error + Send + Sync + 'static,
-{
-    result.with_context(|| message.to_owned())
-}
-
 /// Provides shared scenario state for title serialization steps.
 #[fixture]
 fn validated_state_result() -> Result<TitleState> {
@@ -119,7 +112,9 @@ fn i_attempt_to_build_the_document(#[from(validated_state)] state: &TitleState) 
 #[then("the XML output is \"{expected}\"")]
 fn the_xml_output_is(#[from(validated_state)] state: &TitleState, expected: String) -> Result<()> {
     let expected_markup = expected.into_boxed_str();
-    let markup = require_ok(state.serialized()?, "expected successful serialization")?;
+    let markup = state
+        .serialized()?
+        .context("expected successful serialization")?;
     ensure!(
         markup == expected_markup.as_ref(),
         "serialized markup mismatch: expected {expected_markup:?}, found {markup:?}"

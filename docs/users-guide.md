@@ -8,7 +8,7 @@ available today and how to exercise it.
 
 - `tei-core` now models the top-level `TeiDocument` together with its
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
-  paragraphs (`P`) and utterances with optional speaker references so call
+  paragraphs (`P`) and utterances with optional speaker references, so call
   sites can construct realistic script fixtures without juggling XML.
 - `tei-xml` depends on the core crate and offers
   `serialize_document_title(raw_title)`, which turns validated titles into a

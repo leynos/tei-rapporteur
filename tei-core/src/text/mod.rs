@@ -7,6 +7,10 @@
 
 use thiserror::Error;
 
+mod types;
+
+pub use types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId};
+
 /// Error raised when TEI body content fails validation.
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum BodyContentError {
@@ -183,7 +187,7 @@ pub enum BodyBlock {
 /// Paragraph element containing linear text segments.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct P {
-    id: Option<String>,
+    id: Option<XmlId>,
     segments: Vec<String>,
 }
 
@@ -226,8 +230,12 @@ impl P {
 
     /// Returns the paragraph identifier when present.
     #[must_use]
-    pub fn id(&self) -> Option<&str> {
-        self.id.as_deref()
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Option::as_ref is not const-stable on current MSRV."
+    )]
+    pub fn id(&self) -> Option<&XmlId> {
+        self.id.as_ref()
     }
 
     /// Returns the stored segments.
@@ -253,8 +261,8 @@ impl P {
 /// Spoken utterance that may reference a speaker.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Utterance {
-    id: Option<String>,
-    speaker: Option<String>,
+    id: Option<XmlId>,
+    speaker: Option<Speaker>,
     segments: Vec<String>,
 }
 
@@ -304,8 +312,12 @@ impl Utterance {
 
     /// Returns the utterance identifier when present.
     #[must_use]
-    pub fn id(&self) -> Option<&str> {
-        self.id.as_deref()
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Option::as_ref is not const-stable on current MSRV."
+    )]
+    pub fn id(&self) -> Option<&XmlId> {
+        self.id.as_ref()
     }
 
     /// Assigns the speaker responsible for the utterance.
@@ -315,14 +327,13 @@ impl Utterance {
     /// Returns [`BodyContentError::EmptySpeaker`] when the provided speaker
     /// lacks visible characters.
     pub fn set_speaker(&mut self, speaker: impl Into<String>) -> Result<(), BodyContentError> {
-        let trimmed = trim_preserving_original(speaker.into());
-
-        if trimmed.is_empty() {
-            return Err(BodyContentError::EmptySpeaker);
+        match Speaker::try_from(speaker.into()) {
+            Ok(value) => {
+                self.speaker = Some(value);
+                Ok(())
+            }
+            Err(SpeakerValidationError::Empty) => Err(BodyContentError::EmptySpeaker),
         }
-
-        self.speaker = Some(trimmed);
-        Ok(())
     }
 
     /// Clears the recorded speaker.
@@ -332,8 +343,12 @@ impl Utterance {
 
     /// Returns the recorded speaker when present.
     #[must_use]
-    pub fn speaker(&self) -> Option<&str> {
-        self.speaker.as_deref()
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Option::as_ref is not const-stable on current MSRV."
+    )]
+    pub fn speaker(&self) -> Option<&Speaker> {
+        self.speaker.as_ref()
     }
 
     /// Returns the stored segments.
@@ -364,22 +379,19 @@ fn ensure_content(segments: &[String], container: &'static str) -> Result<(), Bo
     Ok(())
 }
 
-fn normalise_optional_speaker<S>(speaker: Option<S>) -> Result<Option<String>, BodyContentError>
+fn normalise_optional_speaker<S>(speaker: Option<S>) -> Result<Option<Speaker>, BodyContentError>
 where
     S: Into<String>,
 {
-    speaker.map(Into::into).map_or(Ok(None), |value| {
-        let trimmed = trim_preserving_original(value);
-
-        if trimmed.is_empty() {
-            Err(BodyContentError::EmptySpeaker)
-        } else {
-            Ok(Some(trimmed))
-        }
-    })
+    speaker
+        .map(Into::into)
+        .map_or(Ok(None), |value| match Speaker::try_from(value) {
+            Ok(parsed) => Ok(Some(parsed)),
+            Err(SpeakerValidationError::Empty) => Err(BodyContentError::EmptySpeaker),
+        })
 }
 
-fn trim_preserving_original(value: String) -> String {
+pub(super) fn trim_preserving_original(value: String) -> String {
     let trimmed = value.trim();
 
     if trimmed.len() == value.len() {
@@ -390,22 +402,22 @@ fn trim_preserving_original(value: String) -> String {
 }
 
 fn set_optional_identifier(
-    field: &mut Option<String>,
+    field: &mut Option<XmlId>,
     value: impl Into<String>,
     container: &'static str,
 ) -> Result<(), BodyContentError> {
-    let trimmed = trim_preserving_original(value.into());
-
-    if trimmed.is_empty() {
-        return Err(BodyContentError::EmptyIdentifier { container });
+    match XmlId::try_from(value.into()) {
+        Ok(identifier) => {
+            *field = Some(identifier);
+            Ok(())
+        }
+        Err(IdentifierValidationError::Empty) => {
+            Err(BodyContentError::EmptyIdentifier { container })
+        }
+        Err(IdentifierValidationError::ContainsWhitespace) => {
+            Err(BodyContentError::InvalidIdentifier { container })
+        }
     }
-
-    if trimmed.chars().any(char::is_whitespace) {
-        return Err(BodyContentError::InvalidIdentifier { container });
-    }
-
-    *field = Some(trimmed);
-    Ok(())
 }
 
 fn push_validated_segment(
@@ -480,32 +492,22 @@ mod tests {
     }
 
     #[test]
-    fn paragraph_rejects_identifier_with_whitespace() {
+    fn rejects_identifier_with_whitespace_for_paragraphs_and_utterances() {
         let mut paragraph = P::new(["content"]).expect("valid paragraph");
-        let error = paragraph
+        let paragraph_error = paragraph
             .set_id("identifier with space")
             .expect_err("identifier whitespace should be rejected");
 
-        assert_eq!(
-            error,
-            BodyContentError::InvalidIdentifier {
-                container: "paragraph",
-            }
-        );
-    }
-
-    #[test]
-    fn utterance_rejects_identifier_with_whitespace() {
         let mut utterance = Utterance::new(Some("host"), ["hello"]).expect("valid utterance");
-        let error = utterance
+        let utterance_error = utterance
             .set_id("identifier with space")
             .expect_err("identifier whitespace should be rejected");
 
-        assert_eq!(
-            error,
-            BodyContentError::InvalidIdentifier {
-                container: "utterance",
-            }
-        );
+        for (error, container) in [
+            (paragraph_error, "paragraph"),
+            (utterance_error, "utterance"),
+        ] {
+            assert_eq!(error, BodyContentError::InvalidIdentifier { container });
+        }
     }
 }
