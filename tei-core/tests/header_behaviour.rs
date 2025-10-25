@@ -1,8 +1,9 @@
 //! Behaviour-driven tests for TEI header assembly and validation.
 
+use anyhow::{Context, Result, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
-use std::{cell::RefCell, fmt::Display};
+use std::cell::RefCell;
 use tei_core::{
     AnnotationSystem, DocumentTitleError, EncodingDesc, FileDesc, HeaderValidationError,
     ProfileDesc, RevisionChange, RevisionDesc, TeiDocument, TeiHeader, TeiText,
@@ -14,7 +15,7 @@ struct HeaderState {
     profile: RefCell<ProfileDesc>,
     encoding: RefCell<EncodingDesc>,
     revision: RefCell<RevisionDesc>,
-    document: RefCell<Option<Result<TeiDocument, DocumentTitleError>>>,
+    document: RefCell<Option<TeiDocument>>,
     revision_attempt: RefCell<Option<Result<RevisionChange, HeaderValidationError>>>,
     pending_revision_description: RefCell<Option<String>>,
 }
@@ -24,16 +25,12 @@ impl HeaderState {
         *self.title.borrow_mut() = Some(title);
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "Scenario titles are configured in Given steps"
-    )]
-    fn title(&self) -> String {
+    fn title(&self) -> Result<String> {
         self.title
             .borrow()
             .as_ref()
             .cloned()
-            .expect("scenario must declare a document title")
+            .context("scenario must declare a document title")
     }
 
     fn profile(&self) -> ProfileDesc {
@@ -60,36 +57,28 @@ impl HeaderState {
         self.revision.borrow_mut()
     }
 
-    fn set_document(&self, result: Result<TeiDocument, DocumentTitleError>) {
-        *self.document.borrow_mut() = Some(result);
+    fn set_document(&self, document: TeiDocument) {
+        *self.document.borrow_mut() = Some(document);
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "Document assembly runs before Then assertions"
-    )]
-    fn document(&self) -> Result<TeiDocument, DocumentTitleError> {
+    fn document(&self) -> Result<TeiDocument> {
         self.document
             .borrow()
             .as_ref()
             .cloned()
-            .expect("document construction must run before assertions")
+            .context("document construction must run before assertions")
     }
 
     fn set_revision_attempt(&self, attempt: Result<RevisionChange, HeaderValidationError>) {
         *self.revision_attempt.borrow_mut() = Some(attempt);
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "Revision attempt is configured in Given or When steps"
-    )]
-    fn revision_attempt(&self) -> Result<RevisionChange, HeaderValidationError> {
+    fn revision_attempt(&self) -> Result<Result<RevisionChange, HeaderValidationError>> {
         self.revision_attempt
             .borrow()
             .as_ref()
             .cloned()
-            .expect("revision attempt must run before assertions")
+            .context("revision attempt must run before assertions")
     }
 
     fn set_pending_revision_description(&self, description: String) {
@@ -101,115 +90,148 @@ impl HeaderState {
     }
 }
 
-fn expect_ok<T, E>(result: Result<T, E>, message: &str) -> T
-where
-    E: Display,
-{
-    match result {
-        Ok(value) => value,
-        Err(error) => panic!("{message}: {error}"),
-    }
+fn expect_document(state: &HeaderState) -> Result<TeiDocument> {
+    state.document()
 }
 
-fn expect_document(state: &HeaderState) -> TeiDocument {
-    expect_ok(state.document(), "document should be valid")
-}
-
-#[expect(
-    clippy::expect_used,
-    reason = "Metadata sections are attached during document assembly"
-)]
-fn expect_profile_desc(state: &HeaderState) -> ProfileDesc {
-    expect_document(state)
+fn expect_profile_desc(state: &HeaderState) -> Result<ProfileDesc> {
+    expect_document(state)?
         .header()
         .profile_desc()
         .cloned()
-        .expect("profile metadata should be present")
+        .context("profile metadata should be present")
 }
 
-#[expect(
-    clippy::expect_used,
-    reason = "Metadata sections are attached during document assembly"
-)]
-fn expect_encoding_desc(state: &HeaderState) -> EncodingDesc {
-    expect_document(state)
+fn expect_encoding_desc(state: &HeaderState) -> Result<EncodingDesc> {
+    expect_document(state)?
         .header()
         .encoding_desc()
         .cloned()
-        .expect("encoding metadata should be present")
+        .context("encoding metadata should be present")
 }
 
-#[expect(
-    clippy::expect_used,
-    reason = "Metadata sections are attached during document assembly"
-)]
-fn expect_revision_desc(state: &HeaderState) -> RevisionDesc {
-    expect_document(state)
+fn expect_revision_desc(state: &HeaderState) -> Result<RevisionDesc> {
+    expect_document(state)?
         .header()
         .revision_desc()
         .cloned()
-        .expect("revision metadata should be present")
+        .context("revision metadata should be present")
+}
+
+fn build_state() -> Result<HeaderState> {
+    let state = HeaderState::default();
+    ensure!(
+        state.title.borrow().is_none(),
+        "fresh state should not carry a title"
+    );
+    ensure!(
+        state.document.borrow().is_none(),
+        "fresh state should not carry a document"
+    );
+    ensure!(
+        state.revision_attempt.borrow().is_none(),
+        "fresh state should not carry revision attempts"
+    );
+    Ok(state)
 }
 
 #[fixture]
-fn state() -> HeaderState {
-    HeaderState::default()
+fn validated_state() -> HeaderState {
+    match build_state() {
+        Ok(state) => state,
+        Err(error) => panic!("failed to initialise header state: {error}"),
+    }
+}
+
+#[fixture]
+fn validated_state_result() -> Result<HeaderState> {
+    build_state()
 }
 
 #[given("a document title \"{title}\"")]
-fn a_document_title(state: &HeaderState, title: String) {
+fn a_document_title(#[from(validated_state)] state: &HeaderState, title: String) -> Result<()> {
     state.set_title(title);
+    let _ = state.title()?;
+    Ok(())
 }
 
 #[given("a profile synopsis \"{synopsis}\"")]
-fn a_profile_synopsis(state: &HeaderState, synopsis: String) {
+fn a_profile_synopsis(
+    #[from(validated_state)] state: &HeaderState,
+    synopsis: String,
+) -> Result<()> {
     let updated = state.profile().with_synopsis(synopsis);
     *state.profile_mut() = updated;
+    ensure!(
+        state.profile().synopsis().is_some(),
+        "synopsis should be recorded"
+    );
+    Ok(())
 }
 
 #[given("a recording language \"{language}\"")]
-fn a_recording_language(state: &HeaderState, language: String) {
-    expect_ok(
-        state.profile_mut().add_language(language),
-        "language should be recorded",
-    );
+fn a_recording_language(
+    #[from(validated_state)] state: &HeaderState,
+    language: String,
+) -> Result<()> {
+    state
+        .profile_mut()
+        .add_language(language)
+        .context("language should be recorded")?;
+    Ok(())
 }
 
 #[given("a cast member \"{speaker}\"")]
-fn a_cast_member(state: &HeaderState, speaker: String) {
-    expect_ok(
-        state.profile_mut().add_speaker(speaker),
-        "speaker should be recorded",
-    );
+fn a_cast_member(#[from(validated_state)] state: &HeaderState, speaker: String) -> Result<()> {
+    state
+        .profile_mut()
+        .add_speaker(speaker)
+        .context("speaker should be recorded")?;
+    Ok(())
 }
 
 #[given("an annotation system \"{identifier}\" described as \"{description}\"")]
-fn an_annotation_system(state: &HeaderState, identifier: String, description: String) {
-    let system = expect_ok(
-        AnnotationSystem::new(identifier, description),
-        "annotation system should validate",
-    );
+fn an_annotation_system(
+    #[from(validated_state)] state: &HeaderState,
+    identifier: String,
+    description: String,
+) -> Result<()> {
+    let system = AnnotationSystem::new(identifier, description)
+        .context("annotation system should validate")?;
     state.encoding_mut().add_annotation_system(system);
+    Ok(())
 }
 
 #[given("a revision change \"{description}\"")]
-fn a_revision_change(state: &HeaderState, description: String) {
-    let change = expect_ok(
-        RevisionChange::new(description, ""),
-        "revision description should validate",
-    );
+fn a_revision_change(
+    #[from(validated_state)] state: &HeaderState,
+    description: String,
+) -> Result<()> {
+    let change =
+        RevisionChange::new(description, "").context("revision description should validate")?;
     state.revision_mut().add_change(change);
+    ensure!(
+        !state.revision().is_empty(),
+        "revision history should record changes"
+    );
+    Ok(())
 }
 
 #[given("an empty revision description")]
-fn an_empty_revision_description(state: &HeaderState) {
+fn an_empty_revision_description(#[from(validated_state)] state: &HeaderState) -> Result<()> {
     state.set_pending_revision_description(String::new());
+    ensure!(
+        state.pending_revision_description().as_deref() == Some(""),
+        "pending revision description should be staged"
+    );
+    Ok(())
 }
 
 #[when("I assemble the TEI document")]
-fn i_assemble_the_tei_document(state: &HeaderState) {
-    let result = (|| {
-        let file_desc = FileDesc::from_title_str(&state.title())?;
+fn i_assemble_the_tei_document(#[from(validated_state)] state: &HeaderState) -> Result<()> {
+    let title = state.title()?;
+    let result = (|| -> Result<TeiDocument, DocumentTitleError> {
+        let file_desc = FileDesc::from_title_str(&title)?;
         let mut header = TeiHeader::new(file_desc);
 
         let profile = state.profile();
@@ -230,20 +252,19 @@ fn i_assemble_the_tei_document(state: &HeaderState) {
         Ok(TeiDocument::new(header, TeiText::empty()))
     })();
 
-    state.set_document(result);
+    let document = result.context("document should be valid")?;
+    state.set_document(document);
+    Ok(())
 }
 
 #[when("I attempt to record the revision")]
-#[expect(
-    clippy::expect_used,
-    reason = "Revision attempt input is staged in Given steps"
-)]
-fn i_attempt_to_record_the_revision(state: &HeaderState) {
+fn i_attempt_to_record_the_revision(#[from(validated_state)] state: &HeaderState) -> Result<()> {
     let description = state
         .pending_revision_description()
-        .expect("scenario must configure the revision attempt");
+        .context("scenario must configure the revision attempt")?;
     let attempt = RevisionChange::new(description, "");
     state.set_revision_attempt(attempt);
+    Ok(())
 }
 
 #[then("the document title should be \"{expected}\"")]
@@ -251,9 +272,17 @@ fn i_attempt_to_record_the_revision(state: &HeaderState) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn the_document_title_should_be(state: &HeaderState, expected: String) {
-    let document = expect_document(state);
-    assert_eq!(document.title().as_str(), expected.as_str());
+fn the_document_title_should_be(
+    #[from(validated_state)] state: &HeaderState,
+    expected: String,
+) -> Result<()> {
+    let document = expect_document(state)?;
+    let actual_title = document.title().as_str();
+    ensure!(
+        actual_title == expected.as_str(),
+        "document title mismatch: expected {expected}, found {actual_title}"
+    );
+    Ok(())
 }
 
 #[then("the profile languages should include \"{language}\"")]
@@ -261,15 +290,19 @@ fn the_document_title_should_be(state: &HeaderState, expected: String) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn the_profile_languages_should_include(state: &HeaderState, language: String) {
-    let profile = expect_profile_desc(state);
-    assert!(
+fn the_profile_languages_should_include(
+    #[from(validated_state)] state: &HeaderState,
+    language: String,
+) -> Result<()> {
+    let profile = expect_profile_desc(state)?;
+    ensure!(
         profile
             .languages()
             .iter()
             .any(|item| item.as_str() == language.as_str()),
         "language missing from profile: {language}"
     );
+    Ok(())
 }
 
 #[then("the profile speakers should include \"{speaker}\"")]
@@ -277,15 +310,19 @@ fn the_profile_languages_should_include(state: &HeaderState, language: String) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
-    let profile = expect_profile_desc(state);
-    assert!(
+fn the_profile_speakers_should_include(
+    #[from(validated_state)] state: &HeaderState,
+    speaker: String,
+) -> Result<()> {
+    let profile = expect_profile_desc(state)?;
+    ensure!(
         profile
             .speakers()
             .iter()
             .any(|item| item.as_str() == speaker.as_str()),
         "speaker missing from profile: {speaker}"
     );
+    Ok(())
 }
 
 #[then("the header should record an annotation system \"{identifier}\"")]
@@ -293,15 +330,19 @@ fn the_profile_speakers_should_include(state: &HeaderState, speaker: String) {
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier: String) {
-    let encoding = expect_encoding_desc(state);
-    assert!(
+fn the_header_should_record_an_annotation_system(
+    #[from(validated_state)] state: &HeaderState,
+    identifier: String,
+) -> Result<()> {
+    let encoding = expect_encoding_desc(state)?;
+    ensure!(
         encoding
             .annotation_systems()
             .iter()
             .any(|system| system.identifier() == identifier.as_str()),
         "annotation system not recorded: {identifier}"
     );
+    Ok(())
 }
 
 #[then("the header should record the revision note \"{description}\"")]
@@ -309,15 +350,19 @@ fn the_header_should_record_an_annotation_system(state: &HeaderState, identifier
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn the_header_should_record_the_revision_note(state: &HeaderState, description: String) {
-    let revision = expect_revision_desc(state);
-    assert!(
+fn the_header_should_record_the_revision_note(
+    #[from(validated_state)] state: &HeaderState,
+    description: String,
+) -> Result<()> {
+    let revision = expect_revision_desc(state)?;
+    ensure!(
         revision
             .changes()
             .iter()
             .any(|change| change.description() == description.as_str()),
         "revision note not recorded: {description}"
     );
+    Ok(())
 }
 
 #[then("header validation fails with \"{message}\"")]
@@ -325,19 +370,39 @@ fn the_header_should_record_the_revision_note(state: &HeaderState, description: 
     clippy::needless_pass_by_value,
     reason = "rstest_bdd supplies owned Strings for captured step parameters."
 )]
-fn header_validation_fails_with(state: &HeaderState, message: String) {
-    let Err(error) = state.revision_attempt() else {
-        panic!("expected revision validation to fail");
+fn header_validation_fails_with(
+    #[from(validated_state)] state: &HeaderState,
+    message: String,
+) -> Result<()> {
+    let attempt = state.revision_attempt()?;
+    let Err(error) = attempt else {
+        bail!("expected revision validation to fail");
     };
-    assert_eq!(error.to_string(), message);
+    let actual_message = error.to_string();
+    let error_type = std::any::type_name_of_val(&error);
+    ensure!(
+        actual_message == message,
+        "revision validation mismatch: expected {message}, found {actual_message}; error_type={error_type}, error={error:?}"
+    );
+    Ok(())
 }
 
 #[scenario(path = "tests/features/header.feature", index = 0)]
-fn assembles_a_header(state: HeaderState) {
-    let _ = state;
+fn assembles_a_header(
+    #[from(validated_state)] state: HeaderState,
+    #[from(validated_state_result)] validated_state: Result<HeaderState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
 }
 
 #[scenario(path = "tests/features/header.feature", index = 1)]
-fn rejects_blank_revision_notes(state: HeaderState) {
-    let _ = state;
+fn rejects_blank_revision_notes(
+    #[from(validated_state)] state: HeaderState,
+    #[from(validated_state_result)] validated_state: Result<HeaderState>,
+) -> Result<()> {
+    drop(state);
+    let _ = validated_state?;
+    Ok(())
 }

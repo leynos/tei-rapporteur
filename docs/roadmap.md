@@ -36,7 +36,7 @@ the TEI Episodic Profile as defined in the design document.
       `TeiText`.
 - [x] Implement the structs for the TEI Header: `TeiHeader`, `FileDesc`,
       `ProfileDesc`, `EncodingDesc`, and `RevisionDesc`.
-- [ ] Implement the structs for the TEI Body: `TeiText`, `TeiBody`, `P`
+- [x] Implement the structs for the TEI Body: `TeiText`, `TeiBody`, `P`
       (paragraph), and `Utterance`.
 - [ ] Model mixed content using an `Inline` enum to represent plain text and
       elements like `<hi>` and `<pause>`.

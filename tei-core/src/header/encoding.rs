@@ -26,13 +26,13 @@ impl EncodingDesc {
 
     /// Returns the registered systems.
     #[must_use]
-    pub fn annotation_systems(&self) -> &[AnnotationSystem] {
+    pub const fn annotation_systems(&self) -> &[AnnotationSystem] {
         self.annotation_systems.as_slice()
     }
 
     /// Reports whether any annotation systems were registered.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.annotation_systems.is_empty()
     }
 
@@ -71,17 +71,17 @@ impl AnnotationSystem {
         identifier: impl Into<String>,
         description: impl Into<String>,
     ) -> Result<Self, HeaderValidationError> {
-        let identifier = AnnotationSystemId::new(identifier)?;
+        let canonical_identifier = AnnotationSystemId::new(identifier)?;
 
         Ok(Self {
-            identifier,
+            identifier: canonical_identifier,
             description: normalise_optional_text(description),
         })
     }
 
     /// Returns the canonical identifier.
     #[must_use]
-    pub fn identifier(&self) -> &AnnotationSystemId {
+    pub const fn identifier(&self) -> &AnnotationSystemId {
         &self.identifier
     }
 
@@ -115,7 +115,7 @@ impl AnnotationSystemId {
 
     /// Returns the identifier as a string slice.
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         self.0.as_str()
     }
 }
@@ -172,10 +172,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test fixtures assert success for valid metadata"
-    )]
     fn finds_registered_annotation_system() {
         let mut encoding = EncodingDesc::new();
         let system = AnnotationSystem::new("timestamps", "Word timing")
@@ -194,10 +190,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::expect_used,
-        reason = "Test ensures trimmed descriptions without exposing fallible handling"
-    )]
     fn blanks_are_removed_from_descriptions() {
         let system = AnnotationSystem::new("tok", "   ").expect("identifier should be valid");
 

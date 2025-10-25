@@ -322,6 +322,23 @@ The initial implementation lands the document shell described above:
   non-empty description and optionally track responsibility strings, again
   reusing `HeaderValidationError::EmptyField` for invalid input.
 
+The text module now models the `<text><body>` hierarchy instead of relying on
+placeholder segments:
+
+- `TeiText` owns a `TeiBody`, and `TeiBody` keeps a `Vec<BodyBlock>` so the
+  order of paragraphs and utterances remains faithful to the source script.
+- `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
+  variants. This provides a single ordered surface today while leaving room for
+  future variants such as divisions.
+- `P` and `Utterance` store linear `Vec<String>` segments until the mixed
+  content model lands. Both structs expose helper methods for attaching
+  optional `xml:id` values and, in the case of `Utterance`, a speaker reference.
+- Input validation moved into a dedicated `BodyContentError` enum. Paragraphs
+  and utterances must contain at least one non-empty segment, segment
+  insertions reject empty strings, and identifiers/speaker names are trimmed
+  before being recorded. This mirrors the header module’s normalisation story
+  and keeps downstream consumers safe from accidentally blank content.
+
 Normalization helpers centralize the trimming logic so optional values never
 carry unintentional whitespace. This by-construction approach keeps downstream
 serialisers simple: they do not need to handle purely cosmetic differences in
