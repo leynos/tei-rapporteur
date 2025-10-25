@@ -379,9 +379,10 @@ fn header_validation_fails_with(
         bail!("expected revision validation to fail");
     };
     let actual_message = error.to_string();
+    let error_type = std::any::type_name_of_val(&error);
     ensure!(
         actual_message == message,
-        "revision validation mismatch: expected {message}, found {actual_message}; error={error:?}"
+        "revision validation mismatch: expected {message}, found {actual_message}; error_type={error_type}, error={error:?}"
     );
     Ok(())
 }

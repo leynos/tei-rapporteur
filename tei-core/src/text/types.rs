@@ -1,3 +1,8 @@
+//! Validated wrapper types for TEI identifier and speaker attributes.
+//!
+//! Provides `XmlId` and `Speaker` newtypes that enforce non-empty,
+//! normalised values and reject invalid whitespace patterns.
+
 use std::fmt;
 
 use thiserror::Error;
