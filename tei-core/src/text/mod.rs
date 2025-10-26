@@ -61,11 +61,93 @@ impl TeiText {
     pub const fn body_mut(&mut self) -> &mut TeiBody {
         &mut self.body
     }
+
+    /// Appends a paragraph block to the underlying body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_core::{P, TeiText, Utterance};
+    ///
+    /// let mut text = TeiText::empty();
+    /// text
+    ///     .push_paragraph(P::new(["Intro"]).expect("valid paragraph"))
+    ///     .push_utterance(
+    ///         Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance"),
+    ///     );
+    ///
+    /// assert_eq!(text.body().paragraphs().count(), 1);
+    /// assert_eq!(text.body().utterances().count(), 1);
+    /// ```
+    pub fn push_paragraph(&mut self, paragraph: P) -> &mut Self {
+        self.body.push_paragraph(paragraph);
+        self
+    }
+
+    /// Appends an utterance block to the underlying body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_core::{P, TeiText, Utterance};
+    ///
+    /// let mut text = TeiText::empty();
+    /// text
+    ///     .push_paragraph(P::new(["Intro"]).expect("valid paragraph"))
+    ///     .push_utterance(
+    ///         Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance"),
+    ///     );
+    ///
+    /// assert_eq!(text.body().utterances().count(), 1);
+    /// ```
+    pub fn push_utterance(&mut self, utterance: Utterance) -> &mut Self {
+        self.body.push_utterance(utterance);
+        self
+    }
+
+    /// Extends the underlying body with additional blocks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_core::{BodyBlock, P, TeiText, Utterance};
+    ///
+    /// let paragraph = P::new(["Intro"]).expect("valid paragraph");
+    /// let utterance =
+    ///     Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance");
+    /// let mut text = TeiText::empty();
+    /// text
+    ///     .extend([BodyBlock::Paragraph(paragraph.clone())])
+    ///     .push_utterance(utterance.clone());
+    ///
+    /// assert_eq!(
+    ///     text.body().blocks(),
+    ///     [
+    ///         BodyBlock::Paragraph(paragraph),
+    ///         BodyBlock::Utterance(utterance)
+    ///     ]
+    /// );
+    /// ```
+    pub fn extend(&mut self, blocks: impl IntoIterator<Item = BodyBlock>) -> &mut Self {
+        self.body.extend(blocks);
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{BodyBlock, P, TeiBody, TeiText, Utterance};
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    fn sample_paragraph() -> P {
+        P::new(["Intro paragraph"]).expect("valid paragraph")
+    }
+
+    #[fixture]
+    fn sample_utterance() -> Utterance {
+        Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance")
+    }
 
     #[test]
     fn text_reports_emptiness() {
@@ -91,6 +173,36 @@ mod tests {
             [
                 BodyBlock::Paragraph(paragraph),
                 BodyBlock::Utterance(utterance)
+            ]
+        );
+    }
+
+    #[rstest]
+    fn convenience_helpers_delegate_to_body(sample_paragraph: P, sample_utterance: Utterance) {
+        let mut text = TeiText::empty();
+        text.push_paragraph(sample_paragraph.clone())
+            .push_utterance(sample_utterance.clone());
+
+        assert_eq!(
+            text.body().blocks(),
+            [
+                BodyBlock::Paragraph(sample_paragraph),
+                BodyBlock::Utterance(sample_utterance)
+            ]
+        );
+    }
+
+    #[rstest]
+    fn extend_forwards_to_body(sample_paragraph: P, sample_utterance: Utterance) {
+        let mut text = TeiText::empty();
+        text.extend([BodyBlock::Paragraph(sample_paragraph.clone())])
+            .push_utterance(sample_utterance.clone());
+
+        assert_eq!(
+            text.body().blocks(),
+            [
+                BodyBlock::Paragraph(sample_paragraph),
+                BodyBlock::Utterance(sample_utterance)
             ]
         );
     }
