@@ -137,6 +137,17 @@ impl TeiText {
 #[cfg(test)]
 mod tests {
     use super::{BodyBlock, P, TeiBody, TeiText, Utterance};
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    fn sample_paragraph() -> P {
+        P::new(["Intro paragraph"]).expect("valid paragraph")
+    }
+
+    #[fixture]
+    fn sample_utterance() -> Utterance {
+        Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance")
+    }
 
     #[test]
     fn text_reports_emptiness() {
@@ -166,38 +177,32 @@ mod tests {
         );
     }
 
-    #[test]
-    fn convenience_helpers_delegate_to_body() {
-        let paragraph = P::new(["Intro paragraph"]).expect("valid paragraph");
-        let utterance = Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance");
-
+    #[rstest]
+    fn convenience_helpers_delegate_to_body(sample_paragraph: P, sample_utterance: Utterance) {
         let mut text = TeiText::empty();
-        text.push_paragraph(paragraph.clone())
-            .push_utterance(utterance.clone());
+        text.push_paragraph(sample_paragraph.clone())
+            .push_utterance(sample_utterance.clone());
 
         assert_eq!(
             text.body().blocks(),
             [
-                BodyBlock::Paragraph(paragraph),
-                BodyBlock::Utterance(utterance)
+                BodyBlock::Paragraph(sample_paragraph),
+                BodyBlock::Utterance(sample_utterance)
             ]
         );
     }
 
-    #[test]
-    fn extend_forwards_to_body() {
-        let paragraph = P::new(["Intro paragraph"]).expect("valid paragraph");
-        let utterance = Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance");
-
+    #[rstest]
+    fn extend_forwards_to_body(sample_paragraph: P, sample_utterance: Utterance) {
         let mut text = TeiText::empty();
-        text.extend([BodyBlock::Paragraph(paragraph.clone())])
-            .push_utterance(utterance.clone());
+        text.extend([BodyBlock::Paragraph(sample_paragraph.clone())])
+            .push_utterance(sample_utterance.clone());
 
         assert_eq!(
             text.body().blocks(),
             [
-                BodyBlock::Paragraph(paragraph),
-                BodyBlock::Utterance(utterance)
+                BodyBlock::Paragraph(sample_paragraph),
+                BodyBlock::Utterance(sample_utterance)
             ]
         );
     }
