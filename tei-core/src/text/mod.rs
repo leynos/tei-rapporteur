@@ -67,15 +67,21 @@ impl TeiText {
     /// # Examples
     ///
     /// ```
-    /// use tei_core::{P, TeiText};
+    /// use tei_core::{P, TeiText, Utterance};
     ///
     /// let mut text = TeiText::empty();
-    /// text.push_paragraph(P::new(["Intro"]).expect("valid paragraph"));
+    /// text
+    ///     .push_paragraph(P::new(["Intro"]).expect("valid paragraph"))
+    ///     .push_utterance(
+    ///         Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance"),
+    ///     );
     ///
     /// assert_eq!(text.body().paragraphs().count(), 1);
+    /// assert_eq!(text.body().utterances().count(), 1);
     /// ```
-    pub fn push_paragraph(&mut self, paragraph: P) {
+    pub fn push_paragraph(&mut self, paragraph: P) -> &mut Self {
         self.body.push_paragraph(paragraph);
+        self
     }
 
     /// Appends an utterance block to the underlying body.
@@ -83,17 +89,48 @@ impl TeiText {
     /// # Examples
     ///
     /// ```
-    /// use tei_core::{TeiText, Utterance};
+    /// use tei_core::{P, TeiText, Utterance};
     ///
     /// let mut text = TeiText::empty();
-    /// text.push_utterance(
-    ///     Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance"),
-    /// );
+    /// text
+    ///     .push_paragraph(P::new(["Intro"]).expect("valid paragraph"))
+    ///     .push_utterance(
+    ///         Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance"),
+    ///     );
     ///
     /// assert_eq!(text.body().utterances().count(), 1);
     /// ```
-    pub fn push_utterance(&mut self, utterance: Utterance) {
+    pub fn push_utterance(&mut self, utterance: Utterance) -> &mut Self {
         self.body.push_utterance(utterance);
+        self
+    }
+
+    /// Extends the underlying body with additional blocks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_core::{BodyBlock, P, TeiText, Utterance};
+    ///
+    /// let paragraph = P::new(["Intro"]).expect("valid paragraph");
+    /// let utterance =
+    ///     Utterance::new(Some("host"), ["Welcome!"]).expect("valid utterance");
+    /// let mut text = TeiText::empty();
+    /// text
+    ///     .extend([BodyBlock::Paragraph(paragraph.clone())])
+    ///     .push_utterance(utterance.clone());
+    ///
+    /// assert_eq!(
+    ///     text.body().blocks(),
+    ///     [
+    ///         BodyBlock::Paragraph(paragraph),
+    ///         BodyBlock::Utterance(utterance)
+    ///     ]
+    /// );
+    /// ```
+    pub fn extend(&mut self, blocks: impl IntoIterator<Item = BodyBlock>) -> &mut Self {
+        self.body.extend(blocks);
+        self
     }
 }
 
@@ -131,13 +168,30 @@ mod tests {
 
     #[test]
     fn convenience_helpers_delegate_to_body() {
-        let mut text = TeiText::empty();
-
         let paragraph = P::new(["Intro paragraph"]).expect("valid paragraph");
-        text.push_paragraph(paragraph.clone());
-
         let utterance = Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance");
-        text.push_utterance(utterance.clone());
+
+        let mut text = TeiText::empty();
+        text.push_paragraph(paragraph.clone())
+            .push_utterance(utterance.clone());
+
+        assert_eq!(
+            text.body().blocks(),
+            [
+                BodyBlock::Paragraph(paragraph),
+                BodyBlock::Utterance(utterance)
+            ]
+        );
+    }
+
+    #[test]
+    fn extend_forwards_to_body() {
+        let paragraph = P::new(["Intro paragraph"]).expect("valid paragraph");
+        let utterance = Utterance::new(Some("host"), ["Greetings"]).expect("valid utterance");
+
+        let mut text = TeiText::empty();
+        text.extend([BodyBlock::Paragraph(paragraph.clone())])
+            .push_utterance(utterance.clone());
 
         assert_eq!(
             text.body().blocks(),
