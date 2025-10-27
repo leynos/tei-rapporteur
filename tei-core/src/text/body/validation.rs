@@ -1,12 +1,24 @@
-use crate::text::types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId};
+use crate::text::{
+    Inline,
+    types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId},
+};
 
 use super::BodyContentError;
 
-pub(crate) fn ensure_content(
-    segments: &[String],
+pub(crate) fn ensure_container_content(
+    content: &[Inline],
     container: &'static str,
 ) -> Result<(), BodyContentError> {
-    if segments.is_empty() || segments.iter().all(|segment| segment.trim().is_empty()) {
+    if content.is_empty() {
+        return Err(BodyContentError::EmptyContent { container });
+    }
+
+    let mut contains_meaningful = false;
+    for inline in content {
+        contains_meaningful |= validate_inline(inline, container)?;
+    }
+
+    if !contains_meaningful {
         return Err(BodyContentError::EmptyContent { container });
     }
 
@@ -56,17 +68,47 @@ pub(crate) fn set_optional_identifier(
     }
 }
 
-pub(crate) fn push_validated_segment(
-    segments: &mut Vec<String>,
+pub(crate) fn push_validated_text_segment(
+    content: &mut Vec<Inline>,
     segment: impl Into<String>,
     container: &'static str,
 ) -> Result<(), BodyContentError> {
-    let candidate = segment.into();
+    let inline = Inline::text(segment.into());
+    validate_inline(&inline, container)?;
+    content.push(inline);
 
-    if candidate.trim().is_empty() {
-        return Err(BodyContentError::EmptySegment { container });
-    }
-
-    segments.push(candidate);
     Ok(())
+}
+
+pub(crate) fn push_validated_inline(
+    content: &mut Vec<Inline>,
+    inline: Inline,
+    container: &'static str,
+) -> Result<(), BodyContentError> {
+    validate_inline(&inline, container)?;
+    content.push(inline);
+
+    Ok(())
+}
+
+fn validate_inline(inline: &Inline, container: &'static str) -> Result<bool, BodyContentError> {
+    match inline {
+        Inline::Text(text) => {
+            if text.trim().is_empty() {
+                return Err(BodyContentError::EmptySegment { container });
+            }
+
+            Ok(true)
+        }
+        Inline::Hi(hi) => ensure_nested_content(hi.content(), container),
+        Inline::Pause(_) => Ok(true),
+    }
+}
+
+fn ensure_nested_content(
+    content: &[Inline],
+    container: &'static str,
+) -> Result<bool, BodyContentError> {
+    ensure_container_content(content, container)?;
+    Ok(true)
 }

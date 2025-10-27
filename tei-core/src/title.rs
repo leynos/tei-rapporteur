@@ -3,10 +3,11 @@
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Error raised when a [`DocumentTitle`] fails validation.
-#[derive(Debug, Error, Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum DocumentTitleError {
     /// The provided title was empty after trimming whitespace.
     #[error("document title may not be empty")]
@@ -27,7 +28,8 @@ pub enum DocumentTitleError {
 /// assert_eq!(title.as_str(), "Voynich Manuscript");
 /// # Ok::<(), DocumentTitleError>(())
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct DocumentTitle(String);
 
 impl DocumentTitle {

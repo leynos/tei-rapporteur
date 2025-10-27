@@ -38,13 +38,13 @@ the TEI Episodic Profile as defined in the design document.
       `ProfileDesc`, `EncodingDesc`, and `RevisionDesc`.
 - [x] Implement the structs for the TEI Body: `TeiText`, `TeiBody`, `P`
       (paragraph), and `Utterance`.
-- [ ] Model mixed content using an `Inline` enum to represent plain text and
+- [x] Model mixed content using an `Inline` enum to represent plain text and
       elements like `<hi>` and `<pause>`.
-- [ ] Add `serde::Serialize` and `serde::Deserialize` derives to all data model
+- [x] Add `serde::Serialize` and `serde::Deserialize` derives to all data model
       structs and enums.
-- [ ] Implement a custom `TeiError` enum using `thiserror` for structured error
+- [x] Implement a custom `TeiError` enum using `thiserror` for structured error
       handling.
-- [ ] Achieve 95% unit test coverage for all data model invariants and business
+- [x] Achieve 95% unit test coverage for all data model invariants and business
       logic within `tei-core`.
 
 ### Step 1.3: XML Serialization and Deserialization (`tei-xml`)

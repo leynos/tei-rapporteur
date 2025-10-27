@@ -6,14 +6,18 @@
 //! rely on non-empty content.
 
 mod body;
+mod inline;
 mod types;
 
 pub use body::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
+pub use inline::{Hi, Inline, Pause};
 pub use types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId};
 
 /// Body of a TEI document, including paragraphs and utterances.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename = "text")]
 pub struct TeiText {
+    #[serde(rename = "body")]
     body: TeiBody,
 }
 

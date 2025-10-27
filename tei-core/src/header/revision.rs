@@ -7,9 +7,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::{Deserialize, Serialize};
 
 /// Named agent responsible for a revision note.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct ResponsibleParty(String);
 
 impl ResponsibleParty {
@@ -79,8 +81,10 @@ impl TryFrom<&str> for ResponsibleParty {
 }
 
 /// Revision history records.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "revisionDesc")]
 pub struct RevisionDesc {
+    #[serde(rename = "change", skip_serializing_if = "Vec::is_empty", default)]
     changes: Vec<RevisionChange>,
 }
 
@@ -133,9 +137,11 @@ impl<'a> IntoIterator for &'a RevisionDesc {
 }
 
 /// Individual revision note captured in `<revisionDesc>`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RevisionChange {
+    #[serde(rename = "$value")]
     description: String,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "resp", default)]
     resp: Option<ResponsibleParty>,
 }
 

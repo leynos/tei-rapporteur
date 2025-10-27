@@ -8,13 +8,17 @@ pub use paragraph::P;
 pub use utterance::Utterance;
 
 pub(crate) use validation::{
-    ensure_content, normalise_optional_speaker, push_validated_segment, set_optional_identifier,
-    trim_preserving_original,
+    ensure_container_content, normalise_optional_speaker, push_validated_inline,
+    push_validated_text_segment, set_optional_identifier, trim_preserving_original,
 };
 
+use serde::{Deserialize, Serialize};
+
 /// Ordered collection of block-level TEI elements.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "body")]
 pub struct TeiBody {
+    #[serde(rename = "$value", default)]
     blocks: Vec<BodyBlock>,
 }
 
@@ -89,11 +93,13 @@ impl TeiBody {
 }
 
 /// Block-level body content.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum BodyBlock {
     /// A prose paragraph.
+    #[serde(rename = "p")]
     Paragraph(P),
     /// A spoken utterance.
+    #[serde(rename = "u")]
     Utterance(Utterance),
 }
 

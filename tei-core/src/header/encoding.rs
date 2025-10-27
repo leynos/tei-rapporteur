@@ -5,10 +5,17 @@
 use std::fmt;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::{Deserialize, Serialize};
 
 /// Aggregates encoding metadata such as annotation systems.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "encodingDesc")]
 pub struct EncodingDesc {
+    #[serde(
+        rename = "annotationSystem",
+        skip_serializing_if = "Vec::is_empty",
+        default
+    )]
     annotation_systems: Vec<AnnotationSystem>,
 }
 
@@ -54,9 +61,11 @@ impl EncodingDesc {
 }
 
 /// Annotation toolkit metadata.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AnnotationSystem {
+    #[serde(rename = "xml:id")]
     identifier: AnnotationSystemId,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "desc", default)]
     description: Option<String>,
 }
 
@@ -93,7 +102,8 @@ impl AnnotationSystem {
 }
 
 /// Canonical identifier for an annotation system.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct AnnotationSystemId(String);
 
 impl AnnotationSystemId {

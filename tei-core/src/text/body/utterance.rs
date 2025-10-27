@@ -1,15 +1,24 @@
-use crate::text::types::{Speaker, SpeakerValidationError, XmlId};
-
-use super::{
-    BodyContentError, normalise_optional_speaker, push_validated_segment, set_optional_identifier,
+use crate::text::{
+    Inline,
+    types::{Speaker, SpeakerValidationError, XmlId},
 };
 
+use super::{
+    BodyContentError, ensure_container_content, normalise_optional_speaker, push_validated_inline,
+    push_validated_text_segment, set_optional_identifier,
+};
+use serde::{Deserialize, Serialize};
+
 /// Spoken utterance that may reference a speaker.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "u")]
 pub struct Utterance {
+    #[serde(rename = "xml:id", skip_serializing_if = "Option::is_none", default)]
     id: Option<XmlId>,
+    #[serde(rename = "who", skip_serializing_if = "Option::is_none", default)]
     speaker: Option<Speaker>,
-    segments: Vec<String>,
+    #[serde(rename = "$value", default)]
+    content: Vec<Inline>,
 }
 
 impl Utterance {
@@ -29,13 +38,40 @@ impl Utterance {
         T: Into<String>,
     {
         let normalised_speaker = normalise_optional_speaker(speaker)?;
-        let collected: Vec<String> = segments.into_iter().map(Into::into).collect();
-        super::ensure_content(&collected, "utterance")?;
+        let mut content = Vec::new();
+        for segment in segments {
+            push_validated_text_segment(&mut content, segment, "utterance")?;
+        }
+        ensure_container_content(&content, "utterance")?;
 
         Ok(Self {
             id: None,
             speaker: normalised_speaker,
-            segments: collected,
+            content,
+        })
+    }
+
+    /// Builds an utterance from pre-constructed inline content.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when the content lacks
+    /// visible inline information.
+    pub fn from_inline<S>(
+        speaker: Option<S>,
+        content: impl IntoIterator<Item = Inline>,
+    ) -> Result<Self, BodyContentError>
+    where
+        S: Into<String>,
+    {
+        let normalised_speaker = normalise_optional_speaker(speaker)?;
+        let collected: Vec<Inline> = content.into_iter().collect();
+        ensure_container_content(&collected, "utterance")?;
+
+        Ok(Self {
+            id: None,
+            speaker: normalised_speaker,
+            content: collected,
         })
     }
 
@@ -99,8 +135,8 @@ impl Utterance {
 
     /// Returns the stored segments.
     #[must_use]
-    pub const fn segments(&self) -> &[String] {
-        self.segments.as_slice()
+    pub const fn content(&self) -> &[Inline] {
+        self.content.as_slice()
     }
 
     /// Appends a new segment.
@@ -113,7 +149,18 @@ impl Utterance {
     where
         S: Into<String>,
     {
-        push_validated_segment(&mut self.segments, segment, "utterance")
+        push_validated_text_segment(&mut self.content, segment, "utterance")
+    }
+
+    /// Appends a new inline node.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptySegment`] when the inline text lacks
+    /// visible characters. Returns [`BodyContentError::EmptyContent`] when the
+    /// inline element has no meaningful children.
+    pub fn push_inline(&mut self, inline: Inline) -> Result<(), BodyContentError> {
+        push_validated_inline(&mut self.content, inline, "utterance")
     }
 }
 
@@ -134,5 +181,12 @@ mod tests {
     fn rejects_blank_speaker_reference() {
         let result = Utterance::new(Some("   "), ["Hello"]);
         assert!(matches!(result, Err(BodyContentError::EmptySpeaker)));
+    }
+
+    #[test]
+    fn records_inline_content() {
+        let utterance = Utterance::new(Some("host"), ["Hello"]).expect("valid utterance");
+
+        assert_eq!(utterance.content(), [Inline::text("Hello")]);
     }
 }

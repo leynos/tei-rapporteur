@@ -1,12 +1,19 @@
-use crate::text::types::XmlId;
+use crate::text::{Inline, types::XmlId};
 
-use super::{BodyContentError, push_validated_segment, set_optional_identifier};
+use super::{
+    BodyContentError, ensure_container_content, push_validated_inline, push_validated_text_segment,
+    set_optional_identifier,
+};
+use serde::{Deserialize, Serialize};
 
 /// Paragraph element containing linear text segments.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "p")]
 pub struct P {
+    #[serde(rename = "xml:id", skip_serializing_if = "Option::is_none", default)]
     id: Option<XmlId>,
-    segments: Vec<String>,
+    #[serde(rename = "$value", default)]
+    content: Vec<Inline>,
 }
 
 impl P {
@@ -20,12 +27,30 @@ impl P {
     where
         S: Into<String>,
     {
-        let collected: Vec<String> = segments.into_iter().map(Into::into).collect();
-        super::ensure_content(&collected, "paragraph")?;
+        let mut content = Vec::new();
+        for segment in segments {
+            push_validated_text_segment(&mut content, segment, "paragraph")?;
+        }
+        ensure_container_content(&content, "paragraph")?;
+
+        Ok(Self { id: None, content })
+    }
+
+    /// Builds a paragraph from pre-constructed inline content.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when the content lacks
+    /// visible inline information.
+    pub fn from_inline(
+        content: impl IntoIterator<Item = Inline>,
+    ) -> Result<Self, BodyContentError> {
+        let collected: Vec<Inline> = content.into_iter().collect();
+        ensure_container_content(&collected, "paragraph")?;
 
         Ok(Self {
             id: None,
-            segments: collected,
+            content: collected,
         })
     }
 
@@ -58,8 +83,8 @@ impl P {
 
     /// Returns the stored segments.
     #[must_use]
-    pub const fn segments(&self) -> &[String] {
-        self.segments.as_slice()
+    pub const fn content(&self) -> &[Inline] {
+        self.content.as_slice()
     }
 
     /// Appends a new segment.
@@ -72,14 +97,25 @@ impl P {
     where
         S: Into<String>,
     {
-        push_validated_segment(&mut self.segments, segment, "paragraph")
+        push_validated_text_segment(&mut self.content, segment, "paragraph")
+    }
+
+    /// Appends a new inline node.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptySegment`] when the inline text lacks
+    /// visible characters. Returns [`BodyContentError::EmptyContent`] when the
+    /// inline element has no meaningful children.
+    pub fn push_inline(&mut self, inline: Inline) -> Result<(), BodyContentError> {
+        push_validated_inline(&mut self.content, inline, "paragraph")
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::body::Utterance;
+    use crate::text::{Inline, body::Utterance};
     use rstest::rstest;
 
     fn set_paragraph_identifier(id: &str) -> Result<(), BodyContentError> {
@@ -120,5 +156,12 @@ mod tests {
             .expect_err("identifier whitespace should be rejected");
 
         assert_eq!(error, BodyContentError::InvalidIdentifier { container });
+    }
+
+    #[test]
+    fn exposes_content_as_inline_nodes() {
+        let paragraph = P::new(["Hello world"]).expect("paragraph should be valid");
+
+        assert_eq!(paragraph.content(), [Inline::text("Hello world")]);
     }
 }

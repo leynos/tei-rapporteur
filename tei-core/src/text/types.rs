@@ -5,16 +5,18 @@
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct XmlId(String);
 
 /// Errors raised when normalising identifier input.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum IdentifierValidationError {
     /// The identifier trimmed to an empty string.
     #[error("identifiers must not be empty")]
@@ -92,11 +94,12 @@ impl TryFrom<&str> for XmlId {
 }
 
 /// Validated wrapper for utterance speaker references.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct Speaker(String);
 
 /// Errors raised when normalising speaker references.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum SpeakerValidationError {
     /// The speaker trimmed to an empty string.
     #[error("speaker references must not be empty")]

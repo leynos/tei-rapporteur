@@ -6,9 +6,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::{Deserialize, Serialize};
 
 /// Validated speaker name stored within [`ProfileDesc`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct SpeakerName(String);
 
 impl SpeakerName {
@@ -72,7 +74,8 @@ impl TryFrom<&str> for SpeakerName {
 }
 
 /// Validated language identifier stored within [`ProfileDesc`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct LanguageTag(String);
 
 impl LanguageTag {
@@ -136,10 +139,14 @@ impl TryFrom<&str> for LanguageTag {
 }
 
 /// Audience and linguistic profile metadata.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "profileDesc")]
 pub struct ProfileDesc {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     synopsis: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "speaker")]
     speakers: Vec<SpeakerName>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "lang")]
     languages: Vec<LanguageTag>,
 }
 

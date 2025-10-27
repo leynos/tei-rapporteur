@@ -2,13 +2,19 @@
 //! Validates the title and normalises optional series and synopsis text.
 use crate::title::{DocumentTitle, DocumentTitleError};
 
+use serde::{Deserialize, Serialize};
+
 use super::normalise_optional_text;
 
 /// Bibliographic metadata describing the TEI file.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "fileDesc")]
 pub struct FileDesc {
+    #[serde(rename = "title")]
     title: DocumentTitle,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     series: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     synopsis: Option<String>,
 }
 

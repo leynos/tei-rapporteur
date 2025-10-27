@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{BodyBlock, BodyContentError, P, Speaker, TeiBody, Utterance};
+use tei_core::{BodyBlock, BodyContentError, Inline, P, Speaker, TeiBody, Utterance};
 
 #[derive(Default)]
 struct BodyState {
@@ -97,12 +97,36 @@ fn i_add_a_paragraph(#[from(validated_state)] state: &BodyState, content: String
     Ok(())
 }
 
+#[when("I add a paragraph emphasising \"{content}\"")]
+fn i_add_a_paragraph_emphasising(
+    #[from(validated_state)] state: &BodyState,
+    content: String,
+) -> Result<()> {
+    let emphasis = Inline::hi([Inline::text(content)]);
+    let paragraph = P::from_inline([emphasis]).context("paragraph should be valid")?;
+    state.push_paragraph(paragraph);
+    Ok(())
+}
+
 #[when("I attempt to add a paragraph containing \"{content}\"")]
 fn i_attempt_to_add_paragraph(
     #[from(validated_state)] state: &BodyState,
     content: String,
 ) -> Result<()> {
     match P::new([content]) {
+        Ok(paragraph) => state.push_paragraph(paragraph),
+        Err(error) => state.set_error(error),
+    }
+    ensure_attempt_recorded_or_appended(state, "paragraph")?;
+    Ok(())
+}
+
+#[when("I attempt to add a paragraph emphasising \"{content}\"")]
+fn i_attempt_to_add_paragraph_emphasising(
+    #[from(validated_state)] state: &BodyState,
+    content: String,
+) -> Result<()> {
+    match P::from_inline([Inline::hi([Inline::text(content)])]) {
         Ok(paragraph) => state.push_paragraph(paragraph),
         Err(error) => state.set_error(error),
     }
@@ -118,6 +142,20 @@ fn i_add_an_utterance(
 ) -> Result<()> {
     let utterance =
         Utterance::new(Some(speaker), [content]).context("utterance should be valid")?;
+    state.push_utterance(utterance);
+    Ok(())
+}
+
+#[when("I add an utterance for \"{speaker}\" with a pause cue")]
+fn i_add_an_utterance_with_pause(
+    #[from(validated_state)] state: &BodyState,
+    speaker: String,
+) -> Result<()> {
+    let utterance = Utterance::from_inline(
+        Some(speaker),
+        [Inline::text("Wait"), Inline::pause(), Inline::text(" go")],
+    )
+    .context("utterance with pause should be valid")?;
     state.push_utterance(utterance);
     Ok(())
 }
@@ -207,11 +245,48 @@ fn block_should_be_paragraph(
         let BodyBlock::Paragraph(paragraph) = block else {
             bail!("expected block {index} to be a paragraph");
         };
-        let expected = std::slice::from_ref(&content);
-        let actual_segments = paragraph.segments();
+        let expected = [Inline::text(content.clone())];
+        let actual_segments = paragraph.content();
         ensure!(
             actual_segments == expected,
             "paragraph content mismatch: expected {expected:?}, found {actual_segments:?}"
+        );
+        Ok(())
+    })
+}
+
+#[then("block {index} should emphasise \"{content}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
+fn block_should_emphasise(
+    #[from(validated_state)] state: &BodyState,
+    index: usize,
+    content: String,
+) -> Result<()> {
+    with_block_at_index(state, index, |block| {
+        let BodyBlock::Paragraph(paragraph) = block else {
+            bail!("expected block {index} to be a paragraph");
+        };
+        let [Inline::Hi(hi)] = paragraph.content() else {
+            bail!("paragraph should contain a single emphasised inline");
+        };
+        let mut emphasised_text = hi
+            .content()
+            .iter()
+            .filter_map(Inline::as_text)
+            .collect::<Vec<_>>();
+        ensure!(
+            emphasised_text.len() == 1,
+            "expected a single emphasised segment, found {emphasised_text:?}",
+        );
+        let actual = emphasised_text
+            .pop()
+            .context("expected emphasised segment")?;
+        ensure!(
+            actual == content,
+            "emphasised content mismatch: expected {content}, found {actual}"
         );
         Ok(())
     })
@@ -237,12 +312,30 @@ fn block_should_be_utterance(
             actual_speaker == Some(speaker.as_str()),
             "speaker mismatch: expected {speaker}, found {actual_speaker:?}",
         );
-        let expected = std::slice::from_ref(&content);
-        let actual_segments = utterance.segments();
+        let expected = [Inline::text(content.clone())];
+        let actual_segments = utterance.content();
         ensure!(
             actual_segments == expected,
             "utterance content mismatch: expected {expected:?}, found {actual_segments:?}"
         );
+        Ok(())
+    })
+}
+
+#[then("block {index} should include a pause inline")]
+fn block_should_include_pause(
+    #[from(validated_state)] state: &BodyState,
+    index: usize,
+) -> Result<()> {
+    with_block_at_index(state, index, |block| {
+        let BodyBlock::Utterance(utterance) = block else {
+            bail!("expected block {index} to be an utterance");
+        };
+        let has_pause = utterance
+            .content()
+            .iter()
+            .any(|inline| matches!(inline, Inline::Pause(_)));
+        ensure!(has_pause, "expected utterance to contain a pause inline");
         Ok(())
     })
 }
@@ -276,7 +369,7 @@ fn records_paragraphs_and_utterances(
 }
 
 #[scenario(path = "tests/features/body.feature", index = 1)]
-fn rejects_empty_utterance_content(
+fn records_inline_emphasis(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {
@@ -285,7 +378,7 @@ fn rejects_empty_utterance_content(
 }
 
 #[scenario(path = "tests/features/body.feature", index = 2)]
-fn rejects_empty_paragraph_content(
+fn records_pause_inline(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {
@@ -294,7 +387,7 @@ fn rejects_empty_paragraph_content(
 }
 
 #[scenario(path = "tests/features/body.feature", index = 3)]
-fn rejects_whitespace_paragraph_identifier(
+fn rejects_empty_utterance_content(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {
@@ -303,7 +396,7 @@ fn rejects_whitespace_paragraph_identifier(
 }
 
 #[scenario(path = "tests/features/body.feature", index = 4)]
-fn rejects_blank_speaker_reference(
+fn rejects_empty_paragraph_content(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {
@@ -312,7 +405,34 @@ fn rejects_blank_speaker_reference(
 }
 
 #[scenario(path = "tests/features/body.feature", index = 5)]
+fn rejects_whitespace_paragraph_identifier(
+    #[from(validated_state)] _: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 6)]
+fn rejects_blank_speaker_reference(
+    #[from(validated_state)] _: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 7)]
 fn rejects_whitespace_utterance_identifier(
+    #[from(validated_state)] _: BodyState,
+    #[from(validated_state_result)] validated_state: Result<BodyState>,
+) -> Result<()> {
+    let _ = validated_state?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/body.feature", index = 8)]
+fn rejects_empty_inline_emphasis(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) -> Result<()> {

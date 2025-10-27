@@ -685,6 +685,7 @@ dependencies = [
  "rstest",
  "rstest-bdd",
  "rstest-bdd-macros",
+ "serde",
  "thiserror 2.0.17",
 ]
 
