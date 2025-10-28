@@ -4,14 +4,14 @@ use anyhow::{Context, Result, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{DocumentTitleError, TeiDocument};
+use tei_core::{TeiDocument, TeiError};
 use tei_xml::serialize_document_title;
 
 #[derive(Default)]
 struct TitleState {
     raw_title: RefCell<Option<String>>,
-    serialized: RefCell<Option<Result<String, DocumentTitleError>>>,
-    document: RefCell<Option<Result<TeiDocument, DocumentTitleError>>>,
+    serialized: RefCell<Option<Result<String, TeiError>>>,
+    document: RefCell<Option<Result<TeiDocument, TeiError>>>,
 }
 
 impl TitleState {
@@ -27,11 +27,11 @@ impl TitleState {
             .context("the scenario must define a title")
     }
 
-    fn set_serialized(&self, result: Result<String, DocumentTitleError>) {
+    fn set_serialized(&self, result: Result<String, TeiError>) {
         *self.serialized.borrow_mut() = Some(result);
     }
 
-    fn serialized(&self) -> Result<Result<String, DocumentTitleError>> {
+    fn serialized(&self) -> Result<Result<String, TeiError>> {
         self.serialized
             .borrow()
             .as_ref()
@@ -39,11 +39,11 @@ impl TitleState {
             .context("serialization must run before assertions")
     }
 
-    fn set_document(&self, result: Result<TeiDocument, DocumentTitleError>) {
+    fn set_document(&self, result: Result<TeiDocument, TeiError>) {
         *self.document.borrow_mut() = Some(result);
     }
 
-    fn document(&self) -> Result<Result<TeiDocument, DocumentTitleError>> {
+    fn document(&self) -> Result<Result<TeiDocument, TeiError>> {
         self.document
             .borrow()
             .as_ref()

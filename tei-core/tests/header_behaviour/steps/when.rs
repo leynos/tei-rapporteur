@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use rstest_bdd_macros::when;
-use tei_core::{DocumentTitleError, FileDesc, RevisionChange, TeiDocument, TeiHeader, TeiText};
+use tei_core::{FileDesc, RevisionChange, TeiDocument, TeiError, TeiHeader, TeiText};
 
 use crate::HeaderState;
 
@@ -9,7 +9,7 @@ pub(crate) fn i_assemble_the_tei_document(
     #[from(validated_state)] state: &HeaderState,
 ) -> Result<()> {
     let title = state.title()?;
-    let result = (|| -> Result<TeiDocument, DocumentTitleError> {
+    let result = (|| -> Result<TeiDocument, TeiError> {
         let file_desc = FileDesc::from_title_str(&title)?;
         let mut header = TeiHeader::new(file_desc);
 

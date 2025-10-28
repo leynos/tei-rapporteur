@@ -3,7 +3,7 @@
 //! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
-use tei_core::{DocumentTitleError, TeiDocument};
+use tei_core::{TeiDocument, TeiError};
 
 /// Encodes text for inclusion in XML content.
 ///
@@ -53,7 +53,7 @@ pub fn escape_xml_text(input: &str) -> String {
 ///
 /// let document = TeiDocument::from_title_str("Wolf 359")?;
 /// assert_eq!(serialize_title(&document), "<title>Wolf 359</title>");
-/// # Ok::<(), tei_core::DocumentTitleError>(())
+/// # Ok::<(), tei_core::TeiError>(())
 /// ```
 #[must_use]
 pub fn serialize_title(document: &TeiDocument) -> String {
@@ -67,7 +67,7 @@ pub fn serialize_title(document: &TeiDocument) -> String {
 ///
 /// # Errors
 ///
-/// Returns [`tei_core::DocumentTitleError::Empty`] when the title trims to an
+/// Returns [`tei_core::TeiError::DocumentTitle`] when the title trims to an
 /// empty string.
 ///
 /// # Examples
@@ -77,7 +77,7 @@ pub fn serialize_title(document: &TeiDocument) -> String {
 ///
 /// let markup = serialize_document_title("Alice Isn't Dead")?;
 /// assert_eq!(markup, "<title>Alice Isn't Dead</title>");
-/// # Ok::<(), tei_core::DocumentTitleError>(())
+/// # Ok::<(), tei_core::TeiError>(())
 /// ```
 ///
 /// ```
@@ -85,9 +85,9 @@ pub fn serialize_title(document: &TeiDocument) -> String {
 ///
 /// let markup = serialize_document_title("R&D <Test>")?;
 /// assert_eq!(markup, "<title>R&amp;D &lt;Test&gt;</title>");
-/// # Ok::<(), tei_core::DocumentTitleError>(())
+/// # Ok::<(), tei_core::TeiError>(())
 /// ```
-pub fn serialize_document_title(raw_title: &str) -> Result<String, DocumentTitleError> {
+pub fn serialize_document_title(raw_title: &str) -> Result<String, TeiError> {
     TeiDocument::from_title_str(raw_title).map(|document| serialize_title(&document))
 }
 
@@ -95,6 +95,7 @@ pub fn serialize_document_title(raw_title: &str) -> Result<String, DocumentTitle
 mod tests {
     use super::*;
     use rstest::rstest;
+    use tei_core::DocumentTitleError;
     use tei_test_helpers::expect_markup;
 
     #[rstest]
@@ -108,10 +109,11 @@ mod tests {
         assert_eq!(escape_xml_text(input), expected);
     }
 
-    fn expect_title_error(result: Result<String, DocumentTitleError>) -> DocumentTitleError {
+    fn expect_title_error(result: Result<String, TeiError>) -> DocumentTitleError {
         match result {
             Ok(value) => panic!("expected invalid title, got {value}",),
-            Err(error) => error,
+            Err(TeiError::DocumentTitle(error)) => error,
+            Err(other) => panic!("expected document title error, received {other}"),
         }
     }
 

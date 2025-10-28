@@ -19,11 +19,35 @@ pub struct P {
 impl P {
     /// Builds a paragraph from the provided text segments.
     ///
+    /// # Deprecated
+    ///
+    /// Use [`P::from_text_segments`] or [`P::from_inline`] to construct
+    /// paragraphs. This helper forwards to [`P::from_text_segments`].
+    ///
     /// # Errors
     ///
     /// Returns [`BodyContentError::EmptyContent`] when no segments contain
     /// visible characters.
+    #[deprecated(
+        since = "0.1.0",
+        note = "use `P::from_text_segments` or `P::from_inline`"
+    )]
     pub fn new<S>(segments: impl IntoIterator<Item = S>) -> Result<Self, BodyContentError>
+    where
+        S: Into<String>,
+    {
+        Self::from_text_segments(segments)
+    }
+
+    /// Builds a paragraph from text segments, validating inline content.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when no segments contain
+    /// visible characters.
+    pub fn from_text_segments<S>(
+        segments: impl IntoIterator<Item = S>,
+    ) -> Result<Self, BodyContentError>
     where
         S: Into<String>,
     {
@@ -119,20 +143,20 @@ mod tests {
     use rstest::rstest;
 
     fn set_paragraph_identifier(id: &str) -> Result<(), BodyContentError> {
-        let mut paragraph = P::new(["content"])?;
+        let mut paragraph = P::from_text_segments(["content"])?;
 
         paragraph.set_id(id)
     }
 
     fn set_utterance_identifier(id: &str) -> Result<(), BodyContentError> {
-        let mut utterance = Utterance::new(Some("host"), ["hello"])?;
+        let mut utterance = Utterance::from_text_segments(Some("host"), ["hello"])?;
 
         utterance.set_id(id)
     }
 
     #[test]
     fn rejects_empty_paragraph_segments() {
-        let result = P::new(Vec::<String>::new());
+        let result = P::from_text_segments(Vec::<String>::new());
         assert!(matches!(
             result,
             Err(BodyContentError::EmptyContent { container }) if container == "paragraph"
@@ -160,7 +184,7 @@ mod tests {
 
     #[test]
     fn exposes_content_as_inline_nodes() {
-        let paragraph = P::new(["Hello world"]).expect("paragraph should be valid");
+        let paragraph = P::from_text_segments(["Hello world"]).expect("paragraph should be valid");
 
         assert_eq!(paragraph.content(), [Inline::text("Hello world")]);
     }

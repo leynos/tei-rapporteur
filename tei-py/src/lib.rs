@@ -3,14 +3,14 @@
 //! The crate will eventually host the `PyO3` bindings. For now it exercises the
 //! workspace plumbing by re-exporting a simple serialization helper.
 
-use tei_core::DocumentTitleError;
+use tei_core::TeiError;
 use tei_xml::serialize_document_title;
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
 ///
 /// # Errors
 ///
-/// Returns [`tei_core::DocumentTitleError::Empty`] when the provided title is
+/// Returns [`tei_core::TeiError::DocumentTitle`] when the provided title is
 /// blank after trimming. The helper exists so `PyO3` glue can focus on Python
 /// ergonomics whilst reusing the Rust validation logic.
 ///
@@ -21,9 +21,9 @@ use tei_xml::serialize_document_title;
 ///
 /// let markup = emit_title_markup("Welcome to Night Vale")?;
 /// assert_eq!(markup, "<title>Welcome to Night Vale</title>");
-/// # Ok::<(), tei_core::DocumentTitleError>(())
+/// # Ok::<(), tei_core::TeiError>(())
 /// ```
-pub fn emit_title_markup(raw_title: &str) -> Result<String, DocumentTitleError> {
+pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
     serialize_document_title(raw_title)
 }
 
@@ -31,6 +31,7 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, DocumentTitleError> 
 mod tests {
     use super::*;
     use rstest::rstest;
+    use tei_core::DocumentTitleError;
     use tei_test_helpers::expect_markup;
 
     #[rstest]
@@ -44,8 +45,11 @@ mod tests {
     fn propagates_empty_title_error() {
         let result = emit_title_markup("   ");
         let Err(err) = result else {
-            panic!("expected DocumentTitleError::Empty for blank titles");
+            panic!("expected TeiError::DocumentTitle for blank titles");
         };
-        assert_eq!(err, DocumentTitleError::Empty);
+        let TeiError::DocumentTitle(inner) = err else {
+            panic!("expected document title error variant");
+        };
+        assert_eq!(inner, DocumentTitleError::Empty);
     }
 }

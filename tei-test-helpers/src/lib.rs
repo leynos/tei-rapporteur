@@ -3,7 +3,7 @@
 //! The helpers here allow integration and unit tests to share assertion logic
 //! without duplicating small but noisy adapters.
 
-use tei_core::DocumentTitleError;
+use tei_core::TeiError;
 
 /// Extracts the serialized markup from a result or panics with context.
 ///
@@ -23,12 +23,13 @@ use tei_core::DocumentTitleError;
 ///
 /// # Panics
 ///
-/// Panics when the provided result contains a [`DocumentTitleError`]. Tests
+/// Panics when the provided result contains a [`TeiError::DocumentTitle`]. Tests
 /// call this helper when successful serialization is mandatory.
 #[must_use]
-pub fn expect_markup(result: Result<String, DocumentTitleError>) -> String {
+pub fn expect_markup(result: Result<String, TeiError>) -> String {
     match result {
         Ok(value) => value,
-        Err(error) => panic!("expected valid title: {error}"),
+        Err(TeiError::DocumentTitle(error)) => panic!("expected valid title: {error}"),
+        Err(other) => panic!("expected document title success, received {other}"),
     }
 }

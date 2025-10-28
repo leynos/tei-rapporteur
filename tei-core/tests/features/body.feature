@@ -51,3 +51,15 @@ Feature: TEI body content
     Given an empty TEI body
     When I attempt to add a paragraph emphasising "   "
     Then body validation fails with "paragraph segments may not be empty"
+
+  Scenario: Recording mixed inline content
+    Given an empty TEI body
+    When I add a paragraph mixing "Welcome" with emphasis "back" rendered as "stress"
+    Then the body should report 1 blocks
+    And block 1 should reflect the mixed inline paragraph
+
+  Scenario: Recording a measured pause inline
+    Given an empty TEI body
+    When I add an utterance for "host" with a "breath" pause lasting "PT1S"
+    Then the body should report 1 blocks
+    And block 1 should include the measured pause inline

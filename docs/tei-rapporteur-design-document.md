@@ -331,9 +331,9 @@ placeholder segments:
   variants. This provides a single ordered surface today while leaving room for
   future variants such as divisions.
 - `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasised spans, and
-  pauses share a single ordered sequence. Both structs expose helper methods for
-  attaching optional `xml:id` values and, in the case of `Utterance`, a speaker
-  reference.
+  pauses share a single ordered sequence. Both structs expose helper methods
+  for attaching optional `xml:id` values and, in the case of `Utterance`, a
+  speaker reference.
 - Input validation moved into a dedicated `BodyContentError` enum. Paragraphs
   and utterances must contain at least one meaningful inline node. Inline text
   nodes with only whitespace are rejected, inline elements such as `<hi>` must
@@ -392,13 +392,23 @@ structs. Validation walks the entire inline tree: empty text nodes and empty
 `<hi>` elements raise `BodyContentError`, while `<pause/>` counts as meaningful
 content even without surrounding text so scripts can capture timing cues.
 
+String-based constructors now flow through explicit `from_text_segments`
+helpers so callers can convert plain text into validated inline nodes without
+manually collecting `Inline` variants. The previous `P::new` and
+`Utterance::new` wrappers delegate to these helpers and are marked deprecated
+to steer new code towards the clearer naming while preserving backwards
+compatibility.
+
 To keep serialisation ergonomic, every data model struct and enum derives
 `Serialize`/`Deserialize`. The derives include `#[serde(transparent)]` on the
 newtype wrappers so `quick-xml` and future JSON projections observe canonical
 string shapes. Error handling now centralises conversions via a `TeiError`
 enum, allowing higher layers to convert `DocumentTitleError`,
 `HeaderValidationError`, `BodyContentError`, and related cases into a single
-type without losing context.
+type without losing context. Top-level constructors such as
+`TeiDocument::from_title_str` and helpers like `serialize_document_title`
+propagate `TeiError` directly so downstream callers always interact with the
+unified surface.
 
 - **Attributes and Identifiers**: Attributes of TEI elements become struct
   fields, using `serde(rename = "...")` to map to the actual XML attribute

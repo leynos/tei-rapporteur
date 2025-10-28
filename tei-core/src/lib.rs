@@ -50,11 +50,11 @@ pub enum TeiError {
 /// # Examples
 ///
 /// ```
-/// use tei_core::{DocumentTitleError, TeiDocument};
+/// use tei_core::{TeiDocument, TeiError};
 ///
 /// let document = TeiDocument::from_title_str("Night Vale Episode")?;
 /// assert_eq!(document.title().as_str(), "Night Vale Episode");
-/// # Ok::<(), DocumentTitleError>(())
+/// # Ok::<(), TeiError>(())
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename = "TEI")]
@@ -76,9 +76,9 @@ impl TeiDocument {
     ///
     /// # Errors
     ///
-    /// Returns [`DocumentTitleError::Empty`] when the supplied title trims to an
+    /// Returns [`TeiError::DocumentTitle`] when the supplied title trims to an
     /// empty string.
-    pub fn from_title_str(value: &str) -> Result<Self, DocumentTitleError> {
+    pub fn from_title_str(value: &str) -> Result<Self, TeiError> {
         let file_desc = FileDesc::from_title_str(value)?;
         let header = TeiHeader::new(file_desc);
         Ok(Self::new(header, TeiText::empty()))

@@ -10,12 +10,16 @@ available today and how to exercise it.
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
   paragraphs (`P`) and utterances with optional speaker references. Each block
   stores a sequence of `Inline` nodes, allowing clients to mix plain text with
-  emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML.
+  emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain
+  strings flow through the new `P::from_text_segments` and
+  `Utterance::from_text_segments` helpers; the older `new` constructors remain
+  as deprecated shims for existing callers.
 - `tei-xml` depends on the core crate and offers
   `serialize_document_title(raw_title)`, which turns validated titles into a
-  `<title>` snippet.
+  `<title>` snippet and now returns the unified `TeiError` surface.
 - `tei-py` depends on both crates and re-exports the serialization helper as
-  `emit_title_markup`. This crate is the future home of the PyO3 bindings.
+  `emit_title_markup`, propagating the same `TeiError` enum. This crate is the
+  future home of the PyO3 bindings.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
 
@@ -35,7 +39,8 @@ Use the Makefile targets to work with the entire workspace:
 unhappy paths. Core scenarios validate that header metadata can be assembled,
 that blank revision notes are rejected, and that the body model preserves
 paragraph/utterance order while rejecting empty utterances. Additional cases
-demonstrate inline emphasis and pause cues while ensuring empty `<hi>` segments
-are rejected. The XML crate confirms title serialization and error propagation.
-These tests run alongside the unit suite, so developers receive fast feedback
-when modifying the scaffolding.
+demonstrate inline emphasis, rend-aware mixed content, pause cues with duration
+metadata, and ensure empty `<hi>` segments are rejected. The XML crate confirms
+title serialization and unified error propagation. These tests run alongside
+the unit suite, so developers receive fast feedback when modifying the
+scaffolding.

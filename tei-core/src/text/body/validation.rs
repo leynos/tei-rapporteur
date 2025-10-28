@@ -13,13 +13,8 @@ pub(crate) fn ensure_container_content(
         return Err(BodyContentError::EmptyContent { container });
     }
 
-    let mut contains_meaningful = false;
     for inline in content {
-        contains_meaningful |= validate_inline(inline, container)?;
-    }
-
-    if !contains_meaningful {
-        return Err(BodyContentError::EmptyContent { container });
+        validate_inline(inline, container)?;
     }
 
     Ok(())
@@ -91,24 +86,24 @@ pub(crate) fn push_validated_inline(
     Ok(())
 }
 
-fn validate_inline(inline: &Inline, container: &'static str) -> Result<bool, BodyContentError> {
+fn validate_inline(inline: &Inline, container: &'static str) -> Result<(), BodyContentError> {
     match inline {
         Inline::Text(text) => {
             if text.trim().is_empty() {
                 return Err(BodyContentError::EmptySegment { container });
             }
 
-            Ok(true)
+            Ok(())
         }
         Inline::Hi(hi) => ensure_nested_content(hi.content(), container),
-        Inline::Pause(_) => Ok(true),
+        Inline::Pause(_) => Ok(()),
     }
 }
 
 fn ensure_nested_content(
     content: &[Inline],
     container: &'static str,
-) -> Result<bool, BodyContentError> {
+) -> Result<(), BodyContentError> {
     ensure_container_content(content, container)?;
-    Ok(true)
+    Ok(())
 }

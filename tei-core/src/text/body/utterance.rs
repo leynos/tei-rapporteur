@@ -29,7 +29,35 @@ impl Utterance {
     /// Returns [`BodyContentError::EmptyContent`] when no segments contain
     /// visible characters. Returns [`BodyContentError::EmptySpeaker`] when the
     /// provided speaker lacks visible characters.
+    ///
+    /// # Deprecated
+    ///
+    /// Use [`Utterance::from_text_segments`] or [`Utterance::from_inline`] to
+    /// construct utterances. This helper forwards to
+    /// [`Utterance::from_text_segments`].
+    #[deprecated(
+        since = "0.1.0",
+        note = "use `Utterance::from_text_segments` or `Utterance::from_inline`"
+    )]
     pub fn new<S, T>(
+        speaker: Option<S>,
+        segments: impl IntoIterator<Item = T>,
+    ) -> Result<Self, BodyContentError>
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        Self::from_text_segments(speaker, segments)
+    }
+
+    /// Builds an utterance from text segments, validating inline content.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when no segments contain
+    /// visible characters. Returns [`BodyContentError::EmptySpeaker`] when the
+    /// provided speaker lacks visible characters.
+    pub fn from_text_segments<S, T>(
         speaker: Option<S>,
         segments: impl IntoIterator<Item = T>,
     ) -> Result<Self, BodyContentError>
@@ -170,7 +198,7 @@ mod tests {
 
     #[test]
     fn rejects_empty_utterance_segments() {
-        let result = Utterance::new::<String, String>(None, Vec::<String>::new());
+        let result = Utterance::from_text_segments::<String, String>(None, Vec::<String>::new());
         assert!(matches!(
             result,
             Err(BodyContentError::EmptyContent { container }) if container == "utterance"
@@ -179,13 +207,14 @@ mod tests {
 
     #[test]
     fn rejects_blank_speaker_reference() {
-        let result = Utterance::new(Some("   "), ["Hello"]);
+        let result = Utterance::from_text_segments(Some("   "), ["Hello"]);
         assert!(matches!(result, Err(BodyContentError::EmptySpeaker)));
     }
 
     #[test]
     fn records_inline_content() {
-        let utterance = Utterance::new(Some("host"), ["Hello"]).expect("valid utterance");
+        let utterance =
+            Utterance::from_text_segments(Some("host"), ["Hello"]).expect("valid utterance");
 
         assert_eq!(utterance.content(), [Inline::text("Hello")]);
     }

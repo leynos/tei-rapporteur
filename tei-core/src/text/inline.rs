@@ -178,23 +178,33 @@ impl Pause {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    fn hi_records_children() {
-        let hi = Hi::new([Inline::text("emphasis")]);
+    #[fixture]
+    fn emphasised_inline() -> Inline {
+        Inline::text("emphasis")
+    }
+
+    #[fixture]
+    fn empty_pause() -> Pause {
+        Pause::new()
+    }
+
+    #[rstest]
+    fn hi_records_children(emphasised_inline: Inline) {
+        let hi = Hi::new([emphasised_inline.clone()]);
 
         let content = hi.content();
         assert_eq!(content.len(), 1);
         assert_eq!(content.first().and_then(Inline::as_text), Some("emphasis"));
     }
 
-    #[test]
-    fn pause_records_duration_and_kind() {
-        let mut pause = Pause::new();
-        pause.set_duration("PT1S");
-        pause.set_kind("breath");
+    #[rstest]
+    fn pause_records_duration_and_kind(mut empty_pause: Pause) {
+        empty_pause.set_duration("PT1S");
+        empty_pause.set_kind("breath");
 
-        assert_eq!(pause.duration(), Some("PT1S"));
-        assert_eq!(pause.kind(), Some("breath"));
+        assert_eq!(empty_pause.duration(), Some("PT1S"));
+        assert_eq!(empty_pause.kind(), Some("breath"));
     }
 }
