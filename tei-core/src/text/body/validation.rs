@@ -1,3 +1,8 @@
+//! Validation helpers for TEI body content.
+//!
+//! These functions ensure inline sequences hold meaningful characters and that
+//! identifiers and speaker references conform to TEI expectations.
+
 use crate::text::{
     Inline,
     types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId},

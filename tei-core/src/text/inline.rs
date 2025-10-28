@@ -3,6 +3,7 @@
 //! Mixed content is modelled as an [`Inline`] enum so paragraphs and utterances
 //! can hold either plain text or nested inline elements.
 
+use super::body::{BodyContentError, ensure_container_content, push_validated_inline};
 use serde::{Deserialize, Serialize};
 
 /// Inline content occurring inside paragraphs and utterances.
@@ -72,22 +73,50 @@ pub struct Hi {
 }
 
 impl Hi {
-    /// Builds an emphasised inline element.
+    /// Builds an emphasised inline element without validating the content.
     #[must_use]
     pub fn new(content: impl IntoIterator<Item = Inline>) -> Self {
-        Self {
-            rend: None,
-            content: content.into_iter().collect(),
-        }
+        Self::from_parts(None, content.into_iter().collect())
     }
 
-    /// Builds an emphasised inline element with a rendering hint.
+    /// Builds an emphasised inline element with a rendering hint without
+    /// validating the content.
     #[must_use]
     pub fn with_rend(rend: impl Into<String>, content: impl IntoIterator<Item = Inline>) -> Self {
-        Self {
-            rend: Some(rend.into()),
-            content: content.into_iter().collect(),
-        }
+        Self::from_parts(Some(rend.into()), content.into_iter().collect())
+    }
+
+    /// Builds an emphasised inline element, validating that content contains
+    /// visible segments.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when all inline children are
+    /// empty after trimming or when nested emphasis elements contain no
+    /// meaningful content.
+    pub fn try_new(content: impl IntoIterator<Item = Inline>) -> Result<Self, BodyContentError> {
+        let collected: Vec<Inline> = content.into_iter().collect();
+        ensure_container_content(&collected, "hi")?;
+
+        Ok(Self::from_parts(None, collected))
+    }
+
+    /// Builds an emphasised inline element with a rendering hint, validating
+    /// that content contains visible segments.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when all inline children are
+    /// empty after trimming or when nested emphasis elements contain no
+    /// meaningful content.
+    pub fn try_with_rend(
+        rend: impl Into<String>,
+        content: impl IntoIterator<Item = Inline>,
+    ) -> Result<Self, BodyContentError> {
+        let collected: Vec<Inline> = content.into_iter().collect();
+        ensure_container_content(&collected, "hi")?;
+
+        Ok(Self::from_parts(Some(rend.into()), collected))
     }
 
     /// Returns the optional rendering hint.
@@ -117,8 +146,22 @@ impl Hi {
     }
 
     /// Appends an inline child.
-    pub fn push_inline(&mut self, inline: Inline) {
-        self.content.push(inline);
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptySegment`] when the inline text lacks
+    /// visible characters. Returns [`BodyContentError::EmptyContent`] when a
+    /// nested inline element has no meaningful children.
+    pub fn push_inline(&mut self, inline: Inline) -> Result<(), BodyContentError> {
+        push_validated_inline(&mut self.content, inline, "hi")
+    }
+
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Vec values are not const-constructible on the current MSRV."
+    )]
+    fn from_parts(rend: Option<String>, content: Vec<Inline>) -> Self {
+        Self { rend, content }
     }
 }
 
@@ -178,6 +221,7 @@ impl Pause {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text::BodyContentError;
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -192,7 +236,7 @@ mod tests {
 
     #[rstest]
     fn hi_records_children(emphasised_inline: Inline) {
-        let hi = Hi::new([emphasised_inline.clone()]);
+        let hi = Hi::try_new([emphasised_inline.clone()]).expect("valid emphasis");
 
         let content = hi.content();
         assert_eq!(content.len(), 1);
@@ -206,5 +250,37 @@ mod tests {
 
         assert_eq!(empty_pause.duration(), Some("PT1S"));
         assert_eq!(empty_pause.kind(), Some("breath"));
+    }
+
+    #[rstest]
+    fn hi_try_with_rend_records_hint(emphasised_inline: Inline) {
+        let hi = Hi::try_with_rend("stress", [emphasised_inline.clone()])
+            .expect("valid emphasised inline");
+
+        assert_eq!(hi.rend(), Some("stress"));
+        let expected = [Inline::text("emphasis")];
+        assert_eq!(hi.content(), expected.as_slice());
+    }
+
+    #[rstest]
+    fn hi_try_new_rejects_empty_content() {
+        let result = Hi::try_new(Vec::<Inline>::new());
+
+        assert!(matches!(
+            result,
+            Err(BodyContentError::EmptyContent { container }) if container == "hi"
+        ));
+    }
+
+    #[rstest]
+    fn hi_push_inline_rejects_blank_text() {
+        let mut hi = Hi::try_new([Inline::text("visible")]).expect("valid emphasis");
+
+        let result = hi.push_inline(Inline::text("   "));
+
+        assert!(matches!(
+            result,
+            Err(BodyContentError::EmptySegment { container }) if container == "hi"
+        ));
     }
 }

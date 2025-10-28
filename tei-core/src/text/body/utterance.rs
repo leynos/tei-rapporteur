@@ -1,3 +1,8 @@
+//! Spoken utterances with optional speaker metadata and inline content.
+//!
+//! Serialises as `<u who="…">…</u>` with mixed [`Inline`] nodes inside the
+//! `$value` field so emphasis and pause cues are preserved.
+
 use crate::text::{
     Inline,
     types::{Speaker, SpeakerValidationError, XmlId},
@@ -163,7 +168,11 @@ impl Utterance {
 
     /// Returns the stored segments.
     #[must_use]
-    pub const fn content(&self) -> &[Inline] {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Vec::as_slice is not const-stable on the current MSRV."
+    )]
+    pub fn content(&self) -> &[Inline] {
         self.content.as_slice()
     }
 

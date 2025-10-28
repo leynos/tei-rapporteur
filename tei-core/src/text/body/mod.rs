@@ -1,3 +1,8 @@
+//! TEI body model: ordered sequence of block-level elements.
+//!
+//! Serialises as `<body>` containing `<p>` and `<u>` elements via serde with
+//! blocks stored in the `$value` field.
+
 mod error;
 mod paragraph;
 mod utterance;
@@ -64,6 +69,7 @@ impl TeiBody {
     }
 
     /// Returns an iterator over recorded paragraphs.
+    #[must_use = "Iterators are lazy; iterate or collect to inspect paragraphs."]
     pub fn paragraphs(&self) -> impl Iterator<Item = &P> {
         self.blocks.iter().filter_map(|block| {
             if let BodyBlock::Paragraph(paragraph) = block {
@@ -75,6 +81,7 @@ impl TeiBody {
     }
 
     /// Returns an iterator over recorded utterances.
+    #[must_use = "Iterators are lazy; iterate or collect to inspect utterances."]
     pub fn utterances(&self) -> impl Iterator<Item = &Utterance> {
         self.blocks.iter().filter_map(|block| {
             if let BodyBlock::Utterance(utterance) = block {

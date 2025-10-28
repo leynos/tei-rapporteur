@@ -388,9 +388,12 @@ pub struct Pause {
 `P` and `Utterance` both expose a `content: Vec<Inline>` surface. Inline helper
 constructors (`Inline::text`, `Inline::hi`, `Inline::pause`) ensure callers can
 describe emphasised segments and pause cues without juggling the underlying
-structs. Validation walks the entire inline tree: empty text nodes and empty
-`<hi>` elements raise `BodyContentError`, while `<pause/>` counts as meaningful
-content even without surrounding text so scripts can capture timing cues.
+structs. The `Hi::try_new` and `Hi::try_with_rend` helpers validate inline
+children up-front, and `Hi::push_inline` now returns a `Result` so invalid
+nodes are rejected rather than silently recorded. Validation walks the entire
+inline tree: empty text nodes and empty `<hi>` elements raise
+`BodyContentError`, while `<pause/>` counts as meaningful content even without
+surrounding text so scripts can capture timing cues.
 
 String-based constructors now flow through explicit `from_text_segments`
 helpers so callers can convert plain text into validated inline nodes without

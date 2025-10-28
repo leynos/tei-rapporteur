@@ -344,7 +344,7 @@ fn block_should_be_paragraph(
         let expected = [Inline::text(content.clone())];
         let actual_segments = paragraph.content();
         ensure!(
-            actual_segments == expected,
+            actual_segments == expected.as_slice(),
             "paragraph content mismatch: expected {expected:?}, found {actual_segments:?}"
         );
         Ok(())
@@ -466,7 +466,7 @@ fn block_should_be_utterance(
         let expected = [Inline::text(content.clone())];
         let actual_segments = utterance.content();
         ensure!(
-            actual_segments == expected,
+            actual_segments == expected.as_slice(),
             "utterance content mismatch: expected {expected:?}, found {actual_segments:?}"
         );
         Ok(())
