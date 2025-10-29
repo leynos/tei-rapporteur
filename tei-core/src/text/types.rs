@@ -5,13 +5,14 @@
 
 use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct XmlId(String);
 
@@ -93,8 +94,19 @@ impl TryFrom<&str> for XmlId {
     }
 }
 
+impl<'de> Deserialize<'de> for XmlId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        Self::new(value).map_err(DeError::custom)
+    }
+}
+
 /// Validated wrapper for utterance speaker references.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct Speaker(String);
 
@@ -168,9 +180,21 @@ impl TryFrom<&str> for Speaker {
     }
 }
 
+impl<'de> Deserialize<'de> for Speaker {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        Self::new(value).map_err(DeError::custom)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
 
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {
@@ -194,6 +218,12 @@ mod tests {
     }
 
     #[test]
+    fn xml_id_deserialisation_rejects_invalid_input() {
+        assert!(json::from_str::<XmlId>("\"   \"").is_err());
+        assert!(json::from_str::<XmlId>("\"identifier with space\"").is_err());
+    }
+
+    #[test]
     fn speaker_rejects_empty_values() {
         let result = Speaker::new("   ");
         assert!(matches!(result, Err(SpeakerValidationError::Empty)));
@@ -209,5 +239,10 @@ mod tests {
     fn speaker_try_from_str_validates() {
         let result = Speaker::try_from("   ");
         assert!(matches!(result, Err(SpeakerValidationError::Empty)));
+    }
+
+    #[test]
+    fn speaker_deserialisation_rejects_empty_input() {
+        assert!(json::from_str::<Speaker>("\"   \"").is_err());
     }
 }

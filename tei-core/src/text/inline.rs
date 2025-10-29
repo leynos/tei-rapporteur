@@ -4,6 +4,7 @@
 //! can hold either plain text or nested inline elements.
 
 use super::body::{BodyContentError, ensure_container_content, push_validated_inline};
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 
 /// Inline content occurring inside paragraphs and utterances.
@@ -63,13 +64,37 @@ impl Inline {
 }
 
 /// Emphasised inline element corresponding to `<hi>`.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename = "hi")]
 pub struct Hi {
     #[serde(rename = "rend", skip_serializing_if = "Option::is_none", default)]
     rend: Option<String>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
+}
+
+impl<'de> Deserialize<'de> for Hi {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct RawHi {
+            #[serde(rename = "rend", default)]
+            rend: Option<String>,
+            #[serde(rename = "$value", default)]
+            content: Vec<Inline>,
+        }
+
+        let raw = RawHi::deserialize(deserializer)?;
+        ensure_container_content(&raw.content, "hi").map_err(de::Error::custom)?;
+
+        Ok(Self {
+            rend: raw.rend,
+            content: raw.content,
+        })
+    }
 }
 
 impl Hi {
@@ -167,7 +192,7 @@ impl Hi {
 
 /// Pause marker rendered as `<pause/>`.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename = "pause")]
+#[serde(rename = "pause", deny_unknown_fields)]
 pub struct Pause {
     #[serde(rename = "dur", skip_serializing_if = "Option::is_none", default)]
     duration: Option<String>,
@@ -223,6 +248,7 @@ mod tests {
     use super::*;
     use crate::text::BodyContentError;
     use rstest::{fixture, rstest};
+    use serde_json as json;
 
     #[fixture]
     fn emphasised_inline() -> Inline {
@@ -282,5 +308,42 @@ mod tests {
             result,
             Err(BodyContentError::EmptySegment { container }) if container == "hi"
         ));
+    }
+
+    #[rstest]
+    fn inline_deserialisation_reports_type_mismatch() {
+        let error = json::from_str::<Inline>("42").expect_err("invalid inline should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("did not match any variant of untagged enum Inline"),
+            "error message should describe variant mismatch: {error}"
+        );
+    }
+
+    #[rstest]
+    fn inline_deserialisation_reports_missing_hi_content() {
+        let payload = r#"{"$value":[]}"#;
+        let error = json::from_str::<Inline>(payload).expect_err("missing hi content");
+
+        assert!(
+            error
+                .to_string()
+                .contains("did not match any variant of untagged enum Inline"),
+            "error message should describe inline variant mismatch: {error}"
+        );
+    }
+
+    #[test]
+    fn hi_deserialisation_reports_empty_content() {
+        let error = json::from_str::<Hi>(r#"{"$value":[]}"#).expect_err("empty hi should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("content must include at least one non-empty segment"),
+            "error message should describe empty hi content: {error}"
+        );
     }
 }

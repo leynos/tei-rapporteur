@@ -368,18 +368,15 @@ fn block_should_emphasise(
         let [Inline::Hi(hi)] = paragraph.content() else {
             bail!("paragraph should contain a single emphasised inline");
         };
-        let mut emphasised_text = hi
-            .content()
-            .iter()
-            .filter_map(Inline::as_text)
-            .collect::<Vec<_>>();
-        ensure!(
-            emphasised_text.len() == 1,
-            "expected a single emphasised segment, found {emphasised_text:?}",
-        );
-        let actual = emphasised_text
-            .pop()
+        let mut emphasised_iter = hi.content().iter().filter_map(Inline::as_text);
+        let actual = emphasised_iter
+            .next()
             .context("expected emphasised segment")?;
+        ensure!(
+            emphasised_iter.next().is_none(),
+            "expected a single emphasised segment, found {:?}",
+            hi.content()
+        );
         ensure!(
             actual == content,
             "emphasised content mismatch: expected {content}, found {actual}"

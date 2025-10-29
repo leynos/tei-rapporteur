@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// Validated speaker name stored within [`ProfileDesc`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(transparent)]
+#[serde(try_from = "String", into = "String")]
 pub struct SpeakerName(String);
 
 impl SpeakerName {
@@ -73,9 +73,15 @@ impl TryFrom<&str> for SpeakerName {
     }
 }
 
+impl From<SpeakerName> for String {
+    fn from(value: SpeakerName) -> Self {
+        value.0
+    }
+}
+
 /// Validated language identifier stored within [`ProfileDesc`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(transparent)]
+#[serde(try_from = "String", into = "String")]
 pub struct LanguageTag(String);
 
 impl LanguageTag {
@@ -135,6 +141,12 @@ impl TryFrom<&str> for LanguageTag {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::new(value)
+    }
+}
+
+impl From<LanguageTag> for String {
+    fn from(value: LanguageTag) -> Self {
+        value.0
     }
 }
 
@@ -238,6 +250,7 @@ fn build_validated_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
 
     #[test]
     fn profile_desc_tracks_speakers_and_languages() {
@@ -263,5 +276,19 @@ mod tests {
             ["en-GB"],
         );
         assert_eq!(profile.len_languages(), 1);
+    }
+
+    #[test]
+    fn speaker_name_deserialisation_rejects_empty() {
+        let result = json::from_str::<SpeakerName>("\"   \"");
+
+        assert!(result.is_err(), "empty speaker should not deserialise");
+    }
+
+    #[test]
+    fn language_tag_deserialisation_rejects_empty() {
+        let result = json::from_str::<LanguageTag>("\"   \"");
+
+        assert!(result.is_err(), "empty language tag should not deserialise");
     }
 }

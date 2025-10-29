@@ -7,11 +7,12 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 
 /// Named agent responsible for a revision note.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(transparent)]
+#[serde(try_from = "String", into = "String")]
 pub struct ResponsibleParty(String);
 
 impl ResponsibleParty {
@@ -80,6 +81,12 @@ impl TryFrom<&str> for ResponsibleParty {
     }
 }
 
+impl From<ResponsibleParty> for String {
+    fn from(value: ResponsibleParty) -> Self {
+        value.0
+    }
+}
+
 /// Revision history records.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "revisionDesc")]
@@ -139,7 +146,7 @@ impl<'a> IntoIterator for &'a RevisionDesc {
 /// Individual revision note captured in `<revisionDesc>`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RevisionChange {
-    #[serde(rename = "$value")]
+    #[serde(rename = "$value", deserialize_with = "de_nonempty_text")]
     description: String,
     #[serde(skip_serializing_if = "Option::is_none", rename = "resp", default)]
     resp: Option<ResponsibleParty>,
@@ -192,9 +199,19 @@ fn required_text(
     normalise_optional_text(value).ok_or(HeaderValidationError::EmptyField { field })
 }
 
+fn de_nonempty_text<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+
+    normalise_optional_text(raw).ok_or_else(|| de::Error::custom("empty revision note"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
 
     #[test]
     fn revision_change_requires_description() {
@@ -207,6 +224,27 @@ mod tests {
             HeaderValidationError::EmptyField {
                 field: "revision note",
             }
+        );
+    }
+
+    #[test]
+    fn responsible_party_deserialisation_rejects_empty() {
+        let result = json::from_str::<ResponsibleParty>("\"   \"");
+
+        assert!(
+            result.is_err(),
+            "empty responsibility should not deserialise"
+        );
+    }
+
+    #[test]
+    fn revision_change_deserialisation_rejects_empty_description() {
+        let payload = "{\"$value\": \"   \"}";
+        let result = json::from_str::<RevisionChange>(payload);
+
+        assert!(
+            result.is_err(),
+            "empty revision note should not deserialise"
         );
     }
 }

@@ -18,7 +18,7 @@ pub use profile::{LanguageTag, ProfileDesc, SpeakerName};
 pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 
 /// Error raised when TEI header metadata fails validation.
-#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize)]
 pub enum HeaderValidationError {
     /// A textual field was empty once normalised.
     #[error("{field} may not be empty")]

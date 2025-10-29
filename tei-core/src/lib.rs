@@ -27,6 +27,7 @@ use thiserror::Error;
 
 /// Errors raised by TEI core data model operations.
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum TeiError {
     /// Wrapper around [`DocumentTitleError`] values.
     #[error(transparent)]
@@ -128,6 +129,36 @@ mod tests {
         assert!(matches!(
             error,
             TeiError::Body(BodyContentError::EmptySpeaker)
+        ));
+    }
+
+    #[test]
+    fn converts_header_validation_error_into_tei_error() {
+        let error: TeiError = HeaderValidationError::EmptyField { field: "header" }.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Header(HeaderValidationError::EmptyField { field: "header" })
+        ));
+    }
+
+    #[test]
+    fn converts_identifier_validation_error_into_tei_error() {
+        let error: TeiError = IdentifierValidationError::Empty.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Identifier(IdentifierValidationError::Empty)
+        ));
+    }
+
+    #[test]
+    fn converts_speaker_validation_error_into_tei_error() {
+        let error: TeiError = SpeakerValidationError::Empty.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Speaker(SpeakerValidationError::Empty)
         ));
     }
 }
