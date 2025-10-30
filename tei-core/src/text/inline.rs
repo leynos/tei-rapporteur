@@ -260,6 +260,19 @@ mod tests {
         Pause::new()
     }
 
+    fn assert_inline_deserialisation_error(
+        payload: &str,
+        expected_error_substring: &str,
+        description: &str,
+    ) {
+        let error = json::from_str::<Inline>(payload).expect_err(description);
+
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "{description}: {error}"
+        );
+    }
+
     #[rstest]
     fn hi_records_children(emphasised_inline: Inline) {
         let hi = Hi::try_new([emphasised_inline.clone()]).expect("valid emphasis");
@@ -312,26 +325,19 @@ mod tests {
 
     #[rstest]
     fn inline_deserialisation_reports_type_mismatch() {
-        let error = json::from_str::<Inline>("42").expect_err("invalid inline should fail");
-
-        assert!(
-            error
-                .to_string()
-                .contains("did not match any variant of untagged enum Inline"),
-            "error message should describe variant mismatch: {error}"
+        assert_inline_deserialisation_error(
+            "42",
+            "did not match any variant of untagged enum Inline",
+            "error message should describe variant mismatch",
         );
     }
 
     #[rstest]
     fn inline_deserialisation_reports_missing_hi_content() {
-        let payload = r#"{"$value":[]}"#;
-        let error = json::from_str::<Inline>(payload).expect_err("missing hi content");
-
-        assert!(
-            error
-                .to_string()
-                .contains("did not match any variant of untagged enum Inline"),
-            "error message should describe inline variant mismatch: {error}"
+        assert_inline_deserialisation_error(
+            r#"{"$value":[]}"#,
+            "did not match any variant of untagged enum Inline",
+            "error message should describe inline variant mismatch",
         );
     }
 
