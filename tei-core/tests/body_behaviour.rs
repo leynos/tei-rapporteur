@@ -368,12 +368,10 @@ fn block_should_emphasise(
         let [Inline::Hi(hi)] = paragraph.content() else {
             bail!("paragraph should contain a single emphasised inline");
         };
-        let mut emphasised_iter = hi.content().iter().filter_map(Inline::as_text);
-        let actual = emphasised_iter
-            .next()
-            .context("expected emphasised segment")?;
+        let mut it = hi.content().iter().filter_map(Inline::as_text);
+        let actual = it.next().context("expected emphasised segment")?;
         ensure!(
-            emphasised_iter.next().is_none(),
+            it.next().is_none(),
             "expected a single emphasised segment, found {:?}",
             hi.content()
         );
@@ -418,12 +416,10 @@ fn block_should_mix_inline(#[from(validated_state)] state: &BodyState, index: us
             expected_rend,
             hi.rend(),
         );
-        let mut emphasised_iter = hi.content().iter().filter_map(Inline::as_text);
-        let actual_emphasis = emphasised_iter
-            .next()
-            .context("expected emphasised segment")?;
+        let mut it = hi.content().iter().filter_map(Inline::as_text);
+        let actual_emphasis = it.next().context("expected emphasised segment")?;
         ensure!(
-            emphasised_iter.next().is_none(),
+            it.next().is_none(),
             "expected a single emphasised segment, found {:?}",
             hi.content(),
         );

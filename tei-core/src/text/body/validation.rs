@@ -100,15 +100,7 @@ fn validate_inline(inline: &Inline, container: &'static str) -> Result<(), BodyC
 
             Ok(())
         }
-        Inline::Hi(hi) => ensure_nested_content(hi.content(), container),
+        Inline::Hi(hi) => ensure_container_content(hi.content(), container),
         Inline::Pause(_) => Ok(()),
     }
-}
-
-fn ensure_nested_content(
-    content: &[Inline],
-    container: &'static str,
-) -> Result<(), BodyContentError> {
-    ensure_container_content(content, container)?;
-    Ok(())
 }
