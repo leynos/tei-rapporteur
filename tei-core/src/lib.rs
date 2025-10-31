@@ -110,7 +110,8 @@ mod tests {
 
     #[test]
     fn constructs_document_from_title() {
-        let document = TeiDocument::from_title_str("King Falls AM").expect("valid document");
+        let document = TeiDocument::from_title_str("King Falls AM")
+            .unwrap_or_else(|error| panic!("valid document: {error}"));
         assert_eq!(document.title().as_str(), "King Falls AM");
     }
 

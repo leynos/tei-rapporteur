@@ -130,7 +130,8 @@ mod tests {
 
     #[test]
     fn attaches_optional_sections() {
-        let title = DocumentTitle::new("Title").expect("valid title");
+        let title =
+            DocumentTitle::new("Title").unwrap_or_else(|error| panic!("valid title: {error}"));
         let header = TeiHeader::new(FileDesc::new(title))
             .with_profile_desc(ProfileDesc::new())
             .with_encoding_desc(EncodingDesc::new())

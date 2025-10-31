@@ -31,11 +31,13 @@ impl TeiText {
     ///
     /// let mut body = TeiBody::default();
     /// body.push_paragraph(
-    ///     P::from_text_segments(["Intro"]).expect("valid paragraph"),
+    ///     P::from_text_segments(["Intro"]).unwrap_or_else(|error| {
+    ///         panic!("paragraph should be valid: {error}")
+    ///     }),
     /// );
     /// body.push_utterance(
     ///     Utterance::from_text_segments(Some("host"), ["Welcome!"])
-    ///         .expect("valid utterance"),
+    ///         .unwrap_or_else(|error| panic!("utterance should be valid: {error}")),
     /// );
     ///
     /// let text = TeiText::new(body);
@@ -79,11 +81,13 @@ impl TeiText {
     /// let mut text = TeiText::empty();
     /// text
     ///     .push_paragraph(
-    ///         P::from_text_segments(["Intro"]).expect("valid paragraph"),
+    ///         P::from_text_segments(["Intro"]).unwrap_or_else(|error| {
+    ///             panic!("paragraph should be valid: {error}")
+    ///         }),
     ///     )
     ///     .push_utterance(
     ///         Utterance::from_text_segments(Some("host"), ["Welcome!"])
-    ///             .expect("valid utterance"),
+    ///             .unwrap_or_else(|error| panic!("utterance should be valid: {error}")),
     ///     );
     ///
     /// assert_eq!(text.body().paragraphs().count(), 1);
@@ -104,11 +108,13 @@ impl TeiText {
     /// let mut text = TeiText::empty();
     /// text
     ///     .push_paragraph(
-    ///         P::from_text_segments(["Intro"]).expect("valid paragraph"),
+    ///         P::from_text_segments(["Intro"]).unwrap_or_else(|error| {
+    ///             panic!("paragraph should be valid: {error}")
+    ///         }),
     ///     )
     ///     .push_utterance(
     ///         Utterance::from_text_segments(Some("host"), ["Welcome!"])
-    ///             .expect("valid utterance"),
+    ///             .unwrap_or_else(|error| panic!("utterance should be valid: {error}")),
     ///     );
     ///
     /// assert_eq!(text.body().utterances().count(), 1);
@@ -125,9 +131,11 @@ impl TeiText {
     /// ```
     /// use tei_core::{BodyBlock, P, TeiText, Utterance};
     ///
-    /// let paragraph = P::from_text_segments(["Intro"]).expect("valid paragraph");
+    /// let paragraph = P::from_text_segments(["Intro"]).unwrap_or_else(|error| {
+    ///     panic!("paragraph should be valid: {error}")
+    /// });
     /// let utterance = Utterance::from_text_segments(Some("host"), ["Welcome!"])
-    ///     .expect("valid utterance");
+    ///     .unwrap_or_else(|error| panic!("utterance should be valid: {error}"));
     /// let mut text = TeiText::empty();
     /// text
     ///     .extend([BodyBlock::Paragraph(paragraph.clone())])
@@ -154,12 +162,14 @@ mod tests {
 
     #[fixture]
     fn sample_paragraph() -> P {
-        P::from_text_segments(["Intro paragraph"]).expect("valid paragraph")
+        P::from_text_segments(["Intro paragraph"])
+            .unwrap_or_else(|error| panic!("valid paragraph: {error}"))
     }
 
     #[fixture]
     fn sample_utterance() -> Utterance {
-        Utterance::from_text_segments(Some("host"), ["Greetings"]).expect("valid utterance")
+        Utterance::from_text_segments(Some("host"), ["Greetings"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"))
     }
 
     #[test]
@@ -167,7 +177,8 @@ mod tests {
         let mut text = TeiText::empty();
         assert!(text.is_empty());
 
-        let paragraph = P::from_text_segments(["Intro paragraph"]).expect("valid paragraph");
+        let paragraph = P::from_text_segments(["Intro paragraph"])
+            .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
         text.body_mut().push_paragraph(paragraph);
         assert!(!text.is_empty());
     }
@@ -175,9 +186,10 @@ mod tests {
     #[test]
     fn body_preserves_insertion_order() {
         let mut body = TeiBody::default();
-        let paragraph = P::from_text_segments(["Setup"]).expect("valid paragraph");
-        let utterance =
-            Utterance::from_text_segments(Some("host"), ["Hello"]).expect("valid utterance");
+        let paragraph = P::from_text_segments(["Setup"])
+            .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
+        let utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"));
 
         body.push_paragraph(paragraph.clone());
         body.push_utterance(utterance.clone());

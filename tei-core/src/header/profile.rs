@@ -255,8 +255,12 @@ mod tests {
     #[test]
     fn profile_desc_tracks_speakers_and_languages() {
         let mut profile = ProfileDesc::new();
-        profile.add_speaker("Keisha").expect("speaker recorded");
-        profile.add_language("en-GB").expect("language recorded");
+        profile
+            .add_speaker("Keisha")
+            .unwrap_or_else(|error| panic!("speaker recorded: {error}"));
+        profile
+            .add_language("en-GB")
+            .unwrap_or_else(|error| panic!("language recorded: {error}"));
 
         assert_eq!(
             profile

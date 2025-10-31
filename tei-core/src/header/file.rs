@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn file_desc_carries_optional_metadata() {
         let file_desc = FileDesc::from_title_str("Wolf 359")
-            .expect("valid title")
+            .unwrap_or_else(|error| panic!("valid title: {error}"))
             .with_series("Kakos Industries")
             .with_synopsis("Drama podcast");
 

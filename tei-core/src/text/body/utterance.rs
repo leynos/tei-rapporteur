@@ -222,8 +222,8 @@ mod tests {
 
     #[test]
     fn records_inline_content() {
-        let utterance =
-            Utterance::from_text_segments(Some("host"), ["Hello"]).expect("valid utterance");
+        let utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"));
 
         assert_eq!(utterance.content(), [Inline::text("Hello")]);
     }

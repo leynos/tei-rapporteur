@@ -35,7 +35,9 @@ impl TeiBody {
     /// ```
     /// use tei_core::{BodyBlock, P, TeiBody};
     ///
-    /// let paragraph = P::from_text_segments(["Hello"]).expect("valid paragraph");
+    /// let paragraph = P::from_text_segments(["Hello"]).unwrap_or_else(|error| {
+    ///     panic!("paragraph should be valid: {error}")
+    /// });
     /// let body = TeiBody::new([BodyBlock::Paragraph(paragraph)]);
     ///
     /// assert_eq!(body.blocks().len(), 1);
@@ -116,9 +118,10 @@ mod tests {
 
     #[test]
     fn body_iterators_filter_by_variant() {
-        let paragraph = P::from_text_segments(["Setup"]).expect("valid paragraph");
-        let utterance =
-            Utterance::from_text_segments(Some("host"), ["Hello"]).expect("valid utterance");
+        let paragraph = P::from_text_segments(["Setup"])
+            .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
+        let utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"));
 
         let mut body = TeiBody::default();
         body.push_paragraph(paragraph.clone());

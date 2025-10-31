@@ -176,15 +176,17 @@ mod tests {
         #[case] container: &'static str,
         #[case] constructor: fn(&str) -> Result<(), BodyContentError>,
     ) {
-        let error = constructor("identifier with space")
-            .expect_err("identifier whitespace should be rejected");
+        let Err(error) = constructor("identifier with space") else {
+            panic!("identifier whitespace should be rejected");
+        };
 
         assert_eq!(error, BodyContentError::InvalidIdentifier { container });
     }
 
     #[test]
     fn exposes_content_as_inline_nodes() {
-        let paragraph = P::from_text_segments(["Hello world"]).expect("paragraph should be valid");
+        let paragraph = P::from_text_segments(["Hello world"])
+            .unwrap_or_else(|error| panic!("paragraph should be valid: {error}"));
 
         assert_eq!(paragraph.content(), [Inline::text("Hello world")]);
     }

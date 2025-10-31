@@ -200,14 +200,17 @@ mod tests {
     fn finds_registered_annotation_system() {
         let mut encoding = EncodingDesc::new();
         let system = AnnotationSystem::new("timestamps", "Word timing")
-            .expect("valid annotation system should construct");
+            .unwrap_or_else(|error| panic!("valid annotation system should construct: {error}"));
         let identifier = system.identifier().clone();
         encoding.add_annotation_system(system);
 
         assert!(encoding.find(&identifier).is_some());
         assert!(
             encoding
-                .find(&AnnotationSystemId::try_from("other").expect("valid id"))
+                .find(
+                    &AnnotationSystemId::try_from("other")
+                        .unwrap_or_else(|error| panic!("valid id: {error}")),
+                )
                 .is_none()
         );
         assert!(encoding.find_str(identifier.as_str()).is_some());
@@ -216,7 +219,8 @@ mod tests {
 
     #[test]
     fn blanks_are_removed_from_descriptions() {
-        let system = AnnotationSystem::new("tok", "   ").expect("identifier should be valid");
+        let system = AnnotationSystem::new("tok", "   ")
+            .unwrap_or_else(|error| panic!("identifier should be valid: {error}"));
 
         assert!(system.description().is_none());
     }

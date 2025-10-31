@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 /// use tei_core::{Hi, Inline, P};
 ///
 /// let emphasis = Inline::Hi(Hi::new([Inline::text("important")]));
-/// let paragraph = P::from_inline([Inline::text("An "), emphasis]).expect("valid paragraph");
+/// let paragraph = match P::from_inline([Inline::text("An "), emphasis]) {
+///     Ok(paragraph) => paragraph,
+///     Err(error) => panic!("paragraph should be valid: {error}"),
+/// };
 ///
 /// assert_eq!(paragraph.content().len(), 2);
 /// ```
@@ -266,7 +269,9 @@ mod tests {
         expected_error_substring: &str,
         description: &str,
     ) {
-        let error = json::from_str::<Inline>(payload).expect_err(description);
+        let Err(error) = json::from_str::<Inline>(payload) else {
+            panic!("{description}");
+        };
         let message = error.to_string();
 
         assert!(
@@ -277,7 +282,8 @@ mod tests {
 
     #[rstest]
     fn hi_records_children(emphasised_inline: Inline) {
-        let hi = Hi::try_new([emphasised_inline.clone()]).expect("valid emphasis");
+        let hi = Hi::try_new([emphasised_inline.clone()])
+            .unwrap_or_else(|error| panic!("valid emphasis: {error}"));
 
         let content = hi.content();
         assert_eq!(content.len(), 1);
@@ -296,7 +302,7 @@ mod tests {
     #[rstest]
     fn hi_try_with_rend_records_hint(emphasised_inline: Inline) {
         let hi = Hi::try_with_rend("stress", [emphasised_inline.clone()])
-            .expect("valid emphasised inline");
+            .unwrap_or_else(|error| panic!("valid emphasised inline: {error}"));
 
         assert_eq!(hi.rend(), Some("stress"));
         let expected = [Inline::text("emphasis")];
@@ -315,7 +321,8 @@ mod tests {
 
     #[rstest]
     fn hi_push_inline_rejects_blank_text() {
-        let mut hi = Hi::try_new([Inline::text("visible")]).expect("valid emphasis");
+        let mut hi = Hi::try_new([Inline::text("visible")])
+            .unwrap_or_else(|error| panic!("valid emphasis: {error}"));
 
         let result = hi.push_inline(Inline::text("   "));
 
@@ -345,7 +352,9 @@ mod tests {
 
     #[test]
     fn hi_deserialisation_reports_empty_content() {
-        let error = json::from_str::<Hi>(r#"{"$value":[]}"#).expect_err("empty hi should fail");
+        let Err(error) = json::from_str::<Hi>(r#"{"$value":[]}"#) else {
+            panic!("empty hi should fail");
+        };
 
         assert!(
             error
