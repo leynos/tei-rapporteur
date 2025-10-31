@@ -1,3 +1,8 @@
+//! TEI body model: ordered sequence of block-level elements.
+//!
+//! Serialises as `<body>` containing `<p>` and `<u>` elements via serde with
+//! blocks stored in the `$value` field.
+
 mod error;
 mod paragraph;
 mod utterance;
@@ -8,13 +13,17 @@ pub use paragraph::P;
 pub use utterance::Utterance;
 
 pub(crate) use validation::{
-    ensure_content, normalise_optional_speaker, push_validated_segment, set_optional_identifier,
-    trim_preserving_original,
+    ensure_container_content, normalise_optional_speaker, push_validated_inline,
+    push_validated_text_segment, set_optional_identifier, trim_preserving_original,
 };
 
+use serde::{Deserialize, Serialize};
+
 /// Ordered collection of block-level TEI elements.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "body")]
 pub struct TeiBody {
+    #[serde(rename = "$value", default)]
     blocks: Vec<BodyBlock>,
 }
 
@@ -26,7 +35,9 @@ impl TeiBody {
     /// ```
     /// use tei_core::{BodyBlock, P, TeiBody};
     ///
-    /// let paragraph = P::new(["Hello"]).expect("valid paragraph");
+    /// let paragraph = P::from_text_segments(["Hello"]).unwrap_or_else(|error| {
+    ///     panic!("paragraph should be valid: {error}")
+    /// });
     /// let body = TeiBody::new([BodyBlock::Paragraph(paragraph)]);
     ///
     /// assert_eq!(body.blocks().len(), 1);
@@ -60,6 +71,7 @@ impl TeiBody {
     }
 
     /// Returns an iterator over recorded paragraphs.
+    #[must_use = "Iterators are lazy; iterate or collect to inspect paragraphs."]
     pub fn paragraphs(&self) -> impl Iterator<Item = &P> {
         self.blocks.iter().filter_map(|block| {
             if let BodyBlock::Paragraph(paragraph) = block {
@@ -71,6 +83,7 @@ impl TeiBody {
     }
 
     /// Returns an iterator over recorded utterances.
+    #[must_use = "Iterators are lazy; iterate or collect to inspect utterances."]
     pub fn utterances(&self) -> impl Iterator<Item = &Utterance> {
         self.blocks.iter().filter_map(|block| {
             if let BodyBlock::Utterance(utterance) = block {
@@ -89,11 +102,13 @@ impl TeiBody {
 }
 
 /// Block-level body content.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum BodyBlock {
     /// A prose paragraph.
+    #[serde(rename = "p")]
     Paragraph(P),
     /// A spoken utterance.
+    #[serde(rename = "u")]
     Utterance(Utterance),
 }
 
@@ -103,8 +118,10 @@ mod tests {
 
     #[test]
     fn body_iterators_filter_by_variant() {
-        let paragraph = P::new(["Setup"]).expect("valid paragraph");
-        let utterance = Utterance::new(Some("host"), ["Hello"]).expect("valid utterance");
+        let paragraph = P::from_text_segments(["Setup"])
+            .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
+        let utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"));
 
         let mut body = TeiBody::default();
         body.push_paragraph(paragraph.clone());

@@ -17,25 +17,52 @@ pub use header::{
     TeiHeader,
 };
 pub use text::{
-    BodyBlock, BodyContentError, IdentifierValidationError, P, Speaker, SpeakerValidationError,
-    TeiBody, TeiText, Utterance, XmlId,
+    BodyBlock, BodyContentError, Hi, IdentifierValidationError, Inline, P, Pause, Speaker,
+    SpeakerValidationError, TeiBody, TeiText, Utterance, XmlId,
 };
 pub use title::{DocumentTitle, DocumentTitleError};
+
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// Errors raised by TEI core data model operations.
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum TeiError {
+    /// Wrapper around [`DocumentTitleError`] values.
+    #[error(transparent)]
+    DocumentTitle(#[from] DocumentTitleError),
+    /// Wrapper around [`HeaderValidationError`] values.
+    #[error(transparent)]
+    Header(#[from] HeaderValidationError),
+    /// Wrapper around [`BodyContentError`] values.
+    #[error(transparent)]
+    Body(#[from] BodyContentError),
+    /// Wrapper around [`IdentifierValidationError`] values.
+    #[error(transparent)]
+    Identifier(#[from] IdentifierValidationError),
+    /// Wrapper around [`SpeakerValidationError`] values.
+    #[error(transparent)]
+    Speaker(#[from] SpeakerValidationError),
+}
 
 /// Root TEI document combining metadata and textual content.
 ///
 /// # Examples
 ///
 /// ```
-/// use tei_core::{DocumentTitleError, TeiDocument};
+/// use tei_core::{TeiDocument, TeiError};
 ///
 /// let document = TeiDocument::from_title_str("Night Vale Episode")?;
 /// assert_eq!(document.title().as_str(), "Night Vale Episode");
-/// # Ok::<(), DocumentTitleError>(())
+/// # Ok::<(), TeiError>(())
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename = "TEI")]
 pub struct TeiDocument {
+    #[serde(rename = "teiHeader")]
     header: TeiHeader,
+    #[serde(rename = "text")]
     text: TeiText,
 }
 
@@ -50,9 +77,9 @@ impl TeiDocument {
     ///
     /// # Errors
     ///
-    /// Returns [`DocumentTitleError::Empty`] when the supplied title trims to an
+    /// Returns [`TeiError::DocumentTitle`] when the supplied title trims to an
     /// empty string.
-    pub fn from_title_str(value: &str) -> Result<Self, DocumentTitleError> {
+    pub fn from_title_str(value: &str) -> Result<Self, TeiError> {
         let file_desc = FileDesc::from_title_str(value)?;
         let header = TeiHeader::new(file_desc);
         Ok(Self::new(header, TeiText::empty()))
@@ -83,7 +110,56 @@ mod tests {
 
     #[test]
     fn constructs_document_from_title() {
-        let document = TeiDocument::from_title_str("King Falls AM").expect("valid document");
+        let document = TeiDocument::from_title_str("King Falls AM")
+            .unwrap_or_else(|error| panic!("valid document: {error}"));
         assert_eq!(document.title().as_str(), "King Falls AM");
+    }
+
+    #[test]
+    fn converts_document_title_error_into_tei_error() {
+        let error: TeiError = DocumentTitleError::Empty.into();
+        assert!(matches!(
+            error,
+            TeiError::DocumentTitle(DocumentTitleError::Empty)
+        ));
+    }
+
+    #[test]
+    fn converts_body_content_error_into_tei_error() {
+        let error: TeiError = BodyContentError::EmptySpeaker.into();
+        assert!(matches!(
+            error,
+            TeiError::Body(BodyContentError::EmptySpeaker)
+        ));
+    }
+
+    #[test]
+    fn converts_header_validation_error_into_tei_error() {
+        let error: TeiError = HeaderValidationError::EmptyField { field: "header" }.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Header(HeaderValidationError::EmptyField { field: "header" })
+        ));
+    }
+
+    #[test]
+    fn converts_identifier_validation_error_into_tei_error() {
+        let error: TeiError = IdentifierValidationError::Empty.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Identifier(IdentifierValidationError::Empty)
+        ));
+    }
+
+    #[test]
+    fn converts_speaker_validation_error_into_tei_error() {
+        let error: TeiError = SpeakerValidationError::Empty.into();
+
+        assert!(matches!(
+            error,
+            TeiError::Speaker(SpeakerValidationError::Empty)
+        ));
     }
 }

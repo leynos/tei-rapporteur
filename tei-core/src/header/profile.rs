@@ -6,9 +6,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::{Deserialize, Serialize};
 
 /// Validated speaker name stored within [`ProfileDesc`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct SpeakerName(String);
 
 impl SpeakerName {
@@ -71,8 +73,15 @@ impl TryFrom<&str> for SpeakerName {
     }
 }
 
+impl From<SpeakerName> for String {
+    fn from(value: SpeakerName) -> Self {
+        value.0
+    }
+}
+
 /// Validated language identifier stored within [`ProfileDesc`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct LanguageTag(String);
 
 impl LanguageTag {
@@ -135,11 +144,21 @@ impl TryFrom<&str> for LanguageTag {
     }
 }
 
+impl From<LanguageTag> for String {
+    fn from(value: LanguageTag) -> Self {
+        value.0
+    }
+}
+
 /// Audience and linguistic profile metadata.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "profileDesc")]
 pub struct ProfileDesc {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     synopsis: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "speaker")]
     speakers: Vec<SpeakerName>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "lang")]
     languages: Vec<LanguageTag>,
 }
 
@@ -231,12 +250,17 @@ fn build_validated_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
 
     #[test]
     fn profile_desc_tracks_speakers_and_languages() {
         let mut profile = ProfileDesc::new();
-        profile.add_speaker("Keisha").expect("speaker recorded");
-        profile.add_language("en-GB").expect("language recorded");
+        profile
+            .add_speaker("Keisha")
+            .unwrap_or_else(|error| panic!("speaker recorded: {error}"));
+        profile
+            .add_language("en-GB")
+            .unwrap_or_else(|error| panic!("language recorded: {error}"));
 
         assert_eq!(
             profile
@@ -256,5 +280,19 @@ mod tests {
             ["en-GB"],
         );
         assert_eq!(profile.len_languages(), 1);
+    }
+
+    #[test]
+    fn speaker_name_deserialisation_rejects_empty() {
+        let result = json::from_str::<SpeakerName>("\"   \"");
+
+        assert!(result.is_err(), "empty speaker should not deserialise");
+    }
+
+    #[test]
+    fn language_tag_deserialisation_rejects_empty() {
+        let result = json::from_str::<LanguageTag>("\"   \"");
+
+        assert!(result.is_err(), "empty language tag should not deserialise");
     }
 }

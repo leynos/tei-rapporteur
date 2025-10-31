@@ -4,6 +4,7 @@
 //! Exposes the validation errors and helper types consumed throughout the
 //! `tei-core` crate.
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod encoding;
@@ -17,7 +18,7 @@ pub use profile::{LanguageTag, ProfileDesc, SpeakerName};
 pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 
 /// Error raised when TEI header metadata fails validation.
-#[derive(Debug, Error, Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize)]
 pub enum HeaderValidationError {
     /// A textual field was empty once normalised.
     #[error("{field} may not be empty")]
@@ -28,11 +29,28 @@ pub enum HeaderValidationError {
 }
 
 /// Metadata container for TEI header information.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "teiHeader")]
 pub struct TeiHeader {
+    #[serde(rename = "fileDesc")]
     file: FileDesc,
+    #[serde(
+        rename = "profileDesc",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     profile: Option<ProfileDesc>,
+    #[serde(
+        rename = "encodingDesc",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     encoding: Option<EncodingDesc>,
+    #[serde(
+        rename = "revisionDesc",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     revision: Option<RevisionDesc>,
 }
 
@@ -112,7 +130,8 @@ mod tests {
 
     #[test]
     fn attaches_optional_sections() {
-        let title = DocumentTitle::new("Title").expect("valid title");
+        let title =
+            DocumentTitle::new("Title").unwrap_or_else(|error| panic!("valid title: {error}"));
         let header = TeiHeader::new(FileDesc::new(title))
             .with_profile_desc(ProfileDesc::new())
             .with_encoding_desc(EncodingDesc::new())

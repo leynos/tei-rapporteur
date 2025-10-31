@@ -5,10 +5,17 @@
 use std::fmt;
 
 use super::{HeaderValidationError, normalise_optional_text};
+use serde::{Deserialize, Serialize};
 
 /// Aggregates encoding metadata such as annotation systems.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "encodingDesc")]
 pub struct EncodingDesc {
+    #[serde(
+        rename = "annotationSystem",
+        skip_serializing_if = "Vec::is_empty",
+        default
+    )]
     annotation_systems: Vec<AnnotationSystem>,
 }
 
@@ -54,9 +61,11 @@ impl EncodingDesc {
 }
 
 /// Annotation toolkit metadata.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AnnotationSystem {
+    #[serde(rename = "xml:id")]
     identifier: AnnotationSystemId,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "desc", default)]
     description: Option<String>,
 }
 
@@ -93,7 +102,8 @@ impl AnnotationSystem {
 }
 
 /// Canonical identifier for an annotation system.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct AnnotationSystemId(String);
 
 impl AnnotationSystemId {
@@ -144,6 +154,14 @@ impl PartialEq<AnnotationSystemId> for str {
     }
 }
 
+impl TryFrom<String> for AnnotationSystemId {
+    type Error = HeaderValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
 impl TryFrom<&str> for AnnotationSystemId {
     type Error = HeaderValidationError;
 
@@ -152,9 +170,16 @@ impl TryFrom<&str> for AnnotationSystemId {
     }
 }
 
+impl From<AnnotationSystemId> for String {
+    fn from(value: AnnotationSystemId) -> Self {
+        value.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
     use std::convert::TryFrom;
 
     #[test]
@@ -175,14 +200,17 @@ mod tests {
     fn finds_registered_annotation_system() {
         let mut encoding = EncodingDesc::new();
         let system = AnnotationSystem::new("timestamps", "Word timing")
-            .expect("valid annotation system should construct");
+            .unwrap_or_else(|error| panic!("valid annotation system should construct: {error}"));
         let identifier = system.identifier().clone();
         encoding.add_annotation_system(system);
 
         assert!(encoding.find(&identifier).is_some());
         assert!(
             encoding
-                .find(&AnnotationSystemId::try_from("other").expect("valid id"))
+                .find(
+                    &AnnotationSystemId::try_from("other")
+                        .unwrap_or_else(|error| panic!("valid id: {error}")),
+                )
                 .is_none()
         );
         assert!(encoding.find_str(identifier.as_str()).is_some());
@@ -191,8 +219,16 @@ mod tests {
 
     #[test]
     fn blanks_are_removed_from_descriptions() {
-        let system = AnnotationSystem::new("tok", "   ").expect("identifier should be valid");
+        let system = AnnotationSystem::new("tok", "   ")
+            .unwrap_or_else(|error| panic!("identifier should be valid: {error}"));
 
         assert!(system.description().is_none());
+    }
+
+    #[test]
+    fn annotation_system_id_deserialisation_rejects_empty() {
+        let result = json::from_str::<AnnotationSystemId>("\"   \"");
+
+        assert!(result.is_err(), "empty identifier should not deserialise");
     }
 }

@@ -330,14 +330,16 @@ placeholder segments:
 - `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
   variants. This provides a single ordered surface today while leaving room for
   future variants such as divisions.
-- `P` and `Utterance` store linear `Vec<String>` segments until the mixed
-  content model lands. Both structs expose helper methods for attaching
-  optional `xml:id` values and, in the case of `Utterance`, a speaker reference.
+- `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasised spans, and
+  pauses share a single ordered sequence. Both structs expose helper methods
+  for attaching optional `xml:id` values and, in the case of `Utterance`, a
+  speaker reference.
 - Input validation moved into a dedicated `BodyContentError` enum. Paragraphs
-  and utterances must contain at least one non-empty segment, segment
-  insertions reject empty strings, and identifiers/speaker names are trimmed
-  before being recorded. This mirrors the header module’s normalisation story
-  and keeps downstream consumers safe from accidentally blank content.
+  and utterances must contain at least one meaningful inline node. Inline text
+  nodes with only whitespace are rejected, inline elements such as `<hi>` must
+  contain validated children, and identifiers/speaker names are trimmed before
+  being recorded. This mirrors the header module’s normalisation story and
+  keeps downstream consumers safe from accidentally blank content.
 
 Normalization helpers centralize the trimming logic so optional values never
 carry unintentional whitespace. This by-construction approach keeps downstream
@@ -358,33 +360,58 @@ header metadata.
 ```rust
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-enum Inline {
+pub enum Inline {
     Text(String),
-    Hi(Hi),        // corresponds to <hi> element
-    // ... other inline elements like <seg>, <pause> etc. can be added
+    Hi(Hi),
+    Pause(Pause),
 }
 
 #[derive(Serialize, Deserialize)]
-struct P {
-    #[serde(rename = "$value")]
+#[serde(rename = "hi")]
+pub struct Hi {
+    #[serde(rename = "rend", skip_serializing_if = "Option::is_none", default)]
+    rend: Option<String>,
+    #[serde(rename = "$value", default)]
     content: Vec<Inline>,
 }
-#[derive(Serialize, Deserialize)]
-struct Hi {
-    #[serde(rename = "rend", default)]
-    rend: Option<String>,            // e.g. <hi rend="italic"> 
-    #[serde(rename = "$value", default)]
-    content: Vec<Inline>            // hi can contain further inline or text
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename = "pause")]
+pub struct Pause {
+    #[serde(rename = "dur", skip_serializing_if = "Option::is_none", default)]
+    duration: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none", default)]
+    kind: Option<String>,
 }
 ```
 
-In this example, `P` (paragraph or utterance) has a `content` list that can
-hold either raw text segments or specific inline elements (like `Hi`). Serde
-annotations `rename="$value"` indicate that the text content is captured as a
-value in XML, not a nested tag. Content lists are marked with `default` to
-allow empty content. The `untagged` enum means Serde will discriminate based on
-whether a JSON value is a string or an object to decide if it's `Text` vs `Hi`,
-which aligns with how quick-xml will treat XML text vs child elements.
+`P` and `Utterance` both expose a `content: Vec<Inline>` surface. Inline helper
+constructors (`Inline::text`, `Inline::hi`, `Inline::pause`) ensure callers can
+describe emphasised segments and pause cues without juggling the underlying
+structs. The `Hi::try_new` and `Hi::try_with_rend` helpers validate inline
+children up-front, and `Hi::push_inline` now returns a `Result` so invalid
+nodes are rejected rather than silently recorded. Validation walks the entire
+inline tree: empty text nodes and empty `<hi>` elements raise
+`BodyContentError`, while `<pause/>` counts as meaningful content even without
+surrounding text so scripts can capture timing cues.
+
+String-based constructors now flow through explicit `from_text_segments`
+helpers so callers can convert plain text into validated inline nodes without
+manually collecting `Inline` variants. The previous `P::new` and
+`Utterance::new` wrappers delegate to these helpers and are marked deprecated
+to steer new code towards the clearer naming while preserving backwards
+compatibility.
+
+To keep serialisation ergonomic, every data model struct and enum derives
+`Serialize`/`Deserialize`. The derives include `#[serde(transparent)]` on the
+newtype wrappers so `quick-xml` and future JSON projections observe canonical
+string shapes. Error handling now centralises conversions via a `TeiError`
+enum, allowing higher layers to convert `DocumentTitleError`,
+`HeaderValidationError`, `BodyContentError`, and related cases into a single
+type without losing context. Top-level constructors such as
+`TeiDocument::from_title_str` and helpers like `serialize_document_title`
+propagate `TeiError` directly so downstream callers always interact with the
+unified surface.
 
 - **Attributes and Identifiers**: Attributes of TEI elements become struct
   fields, using `serde(rename = "...")` to map to the actual XML attribute

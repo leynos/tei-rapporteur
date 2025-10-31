@@ -5,16 +5,19 @@
 
 use std::fmt;
 
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct XmlId(String);
 
 /// Errors raised when normalising identifier input.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum IdentifierValidationError {
     /// The identifier trimmed to an empty string.
     #[error("identifiers must not be empty")]
@@ -91,12 +94,24 @@ impl TryFrom<&str> for XmlId {
     }
 }
 
+impl<'de> Deserialize<'de> for XmlId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        Self::new(value).map_err(DeError::custom)
+    }
+}
+
 /// Validated wrapper for utterance speaker references.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct Speaker(String);
 
 /// Errors raised when normalising speaker references.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum SpeakerValidationError {
     /// The speaker trimmed to an empty string.
     #[error("speaker references must not be empty")]
@@ -165,13 +180,26 @@ impl TryFrom<&str> for Speaker {
     }
 }
 
+impl<'de> Deserialize<'de> for Speaker {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        Self::new(value).map_err(DeError::custom)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json as json;
 
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {
-        let identifier = XmlId::new("  intro ").expect("identifier should be normalised");
+        let identifier = XmlId::new("  intro ")
+            .unwrap_or_else(|error| panic!("identifier should be normalised: {error}"));
         assert_eq!(identifier.as_str(), "intro");
     }
 
@@ -186,8 +214,15 @@ mod tests {
 
     #[test]
     fn xml_id_display_matches_as_str() {
-        let id = XmlId::new("intro").expect("identifier should validate");
+        let id = XmlId::new("intro")
+            .unwrap_or_else(|error| panic!("identifier should validate: {error}"));
         assert_eq!(id.to_string(), id.as_str());
+    }
+
+    #[test]
+    fn xml_id_deserialisation_rejects_invalid_input() {
+        assert!(json::from_str::<XmlId>("\"   \"").is_err());
+        assert!(json::from_str::<XmlId>("\"identifier with space\"").is_err());
     }
 
     #[test]
@@ -198,7 +233,8 @@ mod tests {
 
     #[test]
     fn speaker_accepts_trimmed_values() {
-        let speaker = Speaker::new("  host  ").expect("speaker should be normalised");
+        let speaker = Speaker::new("  host  ")
+            .unwrap_or_else(|error| panic!("speaker should be normalised: {error}"));
         assert_eq!(speaker.as_str(), "host");
     }
 
@@ -206,5 +242,10 @@ mod tests {
     fn speaker_try_from_str_validates() {
         let result = Speaker::try_from("   ");
         assert!(matches!(result, Err(SpeakerValidationError::Empty)));
+    }
+
+    #[test]
+    fn speaker_deserialisation_rejects_empty_input() {
+        assert!(json::from_str::<Speaker>("\"   \"").is_err());
     }
 }

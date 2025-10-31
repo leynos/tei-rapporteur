@@ -5,8 +5,8 @@ use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
 use tei_core::{
-    AnnotationSystem, DocumentTitleError, EncodingDesc, FileDesc, HeaderValidationError,
-    ProfileDesc, RevisionChange, RevisionDesc, TeiDocument, TeiHeader, TeiText,
+    AnnotationSystem, EncodingDesc, FileDesc, HeaderValidationError, ProfileDesc, RevisionChange,
+    RevisionDesc, TeiDocument, TeiError, TeiHeader, TeiText,
 };
 
 #[derive(Default)]
@@ -230,7 +230,7 @@ fn an_empty_revision_description(#[from(validated_state)] state: &HeaderState) -
 #[when("I assemble the TEI document")]
 fn i_assemble_the_tei_document(#[from(validated_state)] state: &HeaderState) -> Result<()> {
     let title = state.title()?;
-    let result = (|| -> Result<TeiDocument, DocumentTitleError> {
+    let result = (|| -> Result<TeiDocument, TeiError> {
         let file_desc = FileDesc::from_title_str(&title)?;
         let mut header = TeiHeader::new(file_desc);
 
