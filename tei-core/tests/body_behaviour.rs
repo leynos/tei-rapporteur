@@ -83,6 +83,18 @@ where
     f(block)
 }
 
+/// Extracts the sole emphasised text node from a [`Hi`] inline.
+fn emphasised_text(hi: &Hi) -> Result<&str> {
+    let mut it = hi.content().iter().filter_map(Inline::as_text);
+    let actual = it.next().context("expected emphasised segment")?;
+    ensure!(
+        it.next().is_none(),
+        "expected a single emphasised segment, found {:?}",
+        hi.content()
+    );
+    Ok(actual)
+}
+
 fn build_state() -> Result<BodyState> {
     let state = BodyState::default();
     ensure!(
@@ -368,13 +380,7 @@ fn block_should_emphasise(
         let [Inline::Hi(hi)] = paragraph.content() else {
             bail!("paragraph should contain a single emphasised inline");
         };
-        let mut it = hi.content().iter().filter_map(Inline::as_text);
-        let actual = it.next().context("expected emphasised segment")?;
-        ensure!(
-            it.next().is_none(),
-            "expected a single emphasised segment, found {:?}",
-            hi.content()
-        );
+        let actual = emphasised_text(hi)?;
         ensure!(
             actual == content,
             "emphasised content mismatch: expected {content}, found {actual}"
@@ -416,13 +422,7 @@ fn block_should_mix_inline(#[from(validated_state)] state: &BodyState, index: us
             expected_rend,
             hi.rend(),
         );
-        let mut it = hi.content().iter().filter_map(Inline::as_text);
-        let actual_emphasis = it.next().context("expected emphasised segment")?;
-        ensure!(
-            it.next().is_none(),
-            "expected a single emphasised segment, found {:?}",
-            hi.content(),
-        );
+        let actual_emphasis = emphasised_text(hi)?;
         ensure!(
             actual_emphasis == expected_emphasis,
             "emphasised content mismatch: expected {expected_emphasis}, found {actual_emphasis}"
