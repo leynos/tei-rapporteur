@@ -260,16 +260,19 @@ mod tests {
         Pause::new()
     }
 
+    // Asserts that deserialising an [`Inline`] value fails with a matching error.
+    #[track_caller]
     fn assert_inline_deserialisation_error(
         payload: &str,
         expected_error_substring: &str,
         description: &str,
     ) {
         let error = json::from_str::<Inline>(payload).expect_err(description);
+        let message = error.to_string();
 
         assert!(
-            error.to_string().contains(expected_error_substring),
-            "{description}: {error}"
+            message.contains(expected_error_substring),
+            "{description}: {message}"
         );
     }
 
