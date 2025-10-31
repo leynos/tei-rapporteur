@@ -261,7 +261,6 @@ mod tests {
     }
 
     // Asserts that deserialising an [`Inline`] value fails with a matching error.
-    #[track_caller]
     fn assert_inline_deserialisation_error(
         payload: &str,
         expected_error_substring: &str,
