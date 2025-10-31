@@ -1,3 +1,8 @@
+//! Paragraph body model handling inline content and identifier management.
+//!
+//! Defines the TEI `<p>` block with helper constructors that validate inline
+//! segments and optional `xml:id` attributes.
+
 use crate::text::{Inline, types::XmlId};
 
 use super::{
