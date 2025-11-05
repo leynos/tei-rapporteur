@@ -44,6 +44,22 @@ pub enum TeiError {
     /// Wrapper around [`SpeakerValidationError`] values.
     #[error(transparent)]
     Speaker(#[from] SpeakerValidationError),
+    /// XML parsing or serialisation failed.
+    #[error("XML processing error: {message}")]
+    Xml {
+        /// Message describing the failure emitted by the XML layer.
+        message: String,
+    },
+}
+
+impl TeiError {
+    /// Builds an XML processing error with the provided message.
+    #[must_use]
+    pub fn xml(message: impl Into<String>) -> Self {
+        Self::Xml {
+            message: message.into(),
+        }
+    }
 }
 
 /// Root TEI document combining metadata and textual content.
@@ -161,5 +177,15 @@ mod tests {
             error,
             TeiError::Speaker(SpeakerValidationError::Empty)
         ));
+    }
+
+    #[test]
+    fn constructs_xml_error_from_message() {
+        let error = TeiError::xml("missing header");
+        let TeiError::Xml { message } = error else {
+            panic!("expected XML error variant");
+        };
+
+        assert_eq!(message, "missing header");
     }
 }

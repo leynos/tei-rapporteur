@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 tei-core = { path = "../tei-core" }
+quick-xml = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
