@@ -490,6 +490,15 @@ well-formedness failures by feeding fixtures that omit `<teiHeader>` or end the
 document abruptly. This gives us confidence that the library surfaces XML
 faults consistently before we wire up emission.
 
+`tei-xml::emit_xml` now completes the round-trip by delegating to
+`quick_xml::se::to_string`. The emitter keeps XML-specific logic inside the
+`tei-xml` crate while returning `TeiError::Xml` when quick-xml refuses to
+serialise invalid data (for example, control characters that XML 1.0 forbids).
+Fresh unit and behaviour-driven tests assert both the happy path (emitting the
+minimal TEI skeleton) and the unhappy path (surfacing the serializer's control
+character error message) so callers see consistent diagnostics regardless of
+where emission is triggered.
+
 ```mermaid
 sequenceDiagram
     participant Client

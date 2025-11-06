@@ -726,6 +726,7 @@ dependencies = [
  "rstest",
  "rstest-bdd",
  "rstest-bdd-macros",
+ "serde",
  "tei-core",
  "tei-test-helpers",
 ]
