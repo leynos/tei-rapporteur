@@ -5,6 +5,7 @@
 
 use super::body::{BodyContentError, ensure_container_content, push_validated_inline};
 use serde::de::{self, Deserializer};
+use serde::ser::{SerializeStructVariant, Serializer};
 use serde::{Deserialize, Serialize};
 
 /// Inline content occurring inside paragraphs and utterances.
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// assert_eq!(paragraph.content().len(), 2);
 /// ```
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum Inline {
     /// Plain text content.
@@ -66,11 +67,45 @@ impl Inline {
     }
 }
 
+impl Serialize for Inline {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Text(value) => serializer.serialize_newtype_variant("Inline", 0, "$text", value),
+            Self::Hi(hi) => {
+                let field_count = 1 + usize::from(hi.rend.is_some());
+                let mut variant =
+                    serializer.serialize_struct_variant("Inline", 1, "hi", field_count)?;
+                if let Some(rend) = &hi.rend {
+                    variant.serialize_field("@rend", rend)?;
+                }
+                variant.serialize_field("$value", &hi.content)?;
+                variant.end()
+            }
+            Self::Pause(pause) => {
+                let field_count =
+                    usize::from(pause.duration.is_some()) + usize::from(pause.pause_type.is_some());
+                let mut variant =
+                    serializer.serialize_struct_variant("Inline", 2, "pause", field_count)?;
+                if let Some(duration) = &pause.duration {
+                    variant.serialize_field("@dur", duration)?;
+                }
+                if let Some(kind) = &pause.pause_type {
+                    variant.serialize_field("@type", kind)?;
+                }
+                variant.end()
+            }
+        }
+    }
+}
+
 /// Emphasised inline element corresponding to `<hi>`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename = "hi")]
 pub struct Hi {
-    #[serde(rename = "rend", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@rend", skip_serializing_if = "Option::is_none", default)]
     rend: Option<String>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
@@ -84,7 +119,7 @@ impl<'de> Deserialize<'de> for Hi {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct RawHi {
-            #[serde(rename = "rend", default)]
+            #[serde(rename = "@rend", default)]
             rend: Option<String>,
             #[serde(rename = "$value", default)]
             content: Vec<Inline>,
@@ -197,9 +232,9 @@ impl Hi {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "pause", deny_unknown_fields)]
 pub struct Pause {
-    #[serde(rename = "dur", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@dur", skip_serializing_if = "Option::is_none", default)]
     duration: Option<String>,
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@type", skip_serializing_if = "Option::is_none", default)]
     pause_type: Option<String>,
 }
 

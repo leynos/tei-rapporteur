@@ -3,7 +3,7 @@
 //! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
-use quick_xml::de;
+use quick_xml::{de, se};
 use tei_core::{TeiDocument, TeiError};
 
 /// Encodes text for inclusion in XML content.
@@ -125,11 +125,49 @@ pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
     de::from_str(xml).map_err(|error| TeiError::xml(error.to_string()))
 }
 
+/// Emits a [`TeiDocument`] as canonical TEI XML.
+///
+/// The serializer normalises insignificant whitespace and attribute ordering,
+/// producing a stable string so callers can diff or hash emitted markup.
+///
+/// # Errors
+///
+/// Returns [`TeiError::Xml`] when the document contains data that cannot be
+/// represented as well-formed XML (for example invalid control characters or
+/// unterminated entity references).
+///
+/// # Examples
+///
+/// ```
+/// use tei_core::TeiDocument;
+/// use tei_xml::{emit_xml, parse_xml};
+///
+/// let xml = concat!(
+///     "<TEI>",
+///     "<teiHeader>",
+///     "<fileDesc>",
+///     "<title>Wolf 359</title>",
+///     "</fileDesc>",
+///     "</teiHeader>",
+///     "<text>",
+///     "<body/>",
+///     "</text>",
+///     "</TEI>",
+/// );
+/// let document: TeiDocument = parse_xml(xml)?;
+/// let emitted = emit_xml(&document)?;
+/// assert!(emitted.contains("<TEI>"));
+/// # Ok::<(), tei_core::TeiError>(())
+/// ```
+pub fn emit_xml(document: &TeiDocument) -> Result<String, TeiError> {
+    se::to_string(document).map_err(|error| TeiError::xml(error.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest;
-    use tei_core::DocumentTitleError;
+    use tei_core::{DocumentTitleError, FileDesc, Inline, P, TeiHeader, TeiText, Utterance};
     use tei_test_helpers::expect_markup;
 
     const MINIMAL_TEI: &str = concat!(
@@ -231,6 +269,77 @@ mod tests {
                 "error should mention empty title, found {message}"
             ),
             other => panic!("expected XML error signalling empty title, found {other}"),
+        }
+    }
+
+    const SAMPLE_DOCUMENT_XML: &str = concat!(
+        "<TEI>",
+        "<teiHeader>",
+        "<fileDesc>",
+        "<title>Sample</title>",
+        "</fileDesc>",
+        "</teiHeader>",
+        "<text>",
+        "<body>",
+        "<p xml:id=\"intro\">Hello <hi>world</hi></p>",
+        "<u xml:id=\"u1\" who=\"host\">Mind the gap</u>",
+        "</body>",
+        "</text>",
+        "</TEI>",
+    );
+
+    fn document_with_content(
+        title: &str,
+        paragraph_inline: impl IntoIterator<Item = Inline>,
+        utterance_text: &str,
+    ) -> TeiDocument {
+        let mut paragraph = P::from_inline(paragraph_inline)
+            .unwrap_or_else(|error| panic!("paragraph should be valid: {error}"));
+        paragraph
+            .set_id("intro")
+            .unwrap_or_else(|error| panic!("identifier should be valid: {error}"));
+
+        let mut utterance = Utterance::from_text_segments(Some("host"), [utterance_text])
+            .unwrap_or_else(|error| panic!("utterance should be valid: {error}"));
+        utterance
+            .set_id("u1")
+            .unwrap_or_else(|error| panic!("identifier should be valid: {error}"));
+
+        let mut text = TeiText::empty();
+        text.push_paragraph(paragraph);
+        text.push_utterance(utterance);
+
+        let file_desc = FileDesc::from_title_str(title)
+            .unwrap_or_else(|error| panic!("title should be valid: {error}"));
+        let header = TeiHeader::new(file_desc);
+
+        TeiDocument::new(header, text)
+    }
+
+    #[test]
+    fn emits_canonical_xml() {
+        let document = document_with_content(
+            "Sample",
+            [Inline::text("Hello "), Inline::hi([Inline::text("world")])],
+            "Mind the gap",
+        );
+        let emitted = emit_xml(&document).expect("document should emit successfully");
+        assert_eq!(emitted, SAMPLE_DOCUMENT_XML);
+    }
+
+    #[test]
+    fn rejects_control_characters() {
+        let document = document_with_content("Sample", [Inline::text("\u{0}")], "Line");
+        let Err(error) = emit_xml(&document) else {
+            panic!("control characters must not emit successfully");
+        };
+
+        match error {
+            TeiError::Xml { message } => assert!(
+                message.contains("character") || message.contains("Invalid"),
+                "error should mention invalid characters, found {message}",
+            ),
+            other => panic!("expected XML error describing control characters, found {other}"),
         }
     }
 }

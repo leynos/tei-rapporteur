@@ -579,6 +579,21 @@ Some specifics of the parse/emit implementation:
   order of a few thousand words), this approach should be very fast and use
   only a few MBs of memory.
 
+The concrete `tei_xml::emit_xml` helper now wraps `quick_xml::se::to_string`
+and surfaces any writer failures as `TeiError::Xml`. Serialisation therefore
+shares the same ergonomic error channel as parsing while still keeping
+`quick-xml` scoped to the XML crate. Behaviour-driven tests (powered by
+`rstest-bdd` v0.1.0-alpha4) cover the round-trip contract explicitly:
+`emit_xml(parse_xml(pretty_input))` collapses pretty-printed whitespace into
+the canonical single-line representation, so diffing emitted XML is
+deterministic. Those scenarios also assert that namespace-qualified attributes
+such as `xml:id` survive emission unchanged, satisfying the namespace-handling
+requirement called out in the roadmap. Finally, the emission tests feed a
+`TeiDocument` that contains control characters into `emit_xml` to guarantee the
+function refuses to produce malformed XML. The helper now reports the
+underlying serializer message ("character" errors in practice), making it easy
+for callers to diagnose invalid content before retrying.
+
 ### JSON/MessagePack Serialization
 
 In addition to XML, the Rust data model can be serialized to and from JSON or
