@@ -63,7 +63,7 @@ impl EncodingDesc {
 /// Annotation toolkit metadata.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AnnotationSystem {
-    #[serde(rename = "xml:id")]
+    #[serde(rename = "@xml:id")]
     identifier: AnnotationSystemId,
     #[serde(skip_serializing_if = "Option::is_none", rename = "desc", default)]
     description: Option<String>,

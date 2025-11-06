@@ -57,10 +57,12 @@ in-memory Rust structs and TEI XML strings.
       function using `quick_xml::de::from_str`.
 - [ ] Implement the `emit_xml(doc: &TeiDocument) -> Result<String, TeiError>`
       function using `quick_xml::se::to_string`.
-- [ ] Write integration tests to verify semantic round-trip fidelity:
+- [x] Implement the `emit_xml(doc: &TeiDocument) -> Result<String, TeiError>`
+      function using `quick_xml::se::to_string`.
+- [x] Write integration tests to verify semantic round-trip fidelity:
       `emit_xml(parse_xml(input))` should produce a canonically equivalent XML
       output.
-- [ ] Ensure tests cover namespace handling and normalization of insignificant
+- [x] Ensure tests cover namespace handling and normalization of insignificant
       whitespace.
 
 ## Phase 2: Python Integration

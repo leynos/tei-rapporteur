@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "u")]
 pub struct Utterance {
-    #[serde(rename = "xml:id", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@xml:id", skip_serializing_if = "Option::is_none", default)]
     id: Option<XmlId>,
-    #[serde(rename = "who", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@who", skip_serializing_if = "Option::is_none", default)]
     speaker: Option<Speaker>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
