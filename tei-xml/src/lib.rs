@@ -3,6 +3,7 @@
 //! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
+use quick_xml::de;
 use tei_core::{TeiDocument, TeiError};
 
 /// Encodes text for inclusion in XML content.
@@ -91,12 +92,72 @@ pub fn serialize_document_title(raw_title: &str) -> Result<String, TeiError> {
     TeiDocument::from_title_str(raw_title).map(|document| serialize_title(&document))
 }
 
+/// Parses a TEI XML string into a [`TeiDocument`].
+///
+/// # Errors
+///
+/// Returns [`TeiError::Xml`] when the XML is not well-formed or does not match
+/// the profiled TEI structure expected by the data model.
+///
+/// # Examples
+///
+/// ```
+/// use tei_core::TeiError;
+/// use tei_xml::parse_xml;
+///
+/// let xml = concat!(
+///     "<TEI>",
+///     "<teiHeader>",
+///     "<fileDesc>",
+///     "<title>Wolf 359</title>",
+///     "</fileDesc>",
+///     "</teiHeader>",
+///     "<text>",
+///     "<body/>",
+///     "</text>",
+///     "</TEI>",
+/// );
+/// let document = parse_xml(xml)?;
+/// assert_eq!(document.title().as_str(), "Wolf 359");
+/// # Ok::<(), TeiError>(())
+/// ```
+pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
+    de::from_str(xml).map_err(|error| TeiError::xml(error.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest;
     use tei_core::DocumentTitleError;
     use tei_test_helpers::expect_markup;
+
+    const MINIMAL_TEI: &str = concat!(
+        "<TEI>",
+        "<teiHeader>",
+        "<fileDesc>",
+        "<title>Wolf 359</title>",
+        "</fileDesc>",
+        "</teiHeader>",
+        "<text>",
+        "<body/>",
+        "</text>",
+        "</TEI>",
+    );
+
+    const MISSING_HEADER_TEI: &str = concat!("<TEI>", "<text>", "<body/>", "</text>", "</TEI>",);
+    const BLANK_TITLE_TEI: &str = concat!(
+        "<TEI>",
+        "<teiHeader>",
+        "<fileDesc>",
+        "<title>   </title>",
+        "</fileDesc>",
+        "</teiHeader>",
+        "<text>",
+        "<body/>",
+        "</text>",
+        "</TEI>",
+    );
 
     #[rstest]
     #[case("Plain", "Plain")]
@@ -132,5 +193,44 @@ mod tests {
     fn rejects_empty_titles(#[case] input: &str) {
         let error = expect_title_error(serialize_document_title(input));
         assert_eq!(error, DocumentTitleError::Empty);
+    }
+
+    #[test]
+    fn parses_minimal_document() {
+        let document = parse_xml(MINIMAL_TEI).expect("valid TEI should parse");
+        let expected =
+            TeiDocument::from_title_str("Wolf 359").expect("valid title should build document");
+
+        assert_eq!(document, expected);
+    }
+
+    #[test]
+    fn surfaces_quick_xml_errors() {
+        let Err(error) = parse_xml(MISSING_HEADER_TEI) else {
+            panic!("expected parsing to fail");
+        };
+
+        match error {
+            TeiError::Xml { message } => assert!(
+                message.contains("teiHeader"),
+                "missing header error should mention field, found {message}"
+            ),
+            other => panic!("expected XML error, found {other}"),
+        }
+    }
+
+    #[test]
+    fn rejects_blank_titles_during_parse() {
+        let Err(error) = parse_xml(BLANK_TITLE_TEI) else {
+            panic!("blank titles must not parse successfully");
+        };
+
+        match error {
+            TeiError::Xml { message } => assert!(
+                message.contains("document title may not be empty"),
+                "error should mention empty title, found {message}"
+            ),
+            other => panic!("expected XML error signalling empty title, found {other}"),
+        }
     }
 }

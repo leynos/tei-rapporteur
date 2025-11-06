@@ -14,9 +14,11 @@ available today and how to exercise it.
   strings flow through the new `P::from_text_segments` and
   `Utterance::from_text_segments` helpers; the older `new` constructors remain
   as deprecated shims for existing callers.
-- `tei-xml` depends on the core crate and offers
-  `serialize_document_title(raw_title)`, which turns validated titles into a
-  `<title>` snippet and now returns the unified `TeiError` surface.
+- `tei-xml` depends on the core crate and now covers both directions of XML
+  flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
+  while the new `parse_xml(xml)` helper wraps `quick-xml` to materialize full
+  `TeiDocument` values. Both functions surface parser/validator issues via the
+  shared `TeiError` enum.
 - `tei-py` depends on both crates and re-exports the serialization helper as
   `emit_title_markup`, propagating the same `TeiError` enum. This crate is the
   future home of the PyO3 bindings.
@@ -40,7 +42,8 @@ unhappy paths. Core scenarios validate that header metadata can be assembled,
 that blank revision notes are rejected, and that the body model preserves
 paragraph/utterance order while rejecting empty utterances. Additional cases
 demonstrate inline emphasis, rend-aware mixed content, pause cues with duration
-metadata, and ensure empty `<hi>` segments are rejected. The XML crate confirms
-title serialization and unified error propagation. These tests run alongside
-the unit suite, so developers receive fast feedback when modifying the
-scaffolding.
+metadata, and ensure empty `<hi>` segments are rejected. The XML crate now
+tests both title serialization and the new parser: feature files cover
+successful parsing, missing header errors, and syntax failures triggered by
+truncated documents. These tests run alongside the unit suite, so developers
+receive fast feedback when modifying the scaffolding.

@@ -52,8 +52,8 @@ the TEI Episodic Profile as defined in the design document.
 This step provides the I/O functionality, enabling the conversion between
 in-memory Rust structs and TEI XML strings.
 
-- [ ] Add `quick-xml` with the `serde` feature as a dependency to `tei-xml`.
-- [ ] Implement the `parse_xml(xml: &str) -> Result<TeiDocument, TeiError>`
+- [x] Add `quick-xml` with the `serde` feature as a dependency to `tei-xml`.
+- [x] Implement the `parse_xml(xml: &str) -> Result<TeiDocument, TeiError>`
       function using `quick_xml::de::from_str`.
 - [ ] Implement the `emit_xml(doc: &TeiDocument) -> Result<String, TeiError>`
       function using `quick_xml::se::to_string`.

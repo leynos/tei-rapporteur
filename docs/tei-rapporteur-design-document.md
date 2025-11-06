@@ -479,6 +479,35 @@ equivalent at the XML node level. This behaviour is considered acceptable, even
 desirable, for a canonicalization perspective – it ensures consistent
 formatting for downstream processing and diffing.
 
+`tei-xml::parse_xml` now wraps `quick_xml::de::from_str`, keeping `quick-xml`
+scoped to the XML crate while still surfacing failures through the shared
+`TeiError::Xml { message }` variant. The helper stores the parser's message
+verbatim so callers get actionable diagnostics (missing fields versus syntax
+errors) without leaking the external dependency into `tei-core`. New unit tests
+cover the happy-path parse of a canonical `<TEI>` shell, while the
+behaviour-driven suite (powered by `rstest-bdd`) exercises structural and
+well-formedness failures by feeding fixtures that omit `<teiHeader>` or end the
+document abruptly. This gives us confidence that the library surfaces XML
+faults consistently before we wire up emission.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant tei_xml_parse_xml
+    participant quick_xml_de_from_str
+    participant tei_core_TeiError
+    Client->>tei_xml_parse_xml: Call with XML string
+    tei_xml_parse_xml->>quick_xml_de_from_str: Parse XML
+    alt Success
+        quick_xml_de_from_str-->>tei_xml_parse_xml: TeiDocument
+        tei_xml_parse_xml-->>Client: Ok(TeiDocument)
+    else Failure
+        quick_xml_de_from_str-->>tei_xml_parse_xml: Error
+        tei_xml_parse_xml->>tei_core_TeiError: TeiError::xml(error)
+        tei_xml_parse_xml-->>Client: Err(TeiError::Xml)
+    end
+```
+
 Some specifics of the parse/emit implementation:
 
 - **Insignificant Whitespace**: By default, the model will not preserve

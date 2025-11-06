@@ -21,6 +21,7 @@ rstest-bdd = { version = "0.1.0-alpha4" }
 rstest-bdd-macros = { version = "0.1.0-alpha4" }
 thiserror = { version = "2.0.17" }
 serde_json = { version = "1.0.145" }
+quick-xml = { version = "0.36.2", features = ["serialize"] }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
