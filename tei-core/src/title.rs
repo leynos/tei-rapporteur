@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -28,7 +29,7 @@ pub enum DocumentTitleError {
 /// assert_eq!(title.as_str(), "Voynich Manuscript");
 /// # Ok::<(), DocumentTitleError>(())
 /// ```
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct DocumentTitle(String);
 
@@ -85,6 +86,16 @@ impl DocumentTitle {
 impl fmt::Display for DocumentTitle {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for DocumentTitle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Self::new(raw).map_err(de::Error::custom)
     }
 }
 
@@ -150,5 +161,16 @@ mod tests {
     fn rejects_empty_titles(#[case] input: &str) {
         let error = expect_err(DocumentTitle::new(input), "empty titles are invalid");
         assert_eq!(error, DocumentTitleError::Empty);
+    }
+
+    #[test]
+    fn deserialisation_rejects_empty_titles() {
+        let result: Result<DocumentTitle, _> = serde_json::from_str("\"\"");
+
+        let Err(error) = result else {
+            panic!("empty titles must not deserialize successfully");
+        };
+
+        assert_eq!(error.to_string(), "document title may not be empty");
     }
 }

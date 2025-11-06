@@ -146,6 +146,18 @@ mod tests {
     );
 
     const MISSING_HEADER_TEI: &str = concat!("<TEI>", "<text>", "<body/>", "</text>", "</TEI>",);
+    const BLANK_TITLE_TEI: &str = concat!(
+        "<TEI>",
+        "<teiHeader>",
+        "<fileDesc>",
+        "<title>   </title>",
+        "</fileDesc>",
+        "</teiHeader>",
+        "<text>",
+        "<body/>",
+        "</text>",
+        "</TEI>",
+    );
 
     #[rstest]
     #[case("Plain", "Plain")]
@@ -185,10 +197,9 @@ mod tests {
 
     #[test]
     fn parses_minimal_document() {
-        let document = parse_xml(MINIMAL_TEI)
-            .unwrap_or_else(|error| panic!("valid TEI should parse: {error}"));
-        let expected = TeiDocument::from_title_str("Wolf 359")
-            .unwrap_or_else(|error| panic!("valid title should build document: {error}"));
+        let document = parse_xml(MINIMAL_TEI).expect("valid TEI should parse");
+        let expected =
+            TeiDocument::from_title_str("Wolf 359").expect("valid title should build document");
 
         assert_eq!(document, expected);
     }
@@ -205,6 +216,21 @@ mod tests {
                 "missing header error should mention field, found {message}"
             ),
             other => panic!("expected XML error, found {other}"),
+        }
+    }
+
+    #[test]
+    fn rejects_blank_titles_during_parse() {
+        let Err(error) = parse_xml(BLANK_TITLE_TEI) else {
+            panic!("blank titles must not parse successfully");
+        };
+
+        match error {
+            TeiError::Xml { message } => assert!(
+                message.contains("document title may not be empty"),
+                "error should mention empty title, found {message}"
+            ),
+            other => panic!("expected XML error signalling empty title, found {other}"),
         }
     }
 }

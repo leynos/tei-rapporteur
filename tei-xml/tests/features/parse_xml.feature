@@ -15,3 +15,8 @@ Feature: Parse TEI XML
     Given the TEI fixture "unterminated"
     When I parse the TEI input
     Then parsing fails mentioning "start tag not closed"
+
+  Scenario: Reject blank titles via constructors
+    Given the TEI fixture "blank-title"
+    When I parse the TEI input
+    Then parsing fails mentioning "document title may not be empty"

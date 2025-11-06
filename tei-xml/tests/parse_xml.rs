@@ -1,7 +1,7 @@
 //! Behaviour-driven scenarios that cover parsing TEI XML strings into
 //! structured documents.
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
@@ -35,10 +35,25 @@ const UNTERMINATED_FIXTURE: &str = concat!(
     "</fileDesc>",
 );
 
+const BLANK_TITLE_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>   </title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body/>",
+    "</text>",
+    "</TEI>",
+);
+
+type DocumentResult = std::result::Result<TeiDocument, TeiError>;
+
 #[derive(Default)]
 struct ParseState {
     xml: RefCell<Option<String>>,
-    result: RefCell<Option<Result<TeiDocument, TeiError>>>,
+    result: RefCell<Option<DocumentResult>>,
 }
 
 impl ParseState {
@@ -46,7 +61,7 @@ impl ParseState {
         *self.xml.borrow_mut() = Some(xml.to_owned());
     }
 
-    fn xml(&self) -> Result<String> {
+    fn xml(&self) -> anyhow::Result<String> {
         self.xml
             .borrow()
             .as_ref()
@@ -54,11 +69,11 @@ impl ParseState {
             .context("scenario must supply XML input")
     }
 
-    fn set_result(&self, result: Result<TeiDocument, TeiError>) {
+    fn set_result(&self, result: DocumentResult) {
         *self.result.borrow_mut() = Some(result);
     }
 
-    fn result(&self) -> Result<Result<TeiDocument, TeiError>> {
+    fn result(&self) -> anyhow::Result<DocumentResult> {
         self.result
             .borrow()
             .as_ref()
@@ -67,17 +82,18 @@ impl ParseState {
     }
 }
 
-fn fixture_by_name(name: &str) -> Result<&'static str> {
+fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
     match name {
         "minimal" => Ok(MINIMAL_FIXTURE),
         "missing-header" => Ok(MISSING_HEADER_FIXTURE),
         "unterminated" => Ok(UNTERMINATED_FIXTURE),
+        "blank-title" => Ok(BLANK_TITLE_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
 
 #[fixture]
-fn validated_state_result() -> Result<ParseState> {
+fn validated_state_result() -> anyhow::Result<ParseState> {
     let state = ParseState::default();
     ensure!(state.xml.borrow().is_none(), "xml slot must start empty");
     ensure!(
@@ -102,7 +118,10 @@ fn validated_state() -> ParseState {
     reason = "rstest-bdd placeholders must own their `String` values"
 )]
 #[given("the TEI fixture \"{fixture}\"")]
-fn the_tei_fixture(#[from(validated_state)] state: &ParseState, fixture: String) -> Result<()> {
+fn the_tei_fixture(
+    #[from(validated_state)] state: &ParseState,
+    fixture: String,
+) -> anyhow::Result<()> {
     let xml = fixture_by_name(&fixture)?;
     state.set_xml(xml);
     let _ = state.xml()?;
@@ -110,7 +129,7 @@ fn the_tei_fixture(#[from(validated_state)] state: &ParseState, fixture: String)
 }
 
 #[when("I parse the TEI input")]
-fn i_parse_the_input(#[from(validated_state)] state: &ParseState) -> Result<()> {
+fn i_parse_the_input(#[from(validated_state)] state: &ParseState) -> anyhow::Result<()> {
     let xml = state.xml()?;
     let result = parse_xml(&xml);
     state.set_result(result);
@@ -118,7 +137,7 @@ fn i_parse_the_input(#[from(validated_state)] state: &ParseState) -> Result<()> 
 }
 
 #[then("parsing succeeds")]
-fn parsing_succeeds(#[from(validated_state)] state: &ParseState) -> Result<()> {
+fn parsing_succeeds(#[from(validated_state)] state: &ParseState) -> anyhow::Result<()> {
     let result = state.result()?;
     result.context("expected parsing to succeed")?;
     Ok(())
@@ -131,7 +150,10 @@ fn parsing_succeeds(#[from(validated_state)] state: &ParseState) -> Result<()> {
     reason = "rstest-bdd placeholders must own their `String` values"
 )]
 #[then("the parsed title is \"{title}\"")]
-fn parsed_title_is(#[from(validated_state)] state: &ParseState, title: String) -> Result<()> {
+fn parsed_title_is(
+    #[from(validated_state)] state: &ParseState,
+    title: String,
+) -> anyhow::Result<()> {
     let document = state
         .result()?
         .context("expected successful parse before asserting title")?;
@@ -153,7 +175,7 @@ fn parsed_title_is(#[from(validated_state)] state: &ParseState, title: String) -
 fn parsing_fails_with_snippet(
     #[from(validated_state)] state: &ParseState,
     snippet: String,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     let outcome = state.result()?;
     let Err(error) = outcome else {
         bail!("expected parsing to fail");
@@ -169,8 +191,8 @@ fn parsing_fails_with_snippet(
 #[scenario(path = "tests/features/parse_xml.feature", index = 0)]
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
-    #[from(validated_state_result)] result: Result<ParseState>,
-) -> Result<()> {
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) -> anyhow::Result<()> {
     let _ = result?;
     Ok(())
 }
@@ -178,8 +200,8 @@ fn parses_valid_documents(
 #[scenario(path = "tests/features/parse_xml.feature", index = 1)]
 fn reports_missing_headers(
     #[from(validated_state)] _: ParseState,
-    #[from(validated_state_result)] result: Result<ParseState>,
-) -> Result<()> {
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) -> anyhow::Result<()> {
     let _ = result?;
     Ok(())
 }
@@ -187,8 +209,17 @@ fn reports_missing_headers(
 #[scenario(path = "tests/features/parse_xml.feature", index = 2)]
 fn reports_malformed_xml(
     #[from(validated_state)] _: ParseState,
-    #[from(validated_state_result)] result: Result<ParseState>,
-) -> Result<()> {
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) -> anyhow::Result<()> {
+    let _ = result?;
+    Ok(())
+}
+
+#[scenario(path = "tests/features/parse_xml.feature", index = 3)]
+fn rejects_blank_titles(
+    #[from(validated_state)] _: ParseState,
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) -> anyhow::Result<()> {
     let _ = result?;
     Ok(())
 }
