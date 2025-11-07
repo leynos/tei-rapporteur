@@ -169,40 +169,39 @@ fn first_forbidden_xml_char(value: &str) -> Option<char> {
 }
 
 fn is_forbidden_xml_char(character: char) -> bool {
-    // XML 1.0 permits: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
     let codepoint = u32::from(character);
+    is_surrogate(codepoint)
+        || is_forbidden_control_char(codepoint)
+        || is_noncharacter(codepoint)
+        || !is_in_xml_allowed_range(codepoint)
+}
 
-    // Surrogates are always forbidden
-    if (0xD800..=0xDFFF).contains(&codepoint) {
-        return true;
-    }
+fn is_surrogate(codepoint: u32) -> bool {
+    (0xD800..=0xDFFF).contains(&codepoint)
+}
 
-    // Control characters except TAB, LF, CR are forbidden
-    if codepoint < 0x20 && codepoint != 0x9 && codepoint != 0xA && codepoint != 0xD {
-        return true;
-    }
+const fn is_forbidden_control_char(codepoint: u32) -> bool {
+    codepoint < 0x20 && !is_allowed_control_char(codepoint)
+}
 
+const fn is_allowed_control_char(codepoint: u32) -> bool {
+    matches!(codepoint, 0x9 | 0xA | 0xD)
+}
+
+fn is_noncharacter(codepoint: u32) -> bool {
     // Noncharacters (FFFE/FFFF, FDD0-FDEF, and last two of each plane)
-    if codepoint == 0xFFFE
+    codepoint == 0xFFFE
         || codepoint == 0xFFFF
         || (0xFDD0..=0xFDEF).contains(&codepoint)
-        || (codepoint & 0xFFFE == 0xFFFE && codepoint >= 0x1_0000)
-    {
-        return true;
-    }
+        || (codepoint >= 0x1_0000 && codepoint & 0xFFFE == 0xFFFE)
+}
 
-    // Out of XML 1.0 range
-    if !(codepoint == 0x9
-        || codepoint == 0xA
-        || codepoint == 0xD
+fn is_in_xml_allowed_range(codepoint: u32) -> bool {
+    // XML 1.0 permits: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+    matches!(codepoint, 0x9 | 0xA | 0xD)
         || (0x20..=0xD7FF).contains(&codepoint)
         || (0xE000..=0xFFFD).contains(&codepoint)
-        || (0x1_0000..=0x10_FFFF).contains(&codepoint))
-    {
-        return true;
-    }
-
-    false
+        || (0x1_0000..=0x10_FFFF).contains(&codepoint)
 }
 
 #[cfg(test)]
