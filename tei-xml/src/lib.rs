@@ -169,20 +169,46 @@ fn first_forbidden_xml_char(value: &str) -> Option<char> {
 }
 
 fn is_forbidden_xml_char(character: char) -> bool {
+    // XML 1.0 permits: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
     let codepoint = u32::from(character);
-    matches!(
-        character,
-        '\u{0}'..='\u{8}'
-            | '\u{B}'
-            | '\u{C}'
-            | '\u{E}'..='\u{1F}'
-            | '\u{FFFE}'
-            | '\u{FFFF}'
-    ) || (0xD800..=0xDFFF).contains(&codepoint)
+
+    // Surrogates are always forbidden
+    if (0xD800..=0xDFFF).contains(&codepoint) {
+        return true;
+    }
+
+    // Control characters except TAB, LF, CR are forbidden
+    if codepoint < 0x20 && codepoint != 0x9 && codepoint != 0xA && codepoint != 0xD {
+        return true;
+    }
+
+    // Noncharacters (FFFE/FFFF, FDD0-FDEF, and last two of each plane)
+    if codepoint == 0xFFFE
+        || codepoint == 0xFFFF
+        || (0xFDD0..=0xFDEF).contains(&codepoint)
+        || (codepoint & 0xFFFE == 0xFFFE && codepoint >= 0x1_0000)
+    {
+        return true;
+    }
+
+    // Out of XML 1.0 range
+    if !(codepoint == 0x9
+        || codepoint == 0xA
+        || codepoint == 0xD
+        || (0x20..=0xD7FF).contains(&codepoint)
+        || (0xE000..=0xFFFD).contains(&codepoint)
+        || (0x1_0000..=0x10_FFFF).contains(&codepoint))
+    {
+        return true;
+    }
+
+    false
 }
 
 #[cfg(test)]
 mod tests {
+    //! Tests for XML helpers covering parsing, emission, and validation.
+
     use super::*;
     use rstest::rstest;
     use tei_core::DocumentTitleError;
