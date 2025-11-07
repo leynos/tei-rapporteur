@@ -129,7 +129,7 @@ pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
 ///
 /// This helper keeps XML-specific logic scoped to the `tei-xml` crate while
 /// surfacing any serializer failures through [`TeiError::Xml`]. It produces a
-/// canonicalised string using `quick_xml::se::to_string`, ensuring downstream
+/// canonicalized string using `quick_xml::se::to_string`, ensuring downstream
 /// consumers receive stable output regardless of how the document was
 /// constructed.
 ///

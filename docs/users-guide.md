@@ -16,7 +16,7 @@ available today and how to exercise it.
   as deprecated shims for existing callers.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
-  `parse_xml(xml)` wraps `quick-xml` to materialise full `TeiDocument` values,
+  `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
   and the new `emit_xml(&document)` helper uses `quick_xml::se::to_string` to
   produce canonical TEI strings. All helpers return `TeiError`, so callers see
   consistent diagnostics whether parsing malformed input or attempting to emit

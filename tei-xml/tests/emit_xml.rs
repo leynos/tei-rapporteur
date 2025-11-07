@@ -66,25 +66,8 @@ impl EmitState {
 }
 
 #[fixture]
-fn validated_state_result() -> Result<EmitState> {
-    let state = EmitState::default();
-    ensure!(
-        state.document.borrow().is_none(),
-        "fresh emit state must not contain a document"
-    );
-    ensure!(
-        state.result.borrow().is_none(),
-        "fresh emit state must not contain a result"
-    );
-    Ok(state)
-}
-
-#[fixture]
-fn validated_state() -> EmitState {
-    match validated_state_result() {
-        Ok(state) => state,
-        Err(error) => panic!("failed to initialise emit state: {error}"),
-    }
+fn emit_state() -> EmitState {
+    EmitState::default()
 }
 
 // rstest-bdd placeholders own their `String` values.
@@ -94,7 +77,7 @@ fn validated_state() -> EmitState {
 )]
 #[given("the document title fixture \"{fixture}\"")]
 fn the_document_title_fixture(
-    #[from(validated_state)] state: &EmitState,
+    #[from(emit_state)] state: &EmitState,
     fixture: String,
 ) -> Result<()> {
     let title = title_fixture(&fixture)?;
@@ -106,7 +89,7 @@ fn the_document_title_fixture(
 }
 
 #[when("I emit the TEI document")]
-fn i_emit_the_tei_document(#[from(validated_state)] state: &EmitState) -> Result<()> {
+fn i_emit_the_tei_document(#[from(emit_state)] state: &EmitState) -> Result<()> {
     let document = state.document()?;
     let result = emit_xml(&document);
     state.set_result(result);
@@ -114,14 +97,14 @@ fn i_emit_the_tei_document(#[from(validated_state)] state: &EmitState) -> Result
 }
 
 #[then("emitting succeeds")]
-fn emitting_succeeds(#[from(validated_state)] state: &EmitState) -> Result<()> {
+fn emitting_succeeds(#[from(emit_state)] state: &EmitState) -> Result<()> {
     let result = state.result()?;
     result.context("expected emission to succeed")?;
     Ok(())
 }
 
 #[then("the TEI output equals the minimal fixture")]
-fn the_output_equals_the_minimal_fixture(#[from(validated_state)] state: &EmitState) -> Result<()> {
+fn the_output_equals_the_minimal_fixture(#[from(emit_state)] state: &EmitState) -> Result<()> {
     let xml = state
         .result()?
         .context("expected XML emission before asserting output")?;
@@ -138,10 +121,7 @@ fn the_output_equals_the_minimal_fixture(#[from(validated_state)] state: &EmitSt
     reason = "rstest-bdd placeholders must own their `String` values"
 )]
 #[then("emitting fails mentioning \"{snippet}\"")]
-fn emitting_fails_mentioning(
-    #[from(validated_state)] state: &EmitState,
-    snippet: String,
-) -> Result<()> {
+fn emitting_fails_mentioning(#[from(emit_state)] state: &EmitState, snippet: String) -> Result<()> {
     let outcome = state.result()?;
     let Err(error) = outcome else {
         bail!("expected emission to fail");
@@ -155,19 +135,7 @@ fn emitting_fails_mentioning(
 }
 
 #[scenario(path = "tests/features/emit_xml.feature", index = 0)]
-fn emits_a_minimal_document(
-    #[from(validated_state)] _: EmitState,
-    #[from(validated_state_result)] result: Result<EmitState>,
-) -> Result<()> {
-    let _ = result?;
-    Ok(())
-}
+fn emits_a_minimal_document(#[from(emit_state)] _: EmitState) {}
 
 #[scenario(path = "tests/features/emit_xml.feature", index = 1)]
-fn rejects_control_characters(
-    #[from(validated_state)] _: EmitState,
-    #[from(validated_state_result)] result: Result<EmitState>,
-) -> Result<()> {
-    let _ = result?;
-    Ok(())
-}
+fn rejects_control_characters(#[from(emit_state)] _: EmitState) {}
