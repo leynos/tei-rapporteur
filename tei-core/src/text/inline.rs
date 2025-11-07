@@ -197,9 +197,9 @@ impl Hi {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "pause", deny_unknown_fields)]
 pub struct Pause {
-    #[serde(rename = "dur", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@dur", skip_serializing_if = "Option::is_none", default)]
     duration: Option<String>,
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@type", skip_serializing_if = "Option::is_none", default)]
     pause_type: Option<String>,
 }
 

@@ -3,7 +3,7 @@
 //! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
-use quick_xml::de;
+use quick_xml::{de, se};
 use tei_core::{TeiDocument, TeiError};
 
 /// Encodes text for inclusion in XML content.
@@ -125,8 +125,89 @@ pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
     de::from_str(xml).map_err(|error| TeiError::xml(error.to_string()))
 }
 
+/// Serializes a [`TeiDocument`] into TEI XML markup.
+///
+/// This helper keeps XML-specific logic scoped to the `tei-xml` crate while
+/// surfacing any serializer failures through [`TeiError::Xml`]. It produces a
+/// canonicalized string using `quick_xml::se::to_string`, ensuring downstream
+/// consumers receive stable output regardless of how the document was
+/// constructed.
+///
+/// # Errors
+///
+/// Returns [`TeiError::Xml`] when the document contains data that cannot be
+/// represented as XML (for example, control characters that XML 1.0 forbids).
+///
+/// # Examples
+///
+/// ```
+/// use tei_core::TeiDocument;
+/// use tei_xml::emit_xml;
+///
+/// let document = TeiDocument::from_title_str("Wolf 359")?;
+/// let xml = emit_xml(&document)?;
+/// assert!(xml.contains("<title>Wolf 359</title>"));
+/// # Ok::<(), tei_core::TeiError>(())
+/// ```
+pub fn emit_xml(document: &TeiDocument) -> Result<String, TeiError> {
+    let xml = se::to_string(document).map_err(|error| TeiError::xml(error.to_string()))?;
+
+    if let Some(character) = first_forbidden_xml_char(xml.as_str()) {
+        let codepoint = u32::from(character);
+        return Err(TeiError::xml(format!(
+            "document contains XML 1.0 forbidden character U+{codepoint:04X}"
+        )));
+    }
+
+    Ok(xml)
+}
+
+fn first_forbidden_xml_char(value: &str) -> Option<char> {
+    value
+        .chars()
+        .find(|character| is_forbidden_xml_char(*character))
+}
+
+fn is_forbidden_xml_char(character: char) -> bool {
+    let codepoint = u32::from(character);
+    is_surrogate(codepoint)
+        || is_forbidden_control_char(codepoint)
+        || is_noncharacter(codepoint)
+        || !is_in_xml_allowed_range(codepoint)
+}
+
+fn is_surrogate(codepoint: u32) -> bool {
+    (0xD800..=0xDFFF).contains(&codepoint)
+}
+
+const fn is_forbidden_control_char(codepoint: u32) -> bool {
+    codepoint < 0x20 && !is_allowed_control_char(codepoint)
+}
+
+const fn is_allowed_control_char(codepoint: u32) -> bool {
+    matches!(codepoint, 0x9 | 0xA | 0xD)
+}
+
+fn is_noncharacter(codepoint: u32) -> bool {
+    // Noncharacters (FFFE/FFFF, FDD0-FDEF, and last two of each plane)
+    codepoint == 0xFFFE
+        || codepoint == 0xFFFF
+        || (0xFDD0..=0xFDEF).contains(&codepoint)
+        || (codepoint >= 0x1_0000 && codepoint & 0xFFFE == 0xFFFE)
+}
+
+fn is_in_xml_allowed_range(codepoint: u32) -> bool {
+    // XML 1.0 permits: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+    matches!(codepoint, 0x9 | 0xA | 0xD)
+        || (0x20..=0xD7FF).contains(&codepoint)
+        || (0xE000..=0xFFFD).contains(&codepoint)
+        || (0x1_0000..=0x10_FFFF).contains(&codepoint)
+}
+
 #[cfg(test)]
 mod tests {
+    //! Tests for XML helpers covering parsing, emission, and validation.
+
     use super::*;
     use rstest::rstest;
     use tei_core::DocumentTitleError;
@@ -158,6 +239,7 @@ mod tests {
         "</text>",
         "</TEI>",
     );
+    const CONTROL_CHAR_TITLE: &str = "\u{0}";
 
     #[rstest]
     #[case("Plain", "Plain")]
@@ -205,6 +287,21 @@ mod tests {
     }
 
     #[test]
+    fn emits_minimal_document() {
+        let document = TeiDocument::from_title_str("Wolf 359")
+            .expect("minimal document should build from title");
+        let xml = emit_xml(&document).expect("minimal document should emit");
+
+        assert_eq!(xml, MINIMAL_TEI);
+    }
+
+    #[test]
+    fn detects_forbidden_characters() {
+        assert!(first_forbidden_xml_char("Valid").is_none());
+        assert_eq!(first_forbidden_xml_char("\u{0}broken"), Some('\u{0}'));
+    }
+
+    #[test]
     fn surfaces_quick_xml_errors() {
         let Err(error) = parse_xml(MISSING_HEADER_TEI) else {
             panic!("expected parsing to fail");
@@ -231,6 +328,24 @@ mod tests {
                 "error should mention empty title, found {message}"
             ),
             other => panic!("expected XML error signalling empty title, found {other}"),
+        }
+    }
+
+    #[test]
+    fn rejects_control_characters_during_emit() {
+        let document = TeiDocument::from_title_str(CONTROL_CHAR_TITLE)
+            .expect("control characters still produce a document");
+
+        let Err(error) = emit_xml(&document) else {
+            panic!("invalid XML characters must fail emission");
+        };
+
+        match error {
+            TeiError::Xml { message } => assert!(
+                message.contains("U+0000"),
+                "expected message to mention control character, found {message}"
+            ),
+            other => panic!("expected XML error describing control characters, found {other}"),
         }
     }
 }

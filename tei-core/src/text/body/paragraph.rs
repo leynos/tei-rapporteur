@@ -15,7 +15,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "p")]
 pub struct P {
-    #[serde(rename = "xml:id", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@xml:id",
+        alias = "@id",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     id: Option<XmlId>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
