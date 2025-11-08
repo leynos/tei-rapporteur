@@ -21,6 +21,13 @@ behaviour, the implementation status is noted. Examples and explanations are
 organized by the so‑called *three amigos* of BDD: the business analyst/product
 owner, the developer, and the tester.
 
+Version `0.1.0` is the first stable `rstest‑bdd` release and now serves as the
+baseline for this workspace. All manifest snippets and code samples below
+assume `rstest-bdd` and `rstest-bdd-macros` at that version. Upgrading from the
+alpha builds unlocks the Fluent-powered diagnostics bundle, the revised slot
+API, and removes the need for any experimental feature flags discussed in the
+design appendices.
+
 ## Toolchain requirements
 
 `rstest-bdd` targets Rust 1.75 or newer across every crate in the workspace.

@@ -188,38 +188,40 @@ fn parsing_fails_with_snippet(
     Ok(())
 }
 
+fn expect_validated_parse_state(result: anyhow::Result<ParseState>) {
+    if let Err(error) = result {
+        panic!("parse scenarios must initialise their state successfully: {error}");
+    }
+}
+
 #[scenario(path = "tests/features/parse_xml.feature", index = 0)]
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_parse_state(result);
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 1)]
 fn reports_missing_headers(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_parse_state(result);
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 2)]
 fn reports_malformed_xml(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_parse_state(result);
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 3)]
 fn rejects_blank_titles(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_parse_state(result);
 }

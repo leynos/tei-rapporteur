@@ -140,29 +140,32 @@ fn title_creation_fails_with(
     Ok(())
 }
 
+fn expect_validated_title(result: Result<TitleState>) {
+    if let Err(error) = result {
+        panic!("title scenarios must initialise their state successfully: {error}");
+    }
+}
+
 #[scenario(path = "tests/features/title_serialization.feature", index = 0)]
 fn serializes_a_valid_title(
     #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
-) -> Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_title(result);
 }
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 1)]
 fn escapes_markup_significant_characters(
     #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
-) -> Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_title(result);
 }
 
 #[scenario(path = "tests/features/title_serialization.feature", index = 2)]
 fn rejects_an_empty_title(
     #[from(validated_state)] _: TitleState,
     #[from(validated_state_result)] result: Result<TitleState>,
-) -> Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_title(result);
 }
