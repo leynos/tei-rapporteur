@@ -1052,6 +1052,7 @@ dependencies = [
  "rstest-bdd-macros",
  "serde",
  "serde_json",
+ "tei-test-helpers",
  "thiserror 2.0.17",
 ]
 

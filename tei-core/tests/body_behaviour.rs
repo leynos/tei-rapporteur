@@ -5,6 +5,7 @@ use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
 use tei_core::{BodyBlock, BodyContentError, Hi, Inline, P, Pause, Speaker, TeiBody, Utterance};
+use tei_test_helpers::expect_validated_state;
 
 #[derive(Clone, Debug, Default)]
 struct MixedInlineExpectation {
@@ -541,18 +542,12 @@ fn body_validation_fails_with(
     Ok(())
 }
 
-fn expect_validated_body_state(result: Result<BodyState>) {
-    if let Err(error) = result {
-        panic!("body scenarios must initialise their state successfully: {error}");
-    }
-}
-
 #[scenario(path = "tests/features/body.feature", index = 0)]
 fn records_paragraphs_and_utterances(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 1)]
@@ -560,7 +555,7 @@ fn records_inline_emphasis(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 2)]
@@ -568,7 +563,7 @@ fn records_pause_inline(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 3)]
@@ -576,7 +571,7 @@ fn rejects_empty_utterance_content(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 4)]
@@ -584,7 +579,7 @@ fn rejects_empty_paragraph_content(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 5)]
@@ -592,7 +587,7 @@ fn rejects_whitespace_paragraph_identifier(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 6)]
@@ -600,7 +595,7 @@ fn rejects_blank_speaker_reference(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 7)]
@@ -608,7 +603,7 @@ fn rejects_whitespace_utterance_identifier(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 8)]
@@ -616,7 +611,7 @@ fn rejects_empty_inline_emphasis(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 9)]
@@ -624,7 +619,7 @@ fn records_mixed_inline_content(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
 
 #[scenario(path = "tests/features/body.feature", index = 10)]
@@ -632,5 +627,5 @@ fn records_measured_pause_inline(
     #[from(validated_state)] _: BodyState,
     #[from(validated_state_result)] validated_state: Result<BodyState>,
 ) {
-    expect_validated_body_state(validated_state);
+    expect_validated_state(validated_state, "body");
 }
