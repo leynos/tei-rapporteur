@@ -63,6 +63,15 @@ in-memory Rust structs and TEI XML strings.
 - [x] Ensure tests cover namespace handling and normalization of insignificant
       whitespace.
 
+### Step 1.4: Behaviour-Driven Testing Infrastructure
+
+This step keeps the behaviour-driven suites aligned with the upstream tooling
+used to drive the TEI fixtures.
+
+- [x] Upgrade the workspace to `rstest-bdd` and `rstest-bdd-macros` version
+      `0.1.0`, ensuring scenarios run on the first stable release and benefit
+      from the new diagnostics bundle.
+
 ## Phase 2: Python Integration
 
 This phase focuses on building the Python interface, making the core Rust

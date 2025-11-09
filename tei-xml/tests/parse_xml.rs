@@ -6,6 +6,7 @@ use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
 use tei_core::{TeiDocument, TeiError};
+use tei_test_helpers::expect_validated_state;
 use tei_xml::parse_xml;
 
 // Force Cargo to recompile the test binary when the feature file changes so the
@@ -192,34 +193,30 @@ fn parsing_fails_with_snippet(
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_state(result, "parse");
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 1)]
 fn reports_missing_headers(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_state(result, "parse");
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 2)]
 fn reports_malformed_xml(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_state(result, "parse");
 }
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 3)]
 fn rejects_blank_titles(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) -> anyhow::Result<()> {
-    let _ = result?;
-    Ok(())
+) {
+    expect_validated_state(result, "parse");
 }

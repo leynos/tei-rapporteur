@@ -8,6 +8,7 @@ use tei_core::{
     AnnotationSystem, EncodingDesc, FileDesc, HeaderValidationError, ProfileDesc, RevisionChange,
     RevisionDesc, TeiDocument, TeiError, TeiHeader, TeiText,
 };
+use tei_test_helpers::expect_validated_state;
 
 #[derive(Default)]
 struct HeaderState {
@@ -389,20 +390,16 @@ fn header_validation_fails_with(
 
 #[scenario(path = "tests/features/header.feature", index = 0)]
 fn assembles_a_header(
-    #[from(validated_state)] state: HeaderState,
+    #[from(validated_state)] _: HeaderState,
     #[from(validated_state_result)] validated_state: Result<HeaderState>,
-) -> Result<()> {
-    drop(state);
-    let _ = validated_state?;
-    Ok(())
+) {
+    expect_validated_state(validated_state, "header");
 }
 
 #[scenario(path = "tests/features/header.feature", index = 1)]
 fn rejects_blank_revision_notes(
-    #[from(validated_state)] state: HeaderState,
+    #[from(validated_state)] _: HeaderState,
     #[from(validated_state_result)] validated_state: Result<HeaderState>,
-) -> Result<()> {
-    drop(state);
-    let _ = validated_state?;
-    Ok(())
+) {
+    expect_validated_state(validated_state, "header");
 }
