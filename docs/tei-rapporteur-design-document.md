@@ -703,6 +703,25 @@ that users will usually convert the document into their own `msgspec.Struct`
 classes for any intensive work. The `Document` class is mostly a vessel to
 carry data between functions in this minimal API approach.
 
+#### Current module scaffolding (Phase 2.1)
+
+Phase 2.1 delivers the first concrete slice of this design. The `tei-py` crate
+now depends on PyO3 (built with the `extension-module` feature) and exposes the
+canonical `tei_rapporteur` module. The module registers the `Document`
+`#[pyclass]`, a helper that constructs documents from validated titles, and a
+Python-level `emit_title_markup` function that maps 1:1 to the existing Rust
+helper. The `Document` class stores a `TeiDocument` and provides Python getters
+plus convenience methods that reuse the Rust validation logic instead of
+duplicating checks in CFFI code. `pyproject.toml` lives at the workspace root
+so `maturin develop` or `maturin build` can discover the `tei-py/Cargo.toml`
+manifest without extra flags, mirroring the structure explained in
+`docs/workspace-layout.md`. Continuous integration now includes a wheel
+build/install smoke test on Ubuntu: the workflow provisions Python 3.11,
+invokes `maturin build --manifest-path tei-py/Cargo.toml`, installs the
+resulting wheel via `pip`, and imports `tei_rapporteur` to confirm the PyO3
+module initialises correctly. This guard rails future changes so the Python
+surface always builds alongside the Rust crates.
+
 The following sketch illustrates how the Python API can be used:
 
 ```python

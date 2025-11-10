@@ -7,3 +7,4 @@
 *.py[cod]
 .pytest_cache/
 Cargo.lock.bak
+dist/

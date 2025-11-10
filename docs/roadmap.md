@@ -82,15 +82,15 @@ high-performance wrapper.
 
 This step sets up the PyO3 crate and defines the Python module structure.
 
-- [ ] Add `pyo3` with the `extension-module` feature as a dependency to the
+- [x] Add `pyo3` with the `extension-module` feature as a dependency to the
       `tei-py` crate.
-- [ ] Create the top-level `#[pymodule]` to define the `tei_rapporteur` Python
+- [x] Create the top-level `#[pymodule]` to define the `tei_rapporteur` Python
       module.
-- [ ] Add a `pyproject.toml` file to the workspace root, configured to build
+- [x] Add a `pyproject.toml` file to the workspace root, configured to build
       the `tei-py` crate using `maturin`.
-- [ ] Define a `#[pyclass]` named `Document` that wraps the Rust `TeiDocument`
+- [x] Define a `#[pyclass]` named `Document` that wraps the Rust `TeiDocument`
       struct.
-- [ ] Implement basic CI workflow steps to build and install the Python wheel.
+- [x] Implement basic CI workflow steps to build and install the Python wheel.
 
 ### Step 2.2: FFI Data Exchange and API Implementation
 
