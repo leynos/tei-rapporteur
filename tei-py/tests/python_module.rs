@@ -12,6 +12,12 @@ use tei_py::tei_rapporteur;
 // Keep feature files and steps aligned with the compiled binary.
 const _: &str = include_str!("features/python_module.feature");
 
+/// Holds optional Python objects for behaviour-driven tests.
+///
+/// `Py<PyModule>` and `Py<PyAny>` references live in `RefCell<Option<_>>` slots so
+/// the step functions can mutate shared state while respecting the GIL. The
+/// `markup` and `error` slots capture outputs from previous steps, and every field
+/// starts as `None` until the appropriate step initialises it.
 #[derive(Default)]
 struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
@@ -21,10 +27,22 @@ struct PythonModuleState {
 }
 
 impl PythonModuleState {
+    /// Stores the module returned by `PyModule::new_bound`, retaining ownership of
+    /// the `Py<PyModule>` so later steps can bind it to whichever GIL token they
+    /// currently possess.
     fn set_module(&self, module: Py<PyModule>) {
         *self.module.borrow_mut() = Some(module);
     }
 
+    /// Borrows the stored module, clones the `Py<PyModule>`, and binds it to the
+    /// supplied `Python<'py>` token before executing the provided closure.
+    ///
+    /// Returns an error (surfacing as a failing scenario) if the module has not yet
+    /// been initialised. Typical usage binds inside `Python::with_gil`:
+    ///
+    /// ```
+    /// state.with_module(py, |module| module.getattr("Document"))?
+    /// ```
     fn with_module<'py, T>(
         &self,
         py: Python<'py>,
@@ -91,6 +109,22 @@ fn python_state() -> PythonModuleState {
     PythonModuleState::default()
 }
 
+fn construct_python_document(state: &PythonModuleState, title: &str) -> Result<()> {
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let document_class = module
+                .getattr("Document")
+                .context("Document class should be registered")?;
+            match document_class.call1((title,)) {
+                Ok(document) => state.store_document(document.unbind()),
+                Err(error) => state.store_error(error.to_string()),
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+    })?;
+    Ok(())
+}
+
 #[given("the tei_rapporteur Python module is initialised")]
 fn module_is_initialised(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
@@ -112,19 +146,14 @@ fn i_construct_a_document(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
 ) -> Result<()> {
-    Python::with_gil(|py| {
-        state.with_module(py, |module| {
-            let document_class = module
-                .getattr("Document")
-                .context("Document class should be registered")?;
-            match document_class.call1((title.as_str(),)) {
-                Ok(document) => state.store_document(document.unbind()),
-                Err(error) => state.store_error(error.to_string()),
-            }
-            Ok::<(), anyhow::Error>(())
-        })
-    })?;
-    Ok(())
+    construct_python_document(state, &title)
+}
+
+#[when("I construct a Document with the XML special characters fixture")]
+fn i_construct_the_xml_special_fixture_document(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    construct_python_document(state, r#"Special <Title> & "Quotes" and 'Apostrophes'"#)
 }
 
 #[when("I emit title markup for \"{title}\"")]
@@ -148,6 +177,18 @@ fn i_emit_title_markup(
             Ok::<(), anyhow::Error>(())
         })
     })?;
+    Ok(())
+}
+
+#[when("I emit markup from the constructed Document")]
+fn i_emit_markup_from_the_document(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
+    let markup = Python::with_gil(|py| {
+        state.with_document(py, |document| {
+            let markup: String = document.call_method0("emit_title_markup")?.extract()?;
+            Ok::<_, anyhow::Error>(markup)
+        })
+    })?;
+    state.store_markup(markup);
     Ok(())
 }
 
@@ -215,3 +256,6 @@ fn rejects_blank_titles(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 2)]
 fn emits_title_markup(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 3)]
+fn document_markup_escapes_special_characters(#[from(python_state)] _: PythonModuleState) {}

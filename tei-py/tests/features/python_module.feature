@@ -14,3 +14,9 @@ Feature: tei_rapporteur Python module
     Given the tei_rapporteur Python module is initialised
     When I emit title markup for "Archive 81"
     Then the markup equals "<title>Archive 81</title>"
+
+  Scenario: Document method escapes XML special characters
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document with the XML special characters fixture
+    And I emit markup from the constructed Document
+    Then the markup equals "<title>Special &lt;Title&gt; &amp; &quot;Quotes&quot; and &apos;Apostrophes&apos;</title>"
