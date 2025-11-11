@@ -31,8 +31,8 @@ jobs:
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
         with:
-          output-path: lcov.info
-          format: lcov
+          output-path: coverage.xml
+          format: cobertura
       - name: Set up Python
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
@@ -51,6 +51,6 @@ jobs:
         if: ${{ env.CS_ACCESS_TOKEN }}
         uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
         with:
-          format: lcov
+          format: cobertura
           access-token: ${{ env.CS_ACCESS_TOKEN }}
           installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
