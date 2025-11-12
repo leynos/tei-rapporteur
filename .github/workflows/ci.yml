@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@5901b68f4150ef6edd4e8c733d382d82396998e5
+        uses: leynos/shared-actions/.github/actions/setup-rust@86f68619873e226bd976b401fbcbc5e2a48c61ec
       - name: Format
         run: make check-fmt
       - name: Markdown lint
@@ -29,7 +29,7 @@ jobs:
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@5901b68f4150ef6edd4e8c733d382d82396998e5
+        uses: leynos/shared-actions/.github/actions/generate-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
         with:
           output-path: coverage.xml
           format: cobertura
@@ -49,7 +49,7 @@ jobs:
         env:
           CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
         if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@5901b68f4150ef6edd4e8c733d382d82396998e5
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
         with:
           format: cobertura
           access-token: ${{ env.CS_ACCESS_TOKEN }}
