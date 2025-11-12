@@ -11,10 +11,14 @@ crate-type = ["cdylib", "rlib"]
 [lints]
 workspace = true
 
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+
 [dependencies]
 tei-core = { path = "../tei-core" }
 tei-xml = { path = "../tei-xml" }
-pyo3 = { version = "0.22.6", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.22.6", features = ["auto-initialize"] }
 
 [dev-dependencies]
 rstest = { workspace = true }
