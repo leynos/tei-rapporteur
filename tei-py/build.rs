@@ -1,4 +1,11 @@
-//! Build script wiring `PyO3`'s configuration into the tei-py crate.
+//! Configures the `PyO3` build based on whether we are compiling the Python
+//! extension or running Rust-only targets.
+//!
+//! When `TEI_PY_BUILD_EXTENSION` (or maturin's `MATURIN_BUILDING`) is set the
+//! script emits the dynamic lookup flags required for manylinux wheels so the
+//! produced `cdylib` does not link `libpython`. During `cargo test` the flag is
+//! absent, so the script instead emits `cargo:rustc-link-*` directives pointing
+//! at the host interpreter, allowing `PyO3` to link successfully.
 
 fn main() {
     pyo3_build_config::use_pyo3_cfgs();
