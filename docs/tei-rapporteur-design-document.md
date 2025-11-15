@@ -682,6 +682,34 @@ key functions include:
   `ValueError`, ensuring callers never need to reason about Rust-only error
   types.
 
+  The following sequence diagram captures the end-to-end control flow for
+  `from_msgpack`, including the propagation of successful documents and the
+  error path that produces a `ValueError` when decoding fails:
+
+  ```mermaid
+  sequenceDiagram
+      actor PythonUser
+      participant tei_rapporteur_Python as "tei_rapporteur (Python)"
+      participant PyO3_FFI_Bridge as "PyO3 FFI Bridge"
+      participant Rust_document_from_msgpack as "Rust: document_from_msgpack()"
+      participant rmp_serde
+      PythonUser->>tei_rapporteur_Python: from_msgpack(payload: bytes)
+      tei_rapporteur_Python->>PyO3_FFI_Bridge: Call from_msgpack(bytes)
+      PyO3_FFI_Bridge->>Rust_document_from_msgpack: document_from_msgpack(bytes)
+      Rust_document_from_msgpack->>rmp_serde: from_slice(bytes)
+      alt Valid MessagePack
+          rmp_serde-->>Rust_document_from_msgpack: TeiDocument
+          Rust_document_from_msgpack-->>PyO3_FFI_Bridge: TeiDocument
+          PyO3_FFI_Bridge-->>tei_rapporteur_Python: Document
+          tei_rapporteur_Python-->>PythonUser: Document
+      else Invalid MessagePack
+          rmp_serde-->>Rust_document_from_msgpack: Error
+          Rust_document_from_msgpack-->>PyO3_FFI_Bridge: Error
+          PyO3_FFI_Bridge-->>tei_rapporteur_Python: Raise ValueError
+          tei_rapporteur_Python-->>PythonUser: ValueError
+      end
+  ```
+
 - `from_json(json_str_or_bytes) -> Document` – Similar to above, but for JSON
   text. Uses `serde_json` in Rust. (This might be slightly less efficient than
   MessagePack due to parsing text, but convenient for debugging.)
