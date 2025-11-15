@@ -79,3 +79,23 @@ offers a top-level `emit_title_markup(title: str)` so scripting callers can
 work without instantiating a document. CI now builds the wheel on Ubuntu,
 installs it via `pip`, and imports the module to ensure the PyO3 glue remains
 healthy.
+
+Binary interchange is now supported through
+`tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes
+produced by `msgspec.msgpack.encode` (or any compatible encoder), decodes them
+via `rmp_serde`, and returns a `Document`. Invalid payloads raise `ValueError`,
+so Python callers receive a familiar exception instead of a Rust-specific error
+type. This allows workflows such as:
+
+```python
+import msgspec
+import tei_rapporteur as tei
+
+episode = Episode(title="Bridgewater")  # msgspec.Struct
+payload = msgspec.msgpack.encode(episode)
+document = tei.from_msgpack(payload)
+print(document.title)
+```
+
+The BDD tests now cover both successful decoding and error handling, ensuring
+the MessagePack entry point remains reliable as the API expands.

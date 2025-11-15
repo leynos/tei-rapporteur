@@ -97,7 +97,7 @@ This step sets up the PyO3 crate and defines the Python module structure.
 This step implements the functions that bridge the Rust and Python worlds,
 prioritizing efficient data transfer.
 
-- [ ] Implement `from_msgpack(bytes: &[u8]) -> PyResult<Document>` in `tei-py`,
+- [x] Implement `from_msgpack(bytes: &[u8]) -> PyResult<Document>` in `tei-py`,
       using `rmp_serde` to deserialize bytes into `TeiDocument`.
 - [ ] Implement `to_msgpack(doc: &Document) -> PyResult<Vec<u8>>` in `tei-py`,
       using `rmp_serde` to serialize `TeiDocument` to MessagePack bytes.

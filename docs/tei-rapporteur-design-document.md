@@ -677,7 +677,10 @@ key functions include:
 - `from_msgpack(bytes_obj: bytes) -> Document` – Accept a MessagePack binary
   (as `bytes`) and deserialize it (using `rmp_serde`) into a `TeiDocument`.
   This is a very efficient path if the Python side already has a
-  `msgspec.Struct` and encodes it to bytes.
+  `msgspec.Struct` and encodes it to bytes. The binding now uses
+  `rmp_serde::from_slice` and converts any decode failure into a Python
+  `ValueError`, ensuring callers never need to reason about Rust-only error
+  types.
 
 - `from_json(json_str_or_bytes) -> Document` – Similar to above, but for JSON
   text. Uses `serde_json` in Rust. (This might be slightly less efficient than
@@ -716,15 +719,15 @@ The `Document` class stores a `TeiDocument` and provides Python getters plus
 convenience methods that reuse the Rust validation logic instead of duplicating
 checks in CFFI code.
 
-`pyproject.toml` lives at the workspace root so `maturin develop` or `maturin
-build` can discover the `tei-py/Cargo.toml` manifest without extra flags,
-mirroring the structure explained in `docs/workspace-layout.md`. Continuous
-integration now includes a wheel build/install smoke test on Ubuntu: the
-workflow provisions Python 3.11, invokes `maturin build --manifest-path
-tei-py/Cargo.toml`, installs the resulting wheel via `pip`, and imports
-`tei_rapporteur` to confirm the PyO3 module initialises correctly. This guard
-rails future changes so the Python surface always builds alongside the Rust
-crates.
+`pyproject.toml` lives at the workspace root so `maturin develop` or
+`maturin build` can discover the `tei-py/Cargo.toml` manifest without extra
+flags, mirroring the structure explained in `docs/workspace-layout.md`.
+Continuous integration now includes a wheel build/install smoke test on Ubuntu:
+the workflow provisions Python 3.11, invokes
+`maturin build --manifest-path tei-py/Cargo.toml`, installs the resulting wheel
+via `pip`, and imports `tei_rapporteur` to confirm the PyO3 module initialises
+correctly. This guard rails future changes so the Python surface always builds
+alongside the Rust crates.
 
 The following sketch illustrates how the Python API can be used:
 

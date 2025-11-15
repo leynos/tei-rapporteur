@@ -3,10 +3,12 @@
 use anyhow::{Context, Result, bail, ensure};
 use pyo3::Bound;
 use pyo3::prelude::*;
-use pyo3::types::PyModule;
+use pyo3::types::{PyBytes, PyModule};
+use rmp_serde::to_vec_named;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
+use tei_core::TeiDocument;
 use tei_py::tei_rapporteur;
 
 // Keep feature files and steps aligned with the compiled binary.
@@ -24,6 +26,7 @@ struct PythonModuleState {
     document: RefCell<Option<Py<PyAny>>>,
     markup: RefCell<Option<String>>,
     error: RefCell<Option<String>>,
+    msgpack_payload: RefCell<Option<Vec<u8>>>,
 }
 
 impl PythonModuleState {
@@ -102,6 +105,18 @@ impl PythonModuleState {
             .cloned()
             .context("expected an error but none was recorded")
     }
+
+    fn store_msgpack_payload(&self, payload: Vec<u8>) {
+        *self.msgpack_payload.borrow_mut() = Some(payload);
+    }
+
+    fn msgpack_payload(&self) -> Result<Vec<u8>> {
+        self.msgpack_payload
+            .borrow()
+            .as_ref()
+            .cloned()
+            .context("MessagePack payload must be prepared before decoding")
+    }
 }
 
 #[fixture]
@@ -133,6 +148,36 @@ fn module_is_initialised(#[from(python_state)] state: &PythonModuleState) -> Res
         state.set_module(module.unbind());
         Ok::<(), anyhow::Error>(())
     })?;
+    Ok(())
+}
+
+// rstest-bdd placeholders own their `String` values.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
+#[given("I encode a MessagePack document titled \"{title}\"")]
+fn i_encode_a_messagepack_document(
+    #[from(python_state)] state: &PythonModuleState,
+    title: String,
+) -> Result<()> {
+    let document = TeiDocument::from_title_str(title.as_str())
+        .context("MessagePack fixtures must construct valid documents")?;
+    let payload =
+        to_vec_named(&document).context("serialising fixtures to MessagePack should succeed")?;
+    state.store_msgpack_payload(payload);
+    Ok(())
+}
+
+#[given("I provide an invalid MessagePack payload")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "rstest-bdd step signatures stay uniform even for infallible steps"
+)]
+fn i_provide_an_invalid_messagepack_payload(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    state.store_msgpack_payload(b"this is not valid MessagePack".to_vec());
     Ok(())
 }
 
@@ -189,6 +234,24 @@ fn i_emit_markup_from_the_document(#[from(python_state)] state: &PythonModuleSta
         })
     })?;
     state.store_markup(markup);
+    Ok(())
+}
+
+#[when("I decode the MessagePack payload")]
+fn i_decode_the_messagepack_payload(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
+    let payload = state.msgpack_payload()?;
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let decoder = module
+                .getattr("from_msgpack")
+                .context("from_msgpack must be registered")?;
+            match decoder.call1((PyBytes::new_bound(py, &payload),)) {
+                Ok(document) => state.store_document(document.unbind()),
+                Err(error) => state.store_error(error.to_string()),
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+    })?;
     Ok(())
 }
 
@@ -259,3 +322,9 @@ fn emits_title_markup(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 3)]
 fn document_markup_escapes_special_characters(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 4)]
+fn decodes_messagepack_documents(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 5)]
+fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
