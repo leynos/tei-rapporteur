@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install maturin
-        run: python -m pip install --upgrade pip maturin
+        run: python -m pip install --upgrade pip maturin==0.15.2
       - name: Build Python wheel
         shell: bash
         env:
@@ -56,7 +56,19 @@ jobs:
           fi
           echo "WHEEL_PATH=${wheels[0]}" >> "$GITHUB_ENV"
       - name: Install Python wheel
-        run: python -m pip install "$WHEEL_PATH"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${WHEEL_PATH:-}" ]]; then
+              echo "WHEEL_PATH is unset; ensure the build step exported it" >&2
+              exit 1
+          fi
+          if [[ ! -f "$WHEEL_PATH" ]]; then
+              echo "Wheel path $WHEEL_PATH does not exist" >&2
+              ls dist
+              exit 1
+          fi
+          python -m pip install "$WHEEL_PATH"
       - name: Smoke test tei_rapporteur module
         run: |
           python -c "import tei_rapporteur as tr; print(f'Version: {tr.__version__}'); assert hasattr(tr, 'Document'), 'Document class not exported'; assert hasattr(tr, 'emit_title_markup'), 'emit_title_markup missing'"
