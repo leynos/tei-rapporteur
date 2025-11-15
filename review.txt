@@ -1,0 +1,118 @@
+========== code review ==========
+Summary:
+.github/workflows/ci.yml: 2 comments
+
+📝  [1mcodescene-delta-analysis[0m APPROVED:
+
+📝  [1mleynos[0m COMMENTED:
+
+📝  [1mcoderabbitai[0m CHANGES_REQUESTED:
+[1mActionable comments posted: 2[0m
+
+▶ ♻️ Duplicate comments (2)
+
+
+▶ 📜 Review details
+
+
+
+📝  [1msourcery-ai[0m COMMENTED:
+
+========== review comments ==========
+   29|       - name: Lint
+   30|         run: make lint
+   31|       - name: Test and Measure Coverage
+   32|-        uses: leynos/shared-actions/.github/actions/generate-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
+   32|+        uses: leynos/shared-actions/.github/actions/generate-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
+   33|         with:
+   34|-          output-path: lcov.info
+   35|-          format: lcov
+💬  [1mcoderabbitai[0m wrote:
+_🧹 Nitpick_ | _🔵 Trivial_
+
+[1mEnhance smoke test diagnostics.[0m
+
+The smoke test (line 47) imports and prints the 
+module version, which validates module 
+registration. Consider making the test more robust
+by also verifying that core classes/functions are 
+accessible:
+
+[48;5;235m[38;5;249m-[49m[39m[48;5;235m[38;5;249m       [49m[39m[48;5;235m[38;5;249mrun:[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpython[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m-c[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m"import[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mtei_rapporteur[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mas[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                 [49m[39m
+[48;5;235m[38;5;249mtr;[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mprint(tr.__version__)"[49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                                        [49m[39m
+[48;5;235m[38;5;249m+[49m[39m[48;5;235m[38;5;249m       [49m[39m[48;5;235m[38;5;249mrun:[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpython[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m-c[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m"import[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mtei_rapporteur[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mas[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                 [49m[39m
+[48;5;235m[38;5;249mtr;[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mprint(f'Version:[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m{tr.__version__}');[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249massert[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                  [49m[39m
+[48;5;235m[38;5;249mhasattr(tr,[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m'Document'),[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m'Document[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mclass[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mnot[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                     [49m[39m
+[48;5;235m[38;5;249mfound';[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249massert[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mhasattr(tr,[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m'emit_title_markup'),[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                 [49m[39m
+[48;5;235m[38;5;249m'emit_title_markup[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mfunction[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mnot[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mfound';[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                          [49m[39m
+[48;5;235m[38;5;249mprint('Smoke[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mtest[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpassed')"[49m[39m[48;5;235m[38;5;249m                                                                                                                                                                                                                                       [49m[39m
+
+This confirms that the Python API surface is 
+registered and accessible, not just the module 
+version.
+
+
+
+▶ 📝 Committable suggestion
+
+
+
+
+▶ 🤖 Prompt for AI Agents
+
+
+
+https://github.com/leynos/tei-rapporteur/pull/17#discussion_r2516479214
+   29|       - name: Lint
+   30|         run: make lint
+   31|       - name: Test and Measure Coverage
+   32|-        uses: leynos/shared-actions/.github/actions/generate-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
+   32|+        uses: leynos/shared-actions/.github/actions/generate-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
+   33|         with:
+   34|-          output-path: lcov.info
+   35|-          format: lcov
+   34|+          output-path: coverage.xml
+   35|+          format: cobertura
+   36|+      - name: Set up Python
+   37|+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
+   38|+        with:
+   39|+          python-version: '3.11'
+   40|+      - name: Install maturin
+   41|+        run: python -m pip install --upgrade pip maturin
+💬  [1mcoderabbitai[0m wrote:
+_🧹 Nitpick_ | _🔵 Trivial_
+
+[1mPin maturin version for reproducibility.[0m
+
+Maturin is installed without a version constraint 
+(line 41), which can cause build variance across 
+environments and time. Specify an explicit maturin
+version that has been tested with the PyO3 
+bindings in tei-py.
+
+
+
+Apply this diff to pin the maturin version:
+
+[48;5;235m[38;5;249m  - name: Install maturin[49m[39m[48;5;235m[38;5;249m                                   [49m[39m
+[48;5;235m[38;5;249m-[49m[39m[48;5;235m[38;5;249m   [49m[39m[48;5;235m[38;5;249mrun:[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpython[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m-m[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpip[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249minstall[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m--upgrade[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpip[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m               [49m[39m
+[48;5;235m[38;5;249mmaturin[49m[39m[48;5;235m[38;5;249m                                                     [49m[39m
+[48;5;235m[38;5;249m+[49m[39m[48;5;235m[38;5;249m   [49m[39m[48;5;235m[38;5;249mrun:[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpython[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m-m[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpip[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249minstall[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m--upgrade[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249mpip[49m[39m[48;5;235m[38;5;249m [49m[39m[48;5;235m[38;5;249m               [49m[39m
+[48;5;235m[38;5;249mmaturin==0.15.2[49m[39m[48;5;235m[38;5;249m                                             [49m[39m
+
+Verify the pinned version is compatible with PyO3 
+and the tei-py crate's MSRV.
+
+
+
+▶ 📝 Committable suggestion
+
+
+
+
+▶ 🤖 Prompt for AI Agents
+
+
+
+https://github.com/leynos/tei-rapporteur/pull/17#discussion_r2527003451
+========== end of code review ==========
