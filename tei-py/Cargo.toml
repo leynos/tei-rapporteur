@@ -19,6 +19,7 @@ extension-module = ["pyo3/extension-module"]
 tei-core = { path = "../tei-core" }
 tei-xml = { path = "../tei-xml" }
 pyo3 = { version = "0.22.6", features = ["auto-initialize"] }
+rmp-serde = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
