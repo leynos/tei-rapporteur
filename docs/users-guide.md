@@ -21,11 +21,16 @@ available today and how to exercise it.
   produce canonical TEI strings. All helpers return `TeiError`, so callers see
   consistent diagnostics whether parsing malformed input or attempting to emit
   control characters that XML forbids.
-- `tei-py` depends on both crates and re-exports the serialization helper as
-  `emit_title_markup`, propagating the same `TeiError` enum. This crate is the
-  future home of the PyO3 bindings.
+- `tei-py` now ships the `tei_rapporteur` PyO3 module. The exported `Document`
+  class wraps `TeiDocument`, validates titles via the Rust constructors, and
+  exposes a `title` getter plus an `emit_title_markup` convenience method. The
+  module also surfaces a top-level `emit_title_markup` function so Python
+  callers mirror the Rust helper without reimplementing validation rules.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
+- `pyproject.toml` configures `maturin` to build `tei-py`, allowing
+  `maturin develop` or `maturin build` to work from the workspace root without
+  additional arguments.
 
 ## Building and testing
 
@@ -50,4 +55,27 @@ files cover successful parsing, missing header errors, syntax failures
 triggered by truncated documents, as well as emission of canonical minimal TEI
 output and the error surfaced when a document sneaks in forbidden control
 characters. These tests run alongside the unit suite, so developers receive
-fast feedback when modifying the scaffolding.
+fast feedback when modifying the scaffolding. The new `tei-py` suite adds
+`rstest-bdd` scenarios for the Python module, covering successful construction
+of `Document` from a valid title, rejection of blank titles via `ValueError`,
+and round-tripping markup through the module-level helper.
+
+## Python bindings
+
+The workspace now provides a ready-to-build Python wheel. `pyproject.toml`
+declares `maturin` as the build backend and targets `tei-py/Cargo.toml`, so the
+workflow looks like:
+
+```bash
+python -m pip install --upgrade pip maturin
+maturin develop  # builds and installs tei_rapporteur into the active venv
+python -c "import tei_rapporteur as tr; print(tr.Document('Wolf 359').title)"
+```
+
+Within Python, `tei_rapporteur.Document` constructs a validated TEI document by
+wrapping the Rust `TeiDocument`. The class exposes a `.title` property and an
+`emit_title_markup()` method that mirrors the Rust helper. The module also
+offers a top-level `emit_title_markup(title: str)` so scripting callers can
+work without instantiating a document. CI now builds the wheel on Ubuntu,
+installs it via `pip`, and imports the module to ensure the PyO3 glue remains
+healthy.

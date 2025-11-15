@@ -1,0 +1,36 @@
+[build-system]
+requires = ["maturin>=1.6,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "tei-rapporteur"
+version = "0.1.0"
+description = "PyO3 bindings for the TEI Rapporteur toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "ISC" }
+authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Rust",
+    "Operating System :: Unix",
+    "Operating System :: POSIX",
+    "License :: OSI Approved :: ISC License (ISCL)",
+]
+
+[project.optional-dependencies]
+dev = [
+    "msgspec>=0.18",
+]
+
+[tool.maturin]
+manifest-path = "tei-py/Cargo.toml"
+module-name = "tei_rapporteur"
+bindings = "pyo3"
+strip = true
+features = ["extension-module"]
+
+[tool.maturin.env]
+TEI_PY_BUILD_EXTENSION = "1"

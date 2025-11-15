@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
+        uses: leynos/shared-actions/.github/actions/setup-rust@86f68619873e226bd976b401fbcbc5e2a48c61ec
       - name: Format
         run: make check-fmt
       - name: Markdown lint
@@ -29,16 +29,56 @@ jobs:
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
+        uses: leynos/shared-actions/.github/actions/generate-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
         with:
-          output-path: lcov.info
-          format: lcov
+          output-path: coverage.xml
+          format: cobertura
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
+        with:
+          python-version: '3.11'
+      - name: Install maturin
+        run: python -m pip install --upgrade pip maturin==1.10.1
+      - name: Build Python wheel
+        shell: bash
+        env:
+          TEI_PY_BUILD_EXTENSION: "1"
+        run: |
+          set -euo pipefail
+          rm -f dist/tei_rapporteur-*.whl
+          maturin build --release --manifest-path tei-py/Cargo.toml --out dist
+          shopt -s nullglob
+          wheels=(dist/tei_rapporteur-*.whl)
+          if [[ ${#wheels[@]} -ne 1 ]]; then
+              echo "Expected exactly one tei_rapporteur wheel, found ${#wheels[@]}" >&2
+              ls dist
+              exit 1
+          fi
+          echo "WHEEL_PATH=${wheels[0]}" >> "$GITHUB_ENV"
+      - name: Install Python wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${WHEEL_PATH:-}" ]]; then
+              echo "WHEEL_PATH is unset; ensure the build step exported it" >&2
+              exit 1
+          fi
+          if [[ ! -f "$WHEEL_PATH" ]]; then
+              echo "Wheel path $WHEEL_PATH does not exist" >&2
+              ls dist
+              exit 1
+          fi
+          python -m pip install "$WHEEL_PATH"
+      - name: Smoke test tei_rapporteur module
+        run: |
+          python -c "import tei_rapporteur as tr; print(f'Version: {tr.__version__}'); assert hasattr(tr, 'Document'), 'Document class not exported'; assert hasattr(tr, 'emit_title_markup'), 'emit_title_markup missing'"
+          echo "SMOKE_TEST_PASSED"
       - name: Upload coverage data to CodeScene
         env:
           CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
         if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@f9f1c863c8a5bef64aa6779caa746e1a4a6c1ad4
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@86f68619873e226bd976b401fbcbc5e2a48c61ec
         with:
-          format: lcov
+          format: cobertura
           access-token: ${{ env.CS_ACCESS_TOKEN }}
           installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
