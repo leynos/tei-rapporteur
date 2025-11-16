@@ -7,10 +7,11 @@
 //! `emit_title_markup` helper directly whilst Python receives mirrored
 //! bindings.
 
+use rmp_serde::decode::Error as MsgpackError;
 use tei_core::{TeiDocument, TeiError};
 use tei_xml::serialize_document_title;
 
-pub use bindings::{Document, tei_rapporteur};
+pub use bindings::{Document, from_msgpack, tei_rapporteur};
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
 ///
@@ -33,7 +34,12 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
     serialize_document_title(raw_title)
 }
 
+fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackError> {
+    rmp_serde::from_slice(bytes)
+}
+
 mod bindings {
+    //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
     #![expect(
         unsafe_op_in_unsafe_fn,
         reason = "PyO3 generates unavoidable unsafe glue for the Python bindings"
@@ -51,7 +57,7 @@ mod bindings {
         reason = "Result<T, TeiError> must be mapped into PyResult<T> for Python error translation"
     )]
 
-    use super::{TeiDocument, TeiError, emit_title_markup};
+    use super::{TeiDocument, TeiError, document_from_msgpack, emit_title_markup};
     use pyo3::Bound;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
@@ -132,6 +138,33 @@ mod bindings {
         wrap_tei_result(emit_title_markup(raw_title))
     }
 
+    /// Deserialises `MessagePack` bytes into a [`Document`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PyValueError`] when the payload cannot be decoded into a
+    /// valid [`TeiDocument`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rmp_serde::to_vec_named;
+    /// use tei_core::TeiDocument;
+    /// use tei_py::from_msgpack;
+    ///
+    /// let source = TeiDocument::from_title_str("Wolf 359")?;
+    /// let payload = to_vec_named(&source)?;
+    /// let document = from_msgpack(&payload)?;
+    /// assert_eq!(document.title(), "Wolf 359");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[pyfunction]
+    pub fn from_msgpack(bytes: &[u8]) -> PyResult<Document> {
+        document_from_msgpack(bytes)
+            .map(Document::from)
+            .map_err(|error| PyValueError::new_err(format!("invalid MessagePack payload: {error}")))
+    }
+
     /// Registers the `tei_rapporteur` Python module.
     ///
     /// # Errors
@@ -142,6 +175,7 @@ mod bindings {
     pub fn tei_rapporteur(py_context: Python<'_>, py_module: &Bound<'_, PyModule>) -> PyResult<()> {
         py_module.add_class::<Document>()?;
         py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
+        py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
         Ok(())
@@ -165,6 +199,8 @@ mod tests {
         Python,
         types::{PyAnyMethods, PyModule},
     };
+    use rmp_serde::to_vec_named;
+    use serde_json::json;
 
     #[test]
     fn document_construction_trims_titles() {
@@ -195,6 +231,11 @@ mod tests {
                     .hasattr("emit_title_markup")
                     .expect("emit_title_markup attribute check")
             );
+            assert!(
+                module
+                    .hasattr("from_msgpack")
+                    .expect("from_msgpack attribute check")
+            );
         });
     }
 
@@ -222,5 +263,72 @@ mod tests {
             .emit_title_markup()
             .expect("method should reuse core helper");
         assert_eq!(markup, "<title>King Falls AM</title>");
+    }
+
+    #[test]
+    fn from_msgpack_decodes_documents() {
+        let fixture = TeiDocument::from_title_str("Wolf 359")
+            .expect("valid title should build a TeiDocument");
+        let payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
+
+        let document = from_msgpack(&payload).expect("MessagePack payload should decode");
+        assert_eq!(document.title(), "Wolf 359");
+    }
+
+    #[test]
+    fn from_msgpack_rejects_invalid_payloads() {
+        let error = from_msgpack(b"this is not msgpack data")
+            .expect_err("invalid payload should surface as an error");
+        let message = error.to_string();
+        assert!(
+            message.contains("invalid MessagePack payload"),
+            "error message should communicate MessagePack failure; found {message}"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_empty_payloads() {
+        let error = from_msgpack(&[]).expect_err("empty payloads should fail");
+        assert!(
+            error.to_string().contains("invalid MessagePack payload"),
+            "empty payload should surface as invalid MessagePack"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_truncated_payloads() {
+        let fixture = TeiDocument::from_title_str("The Magnus Archives")
+            .expect("valid title should build a TeiDocument");
+        let mut payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
+        payload.pop();
+        let error = from_msgpack(&payload).expect_err("truncated payload should fail");
+        assert!(
+            error.to_string().contains("invalid MessagePack payload"),
+            "truncated payload errors mention invalid MessagePack"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_structurally_invalid_documents() {
+        let payload = to_vec_named(&json!({ "text": {} }))
+            .expect("serialising malformed document should succeed");
+        let error =
+            from_msgpack(&payload).expect_err("missing header should surface as a decode failure");
+        let message = error.to_string();
+        assert!(
+            message.contains("missing field"),
+            "expected missing field error, found {message}"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_unexpected_types() {
+        let payload = to_vec_named(&42u32).expect("serialising primitive should succeed");
+        let error = from_msgpack(&payload).expect_err("primitive payload should fail");
+        let message = error.to_string();
+        assert!(
+            message.contains("invalid type") || message.contains("expected struct"),
+            "primitive payload should report unexpected type, found {message}"
+        );
     }
 }
