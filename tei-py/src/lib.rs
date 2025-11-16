@@ -39,6 +39,7 @@ fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackError> {
 }
 
 mod bindings {
+    //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
     #![expect(
         unsafe_op_in_unsafe_fn,
         reason = "PyO3 generates unavoidable unsafe glue for the Python bindings"
@@ -199,6 +200,7 @@ mod tests {
         types::{PyAnyMethods, PyModule},
     };
     use rmp_serde::to_vec_named;
+    use serde_json::json;
 
     #[test]
     fn document_construction_trims_titles() {
@@ -281,6 +283,52 @@ mod tests {
         assert!(
             message.contains("invalid MessagePack payload"),
             "error message should communicate MessagePack failure; found {message}"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_empty_payloads() {
+        let error = from_msgpack(&[]).expect_err("empty payloads should fail");
+        assert!(
+            error.to_string().contains("invalid MessagePack payload"),
+            "empty payload should surface as invalid MessagePack"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_truncated_payloads() {
+        let fixture = TeiDocument::from_title_str("The Magnus Archives")
+            .expect("valid title should build a TeiDocument");
+        let mut payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
+        payload.pop();
+        let error = from_msgpack(&payload).expect_err("truncated payload should fail");
+        assert!(
+            error.to_string().contains("invalid MessagePack payload"),
+            "truncated payload errors mention invalid MessagePack"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_structurally_invalid_documents() {
+        let payload = to_vec_named(&json!({ "text": {} }))
+            .expect("serialising malformed document should succeed");
+        let error =
+            from_msgpack(&payload).expect_err("missing header should surface as a decode failure");
+        let message = error.to_string();
+        assert!(
+            message.contains("missing field"),
+            "expected missing field error, found {message}"
+        );
+    }
+
+    #[test]
+    fn from_msgpack_rejects_unexpected_types() {
+        let payload = to_vec_named(&42u32).expect("serialising primitive should succeed");
+        let error = from_msgpack(&payload).expect_err("primitive payload should fail");
+        let message = error.to_string();
+        assert!(
+            message.contains("invalid type") || message.contains("expected struct"),
+            "primitive payload should report unexpected type, found {message}"
         );
     }
 }

@@ -754,8 +754,8 @@ Continuous integration now includes a wheel build/install smoke test on Ubuntu:
 the workflow provisions Python 3.11, invokes
 `maturin build --manifest-path tei-py/Cargo.toml`, installs the resulting wheel
 via `pip`, and imports `tei_rapporteur` to confirm the PyO3 module initialises
-correctly. This guard rails future changes so the Python surface always builds
-alongside the Rust crates.
+correctly. This guards against future regressions so the Python surface always
+builds alongside the Rust crates.
 
 The following sketch illustrates how the Python API can be used:
 

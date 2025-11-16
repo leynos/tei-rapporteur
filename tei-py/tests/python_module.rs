@@ -7,6 +7,7 @@ use pyo3::types::{PyBytes, PyModule};
 use rmp_serde::to_vec_named;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
+use serde_json::json;
 use std::cell::RefCell;
 use tei_core::TeiDocument;
 use tei_py::tei_rapporteur;
@@ -181,6 +182,16 @@ fn i_provide_an_invalid_messagepack_payload(
     Ok(())
 }
 
+#[given("I encode a MessagePack document missing required fields")]
+fn i_encode_a_messagepack_document_missing_required_fields(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    let payload = to_vec_named(&json!({ "text": {} }))
+        .context("serialising malformed MessagePack fixture should succeed")?;
+    state.store_msgpack_payload(payload);
+    Ok(())
+}
+
 // rstest-bdd placeholders own their `String` values.
 #[expect(
     clippy::needless_pass_by_value,
@@ -328,3 +339,6 @@ fn decodes_messagepack_documents(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 5)]
 fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 6)]
+fn rejects_missing_field_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}

@@ -27,6 +27,7 @@ rstest-bdd = { workspace = true }
 rstest-bdd-macros = { workspace = true }
 anyhow = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
+serde_json = { workspace = true }
 
 [build-dependencies]
 pyo3-build-config = { version = "0.22.6", features = ["resolve-config"] }

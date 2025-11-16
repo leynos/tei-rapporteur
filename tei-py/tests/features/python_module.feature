@@ -32,3 +32,9 @@ Feature: tei_rapporteur Python module
     And I provide an invalid MessagePack payload
     When I decode the MessagePack payload
     Then construction fails mentioning "invalid MessagePack payload"
+
+  Scenario: Reject MessagePack payloads missing required fields
+    Given the tei_rapporteur Python module is initialised
+    And I encode a MessagePack document missing required fields
+    When I decode the MessagePack payload
+    Then construction fails mentioning "missing field"
