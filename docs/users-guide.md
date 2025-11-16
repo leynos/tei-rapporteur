@@ -25,7 +25,9 @@ available today and how to exercise it.
   class wraps `TeiDocument`, validates titles via the Rust constructors, and
   exposes a `title` getter plus an `emit_title_markup` convenience method. The
   module also surfaces a top-level `emit_title_markup` function so Python
-  callers mirror the Rust helper without reimplementing validation rules.
+  callers mirror the Rust helper without reimplementing validation rules. The
+  MessagePack bridge now ships both `from_msgpack` and `to_msgpack`, allowing
+  Python callers to exchange binary payloads with Rust via `rmp_serde`.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
 - `pyproject.toml` configures `maturin` to build `tei-py`, allowing
@@ -58,7 +60,11 @@ characters. These tests run alongside the unit suite, so developers receive
 fast feedback when modifying the scaffolding. The new `tei-py` suite adds
 `rstest-bdd` scenarios for the Python module, covering successful construction
 of `Document` from a valid title, rejection of blank titles via `ValueError`,
-and round-tripping markup through the module-level helper.
+round-tripping markup through the module-level helper, and both directions of
+the MessagePack bridge. The behavioural coverage now confirms that
+`from_msgpack` decodes known fixtures, rejects malformed payloads, and that
+`to_msgpack` emits bytes which decode back to the source title while raising a
+Python `TypeError` when anything other than a `Document` is supplied.
 
 ## Python bindings
 
@@ -97,5 +103,19 @@ document = tei.from_msgpack(payload)
 print(document.title)
 ```
 
-The BDD tests now cover both successful decoding and error handling, ensuring
-the MessagePack entry point remains reliable as the API expands.
+The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serialises the
+validated document into MessagePack bytes via `rmp_serde::to_vec_named`. The
+function returns Python `bytes`, making it trivial to persist the payload or
+feed it straight into `msgspec.msgpack.decode` to hydrate a structured type.
+Non-`Document` inputs raise a `TypeError`, giving users immediate feedback when
+they miswire a call. A complete round trip therefore looks like:
+
+```python
+doc = tei.Document("Bridgewater")
+payload = tei.to_msgpack(doc)
+episode = msgspec.msgpack.decode(payload, type=Episode)
+```
+
+The BDD tests now cover both successful decoding and encoding plus error
+handling, ensuring the MessagePack entry points remain reliable as the API
+expands.

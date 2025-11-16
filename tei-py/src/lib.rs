@@ -7,11 +7,11 @@
 //! `emit_title_markup` helper directly whilst Python receives mirrored
 //! bindings.
 
-use rmp_serde::decode::Error as MsgpackError;
+use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
 use tei_xml::serialize_document_title;
 
-pub use bindings::{Document, from_msgpack, tei_rapporteur};
+pub use bindings::{Document, from_msgpack, tei_rapporteur, to_msgpack};
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
 ///
@@ -34,8 +34,12 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
     serialize_document_title(raw_title)
 }
 
-fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackError> {
+fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackDecodeError> {
     rmp_serde::from_slice(bytes)
+}
+
+fn document_to_msgpack(document: &TeiDocument) -> Result<Vec<u8>, MsgpackEncodeError> {
+    rmp_serde::to_vec_named(document)
 }
 
 mod bindings {
@@ -57,7 +61,9 @@ mod bindings {
         reason = "Result<T, TeiError> must be mapped into PyResult<T> for Python error translation"
     )]
 
-    use super::{TeiDocument, TeiError, document_from_msgpack, emit_title_markup};
+    use super::{
+        TeiDocument, TeiError, document_from_msgpack, document_to_msgpack, emit_title_markup,
+    };
     use pyo3::Bound;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
@@ -165,6 +171,29 @@ mod bindings {
             .map_err(|error| PyValueError::new_err(format!("invalid MessagePack payload: {error}")))
     }
 
+    /// Serialises a [`Document`] into `MessagePack` bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PyValueError`] when `rmp_serde` fails to encode the document.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_py::{Document, to_msgpack, from_msgpack};
+    ///
+    /// let document = Document::try_from_title("Wolf 359")?;
+    /// let payload = to_msgpack(&document)?;
+    /// let decoded = from_msgpack(&payload)?;
+    /// assert_eq!(decoded.title(), "Wolf 359");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[pyfunction]
+    pub fn to_msgpack(document: &Document) -> PyResult<Vec<u8>> {
+        document_to_msgpack(document)
+            .map_err(|error| PyValueError::new_err(format!("MessagePack encoding failed: {error}")))
+    }
+
     /// Registers the `tei_rapporteur` Python module.
     ///
     /// # Errors
@@ -176,6 +205,7 @@ mod bindings {
         py_module.add_class::<Document>()?;
         py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
+        py_module.add_function(wrap_pyfunction!(to_msgpack, py_module)?)?;
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
         Ok(())
@@ -235,6 +265,11 @@ mod tests {
                 module
                     .hasattr("from_msgpack")
                     .expect("from_msgpack attribute check")
+            );
+            assert!(
+                module
+                    .hasattr("to_msgpack")
+                    .expect("to_msgpack attribute check")
             );
         });
     }
@@ -330,5 +365,25 @@ mod tests {
             message.contains("invalid type") || message.contains("expected struct"),
             "primitive payload should report unexpected type, found {message}"
         );
+    }
+
+    #[test]
+    fn to_msgpack_serialises_documents() {
+        let document =
+            Document::try_from_title("Bridgewater").expect("valid document should build");
+        let payload = to_msgpack(&document).expect("serialising document should succeed");
+        let decoded = document_from_msgpack(payload.as_slice())
+            .expect("round-tripping MessagePack should succeed");
+        assert_eq!(decoded.title().as_str(), "Bridgewater");
+    }
+
+    #[test]
+    fn to_msgpack_handles_special_characters() {
+        let document = Document::try_from_title(r#"Special <Title> & "Quotes""#)
+            .expect("special characters should validate");
+        let payload = to_msgpack(&document).expect("serialising document should succeed");
+        let decoded =
+            document_from_msgpack(payload.as_slice()).expect("decoding MessagePack should succeed");
+        assert_eq!(decoded.title().as_str(), r#"Special <Title> & "Quotes""#);
     }
 }
