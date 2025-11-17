@@ -48,4 +48,4 @@ Feature: tei_rapporteur Python module
   Scenario: Reject to_msgpack when a Document is not provided
     Given the tei_rapporteur Python module is initialised
     When I encode MessagePack without providing a Document
-    Then construction fails mentioning "incorrect type"
+    Then construction fails mentioning "cannot be converted to 'Document'"
