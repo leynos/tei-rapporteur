@@ -44,22 +44,6 @@ fn document_to_msgpack(document: &TeiDocument) -> Result<Vec<u8>, MsgpackEncodeE
 
 mod bindings {
     //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
-    #![expect(
-        unsafe_op_in_unsafe_fn,
-        reason = "PyO3 generates unavoidable unsafe glue for the Python bindings"
-    )]
-    #![expect(
-        clippy::shadow_reuse,
-        reason = "PyO3 reuses module parameters when generating the PyInit stub"
-    )]
-    #![expect(
-        clippy::too_many_arguments,
-        reason = "PyO3 synthesises adapter parameters for exported pyfunctions"
-    )]
-    #![expect(
-        clippy::useless_conversion,
-        reason = "Result<T, TeiError> must be mapped into PyResult<T> for Python error translation"
-    )]
 
     use super::{
         TeiDocument, TeiError, document_from_msgpack, document_to_msgpack, emit_title_markup,
@@ -68,7 +52,7 @@ mod bindings {
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
     use pyo3::types::PyModule;
-    use pyo3::wrap_pyfunction;
+
     use std::ops::Deref;
 
     /// Wrapper around [`TeiDocument`] surfaced to Python.
@@ -110,106 +94,154 @@ mod bindings {
         }
     }
 
-    #[pymethods]
-    impl Document {
-        /// Constructs a document with the provided title.
+    mod document_methods {
+        #![expect(
+            unsafe_op_in_unsafe_fn,
+            reason = "PyO3 #[pymethods] glue performs unavoidable unsafe argument extraction"
+        )]
+        #![expect(
+            clippy::useless_conversion,
+            reason = "PyO3 wraps #[pymethods] returns in conversion helpers"
+        )]
+
+        use super::{Document, PyResult, emit_title_markup, wrap_tei_result};
+        use pyo3::pymethods;
+
+        #[pymethods]
+        impl Document {
+            /// Constructs a document with the provided title.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`pyo3::exceptions::PyValueError`] when the trimmed title is empty.
+            #[new]
+            pub fn new(title: &str) -> PyResult<Self> {
+                wrap_tei_result(Self::try_from_title(title))
+            }
+
+            /// Returns the validated document title.
+            #[getter]
+            #[must_use]
+            pub fn title(&self) -> String {
+                self.inner.title().to_string()
+            }
+
+            /// Emits the document title as TEI markup.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`pyo3::exceptions::PyValueError`] when the stored document title is invalid.
+            pub fn emit_title_markup(&self) -> PyResult<String> {
+                wrap_tei_result(emit_title_markup(self.inner.title().as_str()))
+            }
+        }
+    }
+
+    mod py_exports {
+        #![expect(
+            unsafe_op_in_unsafe_fn,
+            reason = "PyO3 #[pyfunction] glue performs unavoidable unsafe argument extraction"
+        )]
+        #![expect(
+            clippy::too_many_arguments,
+            reason = "PyO3 injects abi parameters into #[pyfunction] signatures"
+        )]
+        #![expect(
+            clippy::useless_conversion,
+            reason = "PyO3 wraps #[pyfunction] returns in conversion helpers"
+        )]
+        #![expect(
+            clippy::shadow_reuse,
+            reason = "PyO3 #[pymodule] expansion reuses the module parameter names"
+        )]
+
+        use super::{
+            Bound, Document, PyModule, PyResult, PyValueError, Python, document_from_msgpack,
+            document_to_msgpack, emit_title_markup, wrap_tei_result,
+        };
+        use pyo3::types::PyModuleMethods;
+        use pyo3::{pyfunction, pymodule, wrap_pyfunction};
+
+        #[pyfunction(name = "emit_title_markup")]
+        pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
+            wrap_tei_result(emit_title_markup(raw_title))
+        }
+
+        /// Deserialises `MessagePack` bytes into a [`Document`].
         ///
         /// # Errors
         ///
-        /// Returns [`PyValueError`] when the trimmed title is empty.
-        #[new]
-        pub fn new(title: &str) -> PyResult<Self> {
-            wrap_tei_result(Self::try_from_title(title))
+        /// Returns [`pyo3::exceptions::PyValueError`] when the payload cannot be decoded into a
+        /// valid [`tei_core::TeiDocument`].
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use rmp_serde::to_vec_named;
+        /// use tei_core::TeiDocument;
+        /// use tei_py::from_msgpack;
+        ///
+        /// let source = TeiDocument::from_title_str("Wolf 359")?;
+        /// let payload = to_vec_named(&source)?;
+        /// let document = from_msgpack(&payload)?;
+        /// assert_eq!(document.title(), "Wolf 359");
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        #[pyfunction]
+        pub fn from_msgpack(bytes: &[u8]) -> PyResult<Document> {
+            document_from_msgpack(bytes)
+                .map(Document::from)
+                .map_err(|error| {
+                    PyValueError::new_err(format!("invalid MessagePack payload: {error}"))
+                })
         }
 
-        /// Returns the validated document title.
-        #[getter]
-        #[must_use]
-        pub fn title(&self) -> String {
-            self.inner.title().to_string()
-        }
-
-        /// Emits the document title as TEI markup.
+        /// Serialises a [`Document`] into `MessagePack` bytes.
         ///
         /// # Errors
         ///
-        /// Returns [`PyValueError`] when the stored document title is invalid.
-        pub fn emit_title_markup(&self) -> PyResult<String> {
-            wrap_tei_result(emit_title_markup(self.inner.title().as_str()))
+        /// Returns [`pyo3::exceptions::PyValueError`] when `rmp_serde` fails to encode the document.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_py::{Document, to_msgpack, from_msgpack};
+        ///
+        /// let document = Document::try_from_title("Wolf 359")?;
+        /// let payload = to_msgpack(&document)?;
+        /// let decoded = from_msgpack(&payload)?;
+        /// assert_eq!(decoded.title(), "Wolf 359");
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        #[pyfunction]
+        pub fn to_msgpack(document: &Document) -> PyResult<Vec<u8>> {
+            document_to_msgpack(document).map_err(|error| {
+                PyValueError::new_err(format!("MessagePack encoding failed: {error}"))
+            })
+        }
+
+        /// Registers the `tei_rapporteur` Python module.
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::PyErr`] when registering the module exports fails because the
+        /// interpreter rejects one of the additions.
+        #[pymodule]
+        pub fn tei_rapporteur(
+            py_context: Python<'_>,
+            py_module: &Bound<'_, PyModule>,
+        ) -> PyResult<()> {
+            py_module.add_class::<Document>()?;
+            py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(to_msgpack, py_module)?)?;
+            py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
+            py_module.add("__py_runtime__", py_context.version())?;
+            Ok(())
         }
     }
 
-    #[pyfunction(name = "emit_title_markup")]
-    fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
-        wrap_tei_result(emit_title_markup(raw_title))
-    }
-
-    /// Deserialises `MessagePack` bytes into a [`Document`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PyValueError`] when the payload cannot be decoded into a
-    /// valid [`TeiDocument`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rmp_serde::to_vec_named;
-    /// use tei_core::TeiDocument;
-    /// use tei_py::from_msgpack;
-    ///
-    /// let source = TeiDocument::from_title_str("Wolf 359")?;
-    /// let payload = to_vec_named(&source)?;
-    /// let document = from_msgpack(&payload)?;
-    /// assert_eq!(document.title(), "Wolf 359");
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    #[pyfunction]
-    pub fn from_msgpack(bytes: &[u8]) -> PyResult<Document> {
-        document_from_msgpack(bytes)
-            .map(Document::from)
-            .map_err(|error| PyValueError::new_err(format!("invalid MessagePack payload: {error}")))
-    }
-
-    /// Serialises a [`Document`] into `MessagePack` bytes.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PyValueError`] when `rmp_serde` fails to encode the document.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use tei_py::{Document, to_msgpack, from_msgpack};
-    ///
-    /// let document = Document::try_from_title("Wolf 359")?;
-    /// let payload = to_msgpack(&document)?;
-    /// let decoded = from_msgpack(&payload)?;
-    /// assert_eq!(decoded.title(), "Wolf 359");
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    #[pyfunction]
-    pub fn to_msgpack(document: &Document) -> PyResult<Vec<u8>> {
-        document_to_msgpack(document)
-            .map_err(|error| PyValueError::new_err(format!("MessagePack encoding failed: {error}")))
-    }
-
-    /// Registers the `tei_rapporteur` Python module.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PyErr`] when registering the module exports fails because the
-    /// interpreter rejects one of the additions.
-    #[pymodule]
-    pub fn tei_rapporteur(py_context: Python<'_>, py_module: &Bound<'_, PyModule>) -> PyResult<()> {
-        py_module.add_class::<Document>()?;
-        py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
-        py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
-        py_module.add_function(wrap_pyfunction!(to_msgpack, py_module)?)?;
-        py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
-        py_module.add("__py_runtime__", py_context.version())?;
-        Ok(())
-    }
+    pub use py_exports::{from_msgpack, tei_rapporteur, to_msgpack};
 
     /// Converts a Rust `Result<T, TeiError>` into a Python-friendly [`PyResult`].
     ///
