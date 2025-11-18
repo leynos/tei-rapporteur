@@ -9,9 +9,11 @@
 
 use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
-use tei_xml::serialize_document_title;
+use tei_xml::{
+    emit_xml as emit_document_xml, parse_xml as parse_document_xml, serialize_document_title,
+};
 
-pub use bindings::{Document, from_msgpack, tei_rapporteur, to_msgpack};
+pub use bindings::{Document, emit_xml, from_msgpack, parse_xml, tei_rapporteur, to_msgpack};
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
 ///
@@ -42,11 +44,20 @@ fn document_to_msgpack(document: &TeiDocument) -> Result<Vec<u8>, MsgpackEncodeE
     rmp_serde::to_vec_named(document)
 }
 
+fn document_from_xml(xml: &str) -> Result<TeiDocument, TeiError> {
+    parse_document_xml(xml)
+}
+
+fn document_to_xml(document: &TeiDocument) -> Result<String, TeiError> {
+    emit_document_xml(document)
+}
+
 mod bindings {
     //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
 
     use super::{
-        TeiDocument, TeiError, document_from_msgpack, document_to_msgpack, emit_title_markup,
+        TeiDocument, TeiError, document_from_msgpack, document_from_xml, document_to_msgpack,
+        document_to_xml, emit_title_markup,
     };
     use pyo3::Bound;
     use pyo3::exceptions::PyValueError;
@@ -157,7 +168,8 @@ mod bindings {
 
         use super::{
             Bound, Document, PyModule, PyResult, PyValueError, Python, document_from_msgpack,
-            document_to_msgpack, emit_title_markup, wrap_tei_result,
+            document_from_xml, document_to_msgpack, document_to_xml, emit_title_markup,
+            wrap_tei_result,
         };
         use pyo3::types::PyModuleMethods;
         use pyo3::{pyfunction, pymodule, wrap_pyfunction};
@@ -220,6 +232,53 @@ mod bindings {
             })
         }
 
+        /// Parses TEI XML into a [`Document`].
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when parsing fails due to
+        /// invalid XML or TEI content.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_core::TeiDocument;
+        /// use tei_py::parse_xml;
+        /// use tei_xml::emit_xml;
+        ///
+        /// let source = TeiDocument::from_title_str("Wolf 359")?;
+        /// let xml = emit_xml(&source)?;
+        /// let document = parse_xml(&xml)?;
+        /// assert_eq!(document.title(), "Wolf 359");
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        #[pyfunction]
+        pub fn parse_xml(xml: &str) -> PyResult<Document> {
+            wrap_tei_result(document_from_xml(xml)).map(Document::from)
+        }
+
+        /// Emits TEI XML from a [`Document`].
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when XML emission fails,
+        /// for example due to forbidden control characters.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_py::{Document, emit_xml};
+        ///
+        /// let document = Document::try_from_title("Wolf 359")?;
+        /// let xml = emit_xml(&document)?;
+        /// assert!(xml.contains("<title>Wolf 359</title>"));
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        #[pyfunction]
+        pub fn emit_xml(document: &Document) -> PyResult<String> {
+            wrap_tei_result(document_to_xml(document))
+        }
+
         /// Registers the `tei_rapporteur` Python module.
         ///
         /// # Errors
@@ -235,13 +294,15 @@ mod bindings {
             py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(to_msgpack, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(parse_xml, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(emit_xml, py_module)?)?;
             py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
             py_module.add("__py_runtime__", py_context.version())?;
             Ok(())
         }
     }
 
-    pub use py_exports::{from_msgpack, tei_rapporteur, to_msgpack};
+    pub use py_exports::{emit_xml, from_msgpack, parse_xml, tei_rapporteur, to_msgpack};
 
     /// Converts a Rust `Result<T, TeiError>` into a Python-friendly [`PyResult`].
     ///
@@ -302,6 +363,16 @@ mod tests {
                 module
                     .hasattr("to_msgpack")
                     .expect("to_msgpack attribute check")
+            );
+            assert!(
+                module
+                    .hasattr("parse_xml")
+                    .expect("parse_xml attribute check")
+            );
+            assert!(
+                module
+                    .hasattr("emit_xml")
+                    .expect("emit_xml attribute check")
             );
         });
     }
@@ -417,5 +488,45 @@ mod tests {
         let decoded =
             document_from_msgpack(payload.as_slice()).expect("decoding MessagePack should succeed");
         assert_eq!(decoded.title().as_str(), r#"Special <Title> & "Quotes""#);
+    }
+
+    #[test]
+    fn parse_xml_builds_documents() {
+        let source =
+            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct document");
+        let xml = document_to_xml(&source).expect("emitting XML fixture should work");
+        let document = parse_xml(xml.as_str()).expect("XML payload should parse");
+        assert_eq!(document.title(), "Wolf 359");
+    }
+
+    #[test]
+    fn parse_xml_rejects_invalid_payloads() {
+        let Err(error) = parse_xml("<TEI><text><body/></text></TEI>") else {
+            panic!("missing header should fail");
+        };
+        let message = error.to_string();
+        assert!(
+            message.contains("teiHeader"),
+            "error should mention missing header, found {message}"
+        );
+    }
+
+    #[test]
+    fn emit_xml_serialises_documents() {
+        let document = Document::try_from_title("Wolf 359").expect("valid title should build");
+        let xml = emit_xml(&document).expect("serialising TEI should succeed");
+        assert!(xml.contains("<title>Wolf 359</title>"));
+    }
+
+    #[test]
+    fn emit_xml_rejects_control_characters() {
+        let document = Document::try_from_title("\u{0}").expect("control chars survive validation");
+        let Err(error) = emit_xml(&document) else {
+            panic!("forbidden XML characters must fail emission");
+        };
+        assert!(
+            error.to_string().contains("U+0000"),
+            "error should mention control character"
+        );
     }
 }

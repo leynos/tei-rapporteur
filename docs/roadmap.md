@@ -101,7 +101,7 @@ prioritizing efficient data transfer.
       using `rmp_serde` to deserialize bytes into `TeiDocument`.
 - [x] Implement `to_msgpack(doc: &Document) -> PyResult<Vec<u8>>` in `tei-py`,
       using `rmp_serde` to serialize `TeiDocument` to MessagePack bytes.
-- [ ] Implement `parse_xml(xml_str: &str) -> PyResult<Document>` and
+- [x] Implement `parse_xml(xml_str: &str) -> PyResult<Document>` and
       `emit_xml(doc: &Document) -> PyResult<String>` as Python-callable
       functions.
 - [ ] Add `pyo3-serde` to `tei-py` to implement `from_dict` and `to_dict`

@@ -26,8 +26,11 @@ available today and how to exercise it.
   exposes a `title` getter plus an `emit_title_markup` convenience method. The
   module also surfaces a top-level `emit_title_markup` function so Python
   callers mirror the Rust helper without reimplementing validation rules. The
-  MessagePack bridge now ships both `from_msgpack` and `to_msgpack`, allowing
-  Python callers to exchange binary payloads with Rust via `rmp_serde`.
+  MessagePack bridge exposes both `from_msgpack` and `to_msgpack` for binary
+  interchange, and Phase 2.2 adds `parse_xml`/`emit_xml` bindings that forward
+  TEI strings directly to the `tei-xml` helpers. Python can now parse canonical
+  TEI without detouring through MessagePack, and emission always routes through
+  the same forbidden-character guardrails as the Rust callers.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
 - `pyproject.toml` configures `maturin` to build `tei-py`, allowing
@@ -57,14 +60,14 @@ files cover successful parsing, missing header errors, syntax failures
 triggered by truncated documents, as well as emission of canonical minimal TEI
 output and the error surfaced when a document sneaks in forbidden control
 characters. These tests run alongside the unit suite, so developers receive
-fast feedback when modifying the scaffolding. The new `tei-py` suite adds
+fast feedback when modifying the scaffolding. The `tei-py` suite layers on
 `rstest-bdd` scenarios for the Python module, covering successful construction
 of `Document` from a valid title, rejection of blank titles via `ValueError`,
-round-tripping markup through the module-level helper, and both directions of
-the MessagePack bridge. The behavioural coverage now confirms that
-`from_msgpack` decodes known fixtures, rejects malformed payloads, and that
-`to_msgpack` emits bytes which decode back to the source title while raising a
-Python `TypeError` when anything other than a `Document` is supplied.
+round-tripping markup through the module-level helper, both directions of the
+MessagePack bridge, and the new XML exchange APIs. Behaviour-driven coverage
+now parses canonical TEI fixtures, rejects malformed payloads, emits canonical
+strings, and proves forbidden characters bubble up as `ValueError` with an
+actionable message.
 
 ## Python bindings
 
@@ -116,6 +119,23 @@ payload = tei.to_msgpack(doc)
 episode = msgspec.msgpack.decode(payload, type=Episode)
 ```
 
-The BDD tests now cover both successful decoding and encoding plus error
-handling, ensuring the MessagePack entry points remain reliable as the API
-expands.
+When scripts already have TEI XML on disk, the new `tei_rapporteur.parse_xml`
+and `tei_rapporteur.emit_xml` functions avoid redundant conversions.
+`parse_xml` hands the string straight to the Rust parser, returning a
+`Document` that holds the validated `TeiDocument`. `emit_xml` performs the
+inverse operation and retains the forbidden-character guardrails enforced by
+`tei-xml`. A typical round trip combining XML and Python struct manipulation
+therefore looks like:
+
+```python
+doc = tei.parse_xml(Path("episode.tei.xml").read_text())
+payload = tei.to_msgpack(doc)
+episode = msgspec.msgpack.decode(payload, type=Episode)
+episode.title = "Wolf 359 Reissue"
+doc = tei.from_msgpack(msgspec.msgpack.encode(episode))
+xml = tei.emit_xml(doc)
+```
+
+The BDD tests now cover successful decoding, encoding, XML parsing, emission,
+and the corresponding error paths, ensuring the entry points remain reliable as
+the API expands.

@@ -49,3 +49,27 @@ Feature: tei_rapporteur Python module
     Given the tei_rapporteur Python module is initialised
     When I encode MessagePack without providing a Document
     Then construction fails mentioning "cannot be converted to 'Document'"
+
+  Scenario: Parse TEI XML into a Document
+    Given the tei_rapporteur Python module is initialised
+    And I provide TEI XML titled "Wolf 359"
+    When I parse the TEI XML payload
+    Then the document title equals "Wolf 359"
+
+  Scenario: Reject malformed TEI XML payloads
+    Given the tei_rapporteur Python module is initialised
+    And I provide an invalid TEI XML payload missing the header
+    When I parse the TEI XML payload
+    Then construction fails mentioning "teiHeader"
+
+  Scenario: Emit TEI XML for a Document
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document titled "Wolf 359"
+    And I emit the constructed Document to TEI XML
+    Then the TEI XML output equals the canonical payload for "Wolf 359"
+
+  Scenario: Reject TEI emission when XML would contain forbidden characters
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document with the XML control character fixture
+    And I emit the constructed Document to TEI XML
+    Then construction fails mentioning "U+0000"

@@ -11,6 +11,7 @@ use serde_json::json;
 use std::cell::RefCell;
 use tei_core::TeiDocument;
 use tei_py::tei_rapporteur;
+use tei_xml::emit_xml as emit_document_xml;
 
 // Keep feature files and steps aligned with the compiled binary.
 const _: &str = include_str!("features/python_module.feature");
@@ -28,6 +29,8 @@ struct PythonModuleState {
     markup: RefCell<Option<String>>,
     error: RefCell<Option<String>>,
     msgpack_payload: RefCell<Option<Vec<u8>>>,
+    xml_payload: RefCell<Option<String>>,
+    xml_output: RefCell<Option<String>>,
 }
 
 impl PythonModuleState {
@@ -64,6 +67,7 @@ impl PythonModuleState {
         *self.document.borrow_mut() = Some(document);
         self.markup.borrow_mut().take();
         self.error.borrow_mut().take();
+        self.xml_output.borrow_mut().take();
     }
 
     fn with_document<'py, T>(
@@ -97,6 +101,7 @@ impl PythonModuleState {
         self.error.borrow_mut().replace(message);
         self.document.borrow_mut().take();
         self.markup.borrow_mut().take();
+        self.xml_output.borrow_mut().take();
     }
 
     fn error(&self) -> Result<String> {
@@ -117,6 +122,32 @@ impl PythonModuleState {
             .as_ref()
             .cloned()
             .context("MessagePack payload must be prepared before decoding")
+    }
+
+    fn store_xml_payload(&self, payload: String) {
+        *self.xml_payload.borrow_mut() = Some(payload);
+        self.xml_output.borrow_mut().take();
+    }
+
+    fn xml_payload(&self) -> Result<String> {
+        self.xml_payload
+            .borrow()
+            .as_ref()
+            .cloned()
+            .context("XML payload must be prepared before parsing")
+    }
+
+    fn store_xml_output(&self, payload: String) {
+        *self.xml_output.borrow_mut() = Some(payload);
+        self.error.borrow_mut().take();
+    }
+
+    fn xml_output(&self) -> Result<String> {
+        self.xml_output
+            .borrow()
+            .as_ref()
+            .cloned()
+            .context("expected XML output but none was recorded")
     }
 }
 
@@ -197,6 +228,35 @@ fn i_encode_a_messagepack_document_missing_required_fields(
     clippy::needless_pass_by_value,
     reason = "rstest-bdd placeholders own their `String` values"
 )]
+#[given("I provide TEI XML titled \"{title}\"")]
+fn i_provide_tei_xml_titled(
+    #[from(python_state)] state: &PythonModuleState,
+    title: String,
+) -> Result<()> {
+    let document = TeiDocument::from_title_str(title.as_str())
+        .context("XML fixtures must construct valid documents")?;
+    let xml = emit_document_xml(&document).context("emitting XML fixtures should succeed")?;
+    state.store_xml_payload(xml);
+    Ok(())
+}
+
+#[given("I provide an invalid TEI XML payload missing the header")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "rstest-bdd step signatures stay uniform even for infallible steps"
+)]
+fn i_provide_an_invalid_tei_xml_payload(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    state.store_xml_payload("<TEI><text><body/></text></TEI>".to_owned());
+    Ok(())
+}
+
+// rstest-bdd placeholders own their `String` values.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
 #[when("I construct a Document titled \"{title}\"")]
 fn i_construct_a_document(
     #[from(python_state)] state: &PythonModuleState,
@@ -210,6 +270,13 @@ fn i_construct_the_xml_special_fixture_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     construct_python_document(state, r#"Special <Title> & "Quotes" and 'Apostrophes'"#)
+}
+
+#[when("I construct a Document with the XML control character fixture")]
+fn i_construct_the_xml_control_character_document(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    construct_python_document(state, "\u{0}")
 }
 
 #[when("I emit title markup for \"{title}\"")]
@@ -245,6 +312,24 @@ fn i_emit_markup_from_the_document(#[from(python_state)] state: &PythonModuleSta
         })
     })?;
     state.store_markup(markup);
+    Ok(())
+}
+
+#[when("I parse the TEI XML payload")]
+fn i_parse_the_tei_xml_payload(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
+    let xml = state.xml_payload()?;
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let parser = module
+                .getattr("parse_xml")
+                .context("parse_xml must be registered")?;
+            match parser.call1((xml.as_str(),)) {
+                Ok(document) => state.store_document(document.unbind()),
+                Err(error) => state.store_error(error.to_string()),
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+    })?;
     Ok(())
 }
 
@@ -313,6 +398,32 @@ fn i_encode_messagepack_without_a_document(
     Ok(())
 }
 
+#[when("I emit the constructed Document to TEI XML")]
+#[expect(
+    clippy::excessive_nesting,
+    reason = "rstest-bdd steps need nested Python contexts to access the module and stored Document"
+)]
+fn i_emit_the_document_to_tei_xml(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let emitter = module
+                .getattr("emit_xml")
+                .context("emit_xml must be registered")?;
+            state.with_document(py, |document| {
+                match emitter.call1((document,)) {
+                    Ok(xml) => {
+                        let rendered: String = xml.extract()?;
+                        state.store_xml_output(rendered);
+                    }
+                    Err(error) => state.store_error(error.to_string()),
+                }
+                Ok::<(), anyhow::Error>(())
+            })
+        })
+    })?;
+    Ok(())
+}
+
 #[then("the document title equals \"{expected}\"")]
 #[expect(
     clippy::needless_pass_by_value,
@@ -369,6 +480,26 @@ fn the_markup_equals(
     Ok(())
 }
 
+#[then("the TEI XML output equals the canonical payload for \"{title}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
+fn the_tei_xml_output_equals_the_canonical_payload(
+    #[from(python_state)] state: &PythonModuleState,
+    title: String,
+) -> Result<()> {
+    let document = TeiDocument::from_title_str(title.as_str())
+        .context("expected title should construct a valid document")?;
+    let expected = emit_document_xml(&document).context("expected canonical XML emission")?;
+    let actual = state.xml_output()?;
+    ensure!(
+        actual == expected,
+        "expected TEI XML {expected:?}, found {actual:?}"
+    );
+    Ok(())
+}
+
 #[then("decoding the MessagePack payload yields a Document titled \"{expected}\"")]
 #[expect(
     clippy::needless_pass_by_value,
@@ -415,3 +546,15 @@ fn encodes_documents_to_messagepack(#[from(python_state)] _: PythonModuleState) 
 
 #[scenario(path = "tests/features/python_module.feature", index = 8)]
 fn rejects_to_msgpack_without_document(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 9)]
+fn parses_tei_xml_payloads(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 10)]
+fn rejects_invalid_tei_xml_payloads(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 11)]
+fn emits_documents_to_tei_xml(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 12)]
+fn rejects_emit_xml_with_control_characters(#[from(python_state)] _: PythonModuleState) {}
