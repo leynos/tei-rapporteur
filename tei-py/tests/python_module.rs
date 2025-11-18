@@ -55,12 +55,14 @@ impl PythonModuleState {
         py: Python<'py>,
         op: impl FnOnce(Bound<'py, PyModule>) -> Result<T>,
     ) -> Result<T> {
-        let guard = self.module.borrow();
-        let Some(module) = guard.as_ref() else {
-            bail!("module must be initialised before use");
+        let module = {
+            let guard = self.module.borrow();
+            guard
+                .as_ref()
+                .map(|module| module.clone_ref(py))
+                .context("module must be initialised before use")?
         };
-        let bound = module.clone_ref(py).into_bound(py);
-        op(bound)
+        op(module.into_bound(py))
     }
 
     fn store_document(&self, document: Py<PyAny>) {
@@ -75,12 +77,14 @@ impl PythonModuleState {
         py: Python<'py>,
         op: impl FnOnce(Bound<'py, PyAny>) -> Result<T>,
     ) -> Result<T> {
-        let guard = self.document.borrow();
-        let Some(document) = guard.as_ref() else {
-            bail!("document must be constructed before assertions");
+        let document = {
+            let guard = self.document.borrow();
+            guard
+                .as_ref()
+                .map(|document| document.clone_ref(py))
+                .context("document must be constructed before assertions")?
         };
-        let bound = document.clone_ref(py).into_bound(py);
-        op(bound)
+        op(document.into_bound(py))
     }
 
     fn store_markup(&self, value: String) {
