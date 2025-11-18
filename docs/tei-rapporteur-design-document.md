@@ -734,6 +734,26 @@ that users will usually convert the document into their own `msgspec.Struct`
 classes for any intensive work. The `Document` class is mostly a vessel to
 carry data between functions in this minimal API approach.
 
+The encoder half of this API now exists alongside the decoder. `to_msgpack`
+wraps a small Rust helper that invokes `rmp_serde::to_vec_named(&TeiDocument)`
+and maps any `encode::Error` into a Python `ValueError`. Although the current
+`TeiDocument` serialiser is infallible for valid data, the explicit error
+conversion keeps the glue predictable if future schema additions require custom
+serialisation. PyO3 enforces that callers pass a `tei_rapporteur.Document`
+instance, so attempts to invoke `to_msgpack` with other Python objects are
+rejected with a standard `TypeError` before even entering Rust. The helper is
+re-exported to Rust callers as well so internal tests can drive round-trip
+assertions without going through Python.
+
+Behaviour-driven coverage now mirrors the decoder scenarios: one feature builds
+`Document` via the Python constructor, calls `to_msgpack`, and confirms that
+the stored payload decodes back to the original title. A companion scenario
+intentionally calls `to_msgpack("not a document")` and asserts that the
+resulting error string mentions the incorrect type, ensuring misuse fails fast
+at the boundary. The unit suite supplements this with Rust-level tests that
+serialise titles containing XML special characters and immediately decode the
+bytes via the internal helper.
+
 #### Current module scaffolding (Phase 2.1)
 
 Phase 2.1 delivers the first concrete slice of this design. The `tei-py` crate

@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail, ensure};
 use pyo3::Bound;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyModule};
-use rmp_serde::to_vec_named;
+use rmp_serde::{from_slice, to_vec_named};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use serde_json::json;
@@ -266,6 +266,53 @@ fn i_decode_the_messagepack_payload(#[from(python_state)] state: &PythonModuleSt
     Ok(())
 }
 
+#[when("I encode the constructed Document to MessagePack")]
+#[expect(
+    clippy::excessive_nesting,
+    reason = "rstest-bdd steps need nested Python contexts to access the module and stored Document"
+)]
+fn i_encode_the_document_to_messagepack(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let encoder = module
+                .getattr("to_msgpack")
+                .context("to_msgpack must be registered")?;
+            state.with_document(py, |document| {
+                match encoder.call1((document,)) {
+                    Ok(payload) => {
+                        let bytes: Vec<u8> = payload.extract()?;
+                        state.store_msgpack_payload(bytes);
+                    }
+                    Err(error) => state.store_error(error.to_string()),
+                }
+                Ok::<(), anyhow::Error>(())
+            })
+        })
+    })?;
+    Ok(())
+}
+
+#[when("I encode MessagePack without providing a Document")]
+fn i_encode_messagepack_without_a_document(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let encoder = module
+                .getattr("to_msgpack")
+                .context("to_msgpack must be registered")?;
+            match encoder.call1(("not a document",)) {
+                Ok(_) => bail!("encoding without a Document should fail"),
+                Err(error) => state.store_error(error.to_string()),
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+    })?;
+    Ok(())
+}
+
 #[then("the document title equals \"{expected}\"")]
 #[expect(
     clippy::needless_pass_by_value,
@@ -322,6 +369,26 @@ fn the_markup_equals(
     Ok(())
 }
 
+#[then("decoding the MessagePack payload yields a Document titled \"{expected}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
+fn decoding_the_messagepack_payload_yields_document(
+    #[from(python_state)] state: &PythonModuleState,
+    expected: String,
+) -> Result<()> {
+    let payload = state.msgpack_payload()?;
+    let document = from_slice::<TeiDocument>(&payload)
+        .context("decoding stored MessagePack payload should succeed")?;
+    ensure!(
+        document.title().as_str() == expected,
+        "expected Document title {expected:?}, found {:?}",
+        document.title().as_str()
+    );
+    Ok(())
+}
+
 #[scenario(path = "tests/features/python_module.feature", index = 0)]
 fn constructs_a_document(#[from(python_state)] _: PythonModuleState) {}
 
@@ -342,3 +409,9 @@ fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleSta
 
 #[scenario(path = "tests/features/python_module.feature", index = 6)]
 fn rejects_missing_field_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 7)]
+fn encodes_documents_to_messagepack(#[from(python_state)] _: PythonModuleState) {}
+
+#[scenario(path = "tests/features/python_module.feature", index = 8)]
+fn rejects_to_msgpack_without_document(#[from(python_state)] _: PythonModuleState) {}

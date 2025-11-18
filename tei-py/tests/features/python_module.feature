@@ -38,3 +38,14 @@ Feature: tei_rapporteur Python module
     And I encode a MessagePack document missing required fields
     When I decode the MessagePack payload
     Then construction fails mentioning "missing field"
+
+  Scenario: Encode a Document to MessagePack bytes
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document titled "Bridgewater"
+    And I encode the constructed Document to MessagePack
+    Then decoding the MessagePack payload yields a Document titled "Bridgewater"
+
+  Scenario: Reject to_msgpack when a Document is not provided
+    Given the tei_rapporteur Python module is initialised
+    When I encode MessagePack without providing a Document
+    Then construction fails mentioning "cannot be converted to 'Document'"
