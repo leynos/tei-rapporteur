@@ -48,16 +48,9 @@ mod bindings {
     use super::{
         TeiDocument, TeiError, document_from_msgpack, document_to_msgpack, emit_title_markup,
     };
-    use pyo3::Bound;
-    use pyo3::Bound;
-    use pyo3::exceptions::PyValueError;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
-    use pyo3::prelude::*;
-    use pyo3::types::PyModule;
-    use pyo3::types::PyModule;
-    use tei_xml::{emit_xml as emit_document_xml, parse_xml as parse_document_xml};
-
+    
     use std::ops::Deref;
 
     /// Wrapper around [`TeiDocument`] surfaced to Python.
@@ -160,14 +153,16 @@ mod bindings {
             reason = "PyO3 #[pymodule] expansion reuses the module parameter names"
         )]
 
+
         use super::{
-            Bound, Document, PyModule, PyResult, PyValueError, Python, document_from_msgpack,
-            document_to_msgpack, emit_title_markup, wrap_tei_result,
+            Document, PyResult, PyValueError, Python, document_from_msgpack, document_to_msgpack,
+            emit_title_markup, wrap_tei_result,
         };
         use pyo3::types::PyModuleMethods;
         use pyo3::{pyfunction, pymodule, wrap_pyfunction};
         use tei_xml::{emit_xml as emit_document_xml, parse_xml as parse_document_xml};
-
+        use pyo3::{Bound, types::PyModule};
+        
         #[pyfunction(name = "emit_title_markup")]
         pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
             wrap_tei_result(emit_title_markup(raw_title))
@@ -318,8 +313,7 @@ mod tests {
     };
     use rmp_serde::to_vec_named;
     use serde_json::json;
-    use tei_xml::emit_xml as emit_document_xml;
-
+    
     #[test]
     fn document_construction_trims_titles() {
         let document =
@@ -489,8 +483,8 @@ mod tests {
     fn parse_xml_builds_documents() {
         let source =
             TeiDocument::from_title_str("Wolf 359").expect("valid title should construct document");
-        let xml = emit_document_xml(&source).expect("emitting XML fixture should work");
-        let document = parse_xml(xml.as_str()).expect("XML payload should parse");
+        let xml = tei_xml::emit_xml(&source).expect("emitting XML fixture should work");
+        let document = Document::from(tei_xml::parse_xml(xml.as_str()).expect("XML payload should parse"));
         assert_eq!(document.title(), "Wolf 359");
     }
 

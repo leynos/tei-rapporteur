@@ -117,7 +117,7 @@ impl PythonModuleState {
         *self.document.borrow_mut() = Some(document);
         self.markup.borrow_mut().take();
         self.error.borrow_mut().take();
-        self.xml_output.borrow_mut().take();
+        self.xml_output.clear();
     }
 
     fn with_document<'py, T>(
@@ -153,7 +153,7 @@ impl PythonModuleState {
         self.error.borrow_mut().replace(message);
         self.document.borrow_mut().take();
         self.markup.borrow_mut().take();
-        self.xml_output.borrow_mut().take();
+        self.xml_output.clear();
     }
 
     fn error(&self) -> Result<String> {
