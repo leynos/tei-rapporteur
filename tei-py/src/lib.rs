@@ -50,7 +50,7 @@ mod bindings {
     };
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
-    
+
     use std::ops::Deref;
 
     /// Wrapper around [`TeiDocument`] surfaced to Python.
@@ -153,16 +153,15 @@ mod bindings {
             reason = "PyO3 #[pymodule] expansion reuses the module parameter names"
         )]
 
-
         use super::{
             Document, PyResult, PyValueError, Python, document_from_msgpack, document_to_msgpack,
             emit_title_markup, wrap_tei_result,
         };
         use pyo3::types::PyModuleMethods;
+        use pyo3::{Bound, types::PyModule};
         use pyo3::{pyfunction, pymodule, wrap_pyfunction};
         use tei_xml::{emit_xml as emit_document_xml, parse_xml as parse_document_xml};
-        use pyo3::{Bound, types::PyModule};
-        
+
         #[pyfunction(name = "emit_title_markup")]
         pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
             wrap_tei_result(emit_title_markup(raw_title))
@@ -305,217 +304,4 @@ mod bindings {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use pyo3::{
-        Python,
-        types::{PyAnyMethods, PyModule},
-    };
-    use rmp_serde::to_vec_named;
-    use serde_json::json;
-    
-    #[test]
-    fn document_construction_trims_titles() {
-        let document =
-            Document::try_from_title("  Wolf 359  ").expect("valid document title should succeed");
-        assert_eq!(document.title(), "Wolf 359");
-    }
-
-    #[test]
-    fn document_construction_rejects_blank_titles() {
-        let error = Document::try_from_title("   ").expect_err("blank titles should fail");
-        assert!(matches!(error, TeiError::DocumentTitle(_)));
-    }
-
-    #[test]
-    fn module_registers_python_bindings() {
-        Python::with_gil(|py| {
-            let module = PyModule::new_bound(py, "tei_rapporteur").expect("module allocation");
-            tei_rapporteur(py, &module).expect("module registration");
-
-            assert!(
-                module
-                    .hasattr("Document")
-                    .expect("Document attribute check")
-            );
-            assert!(
-                module
-                    .hasattr("emit_title_markup")
-                    .expect("emit_title_markup attribute check")
-            );
-            assert!(
-                module
-                    .hasattr("from_msgpack")
-                    .expect("from_msgpack attribute check")
-            );
-            assert!(
-                module
-                    .hasattr("to_msgpack")
-                    .expect("to_msgpack attribute check")
-            );
-            assert!(
-                module
-                    .hasattr("parse_xml")
-                    .expect("parse_xml attribute check")
-            );
-            assert!(
-                module
-                    .hasattr("emit_xml")
-                    .expect("emit_xml attribute check")
-            );
-        });
-    }
-
-    #[test]
-    fn python_function_emits_markup() {
-        Python::with_gil(|py| {
-            let module = PyModule::new_bound(py, "tei_rapporteur").expect("module allocation");
-            tei_rapporteur(py, &module).expect("module registration");
-            let emit = module
-                .getattr("emit_title_markup")
-                .expect("emit_title_markup attribute");
-            let result: String = emit
-                .call1(("Archive 81",))
-                .expect("Python call")
-                .extract()
-                .expect("string extraction");
-            assert_eq!(result, "<title>Archive 81</title>");
-        });
-    }
-
-    #[test]
-    fn document_method_emits_markup() {
-        let document = Document::try_from_title("King Falls AM").expect("valid doc");
-        let markup = document
-            .emit_title_markup()
-            .expect("method should reuse core helper");
-        assert_eq!(markup, "<title>King Falls AM</title>");
-    }
-
-    #[test]
-    fn from_msgpack_decodes_documents() {
-        let fixture = TeiDocument::from_title_str("Wolf 359")
-            .expect("valid title should build a TeiDocument");
-        let payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
-
-        let document = from_msgpack(&payload).expect("MessagePack payload should decode");
-        assert_eq!(document.title(), "Wolf 359");
-    }
-
-    #[test]
-    fn from_msgpack_rejects_invalid_payloads() {
-        let error = from_msgpack(b"this is not msgpack data")
-            .expect_err("invalid payload should surface as an error");
-        let message = error.to_string();
-        assert!(
-            message.contains("invalid MessagePack payload"),
-            "error message should communicate MessagePack failure; found {message}"
-        );
-    }
-
-    #[test]
-    fn from_msgpack_rejects_empty_payloads() {
-        let error = from_msgpack(&[]).expect_err("empty payloads should fail");
-        assert!(
-            error.to_string().contains("invalid MessagePack payload"),
-            "empty payload should surface as invalid MessagePack"
-        );
-    }
-
-    #[test]
-    fn from_msgpack_rejects_truncated_payloads() {
-        let fixture = TeiDocument::from_title_str("The Magnus Archives")
-            .expect("valid title should build a TeiDocument");
-        let mut payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
-        payload.pop();
-        let error = from_msgpack(&payload).expect_err("truncated payload should fail");
-        assert!(
-            error.to_string().contains("invalid MessagePack payload"),
-            "truncated payload errors mention invalid MessagePack"
-        );
-    }
-
-    #[test]
-    fn from_msgpack_rejects_structurally_invalid_documents() {
-        let payload = to_vec_named(&json!({ "text": {} }))
-            .expect("serialising malformed document should succeed");
-        let error =
-            from_msgpack(&payload).expect_err("missing header should surface as a decode failure");
-        let message = error.to_string();
-        assert!(
-            message.contains("missing field"),
-            "expected missing field error, found {message}"
-        );
-    }
-
-    #[test]
-    fn from_msgpack_rejects_unexpected_types() {
-        let payload = to_vec_named(&42u32).expect("serialising primitive should succeed");
-        let error = from_msgpack(&payload).expect_err("primitive payload should fail");
-        let message = error.to_string();
-        assert!(
-            message.contains("invalid type") || message.contains("expected struct"),
-            "primitive payload should report unexpected type, found {message}"
-        );
-    }
-
-    #[test]
-    fn to_msgpack_serialises_documents() {
-        let document =
-            Document::try_from_title("Bridgewater").expect("valid document should build");
-        let payload = to_msgpack(&document).expect("serialising document should succeed");
-        let decoded = document_from_msgpack(payload.as_slice())
-            .expect("round-tripping MessagePack should succeed");
-        assert_eq!(decoded.title().as_str(), "Bridgewater");
-    }
-
-    #[test]
-    fn to_msgpack_handles_special_characters() {
-        let document = Document::try_from_title(r#"Special <Title> & "Quotes""#)
-            .expect("special characters should validate");
-        let payload = to_msgpack(&document).expect("serialising document should succeed");
-        let decoded =
-            document_from_msgpack(payload.as_slice()).expect("decoding MessagePack should succeed");
-        assert_eq!(decoded.title().as_str(), r#"Special <Title> & "Quotes""#);
-    }
-
-    #[test]
-    fn parse_xml_builds_documents() {
-        let source =
-            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct document");
-        let xml = tei_xml::emit_xml(&source).expect("emitting XML fixture should work");
-        let document = Document::from(tei_xml::parse_xml(xml.as_str()).expect("XML payload should parse"));
-        assert_eq!(document.title(), "Wolf 359");
-    }
-
-    #[test]
-    fn parse_xml_rejects_invalid_payloads() {
-        let Err(error) = parse_xml("<TEI><text><body/></text></TEI>") else {
-            panic!("missing header should fail");
-        };
-        let message = error.to_string();
-        assert!(
-            message.contains("teiHeader"),
-            "error should mention missing header, found {message}"
-        );
-    }
-
-    #[test]
-    fn emit_xml_serialises_documents() {
-        let document = Document::try_from_title("Wolf 359").expect("valid title should build");
-        let xml = emit_xml(&document).expect("serialising TEI should succeed");
-        assert!(xml.contains("<title>Wolf 359</title>"));
-    }
-
-    #[test]
-    fn emit_xml_rejects_control_characters() {
-        let document = Document::try_from_title("\u{0}").expect("control chars survive validation");
-        let Err(error) = emit_xml(&document) else {
-            panic!("forbidden XML characters must fail emission");
-        };
-        assert!(
-            error.to_string().contains("U+0000"),
-            "error should mention control character"
-        );
-    }
-}
+mod tests;
