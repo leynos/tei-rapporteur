@@ -16,21 +16,69 @@ use tei_xml::emit_xml as emit_document_xml;
 // Keep feature files and steps aligned with the compiled binary.
 const _: &str = include_str!("features/python_module.feature");
 
+struct PayloadSlot<T> {
+    slot: RefCell<Option<T>>,
+    description: &'static str,
+}
+
+impl<T> PayloadSlot<T> {
+    const fn new(description: &'static str) -> Self {
+        Self {
+            slot: RefCell::new(None),
+            description,
+        }
+    }
+
+    fn store(&self, value: T) {
+        *self.slot.borrow_mut() = Some(value);
+    }
+
+    fn clear(&self) {
+        self.slot.borrow_mut().take();
+    }
+}
+
+impl<T> PayloadSlot<T>
+where
+    T: Clone,
+{
+    fn load(&self) -> Result<T> {
+        self.slot
+            .borrow()
+            .as_ref()
+            .cloned()
+            .with_context(|| format!("{} must be prepared before use", self.description))
+    }
+}
+
 /// Holds optional Python objects for behaviour-driven tests.
 ///
 /// `Py<PyModule>` and `Py<PyAny>` references live in `RefCell<Option<_>>` slots so
 /// the step functions can mutate shared state while respecting the GIL. The
 /// `markup` and `error` slots capture outputs from previous steps, and every field
 /// starts as `None` until the appropriate step initialises it.
-#[derive(Default)]
 struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
     document: RefCell<Option<Py<PyAny>>>,
     markup: RefCell<Option<String>>,
     error: RefCell<Option<String>>,
-    msgpack_payload: RefCell<Option<Vec<u8>>>,
-    xml_payload: RefCell<Option<String>>,
-    xml_output: RefCell<Option<String>>,
+    msgpack_payload: PayloadSlot<Vec<u8>>,
+    xml_payload: PayloadSlot<String>,
+    xml_output: PayloadSlot<String>,
+}
+
+impl Default for PythonModuleState {
+    fn default() -> Self {
+        Self {
+            module: RefCell::new(None),
+            document: RefCell::new(None),
+            markup: RefCell::new(None),
+            error: RefCell::new(None),
+            msgpack_payload: PayloadSlot::new("MessagePack payload"),
+            xml_payload: PayloadSlot::new("XML payload"),
+            xml_output: PayloadSlot::new("XML output"),
+        }
+    }
 }
 
 impl PythonModuleState {
@@ -117,41 +165,29 @@ impl PythonModuleState {
     }
 
     fn store_msgpack_payload(&self, payload: Vec<u8>) {
-        *self.msgpack_payload.borrow_mut() = Some(payload);
+        self.msgpack_payload.store(payload);
     }
 
     fn msgpack_payload(&self) -> Result<Vec<u8>> {
-        self.msgpack_payload
-            .borrow()
-            .as_ref()
-            .cloned()
-            .context("MessagePack payload must be prepared before decoding")
+        self.msgpack_payload.load()
     }
 
     fn store_xml_payload(&self, payload: String) {
-        *self.xml_payload.borrow_mut() = Some(payload);
-        self.xml_output.borrow_mut().take();
+        self.xml_payload.store(payload);
+        self.xml_output.clear();
     }
 
     fn xml_payload(&self) -> Result<String> {
-        self.xml_payload
-            .borrow()
-            .as_ref()
-            .cloned()
-            .context("XML payload must be prepared before parsing")
+        self.xml_payload.load()
     }
 
     fn store_xml_output(&self, payload: String) {
-        *self.xml_output.borrow_mut() = Some(payload);
+        self.xml_output.store(payload);
         self.error.borrow_mut().take();
     }
 
     fn xml_output(&self) -> Result<String> {
-        self.xml_output
-            .borrow()
-            .as_ref()
-            .cloned()
-            .context("expected XML output but none was recorded")
+        self.xml_output.load()
     }
 }
 

@@ -9,9 +9,7 @@
 
 use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
-use tei_xml::{
-    emit_xml as emit_document_xml, parse_xml as parse_document_xml, serialize_document_title,
-};
+use tei_xml::serialize_document_title;
 
 pub use bindings::{Document, emit_xml, from_msgpack, parse_xml, tei_rapporteur, to_msgpack};
 
@@ -44,25 +42,21 @@ fn document_to_msgpack(document: &TeiDocument) -> Result<Vec<u8>, MsgpackEncodeE
     rmp_serde::to_vec_named(document)
 }
 
-fn document_from_xml(xml: &str) -> Result<TeiDocument, TeiError> {
-    parse_document_xml(xml)
-}
-
-fn document_to_xml(document: &TeiDocument) -> Result<String, TeiError> {
-    emit_document_xml(document)
-}
-
 mod bindings {
     //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
 
     use super::{
-        TeiDocument, TeiError, document_from_msgpack, document_from_xml, document_to_msgpack,
-        document_to_xml, emit_title_markup,
+        TeiDocument, TeiError, document_from_msgpack, document_to_msgpack, emit_title_markup,
     };
     use pyo3::Bound;
+    use pyo3::Bound;
+    use pyo3::exceptions::PyValueError;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
+    use pyo3::prelude::*;
     use pyo3::types::PyModule;
+    use pyo3::types::PyModule;
+    use tei_xml::{emit_xml as emit_document_xml, parse_xml as parse_document_xml};
 
     use std::ops::Deref;
 
@@ -168,11 +162,11 @@ mod bindings {
 
         use super::{
             Bound, Document, PyModule, PyResult, PyValueError, Python, document_from_msgpack,
-            document_from_xml, document_to_msgpack, document_to_xml, emit_title_markup,
-            wrap_tei_result,
+            document_to_msgpack, emit_title_markup, wrap_tei_result,
         };
         use pyo3::types::PyModuleMethods;
         use pyo3::{pyfunction, pymodule, wrap_pyfunction};
+        use tei_xml::{emit_xml as emit_document_xml, parse_xml as parse_document_xml};
 
         #[pyfunction(name = "emit_title_markup")]
         pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
@@ -254,7 +248,7 @@ mod bindings {
         /// ```
         #[pyfunction]
         pub fn parse_xml(xml: &str) -> PyResult<Document> {
-            wrap_tei_result(document_from_xml(xml)).map(Document::from)
+            wrap_tei_result(parse_document_xml(xml)).map(Document::from)
         }
 
         /// Emits TEI XML from a [`Document`].
@@ -276,7 +270,7 @@ mod bindings {
         /// ```
         #[pyfunction]
         pub fn emit_xml(document: &Document) -> PyResult<String> {
-            wrap_tei_result(document_to_xml(document))
+            wrap_tei_result(emit_document_xml(document))
         }
 
         /// Registers the `tei_rapporteur` Python module.
@@ -324,6 +318,7 @@ mod tests {
     };
     use rmp_serde::to_vec_named;
     use serde_json::json;
+    use tei_xml::emit_xml as emit_document_xml;
 
     #[test]
     fn document_construction_trims_titles() {
@@ -494,7 +489,7 @@ mod tests {
     fn parse_xml_builds_documents() {
         let source =
             TeiDocument::from_title_str("Wolf 359").expect("valid title should construct document");
-        let xml = document_to_xml(&source).expect("emitting XML fixture should work");
+        let xml = emit_document_xml(&source).expect("emitting XML fixture should work");
         let document = parse_xml(xml.as_str()).expect("XML payload should parse");
         assert_eq!(document.title(), "Wolf 359");
     }
