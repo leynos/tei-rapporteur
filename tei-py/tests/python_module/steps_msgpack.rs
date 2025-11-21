@@ -1,18 +1,21 @@
-use super::shared::*;
-use anyhow::{Context, Result, bail, ensure};
-use pyo3::prelude::*;
-use pyo3::types::PyBytes;
-use rmp_serde::{from_slice, to_vec_named};
-use rstest_bdd_macros::{given, scenario, then, when};
+//! MessagePack-specific steps and scenarios.
+
+use super::state::{PythonModuleState, python_state};
+use anyhow::{Context, Result, bail};
+use pyo3::{prelude::*, types::PyBytes};
+use rmp_serde::to_vec_named;
+use rstest_bdd_macros::{given, scenario, when};
 use serde_json::json;
 use tei_core::TeiDocument;
+
+const _: fn() -> PythonModuleState = python_state;
 
 #[expect(
     clippy::needless_pass_by_value,
     reason = "rstest-bdd placeholders own their `String` values"
 )]
 #[given("I encode a MessagePack document titled \"{title}\"")]
-fn i_encode_a_messagepack_document(
+pub(super) fn i_encode_a_messagepack_document(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
 ) -> Result<()> {
@@ -29,7 +32,7 @@ fn i_encode_a_messagepack_document(
     clippy::unnecessary_wraps,
     reason = "rstest-bdd step signatures stay uniform even when storing literals"
 )]
-fn i_provide_an_invalid_messagepack_payload(
+pub(super) fn i_provide_an_invalid_messagepack_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     state.store_msgpack_payload(b"this is not valid MessagePack".to_vec());
@@ -37,7 +40,7 @@ fn i_provide_an_invalid_messagepack_payload(
 }
 
 #[given("I encode a MessagePack document missing required fields")]
-fn i_encode_a_messagepack_document_missing_required_fields(
+pub(super) fn i_encode_a_messagepack_document_missing_required_fields(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = to_vec_named(&json!({ "text": {} }))
@@ -47,7 +50,9 @@ fn i_encode_a_messagepack_document_missing_required_fields(
 }
 
 #[when("I decode the MessagePack payload")]
-fn i_decode_the_messagepack_payload(#[from(python_state)] state: &PythonModuleState) -> Result<()> {
+pub(super) fn i_decode_the_messagepack_payload(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
     let payload = state.msgpack_payload()?;
     Python::with_gil(|py| {
         state.with_module(py, |module| {
@@ -69,7 +74,7 @@ fn i_decode_the_messagepack_payload(#[from(python_state)] state: &PythonModuleSt
     clippy::excessive_nesting,
     reason = "rstest-bdd steps need nested Python contexts to access the module and stored Document"
 )]
-fn i_encode_the_document_to_messagepack(
+pub(super) fn i_encode_the_document_to_messagepack(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     Python::with_gil(|py| {
@@ -93,7 +98,7 @@ fn i_encode_the_document_to_messagepack(
 }
 
 #[when("I encode MessagePack without providing a Document")]
-fn i_encode_messagepack_without_a_document(
+pub(super) fn i_encode_messagepack_without_a_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     Python::with_gil(|py| {
@@ -111,40 +116,17 @@ fn i_encode_messagepack_without_a_document(
     Ok(())
 }
 
-#[then("decoding the MessagePack payload yields a Document titled \"{expected}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
-fn decoding_the_messagepack_payload_yields_document(
-    #[from(python_state)] state: &PythonModuleState,
-    expected: String,
-) -> Result<()> {
-    let payload = state.msgpack_payload()?;
-    let document = from_slice::<TeiDocument>(&payload)
-        .context("decoding stored MessagePack payload should succeed")?;
-    ensure!(
-        document.title().as_str() == expected,
-        "expected Document title {expected:?}, found {:?}",
-        document.title().as_str()
-    );
-    Ok(())
-}
-
 #[scenario(path = "tests/features/python_module.feature", index = 4)]
-pub(super) fn decodes_messagepack_documents(#[from(python_state)] _: PythonModuleState) {}
+pub fn decodes_messagepack_documents(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 5)]
-pub(super) fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 6)]
-pub(super) fn rejects_missing_field_messagepack_payloads(
-    #[from(python_state)] _: PythonModuleState,
-) {
-}
+pub fn rejects_missing_field_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 7)]
-pub(super) fn encodes_documents_to_messagepack(#[from(python_state)] _: PythonModuleState) {}
+pub fn encodes_documents_to_messagepack(#[from(python_state)] _: PythonModuleState) {}
 
 #[scenario(path = "tests/features/python_module.feature", index = 8)]
-pub(super) fn rejects_to_msgpack_without_document(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_to_msgpack_without_document(#[from(python_state)] _: PythonModuleState) {}

@@ -94,6 +94,9 @@ This step sets up the PyO3 crate and defines the Python module structure.
 
 ### Step 2.2: FFI Data Exchange and API Implementation
 
+_Status:_ XML bindings completed on 21 November 2025; dictionary helpers remain
+pending and are tracked in the final checklist item below.
+
 This step implements the functions that bridge the Rust and Python worlds,
 prioritizing efficient data transfer.
 

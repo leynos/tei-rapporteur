@@ -1,3 +1,6 @@
+//! Unit tests for the Python-facing bindings (title helpers, `MessagePack`,
+//! and XML exchange).
+
 use super::*;
 use pyo3::{
     Python,
@@ -5,7 +8,8 @@ use pyo3::{
 };
 use rmp_serde::to_vec_named;
 use serde_json::json;
-use tei_xml::emit_xml as emit_document_xml;
+
+mod xml;
 
 #[test]
 fn document_construction_trims_titles() {
@@ -133,37 +137,4 @@ fn to_msgpack_handles_special_characters() {
     let decoded =
         document_from_msgpack(payload.as_slice()).expect("decoding MessagePack should succeed");
     assert_eq!(decoded.title().as_str(), r#"Special <Title> & "Quotes""#);
-}
-
-#[test]
-fn parse_xml_builds_documents() {
-    let source =
-        TeiDocument::from_title_str("Wolf 359").expect("valid title should construct document");
-    let xml = emit_document_xml(&source).expect("emitting XML fixture should work");
-    let document = parse_xml(xml.as_str()).expect("XML payload should parse");
-    assert_eq!(document.title(), "Wolf 359");
-}
-
-#[test]
-fn parse_xml_rejects_invalid_payloads() {
-    let Err(error) = parse_xml("<TEI><text><body/></text></TEI>") else {
-        panic!("missing header should fail");
-    };
-    assert!(error.to_string().contains("teiHeader"));
-}
-
-#[test]
-fn emit_xml_serialises_documents() {
-    let document = Document::try_from_title("Wolf 359").expect("valid title should build");
-    let xml = emit_xml(&document).expect("serialising TEI should succeed");
-    assert!(xml.contains("<title>Wolf 359</title>"));
-}
-
-#[test]
-fn emit_xml_rejects_control_characters() {
-    let document = Document::try_from_title("\u{0}").expect("control chars survive validation");
-    let Err(error) = emit_xml(&document) else {
-        panic!("forbidden XML characters must fail emission");
-    };
-    assert!(error.to_string().contains("U+0000"));
 }

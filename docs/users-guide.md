@@ -128,6 +128,10 @@ inverse operation and retains the forbidden-character guardrails enforced by
 therefore looks like:
 
 ```python
+from pathlib import Path
+import msgspec
+import tei_rapporteur as tei
+
 doc = tei.parse_xml(Path("episode.tei.xml").read_text())
 payload = tei.to_msgpack(doc)
 episode = msgspec.msgpack.decode(payload, type=Episode)

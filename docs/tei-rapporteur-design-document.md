@@ -806,6 +806,20 @@ to ensure `PyValueError` messages surface the helpful context. Together these
 tests pin the boundary contract so future schema evolution cannot silently
 break XML callers.
 
+The Rust implementation now leans on two small macro families to keep this FFI
+layer maintainable. `define_conversion_pair!` declares the twin helpers for
+each transfer format (currently MessagePack and TEI XML), and the `define_py_*`
+wrappers map those helpers into PyO3 functions while unifying the error text
+emitted to Python. Adding another format in the future requires only
+instantiating the macros with the appropriate encoder/decoder pair. On the
+integration-test side, the behaviour-driven harness was decomposed into
+feature-specific modules (`steps_construction`, `steps_msgpack`, `steps_xml`,
+etc.) so no test file exceeds the 400-line guideline. Shared payload handling
+now relies on a `PayloadSlot<T>` helper that centralises the borrow/clear logic
+for MessagePack and XML artefacts. This removes duplicated `RefCell` juggling
+and eliminates the double-borrow panic that previously occurred when an error
+was recorded while a document reference was still alive.
+
 The following sketch illustrates how the Python API can be used:
 
 ```python
