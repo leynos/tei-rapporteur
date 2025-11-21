@@ -3,7 +3,6 @@
 use anyhow::{Context, Result};
 use std::cell::RefCell;
 
-#[derive(Default)]
 pub struct PayloadSlot<T> {
     slot: RefCell<Option<T>>,
     description: &'static str,

@@ -9,15 +9,7 @@ use tei_xml::emit_xml as emit_document_xml;
 
 const _: fn() -> PythonModuleState = python_state;
 
-#[then("the document title equals \"{expected}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
-pub(super) fn the_document_title_equals(
-    #[from(python_state)] state: &PythonModuleState,
-    expected: String,
-) -> Result<()> {
+fn assert_document_title(state: &PythonModuleState, expected: &str) -> Result<()> {
     Python::with_gil(|py| {
         state.with_document(py, |document| {
             let title: String = document.getattr("title")?.extract()?;
@@ -29,6 +21,18 @@ pub(super) fn the_document_title_equals(
         })
     })?;
     Ok(())
+}
+
+#[then("the document title equals \"{expected}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
+pub(super) fn the_document_title_equals(
+    #[from(python_state)] state: &PythonModuleState,
+    expected: String,
+) -> Result<()> {
+    assert_document_title(state, expected.as_str())
 }
 
 #[then("construction fails mentioning \"{snippet}\"")]
@@ -74,17 +78,7 @@ pub(super) fn decoding_the_messagepack_payload_yields_document(
     #[from(python_state)] state: &PythonModuleState,
     expected: String,
 ) -> Result<()> {
-    Python::with_gil(|py| {
-        state.with_document(py, |document| {
-            let title: String = document.getattr("title")?.extract()?;
-            ensure!(
-                title == expected,
-                "expected Document title {expected:?}, found {title:?}"
-            );
-            Ok::<_, anyhow::Error>(())
-        })
-    })?;
-    Ok(())
+    assert_document_title(state, expected.as_str())
 }
 
 #[then("the TEI XML output equals the canonical payload for \"{title}\"")]

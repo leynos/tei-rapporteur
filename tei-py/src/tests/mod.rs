@@ -38,7 +38,10 @@ fn module_registers_python_bindings() {
             "parse_xml",
             "emit_xml",
         ] {
-            assert!(module.hasattr(name).unwrap_or(false), "missing {name}");
+            let present = module
+                .hasattr(name)
+                .expect("module.hasattr should not raise during smoke tests");
+            assert!(present, "missing {name}");
         }
     });
 }

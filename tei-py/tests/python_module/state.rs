@@ -12,13 +12,13 @@ use std::cell::RefCell;
 use tei_py::tei_rapporteur;
 
 pub(super) struct PythonModuleState {
-    pub(super) module: RefCell<Option<Py<PyModule>>>,
-    pub(super) document: RefCell<Option<Py<PyAny>>>,
-    pub(super) markup: RefCell<Option<String>>,
-    pub(super) error: RefCell<Option<String>>,
-    pub(super) msgpack_payload: PayloadSlot<Vec<u8>>,
-    pub(super) xml_payload: PayloadSlot<String>,
-    pub(super) xml_output: PayloadSlot<String>,
+    module: RefCell<Option<Py<PyModule>>>,
+    document: RefCell<Option<Py<PyAny>>>,
+    markup: RefCell<Option<String>>,
+    error: RefCell<Option<String>>,
+    msgpack_payload: PayloadSlot<Vec<u8>>,
+    xml_payload: PayloadSlot<String>,
+    xml_output: PayloadSlot<String>,
 }
 
 impl Default for PythonModuleState {
