@@ -1,11 +1,12 @@
 //! `PyO3` bindings and helper functions exposed to Python callers.
 //!
 //! The crate surfaces the `tei_rapporteur` module, offering a lightweight
-//! `Document` wrapper that delegates validation to the Rust core. The module
-//! currently exposes title-centric helpers so downstream phases can evolve the
-//! API without rewriting the glue code. Rust callers continue to use the
-//! `emit_title_markup` helper directly whilst Python receives mirrored
-//! bindings.
+//! `Document` wrapper that delegates validation to the Rust core. Python gets
+//! mirrored title helpers (`Document.emit_title_markup`, module-level
+//! `emit_title_markup`), a `MessagePack` bridge (`from_msgpack`, `to_msgpack`),
+//! and XML bindings (`parse_xml`, `emit_xml`) that forward directly to
+//! `tei-xml`. Rust callers continue to reuse the same helpers without the `PyO3`
+//! glue, keeping validation logic centralised.
 
 use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
