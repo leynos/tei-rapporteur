@@ -777,6 +777,49 @@ via `pip`, and imports `tei_rapporteur` to confirm the PyO3 module initialises
 correctly. This guards against future regressions so the Python surface always
 builds alongside the Rust crates.
 
+#### XML data exchange bindings (Phase 2.2)
+
+The second milestone for the Python layer connects the core XML pipeline to
+PyO3 so Python callers can avoid serialising through MessagePack when they
+already have TEI strings. The new `parse_xml` and `emit_xml` functions are thin
+shims: each delegates to `tei_xml::{parse_xml, emit_xml}` and then relies on
+the existing `Document` wrapper to keep ownership inside Rust. The binding
+layer intentionally reuses the `wrap_tei_result` helper so all failures land as
+`ValueError` with the original `TeiError` message. This keeps the Python
+surface predictable and avoids leaking Rust-specific enums across the FFI
+boundary.
+
+`emit_xml` returns the canonical TEI string produced by the XML crate. The
+helper explicitly scans the resulting buffer for forbidden XML 1.0 control
+characters before handing it back to Python so error messages mention the exact
+offending code point (for example, `U+0000`). The binding preserves that
+behaviour verbatim, which means Python callers observe the same diagnostics as
+Rust callers. Conversely, `parse_xml` forwards the XML string into
+`quick-xml::de` through the `tei-xml` helper, guaranteeing that every Python
+parse flows through the same validation logic as a Rust caller.
+
+Behaviour-driven coverage now exercises both functions via `rstest-bdd`.
+Feature files construct canonical TEI fixtures, round-trip them through the
+module, and assert on both happy and unhappy paths (missing headers, forbidden
+characters, and so on). Unit tests invoke the exported PyO3 functions directly
+to ensure `PyValueError` messages surface the helpful context. Together these
+tests pin the boundary contract so future schema evolution cannot silently
+break XML callers.
+
+The Rust implementation now leans on two small macro families to keep this FFI
+layer maintainable. `define_conversion_pair!` declares the twin helpers for
+each transfer format (currently MessagePack and TEI XML), and the `define_py_*`
+wrappers map those helpers into PyO3 functions while unifying the error text
+emitted to Python. Adding another format in the future requires only
+instantiating the macros with the appropriate encoder/decoder pair. On the
+integration-test side, the behaviour-driven harness was decomposed into
+feature-specific modules (`steps_construction`, `steps_msgpack`, `steps_xml`,
+etc.) so no test file exceeds the 400-line guideline. Shared payload handling
+now relies on a `PayloadSlot<T>` helper that centralises the borrow/clear logic
+for MessagePack and XML artefacts. This removes duplicated `RefCell` juggling
+and eliminates the double-borrow panic that previously occurred when an error
+was recorded while a document reference was still alive.
+
 The following sketch illustrates how the Python API can be used:
 
 ```python
