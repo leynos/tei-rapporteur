@@ -73,3 +73,32 @@ Feature: tei_rapporteur Python module
     When I construct a Document with the XML control character fixture
     And I emit the constructed Document to TEI XML
     Then construction fails mentioning "U+0000"
+
+  Scenario: Decode a Document from a dictionary payload
+    Given the tei_rapporteur Python module is initialised
+    And I provide a dictionary payload titled "Bridgewater"
+    When I decode the dictionary payload
+    Then the document title equals "Bridgewater"
+
+  Scenario: Reject dictionary payloads missing required fields
+    Given the tei_rapporteur Python module is initialised
+    And I provide an invalid dictionary payload missing required fields
+    When I decode the dictionary payload
+    Then construction fails mentioning "invalid dictionary payload"
+
+  Scenario: Reject dictionary payloads with blank titles
+    Given the tei_rapporteur Python module is initialised
+    And I provide a dictionary payload with a blank title
+    When I decode the dictionary payload
+    Then construction fails mentioning "document title may not be empty"
+
+  Scenario: Encode a Document to a dictionary payload
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document titled "Bridgewater"
+    And I encode the constructed Document to a dictionary
+    Then the dictionary payload title equals "Bridgewater"
+
+  Scenario: Reject to_dict when a Document is not provided
+    Given the tei_rapporteur Python module is initialised
+    When I encode a dictionary without providing a Document
+    Then construction fails mentioning "cannot be converted to 'Document'"

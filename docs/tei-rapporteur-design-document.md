@@ -820,6 +820,18 @@ for MessagePack and XML artefacts. This removes duplicated `RefCell` juggling
 and eliminates the double-borrow panic that previously occurred when an error
 was recorded while a document reference was still alive.
 
+Dictionary exchange now mirrors the MessagePack and XML helpers. The binding
+uses `pyo3-serde` (implemented via the `serde-pyobject` crate) to map Python
+dict/list trees directly into `TeiDocument` without intermediate JSON parsing.
+`from_dict` wraps `pyo3_serde::from_pyobject`, surfaces validation failures as
+`ValueError`, and preserves the underlying serde error text (for example,
+missing `teiHeader` or blank titles). `to_dict` uses `pyo3_serde::to_pyobject`
+to return Python-native structures compatible with `msgspec.to_builtins` and
+other JSON-focused libraries. Behaviour-driven tests now cover successful
+decoding, missing-field failures, blank-title payloads, and the type error
+raised when `to_dict` is called with the wrong object, pinning the boundary
+contract for these dictionary helpers.
+
 The following sketch illustrates how the Python API can be used:
 
 ```python

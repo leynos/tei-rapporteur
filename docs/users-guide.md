@@ -27,10 +27,13 @@ available today and how to exercise it.
   module also surfaces a top-level `emit_title_markup` function so Python
   callers mirror the Rust helper without reimplementing validation rules. The
   MessagePack bridge exposes both `from_msgpack` and `to_msgpack` for binary
-  interchange, and Phase 2.2 adds `parse_xml`/`emit_xml` bindings that forward
-  TEI strings directly to the `tei-xml` helpers. Python can now parse canonical
-  TEI without detouring through MessagePack, and emission always routes through
-  the same forbidden-character guardrails as the Rust callers.
+  interchange. Dictionary exchange is available via `from_dict`/`to_dict`,
+  powered by `pyo3-serde`, so Python built-ins can cross the FFI boundary
+  without detouring through JSON text. Phase 2.2 adds `parse_xml`/`emit_xml`
+  bindings that forward TEI strings directly to the `tei-xml` helpers. Python
+  can now parse canonical TEI without detouring through MessagePack, and
+  emission always routes through the same forbidden-character guardrails as the
+  Rust callers.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
 - `pyproject.toml` configures `maturin` to build `tei-py`, allowing
@@ -67,7 +70,9 @@ round-tripping markup through the module-level helper, both directions of the
 MessagePack bridge, and the new XML exchange APIs. Behaviour-driven coverage
 now parses canonical TEI fixtures, rejects malformed payloads, emits canonical
 strings, and proves forbidden characters bubble up as `ValueError` with an
-actionable message.
+actionable message. New dictionary scenarios cover happy-path decoding, missing
+fields, blank titles, and the type error raised when `to_dict` is called with
+the wrong object.
 
 ## Python bindings
 
@@ -117,6 +122,20 @@ they miswire a call. A complete round trip therefore looks like:
 doc = tei.Document("Bridgewater")
 payload = tei.to_msgpack(doc)
 episode = msgspec.msgpack.decode(payload, type=Episode)
+```
+
+For JSON-style hand-offs, `tei_rapporteur.from_dict(payload)` and
+`tei_rapporteur.to_dict(doc)` use `pyo3-serde` to bridge Python built-ins and
+the Rust `TeiDocument`. The helpers accept any mapping/sequence tree that would
+be valid JSON, raising `ValueError` when required fields are missing or titles
+are blank. The output of `to_dict` matches what `msgspec.to_builtins` produces,
+so callers can stay with native Python objects:
+
+```python
+doc = tei.Document("Bridgewater")
+payload = tei.to_dict(doc)
+assert payload["teiHeader"]["fileDesc"]["title"] == "Bridgewater"
+round_tripped = tei.from_dict(payload)
 ```
 
 When scripts already have TEI XML on disk, the new `tei_rapporteur.parse_xml`

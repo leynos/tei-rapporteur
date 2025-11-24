@@ -4,10 +4,14 @@
 //! `Document` wrapper that delegates validation to the Rust core. Python gets
 //! mirrored title helpers (`Document.emit_title_markup`, module-level
 //! `emit_title_markup`), a `MessagePack` bridge (`from_msgpack`, `to_msgpack`),
-//! and XML bindings (`parse_xml`, `emit_xml`) that forward directly to
-//! `tei-xml`. Rust callers continue to reuse the same helpers without the `PyO3`
-//! glue, keeping validation logic centralised.
+//! dictionary helpers (`from_dict`, `to_dict`) backed by `pyo3-serde`, and XML
+//! bindings (`parse_xml`, `emit_xml`) that forward directly to `tei-xml`. Rust
+//! callers continue to reuse the same helpers without the `PyO3` glue, keeping
+//! validation logic centralised.
 
+use pyo3::types::PyAny;
+use pyo3::{Bound, Python};
+use pyo3_serde::{from_pyobject, to_pyobject};
 use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
 use tei_xml::{
@@ -72,7 +76,9 @@ macro_rules! define_py_to_result_wrapper {
 }
 
 pub use bindings::Document;
-pub use bindings::py_exports::{emit_xml, from_msgpack, parse_xml, tei_rapporteur, to_msgpack};
+pub use bindings::py_exports::{
+    emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack,
+};
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
 ///
@@ -103,6 +109,17 @@ define_conversion_pair! {
 define_conversion_pair! {
     from document_from_xml(xml: &str) -> TeiError { parse_document_xml(xml) };
     to document_to_xml(document: &TeiDocument) -> String, TeiError { emit_document_xml(document) }
+}
+
+fn document_from_dict(payload: Bound<'_, PyAny>) -> Result<TeiDocument, pyo3_serde::Error> {
+    from_pyobject(payload)
+}
+
+fn document_to_dict<'py>(
+    py: Python<'py>,
+    document: &TeiDocument,
+) -> Result<Bound<'py, PyAny>, pyo3_serde::Error> {
+    to_pyobject(py, document)
 }
 
 mod bindings {
@@ -154,11 +171,11 @@ mod bindings {
     }
 
     mod document_methods {
-        #![expect(
+        #![allow(
             unsafe_op_in_unsafe_fn,
             reason = "PyO3 #[pymethods] glue performs unavoidable unsafe argument extraction"
         )]
-        #![expect(
+        #![allow(
             clippy::useless_conversion,
             reason = "PyO3 wraps #[pymethods] returns in conversion helpers"
         )]
@@ -197,29 +214,33 @@ mod bindings {
     }
 
     pub(crate) mod py_exports {
-        #![expect(
+        #![allow(
             unsafe_op_in_unsafe_fn,
             reason = "PyO3 #[pyfunction] glue performs unavoidable unsafe argument extraction"
         )]
-        #![expect(
+        #![allow(
             clippy::too_many_arguments,
             reason = "PyO3 injects abi parameters into #[pyfunction] signatures"
         )]
-        #![expect(
+        #![allow(
             clippy::useless_conversion,
             reason = "PyO3 wraps #[pyfunction] returns in conversion helpers"
         )]
-        #![expect(
+        #![allow(
             clippy::shadow_reuse,
             reason = "PyO3 #[pymodule] expansion reuses the module parameter names"
         )]
 
         use super::{Document, PyResult, PyValueError, Python, emit_title_markup, wrap_tei_result};
         use crate::{
-            document_from_msgpack, document_from_xml, document_to_msgpack, document_to_xml,
+            document_from_dict, document_from_msgpack, document_from_xml, document_to_dict,
+            document_to_msgpack, document_to_xml,
         };
         use pyo3::types::PyModuleMethods;
-        use pyo3::{Bound, types::PyModule};
+        use pyo3::{
+            Bound,
+            types::{PyAny, PyModule},
+        };
         use pyo3::{pyfunction, pymodule, wrap_pyfunction};
 
         #[pyfunction(name = "emit_title_markup")]
@@ -273,6 +294,73 @@ mod bindings {
             fn to_msgpack(document: &Document) -> Vec<u8> => document_to_msgpack,
             "MessagePack encoding failed: {error}"
         );
+
+        /// Constructs a [`Document`] from a JSON-like Python structure.
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when the payload cannot be
+        /// deserialised into a valid [`tei_core::TeiDocument`].
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use pyo3::Python;
+        /// use tei_py::{Document, from_dict, to_dict};
+        ///
+        /// Python::with_gil(|py| {
+        ///     let document = Document::try_from_title("Wolf 359")?;
+        ///     let payload = to_dict(py, &document)?;
+        ///     let round_tripped = from_dict(payload)?;
+        ///     assert_eq!(round_tripped.title(), "Wolf 359");
+        ///     Ok::<(), pyo3::PyErr>(())
+        /// })?;
+        /// # Ok::<(), pyo3::PyErr>(())
+        /// ```
+        #[pyfunction(name = "from_dict")]
+        pub fn from_dict(payload: Bound<'_, PyAny>) -> PyResult<Document> {
+            document_from_dict(payload)
+                .map(Document::from)
+                .map_err(|error| {
+                    PyValueError::new_err(format!("invalid dictionary payload: {error}"))
+                })
+        }
+
+        /// Serialises a [`Document`] into a Python `dict`/`list` tree.
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when converting the
+        /// document into Python objects fails.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use pyo3::{Python, types::PyAnyMethods};
+        /// use tei_py::{Document, to_dict};
+        ///
+        /// Python::with_gil(|py| {
+        ///     let document = Document::try_from_title("Bridgewater")?;
+        ///     let payload = to_dict(py, &document)?;
+        ///     let title: String = payload
+        ///         .get_item("teiHeader")?
+        ///         .get_item("fileDesc")?
+        ///         .get_item("title")?
+        ///         .extract()?;
+        ///     assert_eq!(title, "Bridgewater");
+        ///     Ok::<(), pyo3::PyErr>(())
+        /// })?;
+        /// # Ok::<(), pyo3::PyErr>(())
+        /// ```
+        #[pyfunction(name = "to_dict")]
+        pub fn to_dict<'py>(
+            py: Python<'py>,
+            document: &'py Document,
+        ) -> PyResult<Bound<'py, PyAny>> {
+            document_to_dict(py, document).map_err(|error| {
+                PyValueError::new_err(format!("dictionary encoding failed: {error}"))
+            })
+        }
 
         define_py_from_result_wrapper!(
             /// Parses TEI XML into a [`Document`].
@@ -334,6 +422,8 @@ mod bindings {
             py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(to_msgpack, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(from_dict, py_module)?)?;
+            py_module.add_function(wrap_pyfunction!(to_dict, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(parse_xml, py_module)?)?;
             py_module.add_function(wrap_pyfunction!(emit_xml, py_module)?)?;
             py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;

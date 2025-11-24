@@ -4,6 +4,7 @@ use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result, ensure};
 use pyo3::{Python, types::PyAnyMethods};
 use rstest_bdd_macros::then;
+use serde_json::Value;
 use tei_core::TeiDocument;
 use tei_xml::emit_xml as emit_document_xml;
 
@@ -97,6 +98,30 @@ pub(super) fn the_tei_xml_output_equals_the_canonical_payload(
     ensure!(
         actual == expected,
         "expected TEI XML {expected:?}, found {actual:?}"
+    );
+    Ok(())
+}
+
+#[then("the dictionary payload title equals \"{expected}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest-bdd placeholders own their `String` values"
+)]
+pub(super) fn the_dictionary_payload_title_equals(
+    #[from(python_state)] state: &PythonModuleState,
+    expected: String,
+) -> Result<()> {
+    let payload = state.dict_output()?;
+    let title = payload
+        .get("teiHeader")
+        .and_then(|header| header.get("fileDesc"))
+        .and_then(|file_desc| file_desc.get("title"))
+        .and_then(Value::as_str)
+        .context("dictionary payload should include a title")?;
+
+    ensure!(
+        title == expected,
+        "expected dictionary title {expected:?}, found {title:?}"
     );
     Ok(())
 }
