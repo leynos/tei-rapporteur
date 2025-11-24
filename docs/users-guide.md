@@ -33,7 +33,8 @@ available today and how to exercise it.
   bindings that forward TEI strings directly to the `tei-xml` helpers. Python
   can now parse canonical TEI without detouring through MessagePack, and
   emission always routes through the same forbidden-character guardrails as the
-  Rust callers.
+  Rust callers. Python-facing errors are surfaced as `ValueError` for content
+  issues and `TypeError` when callers pass the wrong objects to the bindings.
 - `tei-test-helpers` captures assertion helpers that multiple crates reuse in
   their unit and behaviour-driven tests.
 - `pyproject.toml` configures `maturin` to build `tei-py`, allowing
@@ -71,7 +72,7 @@ MessagePack bridge, and the new XML exchange APIs. Behaviour-driven coverage
 now parses canonical TEI fixtures, rejects malformed payloads, emits canonical
 strings, and proves forbidden characters bubble up as `ValueError` with an
 actionable message. New dictionary scenarios cover happy-path decoding, missing
-fields, blank titles, and the type error raised when `to_dict` is called with
+fields, blank titles, and the `TypeError` raised when `to_dict` is called with
 the wrong object.
 
 ## Python bindings
@@ -128,8 +129,9 @@ For JSON-style hand-offs, `tei_rapporteur.from_dict(payload)` and
 `tei_rapporteur.to_dict(doc)` use `pyo3-serde` to bridge Python built-ins and
 the Rust `TeiDocument`. The helpers accept any mapping/sequence tree that would
 be valid JSON, raising `ValueError` when required fields are missing or titles
-are blank. The output of `to_dict` matches what `msgspec.to_builtins` produces,
-so callers can stay with native Python objects:
+are blank and `TypeError` when a non-`Document` is passed. The output of
+`to_dict` matches what `msgspec.to_builtins` produces, so callers can stay with
+native Python objects:
 
 ```python
 doc = tei.Document("Bridgewater")
