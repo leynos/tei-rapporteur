@@ -84,7 +84,7 @@ Feature: tei_rapporteur Python module
     Given the tei_rapporteur Python module is initialised
     And I provide an invalid dictionary payload missing required fields
     When I decode the dictionary payload
-    Then construction fails mentioning "invalid dictionary payload"
+    Then construction fails mentioning "missing field"
 
   Scenario: Reject dictionary payloads with blank titles
     Given the tei_rapporteur Python module is initialised

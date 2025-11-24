@@ -1,11 +1,7 @@
-#![expect(
-    clippy::too_many_arguments,
-    reason = "PyO3 #[pyfunction] wrappers include ABI parameters that exceed clippy limits"
-)]
 //! `PyO3` glue that surfaces `TeiDocument` helpers to Python callers.
 
 use crate::{TeiDocument, TeiError, emit_title_markup};
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use std::ops::Deref;
 
@@ -83,7 +79,17 @@ mod document_methods {
 }
 
 pub(crate) mod py_exports {
-    use super::{Document, PyResult, PyValueError, Python, emit_title_markup, wrap_tei_result};
+    // PyO3 expands #[pyfunction] into wrappers with extra ABI parameters; the
+    // resulting signatures trip clippy::too_many_arguments but are unavoidable
+    // at this FFI boundary, so the lint is locally allowed here.
+    #![allow(
+        clippy::too_many_arguments,
+        reason = "PyO3 #[pyfunction] wrappers add ABI parameters the lint counts"
+    )]
+    use super::{
+        Document, PyResult, PyValueError, Python, emit_title_markup, map_serde_error,
+        wrap_tei_result,
+    };
     use crate::{
         define_py_from_error_wrapper, define_py_from_result_wrapper, define_py_to_error_wrapper,
         define_py_to_result_wrapper, document_from_dict, document_from_msgpack, document_from_xml,
@@ -219,7 +225,7 @@ pub(crate) mod py_exports {
     pub fn from_dict(payload: Bound<'_, PyAny>) -> PyResult<Document> {
         document_from_dict(payload)
             .map(Document::from)
-            .map_err(|error| PyValueError::new_err(format!("invalid dictionary payload: {error}")))
+            .map_err(map_serde_error)
     }
 
     /// Serialises a [`Document`] into a Python `dict`/`list` tree.
@@ -250,8 +256,7 @@ pub(crate) mod py_exports {
     /// ```
     #[pyfunction(name = "to_dict")]
     pub fn to_dict<'py>(py: Python<'py>, document: &'py Document) -> PyResult<Bound<'py, PyAny>> {
-        document_to_dict(py, document)
-            .map_err(|error| PyValueError::new_err(format!("dictionary encoding failed: {error}")))
+        document_to_dict(py, document).map_err(map_serde_error)
     }
 
     /// Registers the `tei_rapporteur` Python module.
@@ -284,4 +289,15 @@ pub(crate) mod py_exports {
 /// domain errors to Python exceptions in one place.
 pub(crate) fn wrap_tei_result<T>(result: Result<T, TeiError>) -> PyResult<T> {
     result.map_err(|error| PyValueError::new_err(error.to_string()))
+}
+
+fn map_serde_error(error: pyo3_serde::Error) -> PyErr {
+    let inner: PyErr = error.into();
+    Python::with_gil(|py| {
+        if inner.is_instance_of::<PyTypeError>(py) {
+            inner
+        } else {
+            PyValueError::new_err(inner.to_string())
+        }
+    })
 }

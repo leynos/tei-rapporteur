@@ -30,8 +30,40 @@ fn from_dict_rejects_missing_fields() {
 
         let error = from_dict(py_payload).expect_err("missing header should fail");
         assert!(
-            error.to_string().contains("invalid dictionary payload"),
-            "error should mention invalid dictionary payload"
+            error.to_string().contains("missing field"),
+            "error should mention missing fields"
+        );
+    });
+}
+
+#[test]
+fn from_dict_rejects_blank_title() {
+    Python::with_gil(|py| {
+        let fixture =
+            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture");
+        let mut payload = to_value(&fixture).expect("serialising fixture to JSON should succeed");
+
+        let maybe_title = payload
+            .as_object_mut()
+            .and_then(|root| root.get_mut("teiHeader"))
+            .and_then(Value::as_object_mut)
+            .and_then(|header| header.get_mut("fileDesc"))
+            .and_then(Value::as_object_mut)
+            .and_then(|file_desc| file_desc.get_mut("title"));
+
+        if let Some(title) = maybe_title {
+            *title = Value::String("   ".to_owned());
+        }
+
+        let py_payload = to_pyobject(py, &payload)
+            .expect("converting mutated fixture to PyObject should succeed");
+
+        let error =
+            from_dict(py_payload).expect_err("blank title in otherwise valid payload should fail");
+        let message = error.to_string();
+        assert!(
+            message.contains("document title may not be empty"),
+            "error should mention blank titles, got: {message}"
         );
     });
 }
