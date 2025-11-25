@@ -1,22 +1,44 @@
 //! Dictionary exchange unit tests covering the `from_dict` and `to_dict` helpers.
 
 use pyo3::Python;
-use pyo3::types::PyAnyMethods;
-use pyo3::types::PyModule;
+use pyo3::types::{PyAnyMethods, PyModule};
 use pyo3_serde::{from_pyobject, to_pyobject};
+use rstest::{fixture, rstest};
 use serde_json::{Value, json, to_value};
 use tei_core::TeiDocument;
 
 use crate::{Document, from_dict, to_dict};
 
-#[test]
-fn from_dict_decodes_documents() {
+#[fixture]
+fn wolf_document() -> TeiDocument {
+    TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture")
+}
+
+#[fixture]
+fn wolf_payload(wolf_document: TeiDocument) -> Value {
+    to_value(&wolf_document).expect("serialising fixture to JSON should succeed")
+}
+
+#[fixture]
+fn bridgewater_document() -> Document {
+    Document::try_from_title("Bridgewater").expect("valid document should construct")
+}
+
+fn get_title_field_mut(payload: &mut Value) -> Option<&mut Value> {
+    payload
+        .as_object_mut()?
+        .get_mut("teiHeader")?
+        .as_object_mut()?
+        .get_mut("fileDesc")?
+        .as_object_mut()?
+        .get_mut("title")
+}
+
+#[rstest]
+fn from_dict_decodes_documents(wolf_payload: Value) {
     Python::with_gil(|py| {
-        let fixture =
-            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture");
-        let payload = to_value(&fixture).expect("serialising fixture to JSON should succeed");
         let py_payload =
-            to_pyobject(py, &payload).expect("converting fixture to PyObject should succeed");
+            to_pyobject(py, &wolf_payload).expect("converting fixture to PyObject should succeed");
 
         let document = from_dict(py_payload).expect("dictionary payload should decode");
         assert_eq!(document.title(), "Wolf 359");
@@ -41,19 +63,12 @@ fn from_dict_rejects_missing_fields() {
 #[test]
 fn from_dict_rejects_blank_title() {
     Python::with_gil(|py| {
-        let fixture =
-            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture");
-        let mut payload = to_value(&fixture).expect("serialising fixture to JSON should succeed");
+        let mut payload = to_value(
+            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture"),
+        )
+        .expect("serialising fixture to JSON should succeed");
 
-        let maybe_title = payload
-            .as_object_mut()
-            .and_then(|root| root.get_mut("teiHeader"))
-            .and_then(Value::as_object_mut)
-            .and_then(|header| header.get_mut("fileDesc"))
-            .and_then(Value::as_object_mut)
-            .and_then(|file_desc| file_desc.get_mut("title"));
-
-        if let Some(title) = maybe_title {
+        if let Some(title) = get_title_field_mut(&mut payload) {
             *title = Value::String("   ".to_owned());
         }
 
