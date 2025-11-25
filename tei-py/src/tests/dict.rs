@@ -85,19 +85,15 @@ fn from_dict_rejects_blank_title() {
     });
 }
 
-#[test]
-fn to_dict_serialises_documents() {
+#[rstest]
+fn to_dict_serialises_documents(bridgewater_document: Document) {
     Python::with_gil(|py| {
-        let document =
-            Document::try_from_title("Bridgewater").expect("valid document should construct");
-        let py_payload =
-            to_dict(py, &document).expect("serialising document to dict should succeed");
+        let py_payload = to_dict(py, &bridgewater_document)
+            .expect("serialising document to dict should succeed");
         let value: Value = from_pyobject(py_payload)
             .expect("converting PyObject back to JSON value should succeed");
         let title = value
-            .get("teiHeader")
-            .and_then(|header| header.get("fileDesc"))
-            .and_then(|file_desc| file_desc.get("title"))
+            .pointer("/teiHeader/fileDesc/title")
             .and_then(Value::as_str)
             .expect("title should be present in dictionary output");
         assert_eq!(title, "Bridgewater");
