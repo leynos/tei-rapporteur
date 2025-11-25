@@ -24,16 +24,6 @@ fn bridgewater_document() -> Document {
     Document::try_from_title("Bridgewater").expect("valid document should construct")
 }
 
-fn get_title_field_mut(payload: &mut Value) -> Option<&mut Value> {
-    payload
-        .as_object_mut()?
-        .get_mut("teiHeader")?
-        .as_object_mut()?
-        .get_mut("fileDesc")?
-        .as_object_mut()?
-        .get_mut("title")
-}
-
 #[rstest]
 fn from_dict_decodes_documents(wolf_payload: Value) {
     Python::with_gil(|py| {
@@ -60,15 +50,13 @@ fn from_dict_rejects_missing_fields() {
     });
 }
 
-#[test]
-fn from_dict_rejects_blank_title() {
+#[rstest]
+fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
     Python::with_gil(|py| {
-        let mut payload = to_value(
-            TeiDocument::from_title_str("Wolf 359").expect("valid title should construct fixture"),
-        )
-        .expect("serialising fixture to JSON should succeed");
+        let mut payload =
+            to_value(&wolf_document).expect("serialising fixture to JSON should succeed");
 
-        if let Some(title) = get_title_field_mut(&mut payload) {
+        if let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") {
             *title = Value::String("   ".to_owned());
         }
 
