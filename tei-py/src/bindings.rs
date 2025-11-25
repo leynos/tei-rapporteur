@@ -81,8 +81,8 @@ mod document_methods {
 pub(crate) mod py_exports {
     // PyO3 expands #[pyfunction] into wrappers with extra ABI parameters; the
     // resulting signatures trip clippy::too_many_arguments but are unavoidable
-    // at this FFI boundary, so the lint is locally allowed here.
-    #![allow(
+    // at this FFI boundary, so the lint is locally expected here.
+    #![expect(
         clippy::too_many_arguments,
         reason = "PyO3 #[pyfunction] wrappers add ABI parameters the lint counts"
     )]

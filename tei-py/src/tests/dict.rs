@@ -1,6 +1,8 @@
 //! Dictionary exchange unit tests covering the `from_dict` and `to_dict` helpers.
 
 use pyo3::Python;
+use pyo3::types::PyAnyMethods;
+use pyo3::types::PyModule;
 use pyo3_serde::{from_pyobject, to_pyobject};
 use serde_json::{Value, json, to_value};
 use tei_core::TeiDocument;
@@ -84,5 +86,23 @@ fn to_dict_serialises_documents() {
             .and_then(Value::as_str)
             .expect("title should be present in dictionary output");
         assert_eq!(title, "Bridgewater");
+    });
+}
+
+#[test]
+fn to_dict_rejects_non_document_inputs() {
+    Python::with_gil(|py| {
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
+        crate::bindings::py_exports::tei_rapporteur(py, &module)
+            .expect("module registration should succeed");
+
+        let to_dict = module
+            .getattr("to_dict")
+            .expect("to_dict should be registered");
+
+        let error = to_dict
+            .call1((py.None(),))
+            .expect_err("passing non-Document should fail with a Python type error");
+        assert!(error.is_instance_of::<pyo3::exceptions::PyTypeError>(py));
     });
 }
