@@ -1,5 +1,5 @@
-//! Unit tests for the Python-facing bindings (title helpers, `MessagePack`,
-//! and XML exchange).
+//! Unit tests for the Python-facing bindings (title helpers, dictionary and
+//! `MessagePack` exchange, and XML helpers).
 
 use super::*;
 use pyo3::{
@@ -9,6 +9,8 @@ use pyo3::{
 use rmp_serde::to_vec_named;
 use serde_json::json;
 
+mod bindings_tests;
+mod dict;
 mod xml;
 
 #[test]
@@ -27,12 +29,14 @@ fn document_construction_rejects_blank_titles() {
 #[test]
 fn module_registers_python_bindings() {
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "tei_rapporteur").expect("module allocation");
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
         for name in [
             "Document",
             "emit_title_markup",
+            "from_dict",
+            "to_dict",
             "from_msgpack",
             "to_msgpack",
             "parse_xml",
@@ -49,7 +53,7 @@ fn module_registers_python_bindings() {
 #[test]
 fn python_function_emits_markup() {
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "tei_rapporteur").expect("module allocation");
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let emit = module
             .getattr("emit_title_markup")

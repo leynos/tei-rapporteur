@@ -8,6 +8,7 @@ use pyo3::{
     types::{PyAnyMethods, PyModule},
 };
 use rstest::fixture;
+use serde_json::Value;
 use std::cell::RefCell;
 use tei_py::tei_rapporteur;
 
@@ -19,6 +20,8 @@ pub(super) struct PythonModuleState {
     msgpack_payload: PayloadSlot<Vec<u8>>,
     xml_payload: PayloadSlot<String>,
     xml_output: PayloadSlot<String>,
+    dict_payload: PayloadSlot<Value>,
+    dict_output: PayloadSlot<Value>,
 }
 
 impl Default for PythonModuleState {
@@ -31,6 +34,8 @@ impl Default for PythonModuleState {
             msgpack_payload: PayloadSlot::new("MessagePack payload"),
             xml_payload: PayloadSlot::new("XML payload"),
             xml_output: PayloadSlot::new("XML output"),
+            dict_payload: PayloadSlot::new("dictionary payload"),
+            dict_output: PayloadSlot::new("dictionary output"),
         }
     }
 }
@@ -60,6 +65,7 @@ impl PythonModuleState {
         self.markup.borrow_mut().take();
         self.error.borrow_mut().take();
         self.xml_output.clear();
+        self.dict_output.clear();
     }
 
     pub(super) fn with_document<'py, T>(
@@ -96,6 +102,7 @@ impl PythonModuleState {
         self.document.borrow_mut().take();
         self.markup.borrow_mut().take();
         self.xml_output.clear();
+        self.dict_output.clear();
     }
 
     pub(super) fn error(&self) -> Result<String> {
@@ -131,6 +138,23 @@ impl PythonModuleState {
     pub(super) fn xml_output(&self) -> Result<String> {
         self.xml_output.load()
     }
+
+    pub(super) fn store_dict_payload(&self, payload: Value) {
+        self.dict_payload.store(payload);
+    }
+
+    pub(super) fn dict_payload(&self) -> Result<Value> {
+        self.dict_payload.load()
+    }
+
+    pub(super) fn store_dict_output(&self, payload: Value) {
+        self.dict_output.store(payload);
+        self.error.borrow_mut().take();
+    }
+
+    pub(super) fn dict_output(&self) -> Result<Value> {
+        self.dict_output.load()
+    }
 }
 
 #[fixture]
@@ -156,7 +180,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
-        let module = PyModule::new_bound(py, "tei_rapporteur")?;
+        let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());
         Ok::<(), anyhow::Error>(())

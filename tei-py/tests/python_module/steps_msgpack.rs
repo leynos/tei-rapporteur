@@ -59,7 +59,7 @@ pub(super) fn i_decode_the_messagepack_payload(
             let decoder = module
                 .getattr("from_msgpack")
                 .context("from_msgpack must be registered")?;
-            match decoder.call1((PyBytes::new_bound(py, &payload),)) {
+            match decoder.call1((PyBytes::new(py, &payload),)) {
                 Ok(document) => state.store_document(document.unbind()),
                 Err(error) => state.store_error(error.to_string()),
             }

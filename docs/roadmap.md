@@ -94,8 +94,8 @@ This step sets up the PyO3 crate and defines the Python module structure.
 
 ### Step 2.2: FFI Data Exchange and API Implementation
 
-_Status:_ XML bindings completed on 21 November 2025; dictionary helpers remain
-pending and are tracked in the final checklist item below.
+_Status:_ XML bindings completed on 21 November 2025; dictionary helpers
+completed on 24 November 2025.
 
 This step implements the functions that bridge the Rust and Python worlds,
 prioritizing efficient data transfer.
@@ -107,7 +107,7 @@ prioritizing efficient data transfer.
 - [x] Implement `parse_xml(xml_str: &str) -> PyResult<Document>` and
       `emit_xml(doc: &Document) -> PyResult<String>` as Python-callable
       functions.
-- [ ] Add `pyo3-serde` to `tei-py` to implement `from_dict` and `to_dict`
+- [x] Add `pyo3-serde` to `tei-py` to implement `from_dict` and `to_dict`
       functions for JSON-like Python object exchange.
 
 ### Step 2.3: Python-Side Definitions and Packaging

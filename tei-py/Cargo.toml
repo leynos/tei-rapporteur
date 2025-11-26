@@ -18,7 +18,8 @@ extension-module = ["pyo3/extension-module"]
 [dependencies]
 tei-core = { path = "../tei-core" }
 tei-xml = { path = "../tei-xml" }
-pyo3 = { version = "0.22.6", features = ["auto-initialize"] }
+pyo3 = { version = "0.23.3", features = ["auto-initialize"] }
+pyo3-serde = { package = "serde-pyobject", version = "0.6.2" }
 rmp-serde = { workspace = true }
 
 [dev-dependencies]
@@ -30,4 +31,4 @@ tei-test-helpers = { path = "../tei-test-helpers" }
 serde_json = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.22.6", features = ["resolve-config"] }
+pyo3-build-config = { version = "0.23.3", features = ["resolve-config"] }
