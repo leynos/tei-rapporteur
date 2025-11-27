@@ -22,10 +22,21 @@ fn ensure_msgspec_installed(py: Python<'_>) {
     let subprocess = py
         .import("subprocess")
         .expect("subprocess module should be available");
+    let sys = py.import("sys").expect("sys import should succeed");
+    let executable = sys
+        .getattr("executable")
+        .expect("sys.executable should exist");
     subprocess
         .getattr("check_call")
         .expect("subprocess.check_call should exist")
-        .call1((("python", "-m", "pip", "install", "msgspec==0.19.0"),))
+        .call1(((
+            executable,
+            "-m",
+            "pip",
+            "install",
+            "--break-system-packages",
+            "msgspec==0.19.0",
+        ),))
         .expect("msgspec installation should succeed for tests");
 }
 

@@ -97,9 +97,10 @@ healthy.
 
 Python data classes now live in `tei_rapporteur.structs`. The submodule defines
 `msgspec.Struct` projections (`Episode`, `TeiHeader`, `FileDesc`, `Paragraph`,
-`Utterance`, `Hi`, and `Pause`) that mirror the Rust serde layout. MessagePack
-emitted by `to_msgpack` decodes directly into these classes, and encoding them
-feeds the payload straight back into `from_msgpack`.
+`Utterance`, and `Hi`) that mirror the Rust serde layout. Inline nodes decode
+into plain Python objects so pauses and other inline variants remain flexible.
+MessagePack emitted by `to_msgpack` decodes directly into these classes, and
+encoding them feeds the payload straight back into `from_msgpack`.
 
 Binary interchange is now supported through
 `tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes

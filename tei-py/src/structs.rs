@@ -27,6 +27,7 @@ pub fn register_structs_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     modules.set_item(STRUCTS_MODULE_NAME, &structs)?;
 
     parent.add_submodule(&structs)?;
+    parent.setattr("structs", &structs)?;
 
     Ok(())
 }

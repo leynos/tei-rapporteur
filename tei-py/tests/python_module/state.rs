@@ -182,9 +182,16 @@ pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
         if py.import("msgspec").is_err() {
             let subprocess = py.import("subprocess")?;
-            subprocess
-                .getattr("check_call")?
-                .call1((("python", "-m", "pip", "install", "msgspec==0.19.0"),))?;
+            let sys = py.import("sys")?;
+            let executable = sys.getattr("executable")?;
+            subprocess.getattr("check_call")?.call1(((
+                executable,
+                "-m",
+                "pip",
+                "install",
+                "--break-system-packages",
+                "msgspec==0.19.0",
+            ),))?;
         }
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;

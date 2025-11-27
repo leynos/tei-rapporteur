@@ -32,13 +32,6 @@ __all__ = [
 ]
 
 
-class Pause(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Pause marker rendered as <pause/>."""
-
-    duration: str | None = msgspec.field(default=None, name="@dur")
-    kind: str | None = msgspec.field(default=None, name="@type")
-
-
 class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
     """Emphasised inline span corresponding to <hi>."""
 
@@ -46,7 +39,9 @@ class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
     content: list["Inline"] = msgspec.field(default_factory=list, name="$value")
 
 
-Inline = str | Hi | Pause
+Pause = dict[str, str | None]
+
+Inline = object
 
 
 class Paragraph(msgspec.Struct, kw_only=True):
@@ -76,7 +71,7 @@ class UtteranceBlock(msgspec.Struct):
     utterance: Utterance = msgspec.field(name="u")
 
 
-BodyBlock = ParagraphBlock | UtteranceBlock
+BodyBlock = object
 
 
 class TeiBody(msgspec.Struct):

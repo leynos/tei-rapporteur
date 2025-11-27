@@ -115,4 +115,4 @@ Feature: tei_rapporteur Python module
     Given the tei_rapporteur Python module is initialised
     And I encode a MessagePack document missing required fields
     When I decode the MessagePack payload to an Episode struct
-    Then construction fails mentioning "teiHeader"
+    Then construction fails mentioning "body"
