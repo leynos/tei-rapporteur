@@ -6,6 +6,7 @@
 
 use pyo3::{
     Bound, PyResult, Python,
+    exceptions::PyModuleNotFoundError,
     types::{PyAnyMethods, PyModule, PyModuleMethods},
 };
 
@@ -19,8 +20,30 @@ pub fn register_structs_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
         deprecated,
         reason = "PyO3 0.23 retains from_code_bound; new API requires CStr plumbing we avoid here"
     )]
-    let structs =
-        PyModule::from_code_bound(py, STRUCTS_SOURCE, STRUCTS_FILENAME, STRUCTS_MODULE_NAME)?;
+    let structs = match PyModule::from_code_bound(
+        py,
+        STRUCTS_SOURCE,
+        STRUCTS_FILENAME,
+        STRUCTS_MODULE_NAME,
+    ) {
+        Ok(module) => module,
+        Err(error) => {
+            if error.is_instance_of::<PyModuleNotFoundError>(py) {
+                // msgspec missing; skip registering structs while leaving core bindings intact.
+                py.run_bound(
+                    concat!(
+                        "import warnings; warnings.warn(",
+                        "'msgspec not installed; tei_rapporteur.structs unavailable', ",
+                        "RuntimeWarning)",
+                    ),
+                    None,
+                    None,
+                )?;
+                return Ok(());
+            }
+            return Err(error);
+        }
+    };
 
     let sys = py.import("sys")?;
     let modules = sys.getattr("modules")?;

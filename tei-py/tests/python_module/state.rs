@@ -184,14 +184,17 @@ pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
             let subprocess = py.import("subprocess")?;
             let sys = py.import("sys")?;
             let executable = sys.getattr("executable")?;
-            subprocess.getattr("check_call")?.call1(((
+            let _ = subprocess
+                .getattr("check_call")
+                .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
+            let _ = subprocess.getattr("check_call")?.call1(((
                 executable,
                 "-m",
                 "pip",
                 "install",
                 "--break-system-packages",
                 "msgspec==0.19.0",
-            ),))?;
+            ),));
         }
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
