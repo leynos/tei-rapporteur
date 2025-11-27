@@ -184,10 +184,10 @@ pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
             let subprocess = py.import("subprocess")?;
             let sys = py.import("sys")?;
             let executable = sys.getattr("executable")?;
-            let _ = subprocess
+            let _pip_bootstrap = subprocess
                 .getattr("check_call")
                 .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
-            let _ = subprocess.getattr("check_call")?.call1(((
+            let _install_msgspec = subprocess.getattr("check_call")?.call1(((
                 executable,
                 "-m",
                 "pip",

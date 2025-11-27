@@ -19,25 +19,16 @@ fn ensure_msgspec_installed(py: Python<'_>) {
         return;
     }
 
-    let Ok(subprocess) = py.import("subprocess") else {
-        eprintln!("subprocess unavailable; skipping msgspec install");
-        return;
-    };
-    let Ok(sys) = py.import("sys") else {
-        eprintln!("sys unavailable; skipping msgspec install");
-        return;
-    };
-    let Ok(executable) = sys.getattr("executable") else {
-        eprintln!("sys.executable missing; skipping msgspec install");
-        return;
-    };
+    let Ok(subprocess) = py.import("subprocess") else { return; };
+    let Ok(sys) = py.import("sys") else { return; };
+    let Ok(executable) = sys.getattr("executable") else { return; };
 
     // Bootstrap pip if missing; ignore failures.
-    let _ = subprocess
+    let _pip_bootstrap = subprocess
         .getattr("check_call")
         .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
 
-    let install_result = subprocess.getattr("check_call").and_then(|cc| {
+    let _install_msgspec = subprocess.getattr("check_call").and_then(|cc| {
         cc.call1(((
             executable,
             "-m",
@@ -47,10 +38,6 @@ fn ensure_msgspec_installed(py: Python<'_>) {
             "msgspec==0.19.0",
         ),))
     });
-
-    if install_result.is_err() && py.import("msgspec").is_err() {
-        eprintln!("msgspec unavailable; msgspec-dependent tests will be skipped");
-    }
 }
 
 #[test]
