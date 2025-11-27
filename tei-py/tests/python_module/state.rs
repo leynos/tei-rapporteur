@@ -180,6 +180,12 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
+        if py.import("msgspec").is_err() {
+            let subprocess = py.import("subprocess")?;
+            subprocess
+                .getattr("check_call")?
+                .call1((("python", "-m", "pip", "install", "msgspec==0.19.0"),))?;
+        }
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());

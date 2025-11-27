@@ -14,6 +14,21 @@ mod dict;
 mod structs_tests;
 mod xml;
 
+fn ensure_msgspec_installed(py: Python<'_>) {
+    if py.import("msgspec").is_ok() {
+        return;
+    }
+
+    let subprocess = py
+        .import("subprocess")
+        .expect("subprocess module should be available");
+    subprocess
+        .getattr("check_call")
+        .expect("subprocess.check_call should exist")
+        .call1((("python", "-m", "pip", "install", "msgspec==0.19.0"),))
+        .expect("msgspec installation should succeed for tests");
+}
+
 #[test]
 fn document_construction_trims_titles() {
     let document =
@@ -30,6 +45,7 @@ fn document_construction_rejects_blank_titles() {
 #[test]
 fn module_registers_python_bindings() {
     Python::with_gil(|py| {
+        ensure_msgspec_installed(py);
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -54,6 +70,7 @@ fn module_registers_python_bindings() {
 #[test]
 fn python_function_emits_markup() {
     Python::with_gil(|py| {
+        ensure_msgspec_installed(py);
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let emit = module

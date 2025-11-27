@@ -5,6 +5,7 @@ use pyo3::{
 };
 
 fn register_module(py: Python<'_>) -> Bound<'_, PyModule> {
+    super::ensure_msgspec_installed(py);
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
     tei_rapporteur(py, &module).expect("module registration");
     module
