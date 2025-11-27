@@ -102,3 +102,17 @@ Feature: tei_rapporteur Python module
     Given the tei_rapporteur Python module is initialised
     When I encode a dictionary without providing a Document
     Then construction fails mentioning "cannot be converted to 'Document'"
+
+  Scenario: Round-trip MessagePack via the Episode struct
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document titled "Bridgewater"
+    And I encode the constructed Document to MessagePack
+    And I convert the MessagePack payload to an Episode and retitle it "Bridgewater Remix"
+    And I decode the MessagePack payload
+    Then the document title equals "Bridgewater Remix"
+
+  Scenario: Report msgspec errors for malformed payloads
+    Given the tei_rapporteur Python module is initialised
+    And I encode a MessagePack document missing required fields
+    When I decode the MessagePack payload to an Episode struct
+    Then construction fails mentioning "teiHeader"

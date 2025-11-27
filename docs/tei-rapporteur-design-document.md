@@ -1469,6 +1469,20 @@ In this scenario:
 - Finally, the script saves the new XML, which now contains the `<standOff>`
   with spans added by Bromide.
 
+### Implementation status (November 2025)
+
+The `msgspec.Struct` projections now ship with the crate as the
+`tei_rapporteur.structs` submodule. `Episode`, `TeiHeader`, `FileDesc`,
+`ProfileDesc`, `EncodingDesc`, `RevisionDesc`, `TeiText`, `TeiBody`,
+`Paragraph`, `Utterance`, `Hi`, and `Pause` mirror the serde field names used
+by `tei-core` (for example, `teiHeader`, `fileDesc`, `@xml:id`, `$value`, and
+the externally tagged `p`/`u` body blocks). The Python source lives alongside
+the crate and is embedded into the extension at load time, avoiding a rename of
+the existing `tei_rapporteur` module while still registering a real submodule.
+MessagePack emitted by `to_msgpack` decodes directly into these classes via
+`msgspec.msgpack.decode(payload, type=Episode)`, and encoding the structs feeds
+the bytes straight back into `from_msgpack`.
+
 The above Python code shows how seamlessly a workflow can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and
 manipulation). Direct interaction with XML libraries is unnecessary, and the

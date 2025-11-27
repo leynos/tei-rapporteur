@@ -115,7 +115,7 @@ prioritizing efficient data transfer.
 This step defines the Python user experience, including the data classes and
 package distribution.
 
-- [ ] Define the Python `msgspec.Struct` classes (`Episode`, `Utterance`, etc.)
+- [x] Define the Python `msgspec.Struct` classes (`Episode`, `Utterance`, etc.)
       that mirror the Rust data model's structure.
 - [ ] Document the public Python API, including usage examples for parsing XML,
       converting to/from `msgspec` objects, and emitting XML.

@@ -5,9 +5,11 @@
 //! mirrored title helpers (`Document.emit_title_markup`, module-level
 //! `emit_title_markup`), a `MessagePack` bridge (`from_msgpack`, `to_msgpack`),
 //! dictionary helpers (`from_dict`, `to_dict`) backed by `pyo3-serde`, and XML
-//! bindings (`parse_xml`, `emit_xml`) that forward directly to `tei-xml`. Rust
-//! callers continue to reuse the same helpers without the `PyO3` glue, keeping
-//! validation logic centralised.
+//! bindings (`parse_xml`, `emit_xml`) that forward directly to `tei-xml`. The
+//! module also exposes a `structs` submodule containing `msgspec.Struct`
+//! projections of the TEI data model so Python callers can decode `MessagePack`
+//! directly into typed objects. Rust callers continue to reuse the same
+//! helpers without the `PyO3` glue, keeping validation logic centralised.
 
 use pyo3::types::PyAny;
 use pyo3::{Bound, Python};
@@ -25,6 +27,7 @@ use macros::{
 };
 
 mod bindings;
+mod structs;
 pub use bindings::Document;
 pub use bindings::py_exports::{
     emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack,
