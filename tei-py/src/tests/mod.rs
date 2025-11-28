@@ -19,9 +19,15 @@ fn ensure_msgspec_installed(py: Python<'_>) {
         return;
     }
 
-    let Ok(subprocess) = py.import("subprocess") else { return; };
-    let Ok(sys) = py.import("sys") else { return; };
-    let Ok(executable) = sys.getattr("executable") else { return; };
+    let Ok(subprocess) = py.import("subprocess") else {
+        return;
+    };
+    let Ok(sys) = py.import("sys") else {
+        return;
+    };
+    let Ok(executable) = sys.getattr("executable") else {
+        return;
+    };
 
     // Bootstrap pip if missing; ignore failures.
     let _pip_bootstrap = subprocess
