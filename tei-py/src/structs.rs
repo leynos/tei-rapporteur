@@ -6,7 +6,7 @@
 
 use pyo3::{
     Bound, PyResult, Python,
-    exceptions::PyModuleNotFoundError,
+    exceptions::{PyModuleNotFoundError, PyRuntimeWarning},
     types::{PyAnyMethods, PyModule, PyModuleMethods},
 };
 
@@ -30,14 +30,13 @@ pub fn register_structs_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
         Err(error) => {
             if error.is_instance_of::<PyModuleNotFoundError>(py) {
                 // msgspec missing; skip registering structs while leaving core bindings intact.
-                py.run_bound(
-                    concat!(
-                        "import warnings; warnings.warn(",
-                        "'msgspec not installed; tei_rapporteur.structs unavailable', ",
-                        "RuntimeWarning)",
+                let warnings = py.import("warnings")?;
+                warnings.call_method1(
+                    "warn",
+                    (
+                        "msgspec not installed; tei_rapporteur.structs unavailable",
+                        py.get_type::<PyRuntimeWarning>(),
                     ),
-                    None,
-                    None,
                 )?;
                 return Ok(());
             }
