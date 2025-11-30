@@ -21,18 +21,23 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     let executable = sys.getattr("executable")?;
 
     if let Ok(check_call) = subprocess.getattr("check_call") {
-        drop(check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
+        match check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)) {
+            Ok(_) | Err(_) => {}
+        }
     }
 
     if let Ok(check_call) = subprocess.getattr("check_call") {
-        drop(check_call.call1(((
+        match check_call.call1(((
             executable,
             "-m",
             "pip",
             "install",
             "--break-system-packages",
             "msgspec==0.19.0",
-        ),)));
+        ),))
+        {
+            Ok(_) | Err(_) => {}
+        }
     }
 
     py.import("msgspec")?;

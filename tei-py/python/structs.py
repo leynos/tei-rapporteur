@@ -44,9 +44,10 @@ class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
 # untagged serde output we leave Pause as a plain mapping.
 Pause = dict[str, str | None]
 
-# msgspec cannot represent an untagged union of multiple Struct types without
-# altering the payload, so Inline remains open-typed to match the serde schema.
-Inline = object
+# Inline can be plain text, emphasised spans, or pause maps. Using only one
+# Struct (`Hi`) avoids msgspec's tagged-union requirement while still giving
+# type-hint support for callers.
+Inline = str | Hi | Pause
 
 
 class Paragraph(msgspec.Struct, kw_only=True):
@@ -76,8 +77,9 @@ class UtteranceBlock(msgspec.Struct):
     utterance: Utterance = msgspec.field(name="u")
 
 
-# Likewise, a strict union of paragraph and utterance blocks would force tagged
-# unions in msgspec. Keeping this open preserves the serde-compatible shape.
+# Body blocks are externally tagged in serde as either `p` or `u`. msgspec
+# requires tagging when multiple Structs share a union, so we keep this open to
+# preserve compatibility with the untagged payload.
 BodyBlock = object
 
 
