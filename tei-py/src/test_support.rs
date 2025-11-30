@@ -21,12 +21,11 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     let executable = sys.getattr("executable")?;
 
     if let Ok(check_call) = subprocess.getattr("check_call") {
-        let _ensurepip: PyResult<()> =
-            check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),));
+        let _ = check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),));
     }
 
     if let Ok(check_call) = subprocess.getattr("check_call") {
-        let _install: PyResult<()> = check_call.call1(((
+        let _ = check_call.call1(((
             executable,
             "-m",
             "pip",
