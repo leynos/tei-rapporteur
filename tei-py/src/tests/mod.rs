@@ -2,6 +2,7 @@
 //! `MessagePack` exchange, and XML helpers).
 
 use super::*;
+use crate::test_support::ensure_msgspec_installed;
 use pyo3::{
     Python,
     types::{PyAnyMethods, PyModule},
@@ -13,38 +14,6 @@ mod bindings_tests;
 mod dict;
 mod structs_tests;
 mod xml;
-
-fn ensure_msgspec_installed(py: Python<'_>) {
-    if py.import("msgspec").is_ok() {
-        return;
-    }
-
-    let Ok(subprocess) = py.import("subprocess") else {
-        return;
-    };
-    let Ok(sys) = py.import("sys") else {
-        return;
-    };
-    let Ok(executable) = sys.getattr("executable") else {
-        return;
-    };
-
-    // Bootstrap pip if missing; ignore failures.
-    let _pip_bootstrap = subprocess
-        .getattr("check_call")
-        .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
-
-    let _install_msgspec = subprocess.getattr("check_call").and_then(|cc| {
-        cc.call1(((
-            executable,
-            "-m",
-            "pip",
-            "install",
-            "--break-system-packages",
-            "msgspec==0.19.0",
-        ),))
-    });
-}
 
 #[test]
 fn document_construction_trims_titles() {
@@ -62,7 +31,7 @@ fn document_construction_rejects_blank_titles() {
 #[test]
 fn module_registers_python_bindings() {
     Python::with_gil(|py| {
-        ensure_msgspec_installed(py);
+        ensure_msgspec_installed(py).expect("msgspec must install for module registration");
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -87,7 +56,7 @@ fn module_registers_python_bindings() {
 #[test]
 fn python_function_emits_markup() {
     Python::with_gil(|py| {
-        ensure_msgspec_installed(py);
+        ensure_msgspec_installed(py).expect("msgspec must install for Python helpers");
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let emit = module

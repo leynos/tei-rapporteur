@@ -10,7 +10,7 @@ use pyo3::{
 use rstest::fixture;
 use serde_json::Value;
 use std::cell::RefCell;
-use tei_py::tei_rapporteur;
+use tei_py::{tei_rapporteur, tests::ensure_msgspec_installed};
 
 pub(super) struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
@@ -180,22 +180,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
-        if py.import("msgspec").is_err() {
-            let subprocess = py.import("subprocess")?;
-            let sys = py.import("sys")?;
-            let executable = sys.getattr("executable")?;
-            let _pip_bootstrap = subprocess
-                .getattr("check_call")
-                .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
-            let _install_msgspec = subprocess.getattr("check_call")?.call1(((
-                executable,
-                "-m",
-                "pip",
-                "install",
-                "--break-system-packages",
-                "msgspec==0.19.0",
-            ),));
-        }
+        ensure_msgspec_installed(py)?;
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());
