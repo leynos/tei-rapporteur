@@ -1,5 +1,5 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
-use pyo3::{PyResult, Python};
+use pyo3::{PyResult, Python, types::PyAnyMethods};
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
@@ -15,14 +15,9 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     let sys = py.import("sys")?;
     let executable = sys.getattr("executable")?;
 
-    let _ = subprocess.getattr("check_call").and_then(|cc| {
-        cc.call1(((
-            executable.clone(),
-            "-m",
-            "ensurepip",
-            "--upgrade",
-        ),))
-    });
+    let _ = subprocess
+        .getattr("check_call")
+        .and_then(|cc| cc.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
 
     let _ = subprocess.getattr("check_call")?.call1(((
         executable,

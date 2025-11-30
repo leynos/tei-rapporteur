@@ -1,11 +1,14 @@
 use super::*;
+use crate::test_support::ensure_msgspec_installed;
 use pyo3::{
     Bound, Python,
+    exceptions::PyAttributeError,
     types::{PyAnyMethods, PyDict, PyModule},
 };
+use std::ffi::CString;
 
 fn register_module(py: Python<'_>) -> Bound<'_, PyModule> {
-    super::ensure_msgspec_installed(py);
+    ensure_msgspec_installed(py).expect("msgspec must be available for struct tests");
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
     tei_rapporteur(py, &module).expect("module registration");
     module
@@ -31,6 +34,72 @@ fn structs_submodule_is_registered() {
                 .expect("Episode attribute lookup should succeed"),
             "Episode class must be available for msgspec decoding"
         );
+    });
+}
+
+#[test]
+fn structs_submodule_is_not_registered_when_msgspec_missing() {
+    Python::with_gil(|py| {
+        // Block msgspec imports for the duration of this test.
+        let block_msgspec = CString::new(
+            r#"
+import sys
+
+_orig_meta_path_structs_test = list(sys.meta_path)
+
+class _BlockMsgspecImport:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "msgspec" or fullname.startswith("msgspec."):
+            raise ModuleNotFoundError("msgspec is blocked for test")
+        return None
+
+_blocker_structs_test = _BlockMsgspecImport()
+sys.meta_path.insert(0, _blocker_structs_test)
+sys.modules.pop("msgspec", None)
+"#,
+        )
+        .expect("inline Python should be valid");
+        py.run(block_msgspec.as_c_str(), None, None)
+            .expect("failed to install msgspec import blocker");
+
+        // Register the module without calling the helper so msgspec remains absent.
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
+        tei_rapporteur(py, &module)
+            .expect("module registration should succeed even when msgspec is missing");
+
+        let has_structs = module
+            .hasattr("structs")
+            .expect("attribute check for structs should succeed");
+        assert!(
+            !has_structs,
+            "structs submodule must not be exported when msgspec is unavailable"
+        );
+
+        let err = module
+            .getattr("structs")
+            .expect_err("structs attribute should be absent when msgspec is missing");
+        assert!(
+            err.is_instance_of::<PyAttributeError>(py),
+            "missing structs attribute should surface as AttributeError"
+        );
+
+        // Restore import machinery to avoid interfering with other tests.
+        let restore_imports = CString::new(
+            r#"
+import sys
+
+try:
+    sys.meta_path.remove(_blocker_structs_test)
+except ValueError:
+    pass
+
+if "_orig_meta_path_structs_test" in globals():
+    sys.meta_path = _orig_meta_path_structs_test
+"#,
+        )
+        .expect("inline Python should be valid");
+        py.run(restore_imports.as_c_str(), None, None)
+            .expect("failed to restore import state");
     });
 }
 

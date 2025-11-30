@@ -39,8 +39,13 @@ class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
     content: list["Inline"] = msgspec.field(default_factory=list, name="$value")
 
 
+# Pause could be modelled as a Struct, but msgspec requires tagged unions when
+# multiple Struct types appear in the same union. To stay compatible with the
+# untagged serde output we leave Pause as a plain mapping.
 Pause = dict[str, str | None]
 
+# msgspec cannot represent an untagged union of multiple Struct types without
+# altering the payload, so Inline remains open-typed to match the serde schema.
 Inline = object
 
 
@@ -71,6 +76,8 @@ class UtteranceBlock(msgspec.Struct):
     utterance: Utterance = msgspec.field(name="u")
 
 
+# Likewise, a strict union of paragraph and utterance blocks would force tagged
+# unions in msgspec. Keeping this open preserves the serde-compatible shape.
 BodyBlock = object
 
 

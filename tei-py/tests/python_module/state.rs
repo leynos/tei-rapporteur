@@ -10,7 +10,7 @@ use pyo3::{
 use rstest::fixture;
 use serde_json::Value;
 use std::cell::RefCell;
-use tei_py::{tei_rapporteur, tests::ensure_msgspec_installed};
+use tei_py::{tei_rapporteur, test_support::ensure_msgspec_installed};
 
 pub(super) struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
