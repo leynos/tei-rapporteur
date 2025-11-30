@@ -28,6 +28,7 @@ use macros::{
 
 mod bindings;
 mod structs;
+pub mod test_support;
 pub use bindings::Document;
 pub use bindings::py_exports::{
     emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack,
