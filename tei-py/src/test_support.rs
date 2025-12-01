@@ -7,9 +7,10 @@ static MSGSPEC_INIT: Once = Once::new();
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
 /// The helper bootstraps `pip` via `ensurepip` when necessary and performs a
-/// best-effort installation of `msgspec==0.19.0`. It is thread-safe: install
-/// attempts run at most once even when tests execute in parallel. It returns an
-/// error only when importing `msgspec` still fails after the attempted install.
+/// best-effort installation of `msgspec>=0.19,<0.20`. It is thread-safe:
+/// install attempts run at most once even when tests execute in parallel. It
+/// returns an error only when importing `msgspec` still fails after the
+/// attempted install.
 ///
 /// # Errors
 ///
@@ -21,30 +22,32 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     }
 
     MSGSPEC_INIT.call_once(|| {
+        // Acquire the GIL inside the closure: `call_once` requires an `FnOnce()`
+        // with a `'static` lifetime so we cannot borrow the `py` argument here.
         Python::with_gil(|gil| {
-            let Ok(subprocess) = gil.import("subprocess") else {
+            let Some(subprocess) = gil.import("subprocess").ok() else {
                 return;
             };
-            let Ok(sys) = gil.import("sys") else {
+            let Some(sys) = gil.import("sys").ok() else {
                 return;
             };
-            let Ok(executable) = sys.getattr("executable") else {
+            let Some(executable) = sys.getattr("executable").ok() else {
                 return;
             };
 
             if let Ok(check_call) = subprocess.getattr("check_call") {
-                drop(check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),)));
+                _ = check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),));
             }
 
             if let Ok(check_call) = subprocess.getattr("check_call") {
-                drop(check_call.call1(((
+                _ = check_call.call1(((
                     executable,
                     "-m",
                     "pip",
                     "install",
                     "--break-system-packages",
-                    "msgspec==0.19.0",
-                ),)));
+                    "msgspec>=0.19,<0.20",
+                ),));
             }
         });
     });

@@ -28,6 +28,20 @@ Rust, the design achieves a **deterministic, single-source-of-truth**
 conversion: for any given TEI input, Rust produces a canonical normalized
 output, and the semantic content remains consistent across round-trips.
 
+## Python projection decisions (December 2025)
+
+- The Python packaging metadata and test bootstrap now share the same
+  `msgspec` constraint (`>=0.19,<0.20`) to prevent environment drift between
+  CI, local wheels, and the embedded interpreter.
+- Python projections live in `tei_rapporteur.structs` and now describe body
+  and inline unions explicitly (`BodyBlock` as `ParagraphBlock |
+  UtteranceBlock`, `Inline` as `str | Hi | Pause`, with `Pause` expressed
+  as a `TypedDict` carrying `@dur` and `@type`).
+- The `ensure_msgspec_installed` test helper is guarded by `std::sync::Once`
+  so `pip` installation runs exactly once across parallel tests, avoiding the
+  SIGBUS race observed when multiple interpreters attempted to install
+  dependencies concurrently.
+
 This document outlines the design of the `tei-rapporteur` library, including
 the TEI P5 subset definition, Rust data model and crate architecture,
 parsing/emitting strategy, Python integration layer, a proposed streaming

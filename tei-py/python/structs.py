@@ -9,15 +9,19 @@ produces a payload that `tei_rapporteur.from_msgpack` accepts.
 from __future__ import annotations
 
 import msgspec
+from typing import TYPE_CHECKING, Any, TypedDict, TypeAlias
 
 __all__ = [
     "AnnotationSystem",
+    "BodyBlock",
     "EncodingDesc",
     "Episode",
     "FileDesc",
     "Hi",
     "Inline",
     "Paragraph",
+    "ParagraphBlock",
+    "Pause",
     "ProfileDesc",
     "RevisionChange",
     "RevisionDesc",
@@ -25,9 +29,6 @@ __all__ = [
     "TeiHeader",
     "TeiText",
     "Utterance",
-    "Pause",
-    "BodyBlock",
-    "ParagraphBlock",
     "UtteranceBlock",
 ]
 
@@ -36,18 +37,26 @@ class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
     """Emphasised inline span corresponding to <hi>."""
 
     rend: str | None = None
-    content: list["Inline"] = msgspec.field(default_factory=list, name="$value")
+    content: list[Inline] = msgspec.field(default_factory=list, name="$value")
 
 
-# Pause could be modelled as a Struct, but msgspec requires tagged unions when
-# multiple Struct types appear in the same union. To stay compatible with the
-# untagged serde output we leave Pause as a plain mapping.
-Pause = dict[str, str | None]
+Pause = TypedDict(
+    "Pause",
+    {
+        "@dur": str | None,
+        "@type": str | None,
+    },
+    total=False,
+)
 
-# Inline can be plain text, emphasised spans, or pause maps. Using only one
-# Struct (`Hi`) avoids msgspec's tagged-union requirement while still giving
-# type-hint support for callers.
-Inline = str | Hi | Pause
+# Inline can be plain text, emphasised spans, or pause maps. For static
+# type-checking we expose the full union, while msgspec receives `Any` at
+# runtime to avoid the restriction on multiple dict-like types in a single
+# union.
+if TYPE_CHECKING:
+    Inline: TypeAlias = str | Hi | Pause
+else:
+    Inline = Any
 
 
 class Paragraph(msgspec.Struct, kw_only=True):
@@ -77,10 +86,13 @@ class UtteranceBlock(msgspec.Struct):
     utterance: Utterance = msgspec.field(name="u")
 
 
-# Body blocks are externally tagged in serde as either `p` or `u`. msgspec
-# requires tagging when multiple Structs share a union, so we keep this open to
-# preserve compatibility with the untagged payload.
-BodyBlock = object
+# Body blocks are externally tagged in serde as either `p` or `u`. As with
+# `Inline`, we keep static typing precise while relaxing runtime typing for
+# msgspec compatibility.
+if TYPE_CHECKING:
+    BodyBlock: TypeAlias = ParagraphBlock | UtteranceBlock
+else:
+    BodyBlock = Any
 
 
 class TeiBody(msgspec.Struct):

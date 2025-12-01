@@ -1,31 +1,37 @@
+//! Unit tests validating the `tei_rapporteur.structs` submodule registration
+//! and `MessagePack` round-trip through Python `msgspec.Struct` projections.
 use super::*;
 use crate::test_support::ensure_msgspec_installed;
 use pyo3::{
-    Bound, Python,
+    Py, Python,
     exceptions::PyAttributeError,
     types::{PyAnyMethods, PyDict, PyModule},
 };
+use rstest::{fixture, rstest};
 use std::ffi::CString;
 
-fn register_module(py: Python<'_>) -> Bound<'_, PyModule> {
-    ensure_msgspec_installed(py).expect("msgspec must be available for struct tests");
-    let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-    tei_rapporteur(py, &module).expect("module registration");
-    module
+#[fixture]
+fn registered_module() -> Py<PyModule> {
+    Python::with_gil(|py| {
+        ensure_msgspec_installed(py).expect("msgspec must be available for struct tests");
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
+        tei_rapporteur(py, &module).expect("module registration");
+        module.unbind()
+    })
 }
 
-#[test]
-fn structs_submodule_is_registered() {
+#[rstest]
+fn structs_submodule_is_registered(#[from(registered_module)] module: Py<PyModule>) {
     Python::with_gil(|py| {
-        let module = register_module(py);
+        let bound_module = module.bind(py);
         assert!(
-            module
+            bound_module
                 .hasattr("structs")
                 .expect("attribute check should succeed"),
             "structs submodule must be exported"
         );
 
-        let structs = module
+        let structs = bound_module
             .getattr("structs")
             .expect("structs module should exist");
         assert!(
@@ -103,21 +109,23 @@ if "_orig_meta_path_structs_test" in globals():
     });
 }
 
-#[test]
-fn episode_struct_round_trips_messagepack() {
+#[rstest]
+fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<PyModule>) {
     Python::with_gil(|py| {
-        let module = register_module(py);
+        let bound_module = module.bind(py);
         let document = Document::try_from_title("Bridgewater")
             .expect("valid title should construct a document");
-        let payload: Vec<u8> = module
+        let payload: Vec<u8> = bound_module
             .getattr("to_msgpack")
             .expect("to_msgpack export")
-            .call1((document.clone(),))
+            .call1((document,))
             .expect("to_msgpack call")
             .extract()
             .expect("payload extraction");
 
-        let structs = module.getattr("structs").expect("structs module");
+        let structs = bound_module
+            .getattr("structs")
+            .expect("structs module");
         let episode_type = structs.getattr("Episode").expect("Episode class");
         let msgpack = py
             .import("msgspec.msgpack")
