@@ -123,9 +123,7 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<
             .extract()
             .expect("payload extraction");
 
-        let structs = bound_module
-            .getattr("structs")
-            .expect("structs module");
+        let structs = bound_module.getattr("structs").expect("structs module");
         let episode_type = structs.getattr("Episode").expect("Episode class");
         let msgpack = py
             .import("msgspec.msgpack")
