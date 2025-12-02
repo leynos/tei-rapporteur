@@ -58,9 +58,7 @@ fn install_msgspec<'py>(
         );
     }
 }
-use pyo3::sync::GILOnceCell;
-
-static MSGSPEC_INIT: GILOnceCell<()> = GILOnceCell::new();
+static MSGSPEC_INIT: Once = Once::new();
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
