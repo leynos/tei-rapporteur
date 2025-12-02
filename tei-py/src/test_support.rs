@@ -1,5 +1,9 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
-use pyo3::{sync::OnceExt, Bound, PyResult, Python, types::{PyAny, PyAnyMethods, PyDict}};
+use pyo3::{
+    Bound, PyResult, Python,
+    sync::OnceExt,
+    types::{PyAny, PyAnyMethods, PyDict},
+};
 use std::sync::Once;
 
 fn has_uv(py: Python<'_>) -> bool {
