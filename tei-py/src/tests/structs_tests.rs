@@ -136,7 +136,7 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<
         let episode = msgpack
             .getattr("decode")
             .expect("decode function")
-            .call((payload.clone(),), Some(&decode_kwargs))
+            .call((payload,), Some(&decode_kwargs))
             .expect("msgspec decoding should succeed");
 
         let header = episode

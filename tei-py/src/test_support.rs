@@ -63,9 +63,9 @@ fn install_msgspec<'py>(
         );
     }
 }
-use std::sync::Once;
+use pyo3::sync::GILOnceCell;
 
-static MSGSPEC_INIT: Once = Once::new();
+static MSGSPEC_INIT: GILOnceCell<()> = GILOnceCell::new();
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
@@ -84,44 +84,39 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
         return Ok(());
     }
 
-    MSGSPEC_INIT.call_once(|| {
-        // Acquire the GIL inside the closure: `call_once` requires an `FnOnce()`
-        // with a `'static` lifetime so we cannot borrow the `py` argument here.
-        Python::with_gil(|gil| {
-            let Some(subprocess) = gil.import("subprocess").ok() else {
-                return;
-            };
-            let Some(sys) = gil.import("sys").ok() else {
-                return;
-            };
-            let Some(executable) = sys.getattr("executable").ok() else {
-                return;
-            };
+    MSGSPEC_INIT.get_or_init(py, || {
+        let Some(subprocess) = py.import("subprocess").ok() else {
+            return;
+        };
+        let Some(sys) = py.import("sys").ok() else {
+            return;
+        };
+        let Some(executable) = sys.getattr("executable").ok() else {
+            return;
+        };
 
-            let Ok(run) = subprocess.getattr("run") else {
-                return;
-            };
+        let Ok(run) = subprocess.getattr("run") else {
+            return;
+        };
 
-            let kwargs = PyDict::new(gil);
-            if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err()
-            {
-                return;
-            }
-            run_with_kwargs(
-                &run,
-                ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
-                &kwargs,
-            );
+        let kwargs = PyDict::new(py);
+        if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err() {
+            return;
+        }
+        run_with_kwargs(
+            &run,
+            ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
+            &kwargs,
+        );
 
-            let install_kwargs = PyDict::new(gil);
-            if install_kwargs.set_item("check", true).is_err()
-                || install_kwargs.set_item("timeout", 30u64).is_err()
-            {
-                return;
-            }
+        let install_kwargs = PyDict::new(py);
+        if install_kwargs.set_item("check", true).is_err()
+            || install_kwargs.set_item("timeout", 30u64).is_err()
+        {
+            return;
+        }
 
-            install_msgspec(&run, &executable, &install_kwargs, has_uv(gil));
-        });
+        install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
     });
 
     py.import("msgspec")?;
