@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "ISC" }
 authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
+dependencies = [
+    "msgspec>=0.19,<0.20",
+]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -22,7 +25,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "msgspec>=0.18",
+    "msgspec>=0.19,<0.20",
 ]
 
 [tool.maturin]

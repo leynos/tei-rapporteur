@@ -95,6 +95,13 @@ work without instantiating a document. CI now builds the wheel on Ubuntu,
 installs it via `pip`, and imports the module to ensure the PyO3 glue remains
 healthy.
 
+Python data classes now live in `tei_rapporteur.structs`. The submodule defines
+`msgspec.Struct` projections (`Episode`, `TeiHeader`, `FileDesc`, `Paragraph`,
+`Utterance`, and `Hi`) that mirror the Rust serde layout. Inline nodes decode
+into plain Python objects, so pauses and other inline variants remain flexible.
+MessagePack emitted by `to_msgpack` decodes directly into these classes, and
+encoding them feeds the payload straight back into `from_msgpack`.
+
 Binary interchange is now supported through
 `tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes
 produced by `msgspec.msgpack.encode` (or any compatible encoder), decodes them
@@ -105,6 +112,7 @@ type. This allows workflows such as:
 ```python
 import msgspec
 import tei_rapporteur as tei
+from tei_rapporteur.structs import Episode
 
 episode = Episode(title="Bridgewater")  # msgspec.Struct
 payload = msgspec.msgpack.encode(episode)
@@ -122,6 +130,7 @@ they miswire a call. A complete round trip therefore looks like:
 ```python
 doc = tei.Document("Bridgewater")
 payload = tei.to_msgpack(doc)
+from tei_rapporteur.structs import Episode
 episode = msgspec.msgpack.decode(payload, type=Episode)
 ```
 
@@ -152,6 +161,7 @@ therefore looks like:
 from pathlib import Path
 import msgspec
 import tei_rapporteur as tei
+from tei_rapporteur.structs import Episode
 
 doc = tei.parse_xml(Path("episode.tei.xml").read_text())
 payload = tei.to_msgpack(doc)

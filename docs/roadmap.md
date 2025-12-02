@@ -115,12 +115,13 @@ prioritizing efficient data transfer.
 This step defines the Python user experience, including the data classes and
 package distribution.
 
-- [ ] Define the Python `msgspec.Struct` classes (`Episode`, `Utterance`, etc.)
+- **Status:** Completed on 1 December 2025.
+- [x] Define the Python `msgspec.Struct` classes (`Episode`, `Utterance`, etc.)
       that mirror the Rust data model's structure.
-- [ ] Document the public Python API, including usage examples for parsing XML,
+- [x] Document the public Python API, including usage examples for parsing XML,
       converting to/from `msgspec` objects, and emitting XML.
-- [ ] Configure `maturin` to build and publish cross-platform wheels to PyPI.
-- [ ] Write Python-level integration tests that cover the full workflow: XML ->
+- [x] Configure `maturin` to build and publish cross-platform wheels to PyPI.
+- [x] Write Python-level integration tests that cover the full workflow: XML ->
       `Document` -> `Episode` struct -> modify -> `Document` -> XML.
 
 ## Phase 3: Validation and Advanced Features

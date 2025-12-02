@@ -28,6 +28,20 @@ Rust, the design achieves a **deterministic, single-source-of-truth**
 conversion: for any given TEI input, Rust produces a canonical normalized
 output, and the semantic content remains consistent across round-trips.
 
+## Python projection decisions (November 2025)
+
+- The Python packaging metadata and test bootstrap now share the same
+  `msgspec` constraint (`>=0.19,<0.20`) to prevent environment drift between
+  Continuous Integration (CI), local wheels, and the embedded interpreter.
+- Python projections live in `tei_rapporteur.structs` and now describe body
+  and inline unions explicitly (`BodyBlock` as
+  `ParagraphBlock | UtteranceBlock`, `Inline` as `str | Hi | Pause`, with
+  `Pause` expressed as a `TypedDict` carrying `@dur` and `@type`).
+- The `ensure_msgspec_installed` test helper is guarded by a Python-aware
+  initialiser (`GILOnceCell` / `OnceExt::call_once_py_attached`) so `pip`
+  installation runs exactly once across parallel tests while keeping the GIL
+  interactions safe.
+
 This document outlines the design of the `tei-rapporteur` library, including
 the TEI P5 subset definition, Rust data model and crate architecture,
 parsing/emitting strategy, Python integration layer, a proposed streaming
@@ -1468,6 +1482,20 @@ In this scenario:
 
 - Finally, the script saves the new XML, which now contains the `<standOff>`
   with spans added by Bromide.
+
+## Implementation status (November 2025)
+
+The `msgspec.Struct` projections now ship with the crate as the
+`tei_rapporteur.structs` submodule. `Episode`, `TeiHeader`, `FileDesc`,
+`ProfileDesc`, `EncodingDesc`, `RevisionDesc`, `TeiText`, `TeiBody`,
+`Paragraph`, `Utterance`, `Hi`, and `Pause` mirror the serde field names used
+by `tei-core` (for example, `teiHeader`, `fileDesc`, `@xml:id`, `$value`, and
+the externally tagged `p`/`u` body blocks). The Python source lives alongside
+the crate and is embedded into the extension at load time, avoiding a rename of
+the existing `tei_rapporteur` module while still registering a real submodule.
+MessagePack emitted by `to_msgpack` decodes directly into these classes via
+`msgspec.msgpack.decode(payload, type=Episode)`, and encoding the structs feeds
+the bytes straight back into `from_msgpack`.
 
 The above Python code shows how seamlessly a workflow can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and

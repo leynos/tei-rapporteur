@@ -93,7 +93,7 @@ pub(crate) mod py_exports {
     use crate::{
         define_py_from_error_wrapper, define_py_from_result_wrapper, define_py_to_error_wrapper,
         define_py_to_result_wrapper, document_from_dict, document_from_msgpack, document_from_xml,
-        document_to_dict, document_to_msgpack, document_to_xml,
+        document_to_dict, document_to_msgpack, document_to_xml, structs::register_structs_module,
     };
     use pyo3::types::PyModuleMethods;
     use pyo3::{
@@ -275,6 +275,7 @@ pub(crate) mod py_exports {
         py_module.add_function(wrap_pyfunction!(to_dict, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(parse_xml, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(emit_xml, py_module)?)?;
+        register_structs_module(py_context, py_module)?;
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
         Ok(())

@@ -10,7 +10,7 @@ use pyo3::{
 use rstest::fixture;
 use serde_json::Value;
 use std::cell::RefCell;
-use tei_py::tei_rapporteur;
+use tei_py::{tei_rapporteur, test_support::ensure_msgspec_installed};
 
 pub(super) struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
@@ -180,6 +180,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     Python::with_gil(|py| {
+        ensure_msgspec_installed(py)?;
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());
