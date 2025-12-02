@@ -47,7 +47,7 @@ fn install_msgspec<'py>(
         args.extend_from_slice(&UV_COMMON_FLAGS);
         args.push(MSGSPEC_REQUIREMENT);
         if let Ok(args_tuple) = PyTuple::new(run.py(), args) {
-            run_with_kwargs(run, args_tuple, kwargs);
+            run_with_kwargs(run, (args_tuple,), kwargs);
         }
     } else {
         run_with_kwargs(
