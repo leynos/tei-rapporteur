@@ -1215,6 +1215,18 @@ project enforces correctness through a combination of **Rust type structure**,
 These checks ensure that even if an XML passed parsing, it adheres to the
 semantic rules of the TEI profile.
 
+The first implementation of `TeiDocument::validate` now enforces two rules for
+the Episodic profile:
+
+- `xml:id` values must be unique across header annotation systems, paragraphs,
+  and utterances.
+- When a cast list is present, every utterance `who` reference must match one
+  of the declared speakers; if no cast is declared, speaker references are
+  accepted without cross-checking.
+
+These checks keep documents internally consistent without requiring an external
+schema.
+
 - **External schema validation (optional)**: The roadmap includes providing a
   RELAX NG schema (and Schematron if needed) for the TEI Episodic profile.
   Rather than implementing a full RELAX NG validator in Rust (which would be a

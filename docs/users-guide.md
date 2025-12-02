@@ -13,7 +13,11 @@ available today and how to exercise it.
   emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain
   strings flow through the new `P::from_text_segments` and
   `Utterance::from_text_segments` helpers; the older `new` constructors remain
-  as deprecated shims for existing callers.
+  as deprecated shims for existing callers. `TeiDocument` now exposes
+  `validate()` to enforce document-wide rules: it rejects duplicate `xml:id`
+  values across annotation systems, paragraphs, and utterances, and ensures
+  utterance speakers appear in the profile cast when it exists. Violations
+  surface as `TeiError::Validation`.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
@@ -73,7 +77,9 @@ now parses canonical TEI fixtures, rejects malformed payloads, emits canonical
 strings, and proves forbidden characters bubble up as `ValueError` with an
 actionable message. New dictionary scenarios cover happy-path decoding, missing
 fields, blank titles, and the `TypeError` raised when `to_dict` is called with
-the wrong object.
+the wrong object. New validation scenarios assert that duplicate `xml:id`
+values are rejected and that utterance speakers must be declared when a profile
+cast exists, while documents without a cast still pass validation.
 
 ## Python bindings
 
