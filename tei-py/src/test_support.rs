@@ -38,11 +38,12 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
                 return;
             };
 
-            let Ok(run) = subprocess.getattr("run") else { return; };
+            let Ok(run) = subprocess.getattr("run") else {
+                return;
+            };
 
             let kwargs = PyDict::new(gil);
-            if kwargs.set_item("check", true).is_err()
-                || kwargs.set_item("timeout", 30u64).is_err()
+            if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err()
             {
                 return;
             }
