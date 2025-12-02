@@ -1,5 +1,8 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
-use pyo3::{PyResult, Python, types::PyAnyMethods};
+use pyo3::{
+    PyResult, Python,
+    types::{PyAnyMethods, PyDict},
+};
 use std::sync::Once;
 
 static MSGSPEC_INIT: Once = Once::new();
@@ -35,20 +38,42 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
                 return;
             };
 
-            if let Ok(check_call) = subprocess.getattr("check_call") {
-                _ = check_call.call1(((executable.clone(), "-m", "ensurepip", "--upgrade"),));
-            }
+            let Ok(run) = subprocess.getattr("run") else { return; };
 
-            if let Ok(check_call) = subprocess.getattr("check_call") {
-                _ = check_call.call1(((
+            let kwargs = PyDict::new(gil);
+            if kwargs.set_item("check", true).is_err()
+                || kwargs.set_item("timeout", 30u64).is_err()
+            {
+                return;
+            }
+            _ = run.call(
+                ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
+                Some(&kwargs),
+            );
+
+            let install_kwargs = PyDict::new(gil);
+            if install_kwargs.set_item("check", true).is_err()
+                || install_kwargs.set_item("timeout", 30u64).is_err()
+            {
+                return;
+            }
+            _ = run.call(
+                ((
                     executable,
                     "-m",
                     "pip",
                     "install",
+                    "--no-input",
+                    "--disable-pip-version-check",
+                    "--default-timeout",
+                    "15",
+                    "--retries",
+                    "1",
                     "--break-system-packages",
                     "msgspec>=0.19,<0.20",
-                ),));
-            }
+                ),),
+                Some(&install_kwargs),
+            );
         });
     });
 

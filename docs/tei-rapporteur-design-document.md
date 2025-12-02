@@ -34,9 +34,9 @@ output, and the semantic content remains consistent across round-trips.
   `msgspec` constraint (`>=0.19,<0.20`) to prevent environment drift between
   CI, local wheels, and the embedded interpreter.
 - Python projections live in `tei_rapporteur.structs` and now describe body
-  and inline unions explicitly (`BodyBlock` as `ParagraphBlock |
-  UtteranceBlock`, `Inline` as `str | Hi | Pause`, with `Pause` expressed
-  as a `TypedDict` carrying `@dur` and `@type`).
+  and inline unions explicitly (`BodyBlock` as
+  `ParagraphBlock | UtteranceBlock`, `Inline` as `str | Hi | Pause`, with
+  `Pause` expressed as a `TypedDict` carrying `@dur` and `@type`).
 - The `ensure_msgspec_installed` test helper is guarded by `std::sync::Once`
   so `pip` installation runs exactly once across parallel tests, avoiding the
   SIGBUS race observed when multiple interpreters attempted to install
