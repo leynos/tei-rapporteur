@@ -1,13 +1,14 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
-use pyo3::{
-    Bound, PyResult, Python,
-    types::{PyAny, PyAnyMethods, PyDict},
-};
+use pyo3::{sync::OnceExt, Bound, PyResult, Python, types::{PyAny, PyAnyMethods, PyDict}};
+use std::sync::Once;
 
 fn has_uv(py: Python<'_>) -> bool {
     py.import("shutil")
         .ok()
         .and_then(|shutil| shutil.call_method1("which", ("uv",)).ok())
+        // `which` returns a path string or `None`; treat only a concrete path as present.
+        .and_then(|path| path.extract::<Option<String>>().ok())
+        .flatten()
         .is_some()
 }
 
@@ -59,8 +60,9 @@ static MSGSPEC_INIT: GILOnceCell<()> = GILOnceCell::new();
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
-/// A `GILOnceCell` serialises the bootstrap so only one thread runs the
-/// installer, avoiding the race reported in CI.
+/// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
+/// bootstrap so only one thread runs the installer, avoiding the race
+/// reported in CI while detaching from Python when blocked.
 ///
 /// The helper bootstraps `pip` via `ensurepip` when necessary and performs a
 /// best-effort installation of `msgspec>=0.19,<0.20`. It is thread-safe:
@@ -77,7 +79,7 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
         return Ok(());
     }
 
-    MSGSPEC_INIT.get_or_init(py, || {
+    MSGSPEC_INIT.call_once_py_attached(py, || {
         let Some(subprocess) = py.import("subprocess").ok() else {
             return;
         };
@@ -114,4 +116,37 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
 
     py.import("msgspec")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+
+    #[test]
+    fn has_uv_reports_absence_when_which_returns_none() {
+        Python::with_gil(|py| {
+            let code = CString::new("import shutil\nshutil.which = lambda name: None\n")
+                .expect("CString build");
+            py.run(code.as_c_str(), None, None)
+                .expect("monkeypatch shutil.which");
+
+            assert!(!has_uv(py), "uv should be absent when which returns None");
+        });
+    }
+
+    #[test]
+    fn has_uv_reports_presence_when_which_returns_path() {
+        Python::with_gil(|py| {
+            let code = CString::new("import shutil\nshutil.which = lambda name: '/usr/bin/uv'\n")
+                .expect("CString build");
+            py.run(code.as_c_str(), None, None)
+                .expect("monkeypatch shutil.which");
+
+            assert!(
+                has_uv(py),
+                "uv should be detected when which returns a path"
+            );
+        });
+    }
 }
