@@ -8,14 +8,7 @@ const PIP_COMMON_FLAGS: [&str; 6] = [
     "--retries",
     "1",
 ];
-const UV_COMMON_FLAGS: [&str; 6] = [
-    "--disable-pip-version-check",
-    "--default-timeout",
-    "15",
-    "--retries",
-    "1",
-    "--quiet",
-];
+const UV_COMMON_FLAGS: [&str; 1] = ["--quiet"];
 
 use pyo3::{
     Bound, PyResult, Python,
