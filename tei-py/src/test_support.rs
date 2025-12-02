@@ -59,6 +59,9 @@ static MSGSPEC_INIT: GILOnceCell<()> = GILOnceCell::new();
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
+/// A `GILOnceCell` serialises the bootstrap so only one thread runs the
+/// installer, avoiding the race reported in CI.
+///
 /// The helper bootstraps `pip` via `ensurepip` when necessary and performs a
 /// best-effort installation of `msgspec>=0.19,<0.20`. It is thread-safe:
 /// install attempts run at most once even when tests execute in parallel. It
