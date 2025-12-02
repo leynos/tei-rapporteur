@@ -1,8 +1,26 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
+const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
+const PIP_COMMON_FLAGS: [&str; 6] = [
+    "--no-input",
+    "--disable-pip-version-check",
+    "--default-timeout",
+    "15",
+    "--retries",
+    "1",
+];
+const UV_COMMON_FLAGS: [&str; 6] = [
+    "--disable-pip-version-check",
+    "--default-timeout",
+    "15",
+    "--retries",
+    "1",
+    "--quiet",
+];
+
 use pyo3::{
     Bound, PyResult, Python,
     sync::OnceExt,
-    types::{PyAny, PyAnyMethods, PyDict},
+    types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
 use std::sync::Once;
 
@@ -32,11 +50,12 @@ fn install_msgspec<'py>(
     use_uv: bool,
 ) {
     if use_uv {
-        run_with_kwargs(
-            run,
-            (("uv", "pip", "install", "--quiet", "msgspec>=0.19,<0.20"),),
-            kwargs,
-        );
+        let mut args = vec!["uv", "pip", "install"];
+        args.extend_from_slice(&UV_COMMON_FLAGS);
+        args.push(MSGSPEC_REQUIREMENT);
+        if let Ok(args_tuple) = PyTuple::new(run.py(), args) {
+            run_with_kwargs(run, args_tuple, kwargs);
+        }
     } else {
         run_with_kwargs(
             run,
@@ -45,14 +64,14 @@ fn install_msgspec<'py>(
                 "-m",
                 "pip",
                 "install",
-                "--no-input",
-                "--disable-pip-version-check",
-                "--default-timeout",
-                "15",
-                "--retries",
-                "1",
+                PIP_COMMON_FLAGS[0],
+                PIP_COMMON_FLAGS[1],
+                PIP_COMMON_FLAGS[2],
+                PIP_COMMON_FLAGS[3],
+                PIP_COMMON_FLAGS[4],
+                PIP_COMMON_FLAGS[5],
                 "--break-system-packages",
-                "msgspec>=0.19,<0.20",
+                MSGSPEC_REQUIREMENT,
             ),),
             kwargs,
         );
