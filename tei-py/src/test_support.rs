@@ -27,19 +27,7 @@ fn install_msgspec<'py>(
     if use_uv {
         run_with_kwargs(
             run,
-            ((
-                "uv",
-                "pip",
-                "install",
-                "--quiet",
-                "--no-input",
-                "--disable-pip-version-check",
-                "--default-timeout",
-                "15",
-                "--retries",
-                "1",
-                "msgspec>=0.19,<0.20",
-            ),),
+            (("uv", "pip", "install", "--quiet", "msgspec>=0.19,<0.20"),),
             kwargs,
         );
     } else {
