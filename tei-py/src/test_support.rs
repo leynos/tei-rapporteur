@@ -1,8 +1,68 @@
 //! Test-only helpers shared across Rust and Python BDD suites.
 use pyo3::{
-    PyResult, Python,
-    types::{PyAnyMethods, PyDict},
+    Bound, PyResult, Python,
+    types::{PyAny, PyAnyMethods, PyDict},
 };
+
+fn has_uv(py: Python<'_>) -> bool {
+    py.import("shutil")
+        .ok()
+        .and_then(|shutil| shutil.call_method1("which", ("uv",)).ok())
+        .is_some_and(|path| !path.is_none())
+}
+
+fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
+where
+    A: pyo3::IntoPyObject<'py, Target = pyo3::types::PyTuple>,
+{
+    run.call(args, Some(kwargs)).ok();
+}
+
+fn install_msgspec<'py>(
+    run: &Bound<'py, PyAny>,
+    executable: &Bound<'py, PyAny>,
+    kwargs: &Bound<'py, PyDict>,
+    use_uv: bool,
+) {
+    if use_uv {
+        run_with_kwargs(
+            run,
+            ((
+                "uv",
+                "pip",
+                "install",
+                "--quiet",
+                "--no-input",
+                "--disable-pip-version-check",
+                "--default-timeout",
+                "15",
+                "--retries",
+                "1",
+                "msgspec>=0.19,<0.20",
+            ),),
+            kwargs,
+        );
+    } else {
+        run_with_kwargs(
+            run,
+            ((
+                executable.clone(),
+                "-m",
+                "pip",
+                "install",
+                "--no-input",
+                "--disable-pip-version-check",
+                "--default-timeout",
+                "15",
+                "--retries",
+                "1",
+                "--break-system-packages",
+                "msgspec>=0.19,<0.20",
+            ),),
+            kwargs,
+        );
+    }
+}
 use std::sync::Once;
 
 static MSGSPEC_INIT: Once = Once::new();
@@ -47,9 +107,10 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
             {
                 return;
             }
-            _ = run.call(
+            run_with_kwargs(
+                &run,
                 ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
-                Some(&kwargs),
+                &kwargs,
             );
 
             let install_kwargs = PyDict::new(gil);
@@ -58,23 +119,8 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
             {
                 return;
             }
-            _ = run.call(
-                ((
-                    executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--no-input",
-                    "--disable-pip-version-check",
-                    "--default-timeout",
-                    "15",
-                    "--retries",
-                    "1",
-                    "--break-system-packages",
-                    "msgspec>=0.19,<0.20",
-                ),),
-                Some(&install_kwargs),
-            );
+
+            install_msgspec(&run, &executable, &install_kwargs, has_uv(gil));
         });
     });
 
