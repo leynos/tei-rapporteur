@@ -32,7 +32,7 @@ output, and the semantic content remains consistent across round-trips.
 
 - The Python packaging metadata and test bootstrap now share the same
   `msgspec` constraint (`>=0.19,<0.20`) to prevent environment drift between
-  CI, local wheels, and the embedded interpreter.
+  Continuous Integration (CI), local wheels, and the embedded interpreter.
 - Python projections live in `tei_rapporteur.structs` and now describe body
   and inline unions explicitly (`BodyBlock` as
   `ParagraphBlock | UtteranceBlock`, `Inline` as `str | Hi | Pause`, with

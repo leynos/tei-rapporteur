@@ -8,13 +8,15 @@ fn has_uv(py: Python<'_>) -> bool {
     py.import("shutil")
         .ok()
         .and_then(|shutil| shutil.call_method1("which", ("uv",)).ok())
-        .is_some_and(|path| !path.is_none())
+        .is_some()
 }
 
 fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
 where
     A: pyo3::IntoPyObject<'py, Target = pyo3::types::PyTuple>,
 {
+    // Best-effort: subprocess.run may fail (e.g., missing network); the final
+    // `py.import("msgspec")?` is the authoritative error path for callers.
     run.call(args, Some(kwargs)).ok();
 }
 

@@ -5,6 +5,15 @@ MessagePack produced by `tei_rapporteur.to_msgpack` decodes directly into
 Python objects. Likewise, encoding these structs with ``msgspec.msgpack.encode``
 produces a payload that ``tei_rapporteur.from_msgpack`` accepts.
 
+Note
+----
+`msgspec` limits unions to one mapping/struct type. To stay compatible with
+the untagged serde layout, the runtime types for inline nodes and body blocks
+are left as plain ``dict``/``list`` instances even though the static type
+annotations reference :class:`Hi`, :class:`Pause`, :class:`ParagraphBlock`, and
+:class:`UtteranceBlock`. Callers should treat decoded inline/body content as
+untyped containers.
+
 Examples
 --------
 Create an :class:`Episode`, encode it, and round-trip via Rust helpers::
@@ -94,7 +103,9 @@ class Paragraph(msgspec.Struct, kw_only=True):
     xml_id:
         Optional XML identifier mapped from ``@xml:id``.
     content:
-        Ordered list of inline nodes comprising the paragraph.
+        Ordered list of inline nodes comprising the paragraph. At runtime this
+        is a plain ``list`` of ``dict``/``str`` values because msgspec cannot
+        materialise multiple mapping types in one union.
     """
 
     xml_id: str | None = msgspec.field(default=None, name="@xml:id")
@@ -111,7 +122,9 @@ class Utterance(msgspec.Struct, kw_only=True, omit_defaults=True):
     speaker:
         Optional speaker identifier mapped from ``@who``.
     content:
-        Ordered list of inline nodes comprising the utterance.
+        Ordered list of inline nodes comprising the utterance. At runtime this
+        is a plain ``list`` of ``dict``/``str`` values because msgspec cannot
+        materialise multiple mapping types in one union.
     """
 
     xml_id: str | None = msgspec.field(default=None, name="@xml:id")
@@ -159,7 +172,8 @@ class TeiBody(msgspec.Struct):
     ----------
     blocks:
         Sequence of :class:`ParagraphBlock` and :class:`UtteranceBlock` items
-        mapped from the TEI ``<body>`` content.
+        mapped from the TEI ``<body>`` content. At runtime this is a plain
+        ``list`` of dicts for compatibility with untagged unions.
     """
 
     blocks: list[BodyBlock] = msgspec.field(default_factory=list, name="$value")
