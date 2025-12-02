@@ -140,20 +140,29 @@ mod tests {
     #[test]
     fn has_uv_reports_absence_when_which_returns_none() {
         Python::with_gil(|py| {
-            let code = CString::new("import shutil\nshutil.which = lambda name: None\n")
-                .expect("CString build");
+            let code = CString::new(
+                "import shutil\norig = shutil.which\nshutil.which = lambda name: None\n",
+            )
+            .expect("CString build");
             py.run(code.as_c_str(), None, None)
                 .expect("monkeypatch shutil.which");
 
             assert!(!has_uv(py), "uv should be absent when which returns None");
+
+            let restore =
+                CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
+            py.run(restore.as_c_str(), None, None)
+                .expect("restore shutil.which");
         });
     }
 
     #[test]
     fn has_uv_reports_presence_when_which_returns_path() {
         Python::with_gil(|py| {
-            let code = CString::new("import shutil\nshutil.which = lambda name: '/usr/bin/uv'\n")
-                .expect("CString build");
+            let code = CString::new(
+                "import shutil\norig = shutil.which\nshutil.which = lambda name: '/usr/bin/uv'\n",
+            )
+            .expect("CString build");
             py.run(code.as_c_str(), None, None)
                 .expect("monkeypatch shutil.which");
 
@@ -161,6 +170,11 @@ mod tests {
                 has_uv(py),
                 "uv should be detected when which returns a path"
             );
+
+            let restore =
+                CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
+            py.run(restore.as_c_str(), None, None)
+                .expect("restore shutil.which");
         });
     }
 }
