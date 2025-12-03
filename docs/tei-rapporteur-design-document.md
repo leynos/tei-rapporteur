@@ -1221,8 +1221,9 @@ the Episodic profile:
 - `xml:id` values must be unique across header annotation systems, paragraphs,
   and utterances.
 - When a cast list is present, every utterance `who` reference must match one
-  of the declared speakers; if no cast is declared, speaker references are
-  accepted without cross-checking.
+  of the declared speakers. An empty cast still counts as “declared”, so any
+  speaker reference will fail validation until the cast is populated. If no
+  cast is present, speaker references are accepted without cross-checking.
 
 These checks keep documents internally consistent without requiring an external
 schema.
