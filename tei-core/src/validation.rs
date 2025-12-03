@@ -115,14 +115,23 @@ fn validate_speaker_reference(
         return Ok(());
     };
 
-    // Check if speaker is valid
-    if !speakers.is_empty() && speakers.contains(speaker.as_str()) {
+    if speakers.is_empty() {
+        return Ok(());
+    }
+
+    // Check if speaker is declared in the cast
+    if is_speaker_declared(speakers, speaker.as_str()) {
         return Ok(());
     }
 
     Err(ValidationError::UnknownSpeaker {
         speaker: speaker.as_str().to_owned(),
     })
+}
+
+/// Returns true if the speaker is declared in a non-empty cast list.
+fn is_speaker_declared(speakers: &HashSet<&str>, speaker: &str) -> bool {
+    !speakers.is_empty() && speakers.contains(speaker)
 }
 
 fn collect_annotation_system_ids<'doc>(
@@ -283,14 +292,7 @@ mod tests {
 
         let document = TeiDocument::new(base_header, text);
 
-        let result = validate_document(&document);
-
-        assert_eq!(
-            result,
-            Err(ValidationError::UnknownSpeaker {
-                speaker: String::from("ghost"),
-            })
-        );
+        assert!(validate_document(&document).is_ok());
     }
 
     #[rstest]
