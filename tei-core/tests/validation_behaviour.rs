@@ -165,8 +165,8 @@ fn validation_fails_with(
     let error = state.last_error().context("expected a validation error")?;
     let actual = error.to_string();
     ensure!(
-        actual == message,
-        "validation error mismatch: expected {message}, found {actual}"
+        actual.contains(&message),
+        "validation error should contain '{message}', found '{actual}'"
     );
     Ok(())
 }

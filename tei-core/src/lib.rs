@@ -131,7 +131,7 @@ impl TeiDocument {
     /// Returns [`TeiError::Validation`] when duplicated identifiers or
     /// unknown speaker references are detected.
     pub fn validate(&self) -> Result<(), TeiError> {
-        validation::validate_document(self).map_err(TeiError::from)
+        Ok(validation::validate_document(self)?)
     }
 }
 

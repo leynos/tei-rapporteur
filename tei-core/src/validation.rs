@@ -47,37 +47,71 @@ fn collect_ids_and_validate_speakers<'doc>(
         collect_annotation_system_ids(encoding, sink)?;
     }
 
-    let known_speakers = document.header().profile_desc().map(|profile| {
+    let known_speakers = extract_known_speakers(document);
+
+    for block in document.text().body().blocks() {
+        process_body_block(block, sink, known_speakers.as_ref())?;
+    }
+
+    Ok(())
+}
+
+fn extract_known_speakers(document: &TeiDocument) -> Option<HashSet<&str>> {
+    document.header().profile_desc().map(|profile| {
         profile
             .speakers()
             .iter()
             .map(SpeakerName::as_str)
             .collect::<HashSet<_>>()
-    });
+    })
+}
 
-    for block in document.text().body().blocks() {
-        match block {
-            BodyBlock::Paragraph(paragraph) => {
-                if let Some(identifier) = paragraph.id() {
-                    record_id(identifier.as_str(), sink)?;
-                }
-            }
-            BodyBlock::Utterance(utterance) => {
-                if let Some(identifier) = utterance.id() {
-                    record_id(identifier.as_str(), sink)?;
-                }
+fn process_body_block<'doc>(
+    block: &'doc BodyBlock,
+    sink: &mut HashSet<&'doc str>,
+    known_speakers: Option<&HashSet<&'doc str>>,
+) -> Result<(), ValidationError> {
+    match block {
+        BodyBlock::Paragraph(paragraph) => process_paragraph(paragraph, sink),
+        BodyBlock::Utterance(utterance) => process_utterance(utterance, sink, known_speakers),
+    }
+}
 
-                if let (Some(speakers), Some(speaker)) = (&known_speakers, utterance.speaker())
-                    && (speakers.is_empty() || !speakers.contains(speaker.as_str()))
-                {
-                    return Err(ValidationError::UnknownSpeaker {
-                        speaker: speaker.as_str().to_owned(),
-                    });
-                }
-            }
-        }
+fn process_paragraph<'doc>(
+    paragraph: &'doc crate::text::P,
+    sink: &mut HashSet<&'doc str>,
+) -> Result<(), ValidationError> {
+    if let Some(identifier) = paragraph.id() {
+        record_id(identifier.as_str(), sink)?;
+    }
+    Ok(())
+}
+
+fn process_utterance<'doc>(
+    utterance: &'doc crate::text::Utterance,
+    sink: &mut HashSet<&'doc str>,
+    known_speakers: Option<&HashSet<&'doc str>>,
+) -> Result<(), ValidationError> {
+    if let Some(identifier) = utterance.id() {
+        record_id(identifier.as_str(), sink)?;
     }
 
+    validate_speaker_reference(utterance, known_speakers)?;
+
+    Ok(())
+}
+
+fn validate_speaker_reference(
+    utterance: &crate::text::Utterance,
+    known_speakers: Option<&HashSet<&str>>,
+) -> Result<(), ValidationError> {
+    if let (Some(speakers), Some(speaker)) = (known_speakers, utterance.speaker())
+        && (speakers.is_empty() || !speakers.contains(speaker.as_str()))
+    {
+        return Err(ValidationError::UnknownSpeaker {
+            speaker: speaker.as_str().to_owned(),
+        });
+    }
     Ok(())
 }
 
