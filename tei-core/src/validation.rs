@@ -105,14 +105,24 @@ fn validate_speaker_reference(
     utterance: &crate::text::Utterance,
     known_speakers: Option<&HashSet<&str>>,
 ) -> Result<(), ValidationError> {
-    if let (Some(speakers), Some(speaker)) = (known_speakers, utterance.speaker())
-        && (speakers.is_empty() || !speakers.contains(speaker.as_str()))
-    {
-        return Err(ValidationError::UnknownSpeaker {
-            speaker: speaker.as_str().to_owned(),
-        });
+    // Early return if no cast list exists - speakers are allowed without validation
+    let Some(speakers) = known_speakers else {
+        return Ok(());
+    };
+
+    // Early return if utterance has no speaker reference
+    let Some(speaker) = utterance.speaker() else {
+        return Ok(());
+    };
+
+    // Check if speaker is valid
+    if !speakers.is_empty() && speakers.contains(speaker.as_str()) {
+        return Ok(());
     }
-    Ok(())
+
+    Err(ValidationError::UnknownSpeaker {
+        speaker: speaker.as_str().to_owned(),
+    })
 }
 
 fn collect_annotation_system_ids<'doc>(
