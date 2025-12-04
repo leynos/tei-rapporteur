@@ -43,31 +43,59 @@ pub enum ValidationError {
 pub(crate) fn validate_document(document: &TeiDocument) -> Result<(), ValidationError> {
     let mut seen_ids: HashSet<String> = HashSet::new();
 
-    if let Some(encoding) = document.header().encoding_desc() {
-        for system in encoding.annotation_systems() {
-            record_id(system.identifier().as_str(), &mut seen_ids)?;
-        }
-    }
+    validate_annotation_systems(document, &mut seen_ids)?;
 
     let known_speakers = extract_known_speakers(document);
 
-    for block in document.text().body().blocks() {
-        match block {
-            BodyBlock::Paragraph(paragraph) => {
-                if let Some(identifier) = paragraph.id() {
-                    record_id(identifier.as_str(), &mut seen_ids)?;
-                }
-            }
-            BodyBlock::Utterance(utterance) => {
-                if let Some(identifier) = utterance.id() {
-                    record_id(identifier.as_str(), &mut seen_ids)?;
-                }
+    validate_body_blocks(document, &mut seen_ids, known_speakers.as_ref())?;
 
-                validate_speaker_reference(utterance, known_speakers.as_ref())?;
-            }
-        }
+    Ok(())
+}
+
+fn validate_annotation_systems(
+    document: &TeiDocument,
+    seen_ids: &mut HashSet<String>,
+) -> Result<(), ValidationError> {
+    let Some(encoding) = document.header().encoding_desc() else {
+        return Ok(());
+    };
+
+    for system in encoding.annotation_systems() {
+        record_id(system.identifier().as_str(), seen_ids)?;
     }
 
+    Ok(())
+}
+
+fn validate_body_blocks(
+    document: &TeiDocument,
+    seen_ids: &mut HashSet<String>,
+    known_speakers: Option<&HashSet<String>>,
+) -> Result<(), ValidationError> {
+    for block in document.text().body().blocks() {
+        validate_body_block(block, seen_ids, known_speakers)?;
+    }
+    Ok(())
+}
+
+fn validate_body_block(
+    block: &BodyBlock,
+    seen_ids: &mut HashSet<String>,
+    known_speakers: Option<&HashSet<String>>,
+) -> Result<(), ValidationError> {
+    match block {
+        BodyBlock::Paragraph(paragraph) => {
+            if let Some(identifier) = paragraph.id() {
+                record_id(identifier.as_str(), seen_ids)?;
+            }
+        }
+        BodyBlock::Utterance(utterance) => {
+            if let Some(identifier) = utterance.id() {
+                record_id(identifier.as_str(), seen_ids)?;
+            }
+            validate_speaker_reference(utterance, known_speakers)?;
+        }
+    }
     Ok(())
 }
 
