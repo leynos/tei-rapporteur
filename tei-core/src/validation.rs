@@ -8,11 +8,7 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::{
-    TeiDocument,
-    header::{EncodingDesc, SpeakerName},
-    text::BodyBlock,
-};
+use crate::{TeiDocument, text::BodyBlock};
 
 /// Errors raised when validating a [`TeiDocument`].
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
@@ -45,76 +41,49 @@ pub enum ValidationError {
 /// references a speaker not declared in the profile description's cast list
 /// (when a cast has been provided).
 pub(crate) fn validate_document(document: &TeiDocument) -> Result<(), ValidationError> {
-    let mut seen_ids: HashSet<&str> = HashSet::new();
+    let mut seen_ids: HashSet<String> = HashSet::new();
 
-    collect_ids_and_validate_speakers(document, &mut seen_ids)
-}
-
-fn collect_ids_and_validate_speakers<'doc>(
-    document: &'doc TeiDocument,
-    sink: &mut HashSet<&'doc str>,
-) -> Result<(), ValidationError> {
     if let Some(encoding) = document.header().encoding_desc() {
-        collect_annotation_system_ids(encoding, sink)?;
+        for system in encoding.annotation_systems() {
+            record_id(system.identifier().as_str(), &mut seen_ids)?;
+        }
     }
 
     let known_speakers = extract_known_speakers(document);
 
     for block in document.text().body().blocks() {
-        process_body_block(block, sink, known_speakers.as_ref())?;
+        match block {
+            BodyBlock::Paragraph(paragraph) => {
+                if let Some(identifier) = paragraph.id() {
+                    record_id(identifier.as_str(), &mut seen_ids)?;
+                }
+            }
+            BodyBlock::Utterance(utterance) => {
+                if let Some(identifier) = utterance.id() {
+                    record_id(identifier.as_str(), &mut seen_ids)?;
+                }
+
+                validate_speaker_reference(utterance, known_speakers.as_ref())?;
+            }
+        }
     }
 
     Ok(())
 }
 
-fn extract_known_speakers(document: &TeiDocument) -> Option<HashSet<&str>> {
+fn extract_known_speakers(document: &TeiDocument) -> Option<HashSet<String>> {
     document.header().profile_desc().map(|profile| {
         profile
             .speakers()
             .iter()
-            .map(SpeakerName::as_str)
+            .map(|name| name.as_str().to_owned())
             .collect::<HashSet<_>>()
     })
 }
 
-fn process_body_block<'doc>(
-    block: &'doc BodyBlock,
-    sink: &mut HashSet<&'doc str>,
-    known_speakers: Option<&HashSet<&'doc str>>,
-) -> Result<(), ValidationError> {
-    match block {
-        BodyBlock::Paragraph(paragraph) => process_paragraph(paragraph, sink),
-        BodyBlock::Utterance(utterance) => process_utterance(utterance, sink, known_speakers),
-    }
-}
-
-fn process_paragraph<'doc>(
-    paragraph: &'doc crate::text::P,
-    sink: &mut HashSet<&'doc str>,
-) -> Result<(), ValidationError> {
-    if let Some(identifier) = paragraph.id() {
-        record_id(identifier.as_str(), sink)?;
-    }
-    Ok(())
-}
-
-fn process_utterance<'doc>(
-    utterance: &'doc crate::text::Utterance,
-    sink: &mut HashSet<&'doc str>,
-    known_speakers: Option<&HashSet<&'doc str>>,
-) -> Result<(), ValidationError> {
-    if let Some(identifier) = utterance.id() {
-        record_id(identifier.as_str(), sink)?;
-    }
-
-    validate_speaker_reference(utterance, known_speakers)?;
-
-    Ok(())
-}
-
 fn validate_speaker_reference(
     utterance: &crate::text::Utterance,
-    known_speakers: Option<&HashSet<&str>>,
+    known_speakers: Option<&HashSet<String>>,
 ) -> Result<(), ValidationError> {
     // Early return if no cast list exists - speakers are allowed without validation
     let Some(speakers) = known_speakers else {
@@ -126,8 +95,7 @@ fn validate_speaker_reference(
         return Ok(());
     };
 
-    // Check if speaker is declared in the cast
-    if is_speaker_declared(speakers, speaker.as_str()) {
+    if speakers.contains(speaker.as_str()) {
         return Ok(());
     }
 
@@ -136,24 +104,8 @@ fn validate_speaker_reference(
     })
 }
 
-/// Returns true if the speaker is declared in the cast.
-fn is_speaker_declared(speakers: &HashSet<&str>, speaker: &str) -> bool {
-    speakers.contains(speaker)
-}
-
-fn collect_annotation_system_ids<'doc>(
-    encoding: &'doc EncodingDesc,
-    sink: &mut HashSet<&'doc str>,
-) -> Result<(), ValidationError> {
-    for system in encoding.annotation_systems() {
-        record_id(system.identifier().as_str(), sink)?;
-    }
-
-    Ok(())
-}
-
-fn record_id<'doc>(value: &'doc str, sink: &mut HashSet<&'doc str>) -> Result<(), ValidationError> {
-    if sink.insert(value) {
+fn record_id(value: &str, sink: &mut HashSet<String>) -> Result<(), ValidationError> {
+    if sink.insert(value.to_owned()) {
         Ok(())
     } else {
         Err(ValidationError::DuplicateXmlId {

@@ -1,6 +1,6 @@
 //! Behaviour-driven tests for document-level validation.
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
@@ -19,11 +19,9 @@ impl ValidationState {
         self.clear_error();
     }
 
-    fn document(&self) -> Result<TeiDocument> {
-        self.document
-            .borrow()
-            .clone()
-            .context("scenario should configure the TEI document")
+    fn document(&self) -> Result<std::cell::Ref<'_, TeiDocument>> {
+        std::cell::Ref::filter_map(self.document.borrow(), Option::as_ref)
+            .map_err(|_| anyhow!("scenario should configure the TEI document"))
     }
 
     fn update_document<F>(&self, updater: F) -> Result<()>
@@ -163,6 +161,12 @@ fn validation_fails_with(
     message: String,
 ) -> Result<()> {
     let error = state.last_error().context("expected a validation error")?;
+
+    ensure!(
+        matches!(error, TeiError::Validation(_)),
+        "expected validation error to be TeiError::Validation, found '{error}'"
+    );
+
     let actual = error.to_string();
     ensure!(
         actual.contains(&message),
