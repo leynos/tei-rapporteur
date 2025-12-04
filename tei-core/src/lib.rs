@@ -10,6 +10,7 @@
 mod header;
 mod text;
 mod title;
+mod validation;
 
 pub use header::{
     AnnotationSystem, AnnotationSystemId, EncodingDesc, FileDesc, HeaderValidationError,
@@ -21,6 +22,7 @@ pub use text::{
     SpeakerValidationError, TeiBody, TeiText, Utterance, XmlId,
 };
 pub use title::{DocumentTitle, DocumentTitleError};
+pub use validation::ValidationError;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -44,6 +46,9 @@ pub enum TeiError {
     /// Wrapper around [`SpeakerValidationError`] values.
     #[error(transparent)]
     Speaker(#[from] SpeakerValidationError),
+    /// Wrapper around [`ValidationError`] values.
+    #[error(transparent)]
+    Validation(#[from] ValidationError),
     /// XML parsing or serialisation failed.
     #[error("XML processing error: {message}")]
     Xml {
@@ -118,6 +123,16 @@ impl TeiDocument {
     pub const fn title(&self) -> &DocumentTitle {
         self.header.file_desc().title()
     }
+
+    /// Validates document-wide invariants.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TeiError::Validation`] when duplicated identifiers or
+    /// unknown speaker references are detected.
+    pub fn validate(&self) -> Result<(), TeiError> {
+        Ok(validation::validate_document(self)?)
+    }
 }
 
 #[cfg(test)]
@@ -176,6 +191,19 @@ mod tests {
         assert!(matches!(
             error,
             TeiError::Speaker(SpeakerValidationError::Empty)
+        ));
+    }
+
+    #[test]
+    fn converts_validation_error_into_tei_error() {
+        let error: TeiError = ValidationError::DuplicateXmlId {
+            id: String::from("dup"),
+        }
+        .into();
+
+        assert!(matches!(
+            error,
+            TeiError::Validation(ValidationError::DuplicateXmlId { id }) if id == "dup"
         ));
     }
 
