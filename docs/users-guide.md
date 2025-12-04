@@ -16,8 +16,12 @@ available today and how to exercise it.
   as deprecated shims for existing callers. `TeiDocument` now exposes
   `validate()` to enforce document-wide rules: it rejects duplicate `xml:id`
   values across annotation systems, paragraphs, and utterances, and ensures
-  utterance speakers appear in the profile cast when it exists. Violations
-  surface as `TeiError::Validation`.
+  utterance speakers appear in the profile cast when it exists. An empty cast
+  still counts as declared—every `who` fails until the speakers are populated—
+  whereas the absence of a cast allows speaker references so drafts can be
+  validated incrementally. Identifier checks span the header as well, catching
+  clashes between annotation systems and body blocks. Violations surface as
+  `TeiError::Validation`.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,

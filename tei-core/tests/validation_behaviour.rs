@@ -4,7 +4,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{P, ProfileDesc, TeiDocument, TeiError, Utterance};
+use tei_core::{AnnotationSystem, EncodingDesc, P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
 
 #[derive(Default)]
@@ -102,6 +102,27 @@ fn the_profile_includes_speaker(
     state.update_document(|document| add_speaker(document, speaker.as_str()))
 }
 
+#[given("the profile is declared but empty")]
+fn the_profile_is_declared_but_empty(
+    #[from(validated_state)] state: &ValidationState,
+) -> Result<()> {
+    state.update_document(|document| Ok(declare_empty_profile(document)))
+}
+
+#[given("the encoding includes annotation system \"{identifier}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
+fn the_encoding_includes_annotation_system(
+    #[from(validated_state)] state: &ValidationState,
+    identifier: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        add_annotation_system(document, identifier.as_str(), "annotations")
+    })
+}
+
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
 #[expect(
     clippy::needless_pass_by_value,
@@ -175,6 +196,15 @@ fn validation_fails_with(
     Ok(())
 }
 
+fn declare_empty_profile(document: &TeiDocument) -> TeiDocument {
+    let header = document
+        .header()
+        .clone()
+        .with_profile_desc(ProfileDesc::new());
+
+    TeiDocument::new(header, document.text().clone())
+}
+
 fn add_speaker(document: &TeiDocument, speaker: &str) -> Result<TeiDocument> {
     let mut profile = document
         .header()
@@ -220,6 +250,25 @@ fn add_utterance(
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
+fn add_annotation_system(
+    document: &TeiDocument,
+    identifier: &str,
+    description: &str,
+) -> Result<TeiDocument> {
+    let mut encoding = document
+        .header()
+        .encoding_desc()
+        .cloned()
+        .unwrap_or_else(EncodingDesc::new);
+    let system = AnnotationSystem::new(identifier, description)
+        .context("annotation system should validate")?;
+    encoding.add_annotation_system(system);
+
+    let header = document.header().clone().with_encoding_desc(encoding);
+
+    Ok(TeiDocument::new(header, document.text().clone()))
+}
+
 #[scenario(path = "tests/features/validation.feature", index = 0)]
 fn accepts_unique_ids_and_declared_speakers(
     #[from(validated_state)] _: ValidationState,
@@ -237,7 +286,7 @@ fn rejects_duplicate_identifiers(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 2)]
-fn rejects_unknown_speakers(
+fn rejects_header_body_identifier_clashes(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
@@ -245,6 +294,22 @@ fn rejects_unknown_speakers(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 3)]
+fn rejects_unknown_speakers(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
+#[scenario(path = "tests/features/validation.feature", index = 4)]
+fn rejects_speakers_when_cast_is_empty(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
+#[scenario(path = "tests/features/validation.feature", index = 5)]
 fn allows_speakers_without_cast(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
