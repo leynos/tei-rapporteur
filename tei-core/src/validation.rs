@@ -32,7 +32,18 @@ pub enum ValidationError {
     },
 }
 
-/// Validates invariants that span the full TEI document.
+/// Validates document-wide invariants for a [`TeiDocument`].
+///
+/// Checks that all `xml:id` values are unique across annotation systems,
+/// paragraphs, and utterances, and that utterance speaker references match the
+/// declared cast list when present.
+///
+/// # Errors
+///
+/// Returns [`ValidationError::DuplicateXmlId`] if any `xml:id` appears more
+/// than once. Returns [`ValidationError::UnknownSpeaker`] if an utterance
+/// references a speaker not declared in the profile description's cast list
+/// (when a cast has been provided).
 pub(crate) fn validate_document(document: &TeiDocument) -> Result<(), ValidationError> {
     let mut seen_ids: HashSet<&str> = HashSet::new();
 
@@ -115,10 +126,6 @@ fn validate_speaker_reference(
         return Ok(());
     };
 
-    if speakers.is_empty() {
-        return Ok(());
-    }
-
     // Check if speaker is declared in the cast
     if is_speaker_declared(speakers, speaker.as_str()) {
         return Ok(());
@@ -129,9 +136,9 @@ fn validate_speaker_reference(
     })
 }
 
-/// Returns true if the speaker is declared in a non-empty cast list.
+/// Returns true if the speaker is declared in the cast.
 fn is_speaker_declared(speakers: &HashSet<&str>, speaker: &str) -> bool {
-    !speakers.is_empty() && speakers.contains(speaker)
+    speakers.contains(speaker)
 }
 
 fn collect_annotation_system_ids<'doc>(
@@ -283,7 +290,7 @@ mod tests {
     }
 
     #[rstest]
-    fn treats_empty_cast_as_unknown(mut base_header: TeiHeader) {
+    fn rejects_speakers_when_cast_is_empty(mut base_header: TeiHeader) {
         base_header = base_header.with_profile_desc(ProfileDesc::new());
 
         let utterance = Utterance::from_text_segments(Some("ghost"), ["Boo"])
@@ -292,7 +299,7 @@ mod tests {
 
         let document = TeiDocument::new(base_header, text);
 
-        assert!(validate_document(&document).is_ok());
+        assert!(validate_document(&document).is_err());
     }
 
     #[rstest]
