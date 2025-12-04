@@ -166,7 +166,7 @@ fn record_id<'doc>(value: &'doc str, sink: &mut HashSet<&'doc str>) -> Result<()
 mod tests {
     use super::*;
     use crate::{
-        header::{EncodingDesc, FileDesc, ProfileDesc, TeiHeader},
+        header::{AnnotationSystem, EncodingDesc, FileDesc, ProfileDesc, TeiHeader},
         text::{BodyBlock, P, TeiBody, TeiText, Utterance},
         title::DocumentTitle,
     };
@@ -256,6 +256,32 @@ mod tests {
 
         let document = TeiDocument::new(base_header, text);
 
+        let result = validate_document(&document);
+
+        assert_eq!(
+            result,
+            Err(ValidationError::DuplicateXmlId {
+                id: String::from("shared"),
+            })
+        );
+    }
+
+    #[rstest]
+    fn rejects_header_body_duplicate_xml_ids(base_header: TeiHeader) {
+        let mut encoding = EncodingDesc::new();
+        let system = AnnotationSystem::new("shared", "annotations")
+            .expect("annotation system id should validate");
+        encoding.add_annotation_system(system);
+        let header = base_header.with_encoding_desc(encoding);
+
+        let mut paragraph =
+            P::from_text_segments(["Hello"]).expect("paragraph should accept content");
+        paragraph
+            .set_id("shared")
+            .expect("paragraph identifier should validate");
+        let text = TeiText::new(TeiBody::new([BodyBlock::Paragraph(paragraph)]));
+
+        let document = TeiDocument::new(header, text);
         let result = validate_document(&document);
 
         assert_eq!(
