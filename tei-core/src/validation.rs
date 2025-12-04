@@ -213,7 +213,7 @@ mod tests {
 
     #[rstest]
     fn accepts_unique_identifiers_and_known_speakers(
-        mut base_header: TeiHeader,
+        base_header: TeiHeader,
         encoding: EncodingDesc,
         paragraph_with_id: P,
         utterance_with_id: Utterance,
@@ -222,15 +222,16 @@ mod tests {
         profile
             .add_speaker("host")
             .expect("speaker should validate");
-        base_header = base_header.with_profile_desc(profile);
-        base_header = base_header.with_encoding_desc(encoding);
+        let header_with_cast = base_header
+            .with_profile_desc(profile)
+            .with_encoding_desc(encoding);
 
         let text = TeiText::new(TeiBody::new([
             BodyBlock::Paragraph(paragraph_with_id),
             BodyBlock::Utterance(utterance_with_id),
         ]));
 
-        let document = TeiDocument::new(base_header, text);
+        let document = TeiDocument::new(header_with_cast, text);
 
         assert!(validate_document(&document).is_ok());
     }
@@ -266,18 +267,18 @@ mod tests {
     }
 
     #[rstest]
-    fn rejects_unknown_speaker_references_when_profile_exists(mut base_header: TeiHeader) {
+    fn rejects_unknown_speaker_references_when_profile_exists(base_header: TeiHeader) {
         let mut profile = ProfileDesc::new();
         profile
             .add_speaker("known")
             .expect("speaker should validate");
-        base_header = base_header.with_profile_desc(profile);
+        let header_with_cast = base_header.with_profile_desc(profile);
 
         let utterance = Utterance::from_text_segments(Some("unknown"), ["Hi there"])
             .expect("utterance should accept content");
         let text = TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)]));
 
-        let document = TeiDocument::new(base_header, text);
+        let document = TeiDocument::new(header_with_cast, text);
 
         let result = validate_document(&document);
 
@@ -290,16 +291,23 @@ mod tests {
     }
 
     #[rstest]
-    fn rejects_speakers_when_cast_is_empty(mut base_header: TeiHeader) {
-        base_header = base_header.with_profile_desc(ProfileDesc::new());
+    fn rejects_speakers_when_cast_is_empty(base_header: TeiHeader) {
+        let header_with_empty_cast = base_header.with_profile_desc(ProfileDesc::new());
 
         let utterance = Utterance::from_text_segments(Some("ghost"), ["Boo"])
             .expect("utterance should accept content");
         let text = TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)]));
 
-        let document = TeiDocument::new(base_header, text);
+        let document = TeiDocument::new(header_with_empty_cast, text);
 
-        assert!(validate_document(&document).is_err());
+        let result = validate_document(&document);
+
+        assert_eq!(
+            result,
+            Err(ValidationError::UnknownSpeaker {
+                speaker: String::from("ghost"),
+            })
+        );
     }
 
     #[rstest]
