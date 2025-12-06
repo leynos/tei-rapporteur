@@ -210,6 +210,10 @@ fn validation_fails_with(
     Ok(())
 }
 
+/// Builds a new document whose header declares an empty profile.
+///
+/// Tests use this to confirm speaker references fail validation when a cast
+/// exists but contains no speakers.
 fn declare_empty_profile(document: &TeiDocument) -> TeiDocument {
     let header = document
         .header()
@@ -283,6 +287,8 @@ fn add_annotation_system(
     Ok(TeiDocument::new(header, document.text().clone()))
 }
 
+// Scenario indices are coupled to tests/features/validation.feature ordering.
+// Update indices if scenarios are reordered or new ones inserted.
 #[scenario(path = "tests/features/validation.feature", index = 0)]
 fn accepts_unique_ids_and_declared_speakers(
     #[from(validated_state)] _: ValidationState,
