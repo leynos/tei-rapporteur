@@ -123,6 +123,20 @@ fn the_encoding_includes_annotation_system(
     })
 }
 
+#[given("the encoding also includes annotation system \"{identifier}\"")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "rstest_bdd supplies owned Strings for captured step parameters."
+)]
+fn the_encoding_also_includes_annotation_system(
+    #[from(validated_state)] state: &ValidationState,
+    identifier: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        add_annotation_system(document, identifier.as_str(), "annotations")
+    })
+}
+
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
 #[expect(
     clippy::needless_pass_by_value,
@@ -294,7 +308,7 @@ fn rejects_header_body_identifier_clashes(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 3)]
-fn rejects_unknown_speakers(
+fn rejects_header_annotation_system_clashes(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
@@ -302,7 +316,7 @@ fn rejects_unknown_speakers(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 4)]
-fn rejects_speakers_when_cast_is_empty(
+fn rejects_unknown_speakers(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
@@ -310,6 +324,14 @@ fn rejects_speakers_when_cast_is_empty(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 5)]
+fn rejects_speakers_when_cast_is_empty(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
+#[scenario(path = "tests/features/validation.feature", index = 6)]
 fn allows_speakers_without_cast(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,

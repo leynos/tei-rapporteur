@@ -26,6 +26,13 @@ Feature: TEI document validation
     And I validate the document
     Then validation fails with "duplicate xml:id 'shared'"
 
+  Scenario: Rejecting duplicate header annotation system identifiers
+    Given a TEI document titled "Night Vale"
+    And the encoding includes annotation system "shared"
+    And the encoding also includes annotation system "shared"
+    When I validate the document
+    Then validation fails with "duplicate xml:id 'shared'"
+
   Scenario: Rejecting unknown speaker references
     Given a TEI document titled "Night Vale"
     And the profile includes speaker "host"

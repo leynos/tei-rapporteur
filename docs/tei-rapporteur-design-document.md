@@ -1228,7 +1228,7 @@ the Episodic profile:
 Behaviour-driven scenarios now exercise both body-only identifier clashes and
 collisions between header annotation systems and body blocks. The empty-cast
 edge case is encoded in the same suite: an explicitly declared but empty cast
-rejects all `who` references, whereas the absence of a cast allows them so
+rejects all `who` references, whereas the absence of a cast allows them, so
 draft transcripts can be validated incrementally.
 
 These checks keep documents internally consistent without requiring an external
