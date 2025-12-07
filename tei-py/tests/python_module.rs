@@ -18,6 +18,8 @@ mod steps_dict;
 mod steps_msgpack;
 #[path = "python_module/steps_structs.rs"]
 mod steps_structs;
+#[path = "python_module/steps_validation.rs"]
+mod steps_validation;
 #[path = "python_module/steps_xml.rs"]
 mod steps_xml;
 #[path = "python_module/test_utils/mod.rs"]

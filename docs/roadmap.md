@@ -136,7 +136,7 @@ guarantee data correctness.
 
 - [x] Implement the `TeiDocument::validate()` method in `tei-core` to perform
       internal checks (e.g., unique `xml:id`s, valid cross-references).
-- [ ] Expose the `validate()` method as a function in the `tei-py` Python API,
+- [x] Expose the `validate()` method as a function in the `tei-py` Python API,
       which raises a `ValueError` on failure.
 - [ ] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
       it all) specification.

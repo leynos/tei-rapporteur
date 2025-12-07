@@ -75,6 +75,16 @@ mod document_methods {
         pub fn emit_title_markup(&self) -> PyResult<String> {
             wrap_tei_result(emit_title_markup(self.inner.title().as_str()))
         }
+
+        /// Validates document-wide invariants.
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when duplicated identifiers
+        /// or unknown speaker references are detected.
+        pub fn validate(&self) -> PyResult<()> {
+            wrap_tei_result(self.inner.validate())
+        }
     }
 }
 

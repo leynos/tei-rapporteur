@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use pyo3_serde::{from_pyobject, to_pyobject};
 use rstest_bdd_macros::{given, scenario, when};
 use serde_json::{Value, json};
-use tei_core::TeiDocument;
+use tei_core::{P, ProfileDesc, TeiDocument, Utterance};
 
 const _: fn() -> PythonModuleState = python_state;
 
@@ -57,6 +57,55 @@ pub(super) fn i_provide_a_dictionary_payload_with_a_blank_title(
         title.clear();
         title.push_str("   ");
     }
+    state.store_dict_payload(payload);
+    Ok(())
+}
+
+#[given("I provide a dictionary payload with duplicate identifiers")]
+pub(super) fn i_provide_a_dictionary_payload_with_duplicate_identifiers(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    let document =
+        TeiDocument::from_title_str("Test").context("test title should construct a fixture")?;
+    let mut text = document.text().clone();
+
+    let mut p1 = P::from_text_segments(["Hello"]).context("paragraph should accept content")?;
+    p1.set_id("dup").context("identifier should validate")?;
+
+    let mut p2 = P::from_text_segments(["World"]).context("paragraph should accept content")?;
+    p2.set_id("dup").context("identifier should validate")?;
+
+    text.body_mut().push_paragraph(p1);
+    text.body_mut().push_paragraph(p2);
+
+    let invalid_doc = TeiDocument::new(document.header().clone(), text);
+    let payload =
+        serde_json::to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
+    state.store_dict_payload(payload);
+    Ok(())
+}
+
+#[given("I provide a dictionary payload with an unknown speaker")]
+pub(super) fn i_provide_a_dictionary_payload_with_unknown_speaker(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    let document =
+        TeiDocument::from_title_str("Test").context("test title should construct a fixture")?;
+
+    let mut profile = ProfileDesc::new();
+    profile
+        .add_speaker("host")
+        .context("speaker should validate")?;
+    let header = document.header().clone().with_profile_desc(profile);
+
+    let mut text = document.text().clone();
+    let utterance = Utterance::from_text_segments(Some("guest"), ["Hi"])
+        .context("utterance should accept content")?;
+    text.body_mut().push_utterance(utterance);
+
+    let invalid_doc = TeiDocument::new(header, text);
+    let payload =
+        serde_json::to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
