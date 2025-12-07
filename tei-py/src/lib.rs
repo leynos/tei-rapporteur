@@ -31,7 +31,7 @@ mod structs;
 pub mod test_support;
 pub use bindings::Document;
 pub use bindings::py_exports::{
-    emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack,
+    emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack, validate,
 };
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
@@ -63,6 +63,10 @@ define_conversion_pair! {
 define_conversion_pair! {
     from document_from_xml(xml: &str) -> TeiError { parse_document_xml(xml) };
     to document_to_xml(document: &TeiDocument) -> String, TeiError { emit_document_xml(document) }
+}
+
+fn document_validate(document: &TeiDocument) -> Result<(), TeiError> {
+    document.validate()
 }
 
 pub(crate) fn document_from_dict(
