@@ -118,9 +118,7 @@ fn the_encoding_includes_annotation_system(
     #[from(validated_state)] state: &ValidationState,
     identifier: String,
 ) -> Result<()> {
-    state.update_document(|document| {
-        add_annotation_system(document, identifier.as_str(), "annotations")
-    })
+    add_annotation_system_step(state, &identifier)
 }
 
 #[given("the encoding also includes annotation system \"{identifier}\"")]
@@ -132,9 +130,7 @@ fn the_encoding_also_includes_annotation_system(
     #[from(validated_state)] state: &ValidationState,
     identifier: String,
 ) -> Result<()> {
-    state.update_document(|document| {
-        add_annotation_system(document, identifier.as_str(), "annotations")
-    })
+    add_annotation_system_step(state, &identifier)
 }
 
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
@@ -213,7 +209,8 @@ fn validation_fails_with(
 /// Builds a new document whose header declares an empty profile.
 ///
 /// Tests use this to confirm speaker references fail validation when a cast
-/// exists but contains no speakers.
+/// exists but contains no speakers. The helper is infallible, so it returns a
+/// bare `TeiDocument` to avoid needless wrapping lint noise.
 fn declare_empty_profile(document: &TeiDocument) -> TeiDocument {
     let header = document
         .header()
@@ -268,6 +265,10 @@ fn add_utterance(
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
+fn add_annotation_system_step(state: &ValidationState, identifier: &str) -> Result<()> {
+    state.update_document(|document| add_annotation_system(document, identifier, "annotations"))
+}
+
 fn add_annotation_system(
     document: &TeiDocument,
     identifier: &str,
@@ -287,8 +288,9 @@ fn add_annotation_system(
     Ok(TeiDocument::new(header, document.text().clone()))
 }
 
-// Scenario indices are coupled to tests/features/validation.feature ordering.
-// Update indices if scenarios are reordered or new ones inserted.
+// Scenario indices are coupled to validation.feature ordering. Update the
+// indices below if scenarios are reordered or inserted; the guard test at the
+// end of this module ensures the names stay aligned with the feature file.
 #[scenario(path = "tests/features/validation.feature", index = 0)]
 fn accepts_unique_ids_and_declared_speakers(
     #[from(validated_state)] _: ValidationState,
@@ -343,4 +345,35 @@ fn allows_speakers_without_cast(
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
     expect_validated_state(validated_state, "validation");
+}
+
+#[test]
+fn validation_feature_scenario_order_matches_expectations() {
+    use gherkin::Feature;
+
+    let feature = Feature::parse_path(
+        "tests/features/validation.feature",
+        gherkin::GherkinEnv::default(),
+    )
+    .expect("parse validation.feature");
+    let names: Vec<&str> = feature
+        .scenarios
+        .iter()
+        .map(|scenario| scenario.name.as_str())
+        .collect();
+
+    let expected = [
+        "Accepting unique ids and declared speakers",
+        "Rejecting duplicate xml:id values",
+        "Rejecting header and body identifier clashes",
+        "Rejecting duplicate header annotation system identifiers",
+        "Rejecting unknown speaker references",
+        "Rejecting speakers when the cast is empty",
+        "Allowing speakers when the cast list is absent",
+    ];
+
+    assert_eq!(
+        names, expected,
+        "Scenario indices in validation_behaviour.rs must stay aligned with validation.feature"
+    );
 }

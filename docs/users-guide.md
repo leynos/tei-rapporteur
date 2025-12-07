@@ -18,7 +18,7 @@ available today and how to exercise it.
   values across annotation systems, paragraphs, and utterances, and ensures
   utterance speakers appear in the profile cast when it exists. An empty cast
   still counts as declared—every `who` fails until the speakers are populated—
-  whereas the absence of a cast allows speaker references so drafts can be
+  whereas the absence of a cast allows speaker references, so drafts can be
   validated incrementally. Identifier checks span the header as well, catching
   clashes between annotation systems and body blocks. Violations surface as
   `TeiError::Validation`.
