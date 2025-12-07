@@ -134,7 +134,7 @@ serialization formats, and introduces advanced capabilities.
 This step implements the internal and external validation strategies to
 guarantee data correctness.
 
-- [ ] Implement the `TeiDocument::validate()` method in `tei-core` to perform
+- [x] Implement the `TeiDocument::validate()` method in `tei-core` to perform
       internal checks (e.g., unique `xml:id`s, valid cross-references).
 - [ ] Expose the `validate()` method as a function in the `tei-py` Python API,
       which raises a `ValueError` on failure.

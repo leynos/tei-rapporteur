@@ -1225,6 +1225,12 @@ the Episodic profile:
   speaker reference will fail validation until the cast is populated. If no
   cast is present, speaker references are accepted without cross-checking.
 
+Behaviour-driven scenarios now exercise both body-only identifier clashes and
+collisions between header annotation systems and body blocks. The empty-cast
+edge case is encoded in the same suite: an explicitly declared but empty cast
+rejects all `who` references, whereas the absence of a cast allows them, so
+draft transcripts can be validated incrementally.
+
 These checks keep documents internally consistent without requiring an external
 schema.
 

@@ -19,3 +19,4 @@ rstest-bdd = { workspace = true }
 rstest-bdd-macros = { workspace = true }
 serde_json = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
+gherkin = "0.14.0"

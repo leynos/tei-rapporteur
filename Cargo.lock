@@ -1205,6 +1205,7 @@ name = "tei-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "gherkin",
  "rstest",
  "rstest-bdd",
  "rstest-bdd-macros",
