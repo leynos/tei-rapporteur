@@ -34,13 +34,13 @@ pub(super) fn validation_succeeds(#[from(python_state)] state: &PythonModuleStat
 }
 
 /// Scenario: Validate a well-formed Document.
-#[scenario(path = "tests/features/python_module.feature", index = 19)]
+#[scenario(path = "tests/features/python_module.feature", index = 20)]
 pub fn validates_well_formed_document(#[from(python_state)] _: PythonModuleState) {}
 
 /// Scenario: Reject Documents with duplicate xml:id values.
-#[scenario(path = "tests/features/python_module.feature", index = 20)]
+#[scenario(path = "tests/features/python_module.feature", index = 21)]
 pub fn rejects_duplicate_identifiers(#[from(python_state)] _: PythonModuleState) {}
 
 /// Scenario: Reject Documents with unknown speaker references.
-#[scenario(path = "tests/features/python_module.feature", index = 21)]
+#[scenario(path = "tests/features/python_module.feature", index = 22)]
 pub fn rejects_unknown_speakers(#[from(python_state)] _: PythonModuleState) {}
