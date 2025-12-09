@@ -184,3 +184,32 @@ xml = tei.emit_xml(doc)
 The BDD tests now cover successful decoding, encoding, XML parsing, emission,
 and the corresponding error paths, ensuring the entry points remain reliable as
 the API expands.
+
+### Document validation
+
+The `Document` class exposes a `validate()` method that performs document-wide
+integrity checks. It verifies that all `xml:id` values are unique across the
+document (including annotation systems, paragraphs, and utterances) and that
+utterance speaker references match the declared cast list when present.
+
+```python
+import tei_rapporteur as tei
+
+doc = tei.from_dict(payload)
+try:
+    doc.validate()
+    print("Document is valid")
+except ValueError as e:
+    print(f"Validation failed: {e}")
+```
+
+Validation raises `ValueError` with a descriptive message when:
+
+- Duplicate `xml:id` values are detected across the document
+- An utterance references a speaker not declared in the profile cast
+- A speaker is referenced when the profile has an empty cast (an empty cast
+  still counts as declared, so all speaker references fail until the cast is
+  populated)
+
+Documents without a profile cast allow speaker references without validation,
+enabling incremental validation of draft documents.

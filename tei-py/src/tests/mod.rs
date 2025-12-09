@@ -12,6 +12,7 @@ use serde_json::json;
 mod bindings_tests;
 mod dict;
 mod structs_tests;
+mod validation;
 mod xml;
 
 #[test]

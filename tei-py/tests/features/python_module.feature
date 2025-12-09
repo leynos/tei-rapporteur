@@ -116,3 +116,23 @@ Feature: tei_rapporteur Python module
     And I encode a MessagePack document missing required fields
     When I decode the MessagePack payload to an Episode struct
     Then construction fails mentioning "body"
+
+  Scenario: Validate a well-formed Document
+    Given the tei_rapporteur Python module is initialised
+    When I construct a Document titled "Wolf 359"
+    And I validate the constructed Document
+    Then validation succeeds
+
+  Scenario: Reject Documents with duplicate xml:id values
+    Given the tei_rapporteur Python module is initialised
+    And I provide a dictionary payload with duplicate identifiers
+    When I decode the dictionary payload
+    And I validate the constructed Document
+    Then construction fails mentioning "duplicate xml:id"
+
+  Scenario: Reject Documents with unknown speaker references
+    Given the tei_rapporteur Python module is initialised
+    And I provide a dictionary payload with an unknown speaker
+    When I decode the dictionary payload
+    And I validate the constructed Document
+    Then construction fails mentioning "is not declared in the profile"
