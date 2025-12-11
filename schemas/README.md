@@ -1,8 +1,23 @@
 # TEI Episodic Profile Schema
 
 This directory contains the ODD (One Document Does it all) specification for the
-TEI Episodic Profile, a constrained subset of TEI P5 tailored for podcast
-scripting and transcription use cases.
+Text Encoding Initiative (TEI) Episodic Profile, a constrained subset of TEI P5
+tailored for podcast scripting and transcription use cases.
+
+## Target TEI Version
+
+This profile is based on **TEI P5 version 4.8.0** (released 2024) and uses the
+following TEI modules:
+
+- `tei` – Core infrastructure
+- `core` – Core elements (p, hi, title, etc.)
+- `header` – TEI header elements
+- `textstructure` – Text structure (text, body)
+- `spoken` – Spoken transcription (u, pause)
+- `namesdates` – Names and dates (listPerson, person)
+- `linking` – Linking mechanisms
+- `analysis` – Analysis elements (spanGrp, span)
+- `transcr` – Transcription elements (listAnnotation)
 
 ## Contents
 
@@ -33,35 +48,52 @@ schemas.
 
 ### Using TEI Stylesheets (Command Line)
 
-If the TEI Stylesheets are installed locally:
+The [TEI Stylesheets](https://github.com/TEIC/Stylesheets) provide XSLT
+transformations for processing ODD files. To install:
+
+```bash
+# Clone the TEI Stylesheets repository
+git clone https://github.com/TEIC/Stylesheets.git
+
+# Set the environment variable
+export TEI_STYLESHEETS=/path/to/Stylesheets
+```
+
+Then generate schemas using Saxon or another XSLT processor:
 
 ```bash
 # Generate Relax NG schema
-saxon -xsl:$TEISTY/odds/odd2relax.xsl \
+saxon -xsl:$TEI_STYLESHEETS/odds/odd2relax.xsl \
       -s:tei-episodic-profile.odd \
       -o:tei-episodic-profile.rng
 
 # Generate Schematron rules
-saxon -xsl:$TEISTY/odds/odd2schematron.xsl \
+saxon -xsl:$TEI_STYLESHEETS/odds/odd2schematron.xsl \
       -s:tei-episodic-profile.odd \
       -o:tei-episodic-profile.sch
 ```
 
-Where `$TEISTY` points to the TEI Stylesheets installation directory.
-
 ## Validation
 
 Documents conforming to this profile can be validated against the generated
-Relax NG schema using tools such as `jing`:
+Relax NG schema using tools such as [jing](https://relaxng.org/jclark/jing.html):
 
 ```bash
 jing tei-episodic-profile.rng document.xml
 ```
 
-For Schematron validation, first compile the `.sch` to XSLT and then apply it:
+For Schematron validation, compile the `.sch` file to XSLT using the ISO
+Schematron skeleton (available from
+[schematron.com](https://schematron.com/front-page/the-schematron-skeleton-implementation/))
+and then apply it:
 
 ```bash
-saxon -xsl:iso_schematron_skeleton.xsl -s:tei-episodic-profile.sch -o:validator.xsl
+# Compile Schematron to XSLT validator
+saxon -xsl:iso_schematron_skeleton_for_saxon.xsl \
+      -s:tei-episodic-profile.sch \
+      -o:validator.xsl
+
+# Validate a document
 saxon -xsl:validator.xsl -s:document.xml
 ```
 
@@ -70,3 +102,5 @@ saxon -xsl:validator.xsl -s:document.xml
 - [TEI Guidelines](https://tei-c.org/release/doc/tei-p5-doc/en/html/)
 - [Getting Started with ODD](https://tei-c.org/guidelines/customization/getting-started-with-p5-odds/)
 - [Roma](https://roma.tei-c.org/) – Web tool for creating and editing ODDs
+- [TEI Stylesheets](https://github.com/TEIC/Stylesheets) – XSLT for ODD
+  processing

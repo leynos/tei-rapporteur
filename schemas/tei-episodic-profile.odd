@@ -28,6 +28,9 @@
         authoring, speaker attribution, and stand-off annotation for analytical
         tools such as cliché detection, pronunciation QA, and accent drift
         detection.</p>
+        <p>This profile is based on TEI P5 version 4.8.0 (released 2024) and
+        uses the following modules: tei, core, header, textstructure, spoken,
+        namesdates, linking, analysis, and transcr.</p>
       </projectDesc>
     </encodingDesc>
     <revisionDesc>
