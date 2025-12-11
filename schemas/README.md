@@ -21,7 +21,7 @@ following TEI modules:
 
 ## Contents
 
-- `tei-episodic-profile.odd` – The ODD customisation defining allowed elements,
+- `tei-episodic-profile.odd` – The ODD customization defining allowed elements,
   attributes, and validation constraints.
 
 ## About the Profile
@@ -44,14 +44,14 @@ attribute of utterances. For example:
 <u who="host">Welcome to the show.</u>
 ```
 
-This differs from TEI's standard `data.pointer` pattern which uses hash
+This differs from TEI's standard `data.pointer` pattern, which uses hash
 prefixes (e.g., `who="#host"`). The profile does not support:
 
 - Hash-prefixed pointer references (`#host`)
 - Multi-valued speaker lists (`host guest`)
 - XPointer expressions
 
-Each utterance must reference exactly one speaker by their bare identifier as
+Each utterance must reference exactly one speaker by their bare identifier, as
 declared in `profileDesc/listPerson/person/@xml:id`.
 
 ## Generating Schemas
