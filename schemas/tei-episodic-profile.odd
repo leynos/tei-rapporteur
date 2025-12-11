@@ -314,7 +314,11 @@
               </attDef>
               <attDef ident="who" mode="change" usage="opt">
                 <desc>Reference to the speaker, which should match a declared
-                speaker in profileDesc when a cast list is present.</desc>
+                speaker in profileDesc when a cast list is present. This profile
+                uses bare identifiers (e.g., "host") rather than TEI-style
+                pointer references (e.g., "#host"). Multi-valued speaker lists
+                are not supported; each utterance must reference exactly one
+                speaker.</desc>
                 <datatype>
                   <dataRef key="teidata.text"/>
                 </datatype>

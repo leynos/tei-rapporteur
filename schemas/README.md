@@ -35,6 +35,25 @@ The TEI Episodic Profile supports:
 - **Inline elements**: emphasis (`<hi>`), pause markers (`<pause>`)
 - **Validation rules**: unique `xml:id` values, speaker cross-referencing
 
+### Speaker Reference Convention
+
+This profile uses **bare identifiers** for speaker references in the `@who`
+attribute of utterances. For example:
+
+```xml
+<u who="host">Welcome to the show.</u>
+```
+
+This differs from TEI's standard `data.pointer` pattern which uses hash
+prefixes (e.g., `who="#host"`). The profile does not support:
+
+- Hash-prefixed pointer references (`#host`)
+- Multi-valued speaker lists (`host guest`)
+- XPointer expressions
+
+Each utterance must reference exactly one speaker by their bare identifier as
+declared in `profileDesc/listPerson/person/@xml:id`.
+
 ## Generating Schemas
 
 The ODD can be processed by TEI tools to generate Relax NG and Schematron
@@ -82,10 +101,16 @@ Relax NG schema using tools such as [jing](https://relaxng.org/jclark/jing.html)
 jing tei-episodic-profile.rng document.xml
 ```
 
-For Schematron validation, compile the `.sch` file to XSLT using the ISO
-Schematron skeleton (available from
-[schematron.com](https://schematron.com/front-page/the-schematron-skeleton-implementation/))
-and then apply it:
+### Schematron Validation (XPath 2.0 Required)
+
+The Schematron constraints in this profile use XPath 2.0 functions (such as
+`exists()`). You must use an **XPath 2.0-capable processor** for Schematron
+validation. Saxon is recommended; XPath 1.0-only tools (such as jing's built-in
+Schematron support) cannot validate these constraints.
+
+Compile the `.sch` file to XSLT using the ISO Schematron skeleton (available
+from [schematron.com](https://schematron.com/front-page/the-schematron-skeleton-implementation/))
+and then apply it with Saxon:
 
 ```bash
 # Compile Schematron to XSLT validator
