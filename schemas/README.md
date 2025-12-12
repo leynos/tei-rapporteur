@@ -1,8 +1,8 @@
 # TEI Episodic Profile Schema
 
-This directory contains the ODD (One Document Does it all) specification for the
-Text Encoding Initiative (TEI) Episodic Profile, a constrained subset of TEI P5
-tailored for podcast scripting and transcription use cases.
+This directory contains the ODD (One Document Does it all) specification for
+the Text Encoding Initiative (TEI) Episodic Profile, a constrained subset of
+TEI P5 tailored for podcast scripting and transcription use cases.
 
 ## Target TEI Version
 
@@ -95,7 +95,8 @@ saxon -xsl:$TEI_STYLESHEETS/odds/odd2schematron.xsl \
 ## Validation
 
 Documents conforming to this profile can be validated against the generated
-Relax NG schema using tools such as [jing](https://relaxng.org/jclark/jing.html):
+Relax NG schema using tools such as
+[jing](https://relaxng.org/jclark/jing.html):
 
 ```bash
 jing tei-episodic-profile.rng document.xml
@@ -109,8 +110,7 @@ validation. Saxon is recommended; XPath 1.0-only tools (such as jing's built-in
 Schematron support) cannot validate these constraints.
 
 Compile the `.sch` file to XSLT using the ISO Schematron skeleton (available
-from [schematron.com](https://schematron.com/front-page/the-schematron-skeleton-implementation/))
-and then apply it with Saxon:
+from [schematron.com][schematron-skeleton]) and then apply it with Saxon:
 
 ```bash
 # Compile Schematron to XSLT validator
@@ -129,3 +129,6 @@ saxon -xsl:validator.xsl -s:document.xml
 - [Roma](https://roma.tei-c.org/) – Web tool for creating and editing ODDs
 - [TEI Stylesheets](https://github.com/TEIC/Stylesheets) – XSLT for ODD
   processing
+
+[schematron-skeleton]:
+https://schematron.com/front-page/the-schematron-skeleton-implementation/
