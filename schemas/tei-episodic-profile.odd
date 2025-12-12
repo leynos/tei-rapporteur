@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_odds.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0"
+     xmlns:sch="http://purl.oclc.org/dml/schematron"
+     xml:lang="en">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>TEI Episodic Profile</title>
+        <author>tei-rapporteur maintainers</author>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>Terragon Labs</publisher>
+        <availability>
+          <licence target="https://opensource.org/licenses/MIT">
+            MIT License
+          </licence>
+        </availability>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Created from the Rust data model in the tei-rapporteur library.</p>
+      </sourceDesc>
+    </fileDesc>
+    <encodingDesc>
+      <projectDesc>
+        <p>The TEI Episodic Profile is a constrained subset of TEI P5 designed
+        for podcast scripting and transcription use cases. It supports episode
+        authoring, speaker attribution, and stand-off annotation for analytical
+        tools such as cliché detection, pronunciation QA, and accent drift
+        detection.</p>
+        <p>This profile is based on TEI P5 version 4.8.0 (released 2024) and
+        uses the following modules: tei, core, header, textstructure, spoken,
+        namesdates, linking, analysis, and transcr.</p>
+      </projectDesc>
+    </encodingDesc>
+    <revisionDesc>
+      <change when="2025-12-10">Initial ODD specification created from Rust
+      implementation.</change>
+    </revisionDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div>
+        <head>Introduction</head>
+        <p>This ODD defines the TEI Episodic Profile, a focused subset of TEI P5
+        tailored to podcast-related use cases. The profile constrains the full
+        TEI schema to only the elements and attributes needed for episode
+        scripting, transcription, and analytical annotation.</p>
+
+        <p>The profile supports:</p>
+        <list>
+          <item>Header metadata including title, speaker declarations,
+          annotation system descriptions, and revision history</item>
+          <item>Body content structured as paragraphs and utterances with
+          optional speaker attribution</item>
+          <item>Mixed inline content including emphasis and pause markers</item>
+          <item>Validation constraints ensuring data integrity</item>
+        </list>
+      </div>
+
+      <div>
+        <head>Schema Specification</head>
+
+        <schemaSpec ident="tei_episodic" start="TEI" prefix="tei_"
+                    targetLang="en" docLang="en">
+
+          <!-- ============================================================ -->
+          <!-- Module References                                            -->
+          <!-- ============================================================ -->
+
+          <moduleRef key="tei"/>
+          <moduleRef key="core" include="p hi title note list item head"/>
+          <moduleRef key="header" include="teiHeader fileDesc titleStmt
+            publicationStmt sourceDesc profileDesc encodingDesc revisionDesc
+            change availability licence"/>
+          <moduleRef key="textstructure" include="TEI text body div"/>
+          <moduleRef key="spoken" include="u pause"/>
+          <moduleRef key="namesdates" include="listPerson person persName"/>
+          <moduleRef key="linking" include="ab"/>
+          <moduleRef key="analysis" include="spanGrp span"/>
+          <moduleRef key="transcr" include="listAnnotation"/>
+
+          <!-- ============================================================ -->
+          <!-- Root Element                                                 -->
+          <!-- ============================================================ -->
+
+          <elementSpec ident="TEI" mode="change">
+            <desc>Root element of a TEI Episodic document.</desc>
+            <content>
+              <sequence>
+                <elementRef key="teiHeader"/>
+                <elementRef key="text"/>
+              </sequence>
+            </content>
+          </elementSpec>
+
+          <!-- ============================================================ -->
+          <!-- Header Elements                                              -->
+          <!-- ============================================================ -->
+
+          <elementSpec ident="teiHeader" mode="change">
+            <desc>Contains metadata about the podcast episode.</desc>
+            <content>
+              <sequence>
+                <elementRef key="fileDesc"/>
+                <elementRef key="profileDesc" minOccurs="0"/>
+                <elementRef key="encodingDesc" minOccurs="0"/>
+                <elementRef key="revisionDesc" minOccurs="0"/>
+              </sequence>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="fileDesc" mode="change">
+            <desc>Contains bibliographic information about the episode.</desc>
+            <content>
+              <sequence>
+                <elementRef key="titleStmt"/>
+                <elementRef key="publicationStmt" minOccurs="0"/>
+                <elementRef key="sourceDesc" minOccurs="0"/>
+              </sequence>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="titleStmt" mode="change">
+            <desc>Groups information about the episode title.</desc>
+            <content>
+              <elementRef key="title"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="title" mode="change">
+            <desc>The episode title. Must not be empty.</desc>
+            <content>
+              <textNode/>
+            </content>
+            <constraintSpec ident="title-not-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:title">
+                  <sch:assert test="normalize-space(.) != ''">
+                    Title must not be empty or contain only whitespace.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="profileDesc" mode="change">
+            <desc>Contains information about the speakers (cast) and languages
+            used in the episode.</desc>
+            <content>
+              <sequence>
+                <elementRef key="listPerson" minOccurs="0"/>
+              </sequence>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="listPerson" mode="change">
+            <desc>Lists the speakers (cast members) appearing in the
+            episode.</desc>
+            <content>
+              <elementRef key="person" minOccurs="0" maxOccurs="unbounded"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="person" mode="change">
+            <desc>Describes a speaker in the episode.</desc>
+            <content>
+              <elementRef key="persName" minOccurs="0"/>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the speaker, referenced by
+                utterance @who attributes.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <elementSpec ident="encodingDesc" mode="change">
+            <desc>Documents annotation systems used in the episode, such as
+            cliché detection or pronunciation analysis tools.</desc>
+            <content>
+              <elementRef key="listAnnotation" minOccurs="0"
+                          maxOccurs="unbounded"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="listAnnotation" mode="change">
+            <desc>Describes an annotation system used to analyse the
+            episode.</desc>
+            <content>
+              <elementRef key="note" minOccurs="0"/>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="req">
+                <desc>Unique identifier for the annotation system.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="annotation-id-not-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:listAnnotation[@xml:id]">
+                  <sch:assert test="normalize-space(@xml:id) != ''">
+                    Annotation system xml:id must not be empty.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="revisionDesc" mode="change">
+            <desc>Records the revision history of the episode document.</desc>
+            <content>
+              <elementRef key="change" minOccurs="0" maxOccurs="unbounded"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="change" mode="change">
+            <desc>Documents a single revision to the episode.</desc>
+            <content>
+              <textNode/>
+            </content>
+            <attList>
+              <attDef ident="when" mode="change" usage="opt">
+                <desc>Date of the revision.</desc>
+                <datatype>
+                  <dataRef key="teidata.temporal.w3c"/>
+                </datatype>
+              </attDef>
+              <attDef ident="who" mode="change" usage="opt">
+                <desc>Person or tool responsible for the revision.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <!-- ============================================================ -->
+          <!-- Text Structure Elements                                      -->
+          <!-- ============================================================ -->
+
+          <elementSpec ident="text" mode="change">
+            <desc>Contains the episode script content.</desc>
+            <content>
+              <elementRef key="body"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="body" mode="change">
+            <desc>Contains the main content of the episode as a sequence of
+            paragraphs and utterances.</desc>
+            <content>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <elementRef key="p"/>
+                <elementRef key="u"/>
+              </alternate>
+            </content>
+          </elementSpec>
+
+          <!-- ============================================================ -->
+          <!-- Block-Level Elements                                         -->
+          <!-- ============================================================ -->
+
+          <elementSpec ident="p" mode="change">
+            <desc>A paragraph of narrative text.</desc>
+            <content>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <textNode/>
+                <elementRef key="hi"/>
+                <elementRef key="pause"/>
+              </alternate>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the paragraph.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="p-not-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:p">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
+                    Paragraph must contain non-whitespace text or a pause
+                    element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="u" mode="change">
+            <desc>An utterance representing spoken dialogue by a single
+            speaker.</desc>
+            <content>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <textNode/>
+                <elementRef key="hi"/>
+                <elementRef key="pause"/>
+              </alternate>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the utterance.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+              <attDef ident="who" mode="change" usage="opt">
+                <desc>Reference to the speaker, which should match a declared
+                speaker in profileDesc when a cast list is present. This profile
+                uses bare identifiers (e.g., "host") rather than TEI-style
+                pointer references (e.g., "#host"). Multi-valued speaker lists
+                are not supported; each utterance must reference exactly one
+                speaker.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="u-not-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:u">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
+                    Utterance must contain non-whitespace text or a pause
+                    element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <!-- ============================================================ -->
+          <!-- Inline Elements                                              -->
+          <!-- ============================================================ -->
+
+          <elementSpec ident="hi" mode="change">
+            <desc>Marks emphasised or otherwise distinguished text.</desc>
+            <content>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <textNode/>
+                <elementRef key="hi"/>
+                <elementRef key="pause"/>
+              </alternate>
+            </content>
+            <attList>
+              <attDef ident="rend" mode="change" usage="opt">
+                <desc>Rendering hint describing how the emphasis should be
+                displayed (e.g., "bold", "italic", "stress").</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="hi-not-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:hi">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
+                    Emphasis element must contain non-whitespace text or a
+                    pause element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="pause" mode="change">
+            <desc>Marks a pause in speech. This is an empty element that counts
+            as meaningful content.</desc>
+            <content>
+              <empty/>
+            </content>
+            <attList>
+              <attDef ident="dur" mode="change" usage="opt">
+                <desc>Duration of the pause, typically in ISO 8601 duration
+                format (e.g., "PT1S" for one second).</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="type" mode="change" usage="opt">
+                <desc>Classification of the pause (e.g., "breath", "long",
+                "dramatic").</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <!-- ============================================================ -->
+          <!-- Document-Wide Constraints                                    -->
+          <!-- ============================================================ -->
+
+          <constraintSpec ident="unique-xml-id" scheme="schematron">
+            <desc>All xml:id values must be unique across the document.</desc>
+            <constraint>
+              <sch:rule context="*[@xml:id]">
+                <sch:let name="id" value="@xml:id"/>
+                <sch:assert test="count(//*[@xml:id = $id]) = 1">
+                  The xml:id value '<sch:value-of select="$id"/>' must be
+                  unique within the document.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="speaker-in-cast" scheme="schematron">
+            <desc>When a profileDesc with a listPerson exists, utterance @who
+            values must reference declared speakers.</desc>
+            <constraint>
+              <sch:rule context="tei:u[@who]">
+                <sch:let name="cast"
+                         value="//tei:profileDesc/tei:listPerson/tei:person/@xml:id"/>
+                <sch:let name="has-cast"
+                         value="exists(//tei:profileDesc/tei:listPerson)"/>
+                <sch:assert test="not($has-cast) or @who = $cast">
+                  Utterance speaker '<sch:value-of select="@who"/>' is not
+                  declared in the profile cast list. When a cast list is
+                  present, all speaker references must match declared speakers.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="non-empty-xml-id" scheme="schematron">
+            <desc>All xml:id values must be non-empty.</desc>
+            <constraint>
+              <sch:rule context="*[@xml:id]">
+                <sch:assert test="normalize-space(@xml:id) != ''">
+                  The xml:id attribute must not be empty or contain only
+                  whitespace.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="non-empty-who" scheme="schematron">
+            <desc>Speaker references must be non-empty.</desc>
+            <constraint>
+              <sch:rule context="tei:u[@who]">
+                <sch:assert test="normalize-space(@who) != ''">
+                  The @who attribute must not be empty or contain only
+                  whitespace.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+        </schemaSpec>
+      </div>
+    </body>
+  </text>
+</TEI>

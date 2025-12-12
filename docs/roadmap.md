@@ -138,7 +138,7 @@ guarantee data correctness.
       internal checks (e.g., unique `xml:id`s, valid cross-references).
 - [x] Expose the `validate()` method as a function in the `tei-py` Python API,
       which raises a `ValueError` on failure.
-- [ ] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
+- [x] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
       it all) specification.
 - [ ] Generate a Relax NG schema from the ODD.
 - [ ] Add a CI step that validates all test XML outputs against the generated
