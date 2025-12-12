@@ -27,9 +27,8 @@ available today and how to exercise it.
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
   and the new `emit_xml(&document)` helper uses `quick_xml::se::to_string` to
   produce canonical Text Encoding Initiative (TEI) strings. All helpers return
-  `TeiError`, so callers see
-  consistent diagnostics whether parsing malformed input or attempting to emit
-  control characters that XML forbids.
+  `TeiError`, so callers see consistent diagnostics whether parsing malformed
+  input or attempting to emit control characters that XML forbids.
 - `tei-py` now ships the `tei_rapporteur` PyO3 module. The exported `Document`
   class wraps `TeiDocument`, validates titles via the Rust constructors, and
   exposes a `title` getter plus an `emit_title_markup` convenience method. The
@@ -215,7 +214,7 @@ Validation raises `ValueError` with a descriptive message when:
 Documents without a profile cast allow speaker references without validation,
 enabling incremental validation of draft documents.
 
-## TEI Episodic Profile schema
+## Text Encoding Initiative (TEI) Episodic Profile schema
 
 The TEI Episodic Profile is formally documented in an ODD (One Document Does it
 all) specification at `schemas/tei-episodic-profile.odd`. This specification:
