@@ -1254,6 +1254,19 @@ schema.
   “when `jing` is available, run `tei-rapporteur --validate file.tei.xml`,”
   which internally shells out).
 
+- **Relax NG schema generation**: The Episodic profile now ships a Relax NG
+  schema derived from the ODD and stored at
+  `schemas/tei-episodic-profile.rng`. The repository does not bundle TEI
+  Stylesheets or an XSLT 2.0 processor, so the schema is curated in lockstep
+  with the ODD to keep CI deterministic. When TEI tooling is available,
+  maintainers should re-generate the schema via Roma or TEI Stylesheets and
+  verify that it remains byte-for-byte identical before updating the checked-in
+  artifact.
+
+- The `tei-xml` crate exposes `relax_ng_schema()` and
+  `write_relax_ng_schema(path)` so callers can retrieve or materialize the
+  embedded schema before invoking external validators such as `jing`.
+
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.
   The suite will include property-based tests (using e.g. Rust’s `proptest`

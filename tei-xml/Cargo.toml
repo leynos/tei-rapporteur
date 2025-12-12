@@ -19,3 +19,4 @@ rstest-bdd = { workspace = true }
 rstest-bdd-macros = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
 serde = { workspace = true }
+tempfile = "3.14.0"

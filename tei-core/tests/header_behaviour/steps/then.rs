@@ -7,10 +7,6 @@ use crate::{
 };
 
 #[then("the document title should be \"{expected}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn the_document_title_should_be(
     #[from(validated_state)] state: &HeaderState,
     expected: String,
@@ -25,10 +21,6 @@ pub(crate) fn the_document_title_should_be(
 }
 
 #[then("the profile languages should include \"{language}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn the_profile_languages_should_include(
     #[from(validated_state)] state: &HeaderState,
     language: String,
@@ -45,10 +37,6 @@ pub(crate) fn the_profile_languages_should_include(
 }
 
 #[then("the profile speakers should include \"{speaker}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn the_profile_speakers_should_include(
     #[from(validated_state)] state: &HeaderState,
     speaker: String,
@@ -65,10 +53,6 @@ pub(crate) fn the_profile_speakers_should_include(
 }
 
 #[then("the header should record an annotation system \"{identifier}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn the_header_should_record_an_annotation_system(
     #[from(validated_state)] state: &HeaderState,
     identifier: String,
@@ -85,10 +69,6 @@ pub(crate) fn the_header_should_record_an_annotation_system(
 }
 
 #[then("the header should record the revision note \"{description}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn the_header_should_record_the_revision_note(
     #[from(validated_state)] state: &HeaderState,
     description: String,
@@ -105,10 +85,6 @@ pub(crate) fn the_header_should_record_the_revision_note(
 }
 
 #[then("header validation fails with \"{message}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 pub(crate) fn header_validation_fails_with(
     #[from(validated_state)] state: &HeaderState,
     message: String,

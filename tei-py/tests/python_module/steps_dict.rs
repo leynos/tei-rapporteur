@@ -11,10 +11,6 @@ use tei_core::{P, ProfileDesc, TeiDocument, Utterance};
 const _: fn() -> PythonModuleState = python_state;
 
 #[given("I provide a dictionary payload titled \"{title}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
 pub(super) fn i_provide_a_dictionary_payload(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
@@ -133,10 +129,6 @@ pub(super) fn i_decode_the_dictionary_payload(
 }
 
 #[when("I encode the constructed Document to a dictionary")]
-#[expect(
-    clippy::excessive_nesting,
-    reason = "nested PyO3 contexts are required to borrow the module and Document"
-)]
 pub(super) fn i_encode_the_constructed_document_to_a_dictionary(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {

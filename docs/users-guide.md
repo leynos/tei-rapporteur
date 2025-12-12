@@ -224,6 +224,11 @@ all) specification at `schemas/tei-episodic-profile.odd`. This specification:
   values and speaker cross-referencing
 - Can be processed by TEI tools (Roma, TEI Stylesheets) to generate Relax NG
   and Schematron schemas for external validation
+- Ships with a pre-generated Relax NG schema at
+  `schemas/tei-episodic-profile.rng`. Rust callers can retrieve it via
+  `tei_xml::relax_ng_schema()` or write it to disk using
+  `tei_xml::write_relax_ng_schema(path)` before invoking external validators
+  such as `jing`.
 
 The profile supports:
 
@@ -231,8 +236,8 @@ The profile supports:
   revision history
 - **Body structure**: paragraphs (`<p>`) and utterances (`<u>`) with optional
   speaker attribution via `@who`
-- **Inline elements**: emphasis (`<hi>` with optional `@rend`), pause markers
-  (`<pause>` with optional `@dur` and `@type`)
+- **Inline elements**: emphasis (`<hi>` with optional `<rend>` child), pause
+  markers (`<pause>` with optional `@dur` and `@type`)
 
 See `schemas/README.md` for instructions on generating schemas and validating
 documents.

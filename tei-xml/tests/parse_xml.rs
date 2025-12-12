@@ -113,11 +113,7 @@ fn validated_state() -> ParseState {
 }
 
 // rstest-bdd supplies owned `String` values for placeholders, so keep the
-// signature by value and expect the lint locally.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders must own their `String` values"
-)]
+// signature by value.
 #[given("the TEI fixture \"{fixture}\"")]
 fn the_tei_fixture(
     #[from(validated_state)] state: &ParseState,
@@ -145,11 +141,7 @@ fn parsing_succeeds(#[from(validated_state)] state: &ParseState) -> anyhow::Resu
 }
 
 // rstest-bdd supplies owned `String` values for placeholders, so keep the
-// signature by value and expect the lint locally.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders must own their `String` values"
-)]
+// signature by value.
 #[then("the parsed title is \"{title}\"")]
 fn parsed_title_is(
     #[from(validated_state)] state: &ParseState,
@@ -167,11 +159,7 @@ fn parsed_title_is(
 }
 
 // rstest-bdd supplies owned `String` values for placeholders, so keep the
-// signature by value and expect the lint locally.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders must own their `String` values"
-)]
+// signature by value.
 #[then("parsing fails mentioning \"{snippet}\"")]
 fn parsing_fails_with_snippet(
     #[from(validated_state)] state: &ParseState,

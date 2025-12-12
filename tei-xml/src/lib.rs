@@ -6,6 +6,10 @@
 use quick_xml::{de, se};
 use tei_core::{TeiDocument, TeiError};
 
+mod schema;
+
+pub use schema::{relax_ng_schema, write_relax_ng_schema};
+
 /// Encodes text for inclusion in XML content.
 ///
 /// The helper escapes markup-significant characters to keep the resulting

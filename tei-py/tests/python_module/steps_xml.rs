@@ -9,10 +9,6 @@ use tei_xml::emit_xml as emit_document_xml;
 
 const _: fn() -> PythonModuleState = python_state;
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
 #[given("I provide TEI XML titled \"{title}\"")]
 pub(super) fn i_provide_tei_xml_titled(
     #[from(python_state)] state: &PythonModuleState,
@@ -65,10 +61,6 @@ pub(super) fn i_parse_the_tei_xml_payload(
 }
 
 #[when("I emit the constructed Document to TEI XML")]
-#[expect(
-    clippy::excessive_nesting,
-    reason = "rstest-bdd steps need nested Python contexts to access the module and stored Document"
-)]
 pub(super) fn i_emit_the_document_to_tei_xml(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {

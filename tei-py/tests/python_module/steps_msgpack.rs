@@ -10,10 +10,6 @@ use tei_core::TeiDocument;
 
 const _: fn() -> PythonModuleState = python_state;
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
 #[given("I encode a MessagePack document titled \"{title}\"")]
 pub(super) fn i_encode_a_messagepack_document(
     #[from(python_state)] state: &PythonModuleState,
@@ -70,10 +66,6 @@ pub(super) fn i_decode_the_messagepack_payload(
 }
 
 #[when("I encode the constructed Document to MessagePack")]
-#[expect(
-    clippy::excessive_nesting,
-    reason = "rstest-bdd steps need nested Python contexts to access the module and stored Document"
-)]
 pub(super) fn i_encode_the_document_to_messagepack(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
