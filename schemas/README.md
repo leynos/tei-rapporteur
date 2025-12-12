@@ -55,7 +55,7 @@ declared in `profileDesc/speaker` elements.
 
 The ODD can be processed by TEI tools to generate Relax NG and Schematron
 schemas. The generated Relax NG schema is committed to this directory as
-`tei-episodic-profile.rng`; when re-generating, replace that file after
+`tei-episodic-profile.rng`; when regenerating, replace that file after
 verifying the output is consistent with the profile.
 
 ### Using Roma (Web Interface)

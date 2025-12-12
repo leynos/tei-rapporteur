@@ -1259,7 +1259,7 @@ schema.
   `schemas/tei-episodic-profile.rng`. The repository does not bundle TEI
   Stylesheets or an XSLT 2.0 processor, so the schema is curated in lockstep
   with the ODD to keep CI deterministic. When TEI tooling is available,
-  maintainers should re-generate the schema via Roma or TEI Stylesheets and
+  maintainers should regenerate the schema via Roma or TEI Stylesheets and
   verify that it remains byte-for-byte identical before updating the checked-in
   artifact.
 

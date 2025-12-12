@@ -365,15 +365,21 @@
           <elementSpec ident="hi" mode="change">
             <desc>Marks emphasised or otherwise distinguished text.</desc>
             <content>
-              <sequence>
-                <elementRef key="rend" minOccurs="0"/>
-                <alternate minOccurs="1" maxOccurs="unbounded">
-                  <textNode/>
-                  <elementRef key="hi"/>
-                  <elementRef key="pause"/>
-                </alternate>
-              </sequence>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <textNode/>
+                <elementRef key="hi"/>
+                <elementRef key="pause"/>
+              </alternate>
             </content>
+            <attList>
+              <attDef ident="rend" mode="change" usage="opt">
+                <desc>Rendering hint describing how the emphasis should be
+                displayed (e.g., "bold", "italic", "stress").</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
             <constraintSpec ident="hi-not-empty" scheme="schematron">
               <constraint>
                 <sch:rule context="hi">
@@ -384,13 +390,6 @@
                 </sch:rule>
               </constraint>
             </constraintSpec>
-          </elementSpec>
-
-          <elementSpec ident="rend" mode="change">
-            <desc>Rendering hint describing how emphasis should be displayed.</desc>
-            <content>
-              <textNode/>
-            </content>
           </elementSpec>
 
           <elementSpec ident="pause" mode="change">

@@ -8,7 +8,7 @@ use rstest_bdd_macros::{scenario, when};
 use serde::Deserialize;
 use serde_json::Value;
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
-use tei_py::test_support::ensure_msgspec_installed;
+use tei_py::test_support::{ensure_msgspec_installed, msgspec_available};
 
 const _: fn() -> PythonModuleState = python_state;
 
@@ -74,9 +74,7 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    let msgspec_available = Python::with_gil(|py| ensure_msgspec_installed(py).is_ok());
-
-    if !msgspec_available {
+    if !msgspec_available() {
         let document: TeiDocument =
             from_slice(&payload).context("fallback decoding MessagePack document")?;
         let retitled = retitle_document(&document, title.as_str())?;
@@ -120,9 +118,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    let msgspec_available = Python::with_gil(|py| ensure_msgspec_installed(py).is_ok());
-
-    if !msgspec_available {
+    if !msgspec_available() {
         #[expect(
             dead_code,
             reason = "EpisodeCarrier is only used to trigger a missing-field decode when msgspec is unavailable."

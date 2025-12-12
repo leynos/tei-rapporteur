@@ -236,7 +236,7 @@ The profile supports:
   revision history
 - **Body structure**: paragraphs (`<p>`) and utterances (`<u>`) with optional
   speaker attribution via `@who`
-- **Inline elements**: emphasis (`<hi>` with optional `<rend>` child), pause
+- **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause
   markers (`<pause>` with optional `@dur` and `@type`)
 
 See `schemas/README.md` for instructions on generating schemas and validating

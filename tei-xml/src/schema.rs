@@ -8,7 +8,7 @@ use std::{fs, path::Path};
 
 use tei_core::TeiError;
 
-const RELAX_NG_SCHEMA: &str = include_str!("../../schemas/tei-episodic-profile.rng");
+const RELAX_NG_SCHEMA: &str = include_str!("../resources/tei-episodic-profile.rng");
 
 /// Returns the Relax NG schema describing the TEI Episodic Profile.
 #[must_use]
@@ -57,7 +57,7 @@ mod tests {
         );
         assert!(
             schema.contains("<grammar"),
-            "schema should start with a grammar element"
+            "schema should contain a grammar element"
         );
         assert!(
             schema.contains("<element name=\"TEI\">"),
