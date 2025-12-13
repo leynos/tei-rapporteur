@@ -45,7 +45,25 @@ pub fn write_relax_ng_schema(path: impl AsRef<Path>) -> Result<(), TeiError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quick_xml::{Reader, events::Event};
     use tempfile::tempdir;
+
+    fn root_element_name(xml: &str) -> Option<Vec<u8>> {
+        let mut reader = Reader::from_str(xml);
+        reader.config_mut().trim_text(true);
+
+        let mut buffer = Vec::new();
+
+        loop {
+            match reader.read_event_into(&mut buffer) {
+                Ok(Event::Start(element) | Event::Empty(element)) => {
+                    return Some(element.name().as_ref().to_vec());
+                }
+                Ok(Event::Eof) | Err(_) => return None,
+                _ => buffer.clear(),
+            }
+        }
+    }
 
     #[test]
     fn relax_ng_schema_is_non_empty_and_mentions_root_element() {
@@ -55,9 +73,11 @@ mod tests {
             !schema.trim().is_empty(),
             "embedded schema should not be blank"
         );
-        assert!(
-            schema.contains("<grammar"),
-            "schema should contain a grammar element"
+        let root = root_element_name(schema).expect("embedded schema should parse as XML");
+        assert_eq!(
+            root.as_slice(),
+            b"grammar",
+            "schema root should be <grammar>"
         );
         assert!(
             schema.contains("<element name=\"TEI\">"),
