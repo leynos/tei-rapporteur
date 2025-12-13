@@ -8,7 +8,7 @@ use rstest_bdd_macros::{scenario, when};
 use serde::Deserialize;
 use serde_json::Value;
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
-use tei_py::test_support::{ensure_msgspec_installed, msgspec_available};
+use tei_py::test_support::msgspec_available;
 
 const _: fn() -> PythonModuleState = python_state;
 
