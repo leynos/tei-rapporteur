@@ -29,8 +29,8 @@
         tools such as cliché detection, pronunciation QA, and accent drift
         detection.</p>
         <p>This profile is based on TEI P5 version 4.8.0 (released 2024) and
-        uses the following modules: tei, core, header, textstructure, spoken,
-        namesdates, linking, analysis, and transcr.</p>
+        uses the following modules: tei, core, header, textstructure, and
+        spoken.</p>
       </projectDesc>
     </encodingDesc>
     <revisionDesc>
@@ -122,7 +122,8 @@
             </content>
             <constraintSpec ident="title-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="title">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:title">
                   <sch:assert test="normalize-space(.) != ''">
                     Title must not be empty or contain only whitespace.
                   </sch:assert>
@@ -164,7 +165,8 @@
             </content>
             <constraintSpec ident="speaker-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="speaker">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:speaker">
                   <sch:assert test="normalize-space(.) != ''">
                     Speaker identifiers must not be empty or whitespace only.
                   </sch:assert>
@@ -180,7 +182,8 @@
             </content>
             <constraintSpec ident="lang-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="lang">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:lang">
                   <sch:assert test="normalize-space(.) != ''">
                     Language tags must not be empty or whitespace only.
                   </sch:assert>
@@ -213,7 +216,8 @@
             </attList>
             <constraintSpec ident="annotation-system-id-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="annotationSystem[@xml:id]">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:annotationSystem[@xml:id]">
                   <sch:assert test="normalize-space(@xml:id) != ''">
                     Annotation system xml:id must not be empty.
                   </sch:assert>
@@ -253,7 +257,8 @@
             </content>
             <constraintSpec ident="resp-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="resp">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:resp">
                   <sch:assert test="normalize-space(.) != ''">
                     Responsibility markers must not be empty or whitespace only.
                   </sch:assert>
@@ -307,8 +312,9 @@
             </attList>
             <constraintSpec ident="p-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="p">
-                  <sch:assert test="normalize-space(.) != '' or .//pause">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:p">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
                     Paragraph must contain non-whitespace text or a pause
                     element.
                   </sch:assert>
@@ -348,8 +354,9 @@
             </attList>
             <constraintSpec ident="u-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="u">
-                  <sch:assert test="normalize-space(.) != '' or .//pause">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:u">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
                     Utterance must contain non-whitespace text or a pause
                     element.
                   </sch:assert>
@@ -382,8 +389,9 @@
             </attList>
             <constraintSpec ident="hi-not-empty" scheme="schematron">
               <constraint>
-                <sch:rule context="hi">
-                  <sch:assert test="normalize-space(.) != '' or .//pause">
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:hi">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
                     Emphasis element must contain non-whitespace text or a
                     pause element.
                   </sch:assert>
@@ -423,9 +431,10 @@
           <constraintSpec ident="unique-xml-id" scheme="schematron">
             <desc>All xml:id values must be unique across the document.</desc>
             <constraint>
-              <sch:rule context="*[@xml:id]">
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:*[@xml:id]">
                 <sch:let name="id" value="@xml:id"/>
-                <sch:assert test="count(//*[@xml:id = $id]) = 1">
+                <sch:assert test="count(//tei:*[@xml:id = $id]) = 1">
                   The xml:id value '<sch:value-of select="$id"/>' must be
                   unique within the document.
                 </sch:assert>
@@ -434,12 +443,13 @@
           </constraintSpec>
 
           <constraintSpec ident="speaker-in-cast" scheme="schematron">
-            <desc>When a profileDesc exists, utterance @who values must
-            reference declared speakers.</desc>
+            <desc>When a cast list exists, utterance @who values must reference
+            declared speakers.</desc>
             <constraint>
-              <sch:rule context="u[@who]">
-                <sch:let name="cast" value="//profileDesc/speaker/text()"/>
-                <sch:let name="has-cast" value="exists(//profileDesc)"/>
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:u[@who]">
+                <sch:let name="cast" value="//tei:profileDesc/tei:speaker/text()"/>
+                <sch:let name="has-cast" value="exists(//tei:profileDesc/tei:speaker)"/>
                 <sch:assert test="not($has-cast) or @who = $cast">
                   Utterance speaker '<sch:value-of select="@who"/>' is not
                   declared in the profile cast list. When a cast list is
@@ -452,7 +462,8 @@
           <constraintSpec ident="non-empty-xml-id" scheme="schematron">
             <desc>All xml:id values must be non-empty.</desc>
             <constraint>
-              <sch:rule context="*[@xml:id]">
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:*[@xml:id]">
                 <sch:assert test="normalize-space(@xml:id) != ''">
                   The xml:id attribute must not be empty or contain only
                   whitespace.
@@ -464,7 +475,8 @@
           <constraintSpec ident="non-empty-who" scheme="schematron">
             <desc>Speaker references must be non-empty.</desc>
             <constraint>
-              <sch:rule context="u[@who]">
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:u[@who]">
                 <sch:assert test="normalize-space(@who) != ''">
                   The @who attribute must not be empty or contain only
                   whitespace.

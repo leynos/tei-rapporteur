@@ -69,7 +69,7 @@ This step keeps the behaviour-driven suites aligned with the upstream tooling
 used to drive the TEI fixtures.
 
 - [x] Upgrade the workspace to `rstest-bdd` and `rstest-bdd-macros` version
-      `0.1.0`, ensuring scenarios run on the first stable release and benefit
+      `0.2.0`, ensuring scenarios run on the stable release line and benefit
       from the new diagnostics bundle.
 
 ## Phase 2: Python Integration

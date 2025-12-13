@@ -20,7 +20,7 @@ pub const fn relax_ng_schema() -> &'static str {
 ///
 /// # Errors
 ///
-/// Returns [`TeiError::Xml`] when the schema cannot be written to the supplied
+/// Returns [`TeiError::Io`] when the schema cannot be written to the supplied
 /// path.
 ///
 /// # Examples
@@ -35,7 +35,7 @@ pub const fn relax_ng_schema() -> &'static str {
 /// ```
 pub fn write_relax_ng_schema(path: impl AsRef<Path>) -> Result<(), TeiError> {
     fs::write(path.as_ref(), RELAX_NG_SCHEMA).map_err(|error| {
-        TeiError::xml(format!(
+        TeiError::io(format!(
             "failed to write Relax NG schema to {}: {error}",
             path.as_ref().display()
         ))

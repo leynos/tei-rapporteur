@@ -39,7 +39,7 @@ pub(super) fn i_provide_an_invalid_messagepack_payload(
 pub(super) fn i_encode_a_messagepack_document_missing_required_fields(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    let payload = to_vec_named(&json!({ "text": {} }))
+    let payload = to_vec_named(&json!({ "header": {}, "text": {} }))
         .context("serialising malformed MessagePack fixture should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())

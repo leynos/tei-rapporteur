@@ -125,6 +125,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
         )]
         #[derive(Debug, Deserialize)]
         struct EpisodeCarrier {
+            header: Value,
             body: Value,
         }
 

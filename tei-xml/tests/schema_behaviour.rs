@@ -79,10 +79,7 @@ fn validated_state_result() -> anyhow::Result<SchemaState> {
 
 #[fixture]
 fn validated_state() -> SchemaState {
-    match validated_state_result() {
-        Ok(state) => state,
-        Err(error) => panic!("failed to initialise schema state: {error}"),
-    }
+    tei_test_helpers::expect_validated_state(validated_state_result(), "schema")
 }
 
 #[given("a temporary output directory")]

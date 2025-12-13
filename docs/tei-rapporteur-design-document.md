@@ -1255,13 +1255,12 @@ schema.
   which internally shells out).
 
 - **Relax NG schema generation**: The Episodic profile now ships a Relax NG
-  schema derived from the ODD and stored at
-  `schemas/tei-episodic-profile.rng`. The repository does not bundle TEI
-  Stylesheets or an XSLT 2.0 processor, so the schema is curated in lockstep
-  with the ODD to keep CI deterministic. When TEI tooling is available,
-  maintainers should regenerate the schema via Roma or TEI Stylesheets and
-  verify that it remains byte-for-byte identical before updating the checked-in
-  artifact.
+  schema derived from the ODD and stored at `schemas/tei-episodic-profile.rng`.
+  The repository does not bundle TEI Stylesheets or an XSLT 2.0 processor, so
+  the schema is curated in lockstep with the ODD to keep CI deterministic. When
+  TEI tooling is available, maintainers should regenerate the schema via Roma
+  or TEI Stylesheets and verify that it remains byte-for-byte identical before
+  updating the checked-in artifact.
 
 - The `tei-xml` crate exposes `relax_ng_schema()` and
   `write_relax_ng_schema(path)` so callers can retrieve or materialize the
