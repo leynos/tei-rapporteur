@@ -16,7 +16,7 @@ authors = ["Payton McIntosh <pmcintosh@df12.net>"]
 [workspace.dependencies]
 anyhow = { version = "1.0.100" }
 serde = { version = "1.0.217", features = ["derive"] }
-rstest = { version = "0.21.0" }
+rstest = { version = "0.26.1" }
 rstest-bdd = { version = "0.1.0" }
 rstest-bdd-macros = { version = "0.1.0" }
 thiserror = { version = "2.0.17" }
