@@ -230,4 +230,14 @@ mod tests {
 
         assert_eq!(message, "missing header");
     }
+
+    #[test]
+    fn constructs_io_error_from_message() {
+        let error = TeiError::io("disk full");
+        let TeiError::Io { message } = error else {
+            panic!("expected I/O error variant");
+        };
+
+        assert_eq!(message, "disk full");
+    }
 }

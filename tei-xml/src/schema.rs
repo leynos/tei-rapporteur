@@ -80,7 +80,7 @@ mod tests {
             "schema root should be <grammar>"
         );
         assert!(
-            schema.contains("<element name=\"TEI\">"),
+            schema.contains("<element name=\"TEI\""),
             "schema should define the TEI root element"
         );
     }

@@ -6,14 +6,14 @@
   </start>
 
   <define name="TEI">
-    <element name="TEI">
+    <element name="TEI" ns="http://www.tei-c.org/ns/1.0">
       <ref name="teiHeader"/>
       <ref name="text"/>
     </element>
   </define>
 
   <define name="teiHeader">
-    <element name="teiHeader">
+    <element name="teiHeader" ns="http://www.tei-c.org/ns/1.0">
       <ref name="fileDesc"/>
       <optional>
         <ref name="profileDesc"/>
@@ -28,7 +28,7 @@
   </define>
 
   <define name="fileDesc">
-    <element name="fileDesc">
+    <element name="fileDesc" ns="http://www.tei-c.org/ns/1.0">
       <ref name="title"/>
       <optional>
         <ref name="series"/>
@@ -40,25 +40,25 @@
   </define>
 
   <define name="title">
-    <element name="title">
+    <element name="title" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="series">
-    <element name="series">
+    <element name="series" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="synopsis">
-    <element name="synopsis">
+    <element name="synopsis" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="profileDesc">
-    <element name="profileDesc">
+    <element name="profileDesc" ns="http://www.tei-c.org/ns/1.0">
       <optional>
         <ref name="synopsis"/>
       </optional>
@@ -72,19 +72,19 @@
   </define>
 
   <define name="speaker">
-    <element name="speaker">
+    <element name="speaker" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="lang">
-    <element name="lang">
+    <element name="lang" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="encodingDesc">
-    <element name="encodingDesc">
+    <element name="encodingDesc" ns="http://www.tei-c.org/ns/1.0">
       <zeroOrMore>
         <ref name="annotationSystem"/>
       </zeroOrMore>
@@ -92,7 +92,7 @@
   </define>
 
   <define name="annotationSystem">
-    <element name="annotationSystem">
+    <element name="annotationSystem" ns="http://www.tei-c.org/ns/1.0">
       <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
         <text/>
       </attribute>
@@ -103,13 +103,13 @@
   </define>
 
   <define name="desc">
-    <element name="desc">
+    <element name="desc" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="revisionDesc">
-    <element name="revisionDesc">
+    <element name="revisionDesc" ns="http://www.tei-c.org/ns/1.0">
       <zeroOrMore>
         <ref name="change"/>
       </zeroOrMore>
@@ -117,7 +117,7 @@
   </define>
 
   <define name="change">
-    <element name="change">
+    <element name="change" ns="http://www.tei-c.org/ns/1.0">
       <oneOrMore>
         <choice>
           <text/>
@@ -128,19 +128,19 @@
   </define>
 
   <define name="resp">
-    <element name="resp">
+    <element name="resp" ns="http://www.tei-c.org/ns/1.0">
       <text/>
     </element>
   </define>
 
   <define name="text">
-    <element name="text">
+    <element name="text" ns="http://www.tei-c.org/ns/1.0">
       <ref name="body"/>
     </element>
   </define>
 
   <define name="body">
-    <element name="body">
+    <element name="body" ns="http://www.tei-c.org/ns/1.0">
       <zeroOrMore>
         <choice>
           <ref name="p"/>
@@ -151,7 +151,7 @@
   </define>
 
   <define name="p">
-    <element name="p">
+    <element name="p" ns="http://www.tei-c.org/ns/1.0">
       <optional>
         <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
           <text/>
@@ -162,7 +162,7 @@
   </define>
 
   <define name="u">
-    <element name="u">
+    <element name="u" ns="http://www.tei-c.org/ns/1.0">
       <optional>
         <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
           <text/>
@@ -178,7 +178,7 @@
   </define>
 
   <define name="hi">
-    <element name="hi">
+    <element name="hi" ns="http://www.tei-c.org/ns/1.0">
       <optional>
         <attribute name="rend">
           <text/>
@@ -189,7 +189,7 @@
   </define>
 
   <define name="pause">
-    <element name="pause">
+    <element name="pause" ns="http://www.tei-c.org/ns/1.0">
       <optional>
         <attribute name="dur">
           <text/>
@@ -214,4 +214,3 @@
     </oneOrMore>
   </define>
 </grammar>
-

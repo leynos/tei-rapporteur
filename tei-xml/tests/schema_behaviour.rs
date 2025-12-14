@@ -4,7 +4,6 @@ use anyhow::{Context, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::{cell::RefCell, path::PathBuf};
-use tei_core::TeiError;
 use tei_xml::{relax_ng_schema, write_relax_ng_schema};
 use tempfile::TempDir;
 
@@ -12,7 +11,7 @@ use tempfile::TempDir;
 // embedded scenarios stay in sync with expectations.
 const _: &str = include_str!("features/schema.feature");
 
-type WriteOutcome = std::result::Result<(), TeiError>;
+type WriteOutcome = std::result::Result<(), String>;
 
 #[derive(Default)]
 struct SchemaState {
@@ -103,7 +102,7 @@ fn i_write_the_relax_ng_schema_to(
     let output_path = dir_path.join(&path);
     state.set_output_path(output_path.clone());
 
-    let outcome = write_relax_ng_schema(&output_path);
+    let outcome = write_relax_ng_schema(&output_path).map_err(|error| error.to_string());
     state.set_outcome(outcome);
     Ok(())
 }
@@ -111,7 +110,9 @@ fn i_write_the_relax_ng_schema_to(
 #[then("writing succeeds")]
 fn writing_succeeds(#[from(validated_state)] state: &SchemaState) -> anyhow::Result<()> {
     let outcome = state.outcome()?;
-    outcome.context("expected schema write to succeed")?;
+    if let Err(error) = outcome {
+        bail!("expected schema write to succeed: {error}");
+    }
     Ok(())
 }
 
@@ -141,10 +142,9 @@ fn writing_fails_mentioning(
     snippet: String,
 ) -> anyhow::Result<()> {
     let outcome = state.outcome()?;
-    let Err(error) = outcome else {
+    let Err(message) = outcome else {
         bail!("expected schema write to fail");
     };
-    let message = error.to_string();
     ensure!(
         message.contains(&snippet),
         "error should mention {snippet:?}, found {message:?}"

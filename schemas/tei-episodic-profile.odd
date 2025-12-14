@@ -68,11 +68,12 @@
           <!-- Module References                                            -->
           <!-- ============================================================ -->
 
-          <moduleRef key="tei"/>
-          <moduleRef key="core" include="p hi title"/>
-          <moduleRef key="header" include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change"/>
-          <moduleRef key="textstructure" include="TEI text body"/>
-          <moduleRef key="spoken" include="u pause"/>
+	          <moduleRef key="tei"/>
+	          <moduleRef key="core" include="p hi title desc"/>
+	          <moduleRef key="header"
+	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem series synopsis speaker lang resp"/>
+	          <moduleRef key="textstructure" include="TEI text body"/>
+	          <moduleRef key="spoken" include="u pause"/>
 
           <!-- ============================================================ -->
           <!-- Root Element                                                 -->
