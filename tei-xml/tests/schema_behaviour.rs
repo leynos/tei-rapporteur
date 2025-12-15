@@ -3,7 +3,10 @@
 use anyhow::{Context, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
-use std::{cell::RefCell, path::PathBuf};
+use std::{
+    cell::RefCell,
+    path::{Component, Path, PathBuf},
+};
 use tei_xml::{relax_ng_schema, write_relax_ng_schema};
 use tempfile::TempDir;
 
@@ -99,7 +102,18 @@ fn i_write_the_relax_ng_schema_to(
     path: String,
 ) -> anyhow::Result<()> {
     let dir_path = state.output_dir_path()?;
-    let output_path = dir_path.join(&path);
+    let relative = Path::new(&path);
+    ensure!(
+        !relative.is_absolute(),
+        "schema write path must be relative"
+    );
+    ensure!(
+        relative
+            .components()
+            .all(|component| matches!(component, Component::Normal(_))),
+        "schema write path must not contain traversal components"
+    );
+    let output_path = dir_path.join(relative);
     state.set_output_path(output_path.clone());
 
     let outcome = write_relax_ng_schema(&output_path).map_err(|error| error.to_string());
