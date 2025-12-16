@@ -129,8 +129,8 @@ fn writing_succeeds(#[from(validated_state)] state: &SchemaState) -> anyhow::Res
     Ok(())
 }
 
-#[then("the written schema contains a grammar element")]
-fn written_schema_contains_grammar(
+#[then("the written schema matches the embedded schema")]
+fn written_schema_matches_embedded(
     #[from(validated_state)] state: &SchemaState,
 ) -> anyhow::Result<()> {
     let path = state.output_path()?;
