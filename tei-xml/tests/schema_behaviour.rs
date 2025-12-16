@@ -114,9 +114,8 @@ fn i_write_the_relax_ng_schema_to(
         "schema write path must not contain traversal components"
     );
     let output_path = dir_path.join(relative);
-    state.set_output_path(output_path.clone());
-
     let outcome = write_relax_ng_schema(&output_path).map_err(|error| error.to_string());
+    state.set_output_path(output_path);
     state.set_outcome(outcome);
     Ok(())
 }
