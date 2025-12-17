@@ -71,10 +71,6 @@ fn emit_state() -> EmitState {
 }
 
 // rstest-bdd placeholders own their `String` values.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders must own their `String` values"
-)]
 #[given("the document title fixture \"{fixture}\"")]
 fn the_document_title_fixture(
     #[from(emit_state)] state: &EmitState,
@@ -116,10 +112,6 @@ fn the_output_equals_the_minimal_fixture(#[from(emit_state)] state: &EmitState) 
 }
 
 // rstest-bdd placeholders own their `String` values.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders must own their `String` values"
-)]
 #[then("emitting fails mentioning \"{snippet}\"")]
 fn emitting_fails_mentioning(#[from(emit_state)] state: &EmitState, snippet: String) -> Result<()> {
     let outcome = state.result()?;

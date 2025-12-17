@@ -69,7 +69,7 @@ This step keeps the behaviour-driven suites aligned with the upstream tooling
 used to drive the TEI fixtures.
 
 - [x] Upgrade the workspace to `rstest-bdd` and `rstest-bdd-macros` version
-      `0.1.0`, ensuring scenarios run on the first stable release and benefit
+      `0.2.0`, ensuring scenarios run on the stable release line and benefit
       from the new diagnostics bundle.
 
 ## Phase 2: Python Integration
@@ -140,7 +140,7 @@ guarantee data correctness.
       which raises a `ValueError` on failure.
 - [x] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
       it all) specification.
-- [ ] Generate a Relax NG schema from the ODD.
+- [x] Generate a Relax NG schema from the ODD.
 - [ ] Add a CI step that validates all test XML outputs against the generated
       Relax NG schema using an external tool like `jing`.
 

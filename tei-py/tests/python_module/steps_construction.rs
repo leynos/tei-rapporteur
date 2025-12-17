@@ -16,10 +16,6 @@ pub(super) fn module_is_initialised_step(
     module_is_initialised(state)
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
 #[when("I construct a Document titled \"{title}\"")]
 pub(super) fn i_construct_a_document(
     #[from(python_state)] state: &PythonModuleState,
@@ -35,10 +31,6 @@ pub(super) fn i_construct_the_xml_special_fixture_document(
     construct_python_document(state, "Special <Title> & \"Quotes\" and 'Apostrophes'")
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest-bdd placeholders own their `String` values"
-)]
 #[when("I emit title markup for \"{title}\"")]
 pub(super) fn i_emit_title_markup(
     #[from(python_state)] state: &PythonModuleState,

@@ -341,10 +341,6 @@ fn the_body_should_report_blocks(
 }
 
 #[then("block {index} should be a paragraph with \"{content}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn block_should_be_paragraph(
     #[from(validated_state)] state: &BodyState,
     index: usize,
@@ -365,10 +361,6 @@ fn block_should_be_paragraph(
 }
 
 #[then("block {index} should emphasise \"{content}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn block_should_emphasise(
     #[from(validated_state)] state: &BodyState,
     index: usize,
@@ -438,10 +430,6 @@ fn block_should_mix_inline(#[from(validated_state)] state: &BodyState, index: us
 }
 
 #[then("block {index} should be an utterance for \"{speaker}\" with \"{content}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn block_should_be_utterance(
     #[from(validated_state)] state: &BodyState,
     index: usize,
@@ -524,10 +512,6 @@ fn block_should_include_measured_pause(
 }
 
 #[then("body validation fails with \"{message}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn body_validation_fails_with(
     #[from(validated_state)] state: &BodyState,
     message: String,

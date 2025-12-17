@@ -76,10 +76,6 @@ fn validated_state_result() -> Result<ValidationState> {
 }
 
 #[given("a TEI document titled \"{title}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn a_tei_document_titled(
     #[from(validated_state)] state: &ValidationState,
     title: String,
@@ -91,10 +87,6 @@ fn a_tei_document_titled(
 }
 
 #[given("the profile includes speaker \"{speaker}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn the_profile_includes_speaker(
     #[from(validated_state)] state: &ValidationState,
     speaker: String,
@@ -110,10 +102,6 @@ fn the_profile_is_declared_but_empty(
 }
 
 #[given("the encoding includes annotation system \"{identifier}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn the_encoding_includes_annotation_system(
     #[from(validated_state)] state: &ValidationState,
     identifier: String,
@@ -122,10 +110,6 @@ fn the_encoding_includes_annotation_system(
 }
 
 #[given("the encoding also includes annotation system \"{identifier}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn the_encoding_also_includes_annotation_system(
     #[from(validated_state)] state: &ValidationState,
     identifier: String,
@@ -134,10 +118,6 @@ fn the_encoding_also_includes_annotation_system(
 }
 
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn i_add_a_paragraph(
     #[from(validated_state)] state: &ValidationState,
     content: String,
@@ -147,10 +127,6 @@ fn i_add_a_paragraph(
 }
 
 #[when("I add an utterance for \"{speaker}\" saying \"{content}\" with id \"{identifier}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn i_add_an_utterance(
     #[from(validated_state)] state: &ValidationState,
     speaker: String,
@@ -183,10 +159,6 @@ fn validation_succeeds(#[from(validated_state)] state: &ValidationState) -> Resu
 }
 
 #[then("validation fails with \"{message}\"")]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "rstest_bdd supplies owned Strings for captured step parameters."
-)]
 fn validation_fails_with(
     #[from(validated_state)] state: &ValidationState,
     message: String,

@@ -14,15 +14,12 @@ following TEI modules:
 - `header` – TEI header elements
 - `textstructure` – Text structure (text, body)
 - `spoken` – Spoken transcription (u, pause)
-- `namesdates` – Names and dates (listPerson, person)
-- `linking` – Linking mechanisms
-- `analysis` – Analysis elements (spanGrp, span)
-- `transcr` – Transcription elements (listAnnotation)
 
 ## Contents
 
 - `tei-episodic-profile.odd` – The ODD customization defining allowed elements,
   attributes, and validation constraints.
+- `tei-episodic-profile.rng` – Generated Relax NG schema derived from the ODD.
 
 ## About the Profile
 
@@ -52,12 +49,14 @@ prefixes (e.g., `who="#host"`). The profile does not support:
 - XPointer expressions
 
 Each utterance must reference exactly one speaker by their bare identifier, as
-declared in `profileDesc/listPerson/person/@xml:id`.
+declared in `profileDesc/speaker` elements.
 
 ## Generating Schemas
 
 The ODD can be processed by TEI tools to generate Relax NG and Schematron
-schemas.
+schemas. The generated Relax NG schema is committed to this directory as
+`tei-episodic-profile.rng`; when regenerating, replace that file after
+verifying the output is consistent with the profile.
 
 ### Using Roma (Web Interface)
 

@@ -70,7 +70,7 @@ impl Inline {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename = "hi")]
 pub struct Hi {
-    #[serde(rename = "rend", skip_serializing_if = "Option::is_none", default)]
+    #[serde(rename = "@rend", skip_serializing_if = "Option::is_none", default)]
     rend: Option<String>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
@@ -84,7 +84,7 @@ impl<'de> Deserialize<'de> for Hi {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct RawHi {
-            #[serde(rename = "rend", default)]
+            #[serde(rename = "@rend", default)]
             rend: Option<String>,
             #[serde(rename = "$value", default)]
             content: Vec<Inline>,

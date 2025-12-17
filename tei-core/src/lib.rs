@@ -55,6 +55,12 @@ pub enum TeiError {
         /// Message describing the failure emitted by the XML layer.
         message: String,
     },
+    /// Wrapper around I/O operations errors.
+    #[error("I/O error: {message}")]
+    Io {
+        /// Message describing the I/O failure.
+        message: String,
+    },
 }
 
 impl TeiError {
@@ -62,6 +68,14 @@ impl TeiError {
     #[must_use]
     pub fn xml(message: impl Into<String>) -> Self {
         Self::Xml {
+            message: message.into(),
+        }
+    }
+
+    /// Builds an I/O error with the provided message.
+    #[must_use]
+    pub fn io(message: impl Into<String>) -> Self {
+        Self::Io {
             message: message.into(),
         }
     }
@@ -215,5 +229,15 @@ mod tests {
         };
 
         assert_eq!(message, "missing header");
+    }
+
+    #[test]
+    fn constructs_io_error_from_message() {
+        let error = TeiError::io("disk full");
+        let TeiError::Io { message } = error else {
+            panic!("expected I/O error variant");
+        };
+
+        assert_eq!(message, "disk full");
     }
 }

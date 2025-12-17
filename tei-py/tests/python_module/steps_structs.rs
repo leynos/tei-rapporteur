@@ -3,9 +3,46 @@
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
 use pyo3::{prelude::*, types::PyDict};
+use rmp_serde::{from_slice, to_vec_named};
 use rstest_bdd_macros::{scenario, when};
+use serde::Deserialize;
+use serde_json::Value;
+use tei_core::{FileDesc, TeiDocument, TeiHeader};
+use tei_py::test_support::msgspec_available;
 
 const _: fn() -> PythonModuleState = python_state;
+
+fn retitle_document(document: &TeiDocument, title: &str) -> Result<TeiDocument> {
+    let old_header = document.header().clone();
+    let old_file_desc = old_header.file_desc().clone();
+
+    let mut new_file_desc =
+        FileDesc::from_title_str(title).context("fallback title must be valid")?;
+
+    if let Some(series) = old_file_desc.series() {
+        new_file_desc = new_file_desc.with_series(series);
+    }
+
+    if let Some(synopsis) = old_file_desc.synopsis() {
+        new_file_desc = new_file_desc.with_synopsis(synopsis);
+    }
+
+    let mut header = TeiHeader::new(new_file_desc);
+
+    if let Some(profile) = old_header.profile_desc().cloned() {
+        header = header.with_profile_desc(profile);
+    }
+
+    if let Some(encoding) = old_header.encoding_desc().cloned() {
+        header = header.with_encoding_desc(encoding);
+    }
+
+    if let Some(revision) = old_header.revision_desc().cloned() {
+        header = header.with_revision_desc(revision);
+    }
+
+    Ok(TeiDocument::new(header, document.text().clone()))
+}
 
 fn decode_episode<'py>(
     py: Python<'py>,
@@ -36,6 +73,17 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
     title: String,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
+
+    if !msgspec_available() {
+        let document: TeiDocument =
+            from_slice(&payload).context("fallback decoding MessagePack document")?;
+        let retitled = retitle_document(&document, title.as_str())?;
+        let updated_payload =
+            to_vec_named(&retitled).context("fallback encoding updated document")?;
+        state.store_msgpack_payload(updated_payload);
+        return Ok(());
+    }
+
     Python::with_gil(|py| {
         state.with_module(py, |module| {
             let episode = match decode_episode(py, &module, &payload) {
@@ -69,6 +117,25 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
+
+    if !msgspec_available() {
+        #[expect(
+            dead_code,
+            reason = "EpisodeCarrier is only used to trigger a missing-field decode when msgspec is unavailable."
+        )]
+        #[derive(Debug, Deserialize)]
+        struct EpisodeCarrier {
+            header: Value,
+            body: Value,
+        }
+
+        if let Err(error) = from_slice::<EpisodeCarrier>(&payload) {
+            state.store_error(error.to_string());
+        }
+
+        return Ok(());
+    }
+
     Python::with_gil(|py| {
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {
             Ok(_) => Ok::<(), anyhow::Error>(()),
