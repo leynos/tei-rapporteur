@@ -8,6 +8,10 @@ authors.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+name = "generate-fixtures"
+path = "src/bin/generate-fixtures.rs"
+
 [dependencies]
 tei-core = { path = "../tei-core" }
 quick-xml = { workspace = true }

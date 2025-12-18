@@ -58,6 +58,9 @@ Use the Makefile targets to work with the entire workspace:
   `rstest-bdd`.
 - `make check-fmt`, `make lint`, and `make fmt` mirror the repository quality
   gates described in `AGENTS.md`.
+- `make validate-xml` generates XML fixtures and validates them against the TEI
+  Episodic Profile Relax NG schema using `jing`. This requires jing to be
+  installed (see "External XML validation" below).
 
 ## Behavioural guarantees
 
@@ -241,3 +244,64 @@ The profile supports:
 
 See `schemas/README.md` for instructions on generating schemas and validating
 documents.
+
+## External XML validation
+
+The library includes support for validating generated XML against the TEI
+Episodic Profile Relax NG schema using external tools like `jing`. This provides
+an additional layer of assurance that emitted documents conform to the formal
+schema definition.
+
+### Local validation
+
+Run the validation target to generate fixtures and validate them:
+
+```bash
+make validate-xml
+```
+
+This generates XML fixtures exercising different profile features (minimal
+documents, paragraphs, utterances, and comprehensive documents with full header
+metadata), writes the embedded Relax NG schema, and validates each fixture using
+jing.
+
+The `validate-xml` target requires jing to be installed. On Ubuntu/Debian:
+
+```bash
+sudo apt-get install jing
+```
+
+On macOS with Homebrew:
+
+```bash
+brew install jing
+```
+
+### Continuous integration
+
+CI automatically validates all XML fixtures against the Relax NG schema on every
+pull request. This ensures that changes to the data model or emitter do not
+produce invalid TEI documents. The CI workflow installs jing, generates fixtures
+using the `generate-fixtures` binary, and validates each fixture.
+
+### Fixture generation
+
+The `tei-xml` crate provides a `generate-fixtures` binary that produces XML
+fixtures for validation. The fixtures exercise different aspects of the TEI
+Episodic Profile:
+
+- **minimal**: Header with title only, empty body
+- **paragraphs**: Body containing `<p>` elements with `xml:id` attributes
+- **utterances**: Profile with speakers, body with `<u>` elements referencing
+  speakers via `@who`
+- **comprehensive**: All profile features combined (synopsis, speakers,
+  languages, annotation systems, revision history, mixed body content)
+
+Run the binary directly to generate fixtures to a custom location:
+
+```bash
+cargo run --package tei-xml --bin generate-fixtures -- /path/to/output
+```
+
+The generated XML includes the TEI namespace declaration required for schema
+validation.

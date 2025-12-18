@@ -6,6 +6,7 @@
 use quick_xml::{de, se};
 use tei_core::{TeiDocument, TeiError};
 
+pub mod fixtures;
 mod schema;
 
 pub use schema::{relax_ng_schema, write_relax_ng_schema};

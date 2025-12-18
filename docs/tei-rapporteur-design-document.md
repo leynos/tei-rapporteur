@@ -1266,6 +1266,29 @@ schema.
   `write_relax_ng_schema(path)` so callers can retrieve or materialize the
   embedded schema before invoking external validators such as `jing`.
 
+- **CI-based external validation via jing**: The CI pipeline validates emitted
+  XML against the TEI Episodic Profile Relax NG schema using `jing`. This
+  external validation complements the internal Rust validation by confirming
+  that the XML output matches the formal ODD-derived schema, detecting any
+  drift between the embedded schema and the emitter logic, and providing
+  assurance that third-party tools will accept the generated XML.
+
+  The workflow generates fixtures at CI time rather than committing XML files,
+  ensuring fixtures always reflect the current data model. A dedicated binary
+  (`generate-fixtures`) produces documents exercising all profile features:
+
+  1. Minimal document (header only)
+  2. Document with paragraphs
+  3. Document with utterances and speaker references
+  4. Comprehensive document with all features (synopsis, speakers, languages,
+     annotation systems, revision history, mixed body content)
+
+  This strategy keeps the repository clean (no committed XML files) while
+  ensuring comprehensive coverage. The generated XML includes the TEI
+  namespace declaration required for schema validation, which is added by the
+  fixture generator since `quick-xml`'s serde integration does not emit
+  namespace declarations.
+
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.
   The suite will include property-based tests (using e.g. Rust’s `proptest`
