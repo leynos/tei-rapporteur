@@ -4,7 +4,7 @@
 //! Episodic Profile Relax NG schema using the external `jing` validator.
 //! Tests are skipped silently when jing is not available in the environment.
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 use tei_xml::{TEI_NAMESPACE, add_tei_namespace, emit_xml, fixtures, write_relax_ng_schema};
 use tempfile::TempDir;
@@ -19,7 +19,7 @@ fn jing_available() -> bool {
 }
 
 /// Runs jing validation and returns the result.
-fn run_jing(schema_path: &PathBuf, xml_path: &PathBuf) -> Result<(), String> {
+fn run_jing(schema_path: &Path, xml_path: &Path) -> Result<(), String> {
     let output = Command::new("jing")
         .arg(schema_path)
         .arg(xml_path)
@@ -36,7 +36,7 @@ fn run_jing(schema_path: &PathBuf, xml_path: &PathBuf) -> Result<(), String> {
 }
 
 /// Validates a fixture document against the TEI Episodic Profile schema.
-fn validate_fixture(
+fn run_fixture_validation(
     temp_dir: &TempDir,
     name: &str,
     builder: fn() -> Result<tei_core::TeiDocument, tei_core::TeiError>,
@@ -77,32 +77,18 @@ macro_rules! require_jing {
     };
 }
 
-#[test]
-fn validates_minimal_fixture() {
+#[rstest::rstest]
+#[case::minimal("minimal", fixtures::minimal_document)]
+#[case::paragraphs("paragraphs", fixtures::document_with_paragraphs)]
+#[case::utterances("utterances", fixtures::document_with_utterances)]
+#[case::comprehensive("comprehensive", fixtures::comprehensive_document)]
+fn validates_fixture(
+    #[case] name: &str,
+    #[case] builder: fn() -> Result<tei_core::TeiDocument, tei_core::TeiError>,
+) {
     require_jing!();
     let temp_dir = tempfile::tempdir().expect("temp dir should be created");
-    validate_fixture(&temp_dir, "minimal", fixtures::minimal_document);
-}
-
-#[test]
-fn validates_paragraphs_fixture() {
-    require_jing!();
-    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
-    validate_fixture(&temp_dir, "paragraphs", fixtures::document_with_paragraphs);
-}
-
-#[test]
-fn validates_utterances_fixture() {
-    require_jing!();
-    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
-    validate_fixture(&temp_dir, "utterances", fixtures::document_with_utterances);
-}
-
-#[test]
-fn validates_comprehensive_fixture() {
-    require_jing!();
-    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
-    validate_fixture(&temp_dir, "comprehensive", fixtures::comprehensive_document);
+    run_fixture_validation(&temp_dir, name, builder);
 }
 
 #[test]

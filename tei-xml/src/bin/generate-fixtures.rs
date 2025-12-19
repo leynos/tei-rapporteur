@@ -53,6 +53,12 @@ fn run() -> Result<(), TeiError> {
 
     let builders = fixtures::fixture_builders();
 
+    if builders.is_empty() {
+        return Err(TeiError::io(
+            "no fixture builders configured; check fixtures module".to_owned(),
+        ));
+    }
+
     for (name, builder) in &builders {
         let document = builder()?;
         let xml = emit_xml(&document)?;
