@@ -5,7 +5,7 @@ CARGO ?= cargo
 BUILD_JOBS ?=
 CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
 RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
-MDLINT ?= markdownlint-cli2
+MDLINT ?= $(shell if [ -x /root/.bun/bin/markdownlint-cli2 ]; then echo /root/.bun/bin/markdownlint-cli2; else echo markdownlint-cli2; fi)
 NIXIE ?= nixie
 FIXTURES_DIR ?= target/fixtures
 

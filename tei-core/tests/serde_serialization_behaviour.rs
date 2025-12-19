@@ -131,9 +131,12 @@ fn a_json_payload_with_a_blank_title(#[from(validated_state)] state: &SerdeState
     let mut payload =
         tei_serde::json::to_value(&document).context("serializing fixture to JSON should work")?;
 
-    if let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") {
-        *title = JsonValue::String("   ".to_owned());
-    }
+    let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") else {
+        return Err(anyhow::anyhow!(
+            "expected JSON payload to contain /teiHeader/fileDesc/title"
+        ));
+    };
+    *title = JsonValue::String("   ".to_owned());
 
     let payload_text =
         tei_serde::json::to_string(&payload).context("serializing mutated JSON should succeed")?;
