@@ -9,14 +9,14 @@ use serde::de::DeserializeOwned;
 /// Alias for JSON values.
 pub type Value = serde_json::Value;
 
-/// Alias for JSON serialisation/deserialisation failures.
+/// Alias for JSON serialization/deserialization failures.
 pub type JsonError = serde_json::Error;
 
-/// Serialises a value into a compact JSON string.
+/// Serializes a value into a compact JSON string.
 ///
 /// # Errors
 ///
-/// Returns [`JsonError`] when serialisation fails.
+/// Returns [`JsonError`] when serialization fails.
 pub fn to_string<T>(value: &T) -> Result<String, JsonError>
 where
     T: Serialize,
@@ -24,7 +24,7 @@ where
     serde_json::to_string(value)
 }
 
-/// Deserialises a value from JSON text.
+/// Deserializes a value from JSON text.
 ///
 /// # Errors
 ///
@@ -37,11 +37,11 @@ where
     serde_json::from_str(source)
 }
 
-/// Serialises a value into a generic JSON tree.
+/// Serializes a value into a generic JSON tree.
 ///
 /// # Errors
 ///
-/// Returns [`JsonError`] when serialisation fails.
+/// Returns [`JsonError`] when serialization fails.
 pub fn to_value<T>(value: &T) -> Result<Value, JsonError>
 where
     T: Serialize,
@@ -49,7 +49,7 @@ where
     serde_json::to_value(value)
 }
 
-/// Deserialises a strongly typed value from a generic JSON tree.
+/// Deserializes a strongly typed value from a generic JSON tree.
 ///
 /// # Errors
 ///
@@ -64,38 +64,30 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tei_core::TeiDocument;
+    use serde::{Deserialize, Serialize};
 
     #[test]
-    fn round_trips_tei_document_via_json_value() {
-        let document = TeiDocument::from_title_str("Wolf 359")
-            .expect("fixtures should construct a valid document");
+    fn round_trips_values() {
+        #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+        struct Example {
+            title: String,
+            count: u32,
+        }
 
-        let payload = to_value(&document).expect("serialising to JSON value should succeed");
-        let decoded: TeiDocument =
-            from_value(payload).expect("deserialising JSON value should succeed");
+        let example = Example {
+            title: "Wolf 359".to_owned(),
+            count: 42,
+        };
+        let payload = to_value(&example).expect("serializing to JSON value should succeed");
+        let decoded: Example =
+            from_value(payload).expect("deserializing JSON value should succeed");
 
-        assert_eq!(decoded.title().as_str(), "Wolf 359");
+        assert_eq!(decoded, example);
     }
 
     #[test]
-    fn rejects_blank_titles_during_deserialisation() {
-        let document = TeiDocument::from_title_str("placeholder")
-            .expect("fixtures should construct a valid document");
-        let mut payload = to_value(&document).expect("serialising fixtures to JSON value");
-
-        if let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") {
-            *title = Value::String("   ".to_owned());
-        }
-
-        let text = to_string(&payload).expect("serialising mutated payload should succeed");
-        let result: Result<TeiDocument, _> = from_str(&text);
-
-        let error = result.expect_err("blank titles must not deserialise");
-        let message = error.to_string();
-        assert!(
-            message.contains("document title may not be empty"),
-            "expected title validation error, got: {message}"
-        );
+    fn rejects_invalid_json_payloads() {
+        let error = from_str::<Value>("this is not JSON").expect_err("invalid JSON should fail");
+        assert!(error.is_syntax(), "expected syntax error, got: {error}");
     }
 }

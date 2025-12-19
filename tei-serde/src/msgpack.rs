@@ -6,17 +6,17 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-/// Alias for `MessagePack` deserialisation failures.
+/// Alias for `MessagePack` deserialization failures.
 pub type MsgpackDecodeError = rmp_serde::decode::Error;
 
-/// Alias for `MessagePack` serialisation failures.
+/// Alias for `MessagePack` serialization failures.
 pub type MsgpackEncodeError = rmp_serde::encode::Error;
 
-/// Serialises a value to `MessagePack` bytes using named fields.
+/// Serializes a value to `MessagePack` bytes using named fields.
 ///
 /// # Errors
 ///
-/// Returns [`MsgpackEncodeError`] when serialisation fails.
+/// Returns [`MsgpackEncodeError`] when serialization fails.
 pub fn to_vec_named<T>(value: &T) -> Result<Vec<u8>, MsgpackEncodeError>
 where
     T: Serialize,
@@ -24,11 +24,11 @@ where
     rmp_serde::to_vec_named(value)
 }
 
-/// Deserialises a value from `MessagePack` bytes.
+/// Deserializes a value from `MessagePack` bytes.
 ///
 /// # Errors
 ///
-/// Returns [`MsgpackDecodeError`] when deserialisation fails.
+/// Returns [`MsgpackDecodeError`] when deserialization fails.
 pub fn from_slice<T>(bytes: &[u8]) -> Result<T, MsgpackDecodeError>
 where
     T: DeserializeOwned,
@@ -39,25 +39,33 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tei_core::TeiDocument;
+    use serde::{Deserialize, Serialize};
 
     #[test]
-    fn round_trips_tei_document_via_messagepack() {
-        let document = TeiDocument::from_title_str("Wolf 359")
-            .expect("fixtures should construct a valid document");
+    fn round_trips_values() {
+        #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+        struct Example {
+            title: String,
+            count: u32,
+        }
 
-        let payload = to_vec_named(&document).expect("serialising to MessagePack should succeed");
-        let decoded: TeiDocument =
-            from_slice(&payload).expect("deserialising MessagePack payload should succeed");
+        let example = Example {
+            title: "Wolf 359".to_owned(),
+            count: 42,
+        };
 
-        assert_eq!(decoded.title().as_str(), "Wolf 359");
+        let payload = to_vec_named(&example).expect("serializing to `MessagePack` should succeed");
+        let decoded: Example =
+            from_slice(&payload).expect("deserializing `MessagePack` payload should succeed");
+
+        assert_eq!(decoded, example);
     }
 
     #[test]
     fn rejects_empty_payloads() {
-        let result: Result<TeiDocument, _> = from_slice(&[]);
+        let result: Result<u32, _> = from_slice(&[]);
 
-        let error = result.expect_err("empty payloads must not deserialise");
+        let error = result.expect_err("empty payloads must not deserialize");
         assert!(matches!(error, MsgpackDecodeError::InvalidMarkerRead(_)));
     }
 }

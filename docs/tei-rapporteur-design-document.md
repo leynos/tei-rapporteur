@@ -728,9 +728,9 @@ key functions include:
   ```
 
 - `from_json(json_str_or_bytes) -> Document` – Similar to above, but for JSON
-  text. Uses `tei_serde::json` (wrapping `serde_json`) in Rust. (This might be
-  slightly less efficient than MessagePack due to parsing text, but convenient
-  for debugging.)
+  text. Rust uses `tei_serde::json::from_str` (wrapping `serde_json`) to
+  deserialize JSON text. (This might be slightly less efficient than
+  MessagePack due to parsing text, but convenient for debugging.)
 
 - Corresponding **output** functions to retrieve data from a `Document`:
 
@@ -951,7 +951,7 @@ xml = tei_rapporteur.emit_xml(doc)
 
 This sequence performs a single fast binary serialization of the whole object
 (`msgspec` uses a performant native implementation), and Rust deserializes it
-in one go (`tei_serde::msgpack` directly to `TeiDocument`). This **binary
+in one go via `tei_serde::msgpack` directly into a `TeiDocument`. This **binary
 boundary** approach is extremely efficient for large data because it avoids
 per-field conversions across the FFI boundary. By contrast, manually setting
 attributes on PyO3 classes for each field would incur many Python C-API calls.
@@ -980,7 +980,7 @@ exchanges data:
 | `from_dict(obj)`          | `dict`/`list` tree (JSON structure) | Serde via `pyo3_serde` to Rust `TeiDocument`              | Constructing from Python data (e.g., test cases)     |
 | `from_struct(obj)`        | `msgspec.Struct` instance           | Calls `msgspec.to_builtins`, then same as above           | High-level, Pythonic import of msgspec data          |
 | `from_msgpack(bytes)`     | MessagePack bytes                   | Rust uses `tei_serde::msgpack` to decode to `TeiDocument` | Fast path for large data, or transferring via binary |
-| `from_json(str_or_bytes)` | JSON string or bytes                | Rust uses `tei_serde::json` to decode                     | When JSON text is available (slower than MsgPack)    |
+| `from_json(str_or_bytes)` | JSON string or bytes                | Rust uses `tei_serde::json::from_str` to decode           | When JSON text is available (slower than MsgPack)    |
 | *Return: `Document`*      | *(PyO3 class wrapping data)*        | Holds Rust `TeiDocument` inside (no copy unless mutated)  | Represents TEI document in Python                    |
 
 | Python Function   | Output (Python side)       | Conversion Mechanism                                | Notes                               |

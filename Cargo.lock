@@ -1268,15 +1268,9 @@ dependencies = [
 name = "tei-serde"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "rmp-serde",
- "rstest",
- "rstest-bdd",
- "rstest-bdd-macros",
  "serde",
  "serde_json",
- "tei-core",
- "tei-test-helpers",
 ]
 
 [[package]]

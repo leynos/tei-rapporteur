@@ -1,54 +1,33 @@
-//! Behaviour-driven scenarios for JSON and `MessagePack` serialisation.
+//! Behaviour-driven scenarios for JSON and `MessagePack` serialization.
 
 use anyhow::{Context, Result, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
 use tei_core::TeiDocument;
+use tei_serde::json::{JsonError, Value as JsonValue};
+use tei_serde::msgpack::MsgpackDecodeError;
 use tei_test_helpers::expect_validated_state;
 
 #[derive(Default)]
 struct SerdeState {
     document: RefCell<Option<TeiDocument>>,
-    decoded_document: RefCell<Option<TeiDocument>>,
     msgpack_payload: RefCell<Option<Vec<u8>>>,
     json_payload: RefCell<Option<String>>,
-    error: RefCell<Option<String>>,
+    msgpack_outcome: RefCell<Option<Result<TeiDocument, MsgpackDecodeError>>>,
+    json_outcome: RefCell<Option<Result<TeiDocument, JsonError>>>,
 }
 
 impl SerdeState {
     fn set_document(&self, document: TeiDocument) {
         *self.document.borrow_mut() = Some(document);
-        self.decoded_document.borrow_mut().take();
-        self.error.borrow_mut().take();
+        self.msgpack_outcome.borrow_mut().take();
+        self.json_outcome.borrow_mut().take();
     }
 
     fn document(&self) -> Result<std::cell::Ref<'_, TeiDocument>> {
         std::cell::Ref::filter_map(self.document.borrow(), Option::as_ref)
             .map_err(|_| anyhow::anyhow!("scenario must configure a document"))
-    }
-
-    fn set_decoded_document(&self, document: TeiDocument) {
-        *self.decoded_document.borrow_mut() = Some(document);
-        self.error.borrow_mut().take();
-    }
-
-    fn store_error(&self, message: String) {
-        self.error.borrow_mut().replace(message);
-        self.decoded_document.borrow_mut().take();
-    }
-
-    fn error(&self) -> Result<String> {
-        self.error
-            .borrow()
-            .as_ref()
-            .cloned()
-            .context("scenario must record an error before assertions")
-    }
-
-    fn decoded_document(&self) -> Result<std::cell::Ref<'_, TeiDocument>> {
-        std::cell::Ref::filter_map(self.decoded_document.borrow(), Option::as_ref)
-            .map_err(|_| anyhow::anyhow!("scenario must decode a document before assertions"))
     }
 
     fn store_msgpack_payload(&self, payload: Vec<u8>) {
@@ -57,7 +36,7 @@ impl SerdeState {
 
     fn msgpack_payload(&self) -> Result<std::cell::Ref<'_, Vec<u8>>> {
         std::cell::Ref::filter_map(self.msgpack_payload.borrow(), Option::as_ref)
-            .map_err(|_| anyhow::anyhow!("scenario must define a MessagePack payload"))
+            .map_err(|_| anyhow::anyhow!("scenario must define a `MessagePack` payload"))
     }
 
     fn store_json_payload(&self, payload: String) {
@@ -71,6 +50,27 @@ impl SerdeState {
             .cloned()
             .context("scenario must define a JSON payload")
     }
+
+    fn set_msgpack_outcome(&self, outcome: Result<TeiDocument, MsgpackDecodeError>) {
+        *self.msgpack_outcome.borrow_mut() = Some(outcome);
+    }
+
+    fn msgpack_outcome(
+        &self,
+    ) -> Result<std::cell::Ref<'_, Result<TeiDocument, MsgpackDecodeError>>> {
+        std::cell::Ref::filter_map(self.msgpack_outcome.borrow(), Option::as_ref).map_err(|_| {
+            anyhow::anyhow!("scenario must deserialize `MessagePack` before assertions")
+        })
+    }
+
+    fn set_json_outcome(&self, outcome: Result<TeiDocument, JsonError>) {
+        *self.json_outcome.borrow_mut() = Some(outcome);
+    }
+
+    fn json_outcome(&self) -> Result<std::cell::Ref<'_, Result<TeiDocument, JsonError>>> {
+        std::cell::Ref::filter_map(self.json_outcome.borrow(), Option::as_ref)
+            .map_err(|_| anyhow::anyhow!("scenario must deserialize JSON before assertions"))
+    }
 }
 
 fn build_state() -> Result<SerdeState> {
@@ -80,20 +80,20 @@ fn build_state() -> Result<SerdeState> {
         "fresh state must not contain a document"
     );
     ensure!(
-        state.decoded_document.borrow().is_none(),
-        "fresh state must not contain decoded documents"
-    );
-    ensure!(
         state.msgpack_payload.borrow().is_none(),
-        "fresh state must not contain MessagePack payloads"
+        "fresh state must not contain `MessagePack` payloads"
     );
     ensure!(
         state.json_payload.borrow().is_none(),
         "fresh state must not contain JSON payloads"
     );
     ensure!(
-        state.error.borrow().is_none(),
-        "fresh state must not contain recorded errors"
+        state.msgpack_outcome.borrow().is_none(),
+        "fresh state must not contain `MessagePack` outcomes"
+    );
+    ensure!(
+        state.json_outcome.borrow().is_none(),
+        "fresh state must not contain JSON outcomes"
     );
     Ok(state)
 }
@@ -129,14 +129,14 @@ fn a_json_payload_with_a_blank_title(#[from(validated_state)] state: &SerdeState
     let document = TeiDocument::from_title_str("placeholder")
         .context("placeholder document must construct")?;
     let mut payload =
-        tei_serde::json::to_value(&document).context("serialising fixtures to JSON should work")?;
+        tei_serde::json::to_value(&document).context("serializing fixture to JSON should work")?;
 
     if let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") {
-        *title = tei_serde::json::Value::String("   ".to_owned());
+        *title = JsonValue::String("   ".to_owned());
     }
 
     let payload_text =
-        tei_serde::json::to_string(&payload).context("serialising mutated JSON should succeed")?;
+        tei_serde::json::to_string(&payload).context("serializing mutated JSON should succeed")?;
     state.store_json_payload(payload_text);
     Ok(())
 }
@@ -157,7 +157,7 @@ fn i_serialize_the_document_as_messagepack(
 ) -> Result<()> {
     let document = state.document()?;
     let payload = tei_serde::msgpack::to_vec_named(&*document)
-        .context("serialising to MessagePack should succeed")?;
+        .context("serializing to `MessagePack` should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())
 }
@@ -167,10 +167,8 @@ fn i_deserialize_the_messagepack_payload(
     #[from(validated_state)] state: &SerdeState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
-    match tei_serde::msgpack::from_slice::<TeiDocument>(payload.as_slice()) {
-        Ok(decoded) => state.set_decoded_document(decoded),
-        Err(error) => state.store_error(error.to_string()),
-    }
+    let outcome = tei_serde::msgpack::from_slice::<TeiDocument>(payload.as_slice());
+    state.set_msgpack_outcome(outcome);
     Ok(())
 }
 
@@ -178,7 +176,7 @@ fn i_deserialize_the_messagepack_payload(
 fn i_serialize_the_document_as_json(#[from(validated_state)] state: &SerdeState) -> Result<()> {
     let document = state.document()?;
     let payload =
-        tei_serde::json::to_string(&*document).context("serialising to JSON should succeed")?;
+        tei_serde::json::to_string(&*document).context("serializing to JSON should succeed")?;
     state.store_json_payload(payload);
     Ok(())
 }
@@ -186,10 +184,8 @@ fn i_serialize_the_document_as_json(#[from(validated_state)] state: &SerdeState)
 #[when("I deserialize the JSON payload")]
 fn i_deserialize_the_json_payload(#[from(validated_state)] state: &SerdeState) -> Result<()> {
     let payload = state.json_payload()?;
-    match tei_serde::json::from_str::<TeiDocument>(&payload) {
-        Ok(decoded) => state.set_decoded_document(decoded),
-        Err(error) => state.store_error(error.to_string()),
-    }
+    let outcome = tei_serde::json::from_str::<TeiDocument>(&payload);
+    state.set_json_outcome(outcome);
     Ok(())
 }
 
@@ -198,22 +194,54 @@ fn the_deserialized_document_title_is(
     #[from(validated_state)] state: &SerdeState,
     title: String,
 ) -> Result<()> {
-    let document = state.decoded_document()?;
-    let expected_title = title;
-    ensure!(
-        document.title().as_str() == expected_title.as_str(),
-        "expected title {expected_title:?}, found {:?}",
-        document.title().as_str()
-    );
-    Ok(())
+    if let Ok(outcome) = state.msgpack_outcome() {
+        return match outcome.as_ref() {
+            Ok(document) => {
+                ensure!(
+                    document.title().as_str() == title.as_str(),
+                    "expected title {title:?}, found {:?}",
+                    document.title().as_str()
+                );
+                Ok(())
+            }
+            Err(error) => Err(anyhow::anyhow!(
+                "expected `MessagePack` deserialization to succeed: {error}"
+            )),
+        };
+    }
+
+    if let Ok(outcome) = state.json_outcome() {
+        return match outcome.as_ref() {
+            Ok(document) => {
+                ensure!(
+                    document.title().as_str() == title.as_str(),
+                    "expected title {title:?}, found {:?}",
+                    document.title().as_str()
+                );
+                Ok(())
+            }
+            Err(error) => Err(anyhow::anyhow!(
+                "expected JSON deserialization to succeed: {error}"
+            )),
+        };
+    }
+
+    Err(anyhow::anyhow!(
+        "scenario must deserialize either `MessagePack` or JSON before asserting on title"
+    ))
 }
 
 #[then("MessagePack deserialization fails")]
 fn messagepack_deserialization_fails(#[from(validated_state)] state: &SerdeState) -> Result<()> {
-    let message = state.error()?;
+    let outcome = state.msgpack_outcome()?;
+    let Err(error) = outcome.as_ref() else {
+        return Err(anyhow::anyhow!(
+            "expected `MessagePack` deserialization to fail"
+        ));
+    };
     ensure!(
-        message.contains("IO error while reading marker"),
-        "expected invalid marker read error, got: {message}"
+        matches!(error, MsgpackDecodeError::InvalidMarkerRead(_)),
+        "expected invalid marker read error, got: {error}"
     );
     Ok(())
 }
@@ -223,7 +251,11 @@ fn json_deserialization_fails_mentioning(
     #[from(validated_state)] state: &SerdeState,
     snippet: String,
 ) -> Result<()> {
-    let message = state.error()?;
+    let outcome = state.json_outcome()?;
+    let Err(error) = outcome.as_ref() else {
+        return Err(anyhow::anyhow!("expected JSON deserialization to fail"));
+    };
+    let message = error.to_string();
     ensure!(
         message.contains(&snippet),
         "expected error to mention {snippet:?}, found {message:?}"
@@ -235,18 +267,16 @@ fn json_deserialization_fails_mentioning(
 fn json_deserialization_fails_with_a_syntax_error(
     #[from(validated_state)] state: &SerdeState,
 ) -> Result<()> {
-    let message = state.error()?;
-    ensure!(
-        message.contains("expected value")
-            || message.contains("expected ident")
-            || message.contains("EOF while parsing"),
-        "expected syntax error, got: {message}"
-    );
+    let outcome = state.json_outcome()?;
+    let Err(error) = outcome.as_ref() else {
+        return Err(anyhow::anyhow!("expected JSON deserialization to fail"));
+    };
+    ensure!(error.is_syntax(), "expected syntax error, got: {error}");
     Ok(())
 }
 
 /// Scenario: Serialize a document to `MessagePack` and back.
-#[scenario(path = "tests/features/serialization.feature", index = 0)]
+#[scenario(path = "tests/features/serde_serialization.feature", index = 0)]
 pub fn serializes_messagepack_round_trip(
     #[from(validated_state)] _: SerdeState,
     #[from(validated_state_result)] result: Result<SerdeState>,
@@ -255,7 +285,7 @@ pub fn serializes_messagepack_round_trip(
 }
 
 /// Scenario: Reject invalid `MessagePack` payloads.
-#[scenario(path = "tests/features/serialization.feature", index = 1)]
+#[scenario(path = "tests/features/serde_serialization.feature", index = 1)]
 pub fn rejects_invalid_messagepack_payloads(
     #[from(validated_state)] _: SerdeState,
     #[from(validated_state_result)] result: Result<SerdeState>,
@@ -264,7 +294,7 @@ pub fn rejects_invalid_messagepack_payloads(
 }
 
 /// Scenario: Serialize a document to JSON and back.
-#[scenario(path = "tests/features/serialization.feature", index = 2)]
+#[scenario(path = "tests/features/serde_serialization.feature", index = 2)]
 pub fn serializes_json_round_trip(
     #[from(validated_state)] _: SerdeState,
     #[from(validated_state_result)] result: Result<SerdeState>,
@@ -273,7 +303,7 @@ pub fn serializes_json_round_trip(
 }
 
 /// Scenario: Reject JSON payloads with blank titles.
-#[scenario(path = "tests/features/serialization.feature", index = 3)]
+#[scenario(path = "tests/features/serde_serialization.feature", index = 3)]
 pub fn rejects_blank_titles_in_json(
     #[from(validated_state)] _: SerdeState,
     #[from(validated_state_result)] result: Result<SerdeState>,
@@ -282,7 +312,7 @@ pub fn rejects_blank_titles_in_json(
 }
 
 /// Scenario: Reject invalid JSON payloads.
-#[scenario(path = "tests/features/serialization.feature", index = 4)]
+#[scenario(path = "tests/features/serde_serialization.feature", index = 4)]
 pub fn rejects_invalid_json_payloads(
     #[from(validated_state)] _: SerdeState,
     #[from(validated_state_result)] result: Result<SerdeState>,

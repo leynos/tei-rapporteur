@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie validate-xml
+.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -33,6 +33,9 @@ fmt: ## Format Rust and Markdown sources
 
 check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
+
+typecheck: ## Typecheck all workspace crates
+	RUSTFLAGS="-D warnings" $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
 
 markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
