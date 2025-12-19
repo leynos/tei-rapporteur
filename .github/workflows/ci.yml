@@ -34,7 +34,7 @@ jobs:
           output-path: coverage.xml
           format: cobertura
       - name: Install jing for XML validation
-        run: sudo apt-get update && sudo apt-get install -y jing
+        run: sudo apt-get update && sudo apt-get install -y jing-trang
       - name: Validate XML fixtures against Relax NG schema
         run: make validate-xml
       - name: Set up Python

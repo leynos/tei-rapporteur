@@ -6,16 +6,8 @@
 
 use std::path::PathBuf;
 use std::process::Command;
-use tei_xml::{emit_xml, fixtures, write_relax_ng_schema};
+use tei_xml::{TEI_NAMESPACE, add_tei_namespace, emit_xml, fixtures, write_relax_ng_schema};
 use tempfile::TempDir;
-
-/// TEI namespace required for schema validation.
-const TEI_NAMESPACE: &str = "http://www.tei-c.org/ns/1.0";
-
-/// Adds the TEI namespace declaration to the root `<TEI>` element.
-fn add_tei_namespace(xml: &str) -> String {
-    xml.replacen("<TEI>", &format!("<TEI xmlns=\"{TEI_NAMESPACE}\">"), 1)
-}
 
 /// Checks whether jing is available in the system PATH.
 fn jing_available() -> bool {
