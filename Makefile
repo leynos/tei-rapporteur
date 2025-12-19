@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
+.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie validate-xml
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -7,6 +7,7 @@ CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
 RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
+FIXTURES_DIR ?= target/fixtures
 
 build: ## Build all workspace crates in debug mode
 	$(CARGO) build --workspace $(BUILD_JOBS)
@@ -38,6 +39,19 @@ markdownlint: ## Lint Markdown files
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
+
+validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
+	@command -v jing >/dev/null 2>&1 || { echo "error: jing not found; install with 'apt-get install jing-trang' or 'brew install jing'"; exit 1; }
+	$(CARGO) run --package tei-xml --bin generate-fixtures $(BUILD_JOBS) -- $(FIXTURES_DIR)
+	@xml_files="$$(find $(FIXTURES_DIR) -maxdepth 1 -name '*.xml' 2>/dev/null)"; \
+	if [ -z "$$xml_files" ]; then \
+		echo "error: no XML fixtures found in $(FIXTURES_DIR)"; exit 1; \
+	fi; \
+	for xml in $$xml_files; do \
+		echo "Validating $$xml..."; \
+		jing $(FIXTURES_DIR)/tei-episodic-profile.rng "$$xml" || exit 1; \
+	done
+	@echo "All fixtures validated successfully"
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

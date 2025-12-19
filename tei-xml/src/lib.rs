@@ -6,8 +6,11 @@
 use quick_xml::{de, se};
 use tei_core::{TeiDocument, TeiError};
 
+pub mod fixtures;
+mod namespace;
 mod schema;
 
+pub use namespace::{TEI_NAMESPACE, add_tei_namespace};
 pub use schema::{relax_ng_schema, write_relax_ng_schema};
 
 /// Encodes text for inclusion in XML content.

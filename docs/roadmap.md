@@ -141,7 +141,7 @@ guarantee data correctness.
 - [x] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
       it all) specification.
 - [x] Generate a Relax NG schema from the ODD.
-- [ ] Add a CI step that validates all test XML outputs against the generated
+- [x] Add a CI step that validates all test XML outputs against the generated
       Relax NG schema using an external tool like `jing`.
 
 ### Step 3.2: Formalized Serialization (`tei-serde`)
