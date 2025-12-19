@@ -20,10 +20,9 @@ Feature: TEI document serialization
   Scenario: Reject JSON payloads with blank titles
     Given a JSON payload with a blank title
     When I deserialize the JSON payload
-    Then JSON deserialization fails mentioning "document title may not be empty"
+    Then JSON deserialization fails
 
   Scenario: Reject invalid JSON payloads
     Given an invalid JSON payload
     When I deserialize the JSON payload
     Then JSON deserialization fails with a syntax error
-

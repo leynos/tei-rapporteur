@@ -5,9 +5,11 @@ CARGO ?= cargo
 BUILD_JOBS ?=
 CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
 RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
-MDLINT ?= $(shell if [ -x /root/.bun/bin/markdownlint-cli2 ]; then echo /root/.bun/bin/markdownlint-cli2; else echo markdownlint-cli2; fi)
+MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 FIXTURES_DIR ?= target/fixtures
+
+MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
 build: ## Build all workspace crates in debug mode
 	$(CARGO) build --workspace $(BUILD_JOBS)
@@ -38,7 +40,14 @@ typecheck: ## Typecheck all workspace crates
 	RUSTFLAGS="-D warnings" $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
 
 markdownlint: ## Lint Markdown files
-	$(MDLINT) '**/*.md'
+	@if [ -n "$(MDLINT_BIN)" ]; then \
+		"$(MDLINT_BIN)" '**/*.md'; \
+	elif [ -x /root/.bun/bin/markdownlint-cli2 ]; then \
+		/root/.bun/bin/markdownlint-cli2 '**/*.md'; \
+	else \
+		echo "error: markdownlint-cli2 not found; install it or set MDLINT=/path/to/markdownlint-cli2"; \
+		exit 1; \
+	fi
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox

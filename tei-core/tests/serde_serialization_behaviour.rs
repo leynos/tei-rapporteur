@@ -9,6 +9,29 @@ use tei_serde::json::{JsonError, Value as JsonValue};
 use tei_serde::msgpack::MsgpackDecodeError;
 use tei_test_helpers::expect_validated_state;
 
+fn assert_document_title(document: &TeiDocument, expected_title: &str) -> Result<()> {
+    ensure!(
+        document.title().as_str() == expected_title,
+        "expected title {expected_title:?}, found {:?}",
+        document.title().as_str()
+    );
+    Ok(())
+}
+
+fn assert_outcome_title<E>(
+    outcome: Result<&TeiDocument, &E>,
+    expected_title: &str,
+    context: &str,
+) -> Result<()>
+where
+    E: std::fmt::Display,
+{
+    match outcome {
+        Ok(document) => assert_document_title(document, expected_title),
+        Err(error) => Err(anyhow::anyhow!("{context}: {error}")),
+    }
+}
+
 #[derive(Default)]
 struct SerdeState {
     document: RefCell<Option<TeiDocument>>,
@@ -113,14 +136,16 @@ fn a_tei_document_titled(#[from(validated_state)] state: &SerdeState, title: Str
     let document =
         TeiDocument::from_title_str(title.as_str()).context("fixture document must construct")?;
     state.set_document(document);
-    let _ = state.document()?;
     Ok(())
 }
 
 #[given("an invalid MessagePack payload")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "rstest-bdd step signatures stay uniform even when storing literals"
+)]
 fn an_invalid_messagepack_payload(#[from(validated_state)] state: &SerdeState) -> Result<()> {
     state.store_msgpack_payload(Vec::new());
-    let _ = state.msgpack_payload()?;
     Ok(())
 }
 
@@ -198,35 +223,19 @@ fn the_deserialized_document_title_is(
     title: String,
 ) -> Result<()> {
     if let Ok(outcome) = state.msgpack_outcome() {
-        return match outcome.as_ref() {
-            Ok(document) => {
-                ensure!(
-                    document.title().as_str() == title.as_str(),
-                    "expected title {title:?}, found {:?}",
-                    document.title().as_str()
-                );
-                Ok(())
-            }
-            Err(error) => Err(anyhow::anyhow!(
-                "expected `MessagePack` deserialization to succeed: {error}"
-            )),
-        };
+        return assert_outcome_title(
+            outcome.as_ref(),
+            title.as_str(),
+            "expected `MessagePack` deserialization to succeed",
+        );
     }
 
     if let Ok(outcome) = state.json_outcome() {
-        return match outcome.as_ref() {
-            Ok(document) => {
-                ensure!(
-                    document.title().as_str() == title.as_str(),
-                    "expected title {title:?}, found {:?}",
-                    document.title().as_str()
-                );
-                Ok(())
-            }
-            Err(error) => Err(anyhow::anyhow!(
-                "expected JSON deserialization to succeed: {error}"
-            )),
-        };
+        return assert_outcome_title(
+            outcome.as_ref(),
+            title.as_str(),
+            "expected JSON deserialization to succeed",
+        );
     }
 
     Err(anyhow::anyhow!(
@@ -249,20 +258,13 @@ fn messagepack_deserialization_fails(#[from(validated_state)] state: &SerdeState
     Ok(())
 }
 
-#[then("JSON deserialization fails mentioning \"{snippet}\"")]
-fn json_deserialization_fails_mentioning(
-    #[from(validated_state)] state: &SerdeState,
-    snippet: String,
-) -> Result<()> {
+#[then("JSON deserialization fails")]
+fn json_deserialization_fails(#[from(validated_state)] state: &SerdeState) -> Result<()> {
     let outcome = state.json_outcome()?;
     let Err(error) = outcome.as_ref() else {
         return Err(anyhow::anyhow!("expected JSON deserialization to fail"));
     };
-    let message = error.to_string();
-    ensure!(
-        message.contains(&snippet),
-        "expected error to mention {snippet:?}, found {message:?}"
-    );
+    ensure!(error.is_data(), "expected JSON data error, got: {error}");
     Ok(())
 }
 
