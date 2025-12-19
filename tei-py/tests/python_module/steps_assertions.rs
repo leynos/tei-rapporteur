@@ -4,8 +4,8 @@ use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result, ensure};
 use pyo3::{Python, types::PyAnyMethods};
 use rstest_bdd_macros::then;
-use serde_json::Value;
 use tei_core::TeiDocument;
+use tei_serde::json::Value;
 use tei_xml::emit_xml as emit_document_xml;
 
 const _: fn() -> PythonModuleState = python_state;

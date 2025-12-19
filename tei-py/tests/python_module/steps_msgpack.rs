@@ -3,10 +3,10 @@
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result, bail};
 use pyo3::{prelude::*, types::PyBytes};
-use rmp_serde::to_vec_named;
 use rstest_bdd_macros::{given, scenario, when};
-use serde_json::json;
 use tei_core::TeiDocument;
+use tei_serde::msgpack::to_vec_named;
+use tei_serde::serde_json::json;
 
 const _: fn() -> PythonModuleState = python_state;
 

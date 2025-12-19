@@ -148,9 +148,9 @@ guarantee data correctness.
 
 This step modularizes the JSON and MessagePack logic into a dedicated crate.
 
-- [ ] Create the `tei-serde` crate and move `serde_json` and `rmp-serde`
+- [x] Create the `tei-serde` crate and move `serde_json` and `rmp-serde`
       dependencies into it.
-- [ ] Move serialization-specific logic from `tei-core` and `tei-py` into
+- [x] Move serialization-specific logic from `tei-core` and `tei-py` into
       `tei-serde`.
 - [ ] Generate and publish a versioned JSON Schema corresponding to the
       `TeiDocument` structure.

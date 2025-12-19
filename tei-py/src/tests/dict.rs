@@ -3,8 +3,9 @@
 use pyo3::Python;
 use pyo3_serde::{from_pyobject, to_pyobject};
 use rstest::{fixture, rstest};
-use serde_json::{Value, json, to_value};
 use tei_core::TeiDocument;
+use tei_serde::json::{Value, to_value};
+use tei_serde::serde_json::json;
 
 use crate::{Document, from_dict, to_dict};
 

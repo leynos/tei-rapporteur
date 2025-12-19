@@ -14,8 +14,8 @@
 use pyo3::types::PyAny;
 use pyo3::{Bound, Python};
 use pyo3_serde::{from_pyobject, to_pyobject};
-use rmp_serde::{decode::Error as MsgpackDecodeError, encode::Error as MsgpackEncodeError};
 use tei_core::{TeiDocument, TeiError};
+use tei_serde::msgpack::{MsgpackDecodeError, MsgpackEncodeError};
 use tei_xml::{
     emit_xml as emit_document_xml, parse_xml as parse_document_xml, serialize_document_title,
 };
@@ -56,8 +56,8 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
 }
 
 define_conversion_pair! {
-    from document_from_msgpack(bytes: &[u8]) -> MsgpackDecodeError { rmp_serde::from_slice(bytes) };
-    to document_to_msgpack(document: &TeiDocument) -> Vec<u8>, MsgpackEncodeError { rmp_serde::to_vec_named(document) }
+    from document_from_msgpack(bytes: &[u8]) -> MsgpackDecodeError { tei_serde::msgpack::from_slice(bytes) };
+    to document_to_msgpack(document: &TeiDocument) -> Vec<u8>, MsgpackEncodeError { tei_serde::msgpack::to_vec_named(document) }
 }
 
 define_conversion_pair! {

@@ -118,9 +118,9 @@ encoding them feeds the payload straight back into `from_msgpack`.
 Binary interchange is now supported through
 `tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes
 produced by `msgspec.msgpack.encode` (or any compatible encoder), decodes them
-via `rmp_serde`, and returns a `Document`. Invalid payloads raise `ValueError`,
-so Python callers receive a familiar exception instead of a Rust-specific error
-type. This allows workflows such as:
+via `tei-serde` (wrapping `rmp-serde`), and returns a `Document`. Invalid
+payloads raise `ValueError`, so Python callers receive a familiar exception
+instead of a Rust-specific error type. This allows workflows such as:
 
 ```python
 import msgspec
@@ -134,7 +134,7 @@ print(document.title)
 ```
 
 The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serialises the
-validated document into MessagePack bytes via `rmp_serde::to_vec_named`. The
+validated document into MessagePack bytes via `tei_serde::msgpack`. The
 function returns Python `bytes`, making it trivial to persist the payload or
 feed it straight into `msgspec.msgpack.decode` to hydrate a structured type.
 Non-`Document` inputs raise a `TypeError`, giving users immediate feedback when
@@ -248,9 +248,9 @@ documents.
 ## External XML validation
 
 The library includes support for validating generated XML against the TEI
-Episodic Profile Relax NG schema using external tools like `jing`. This provides
-an additional layer of assurance that emitted documents conform to the formal
-schema definition.
+Episodic Profile Relax NG schema using external tools like `jing`. This
+provides an additional layer of assurance that emitted documents conform to the
+formal schema definition.
 
 ### Local validation
 
@@ -262,8 +262,8 @@ make validate-xml
 
 This generates XML fixtures exercising different profile features (minimal
 documents, paragraphs, utterances, and comprehensive documents with full header
-metadata), writes the embedded Relax NG schema, and validates each fixture using
-jing.
+metadata), writes the embedded Relax NG schema, and validates each fixture
+using jing.
 
 The `validate-xml` target requires jing to be installed. On Ubuntu/Debian:
 
@@ -279,10 +279,10 @@ brew install jing
 
 ### Continuous integration
 
-CI automatically validates all XML fixtures against the Relax NG schema on every
-pull request. This ensures that changes to the data model or emitter do not
-produce invalid TEI documents. The CI workflow installs jing, generates fixtures
-using the `generate-fixtures` binary, and validates each fixture.
+CI automatically validates all XML fixtures against the Relax NG schema on
+every pull request. This ensures that changes to the data model or emitter do
+not produce invalid TEI documents. The CI workflow installs jing, generates
+fixtures using the `generate-fixtures` binary, and validates each fixture.
 
 ### Fixture generation
 

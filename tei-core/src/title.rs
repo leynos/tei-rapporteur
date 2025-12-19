@@ -126,6 +126,7 @@ mod tests {
     use super::*;
     use rstest::rstest;
     use std::fmt::Display;
+    use tei_serde::json;
 
     fn expect_ok<T, E>(result: Result<T, E>, message: &str) -> T
     where
@@ -165,7 +166,7 @@ mod tests {
 
     #[test]
     fn deserialisation_rejects_empty_titles() {
-        let result: Result<DocumentTitle, _> = serde_json::from_str("\"\"");
+        let result: Result<DocumentTitle, _> = json::from_str("\"\"");
 
         let Err(error) = result else {
             panic!("empty titles must not deserialize successfully");

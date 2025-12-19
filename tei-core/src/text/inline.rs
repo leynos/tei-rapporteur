@@ -251,7 +251,7 @@ mod tests {
     use super::*;
     use crate::text::BodyContentError;
     use rstest::{fixture, rstest};
-    use serde_json as json;
+    use tei_serde::json;
 
     #[fixture]
     fn emphasised_inline() -> Inline {

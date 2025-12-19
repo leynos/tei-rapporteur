@@ -128,7 +128,7 @@ pub(crate) mod py_exports {
         /// # Examples
         ///
         /// ```
-        /// use rmp_serde::to_vec_named;
+        /// use tei_serde::msgpack::to_vec_named;
         /// use tei_core::TeiDocument;
         /// use tei_py::from_msgpack;
         ///
@@ -147,7 +147,7 @@ pub(crate) mod py_exports {
         ///
         /// # Errors
         ///
-        /// Returns [`pyo3::exceptions::PyValueError`] when `rmp_serde` fails to encode the document.
+        /// Returns [`pyo3::exceptions::PyValueError`] when `MessagePack` encoding fails.
         ///
         /// # Examples
         ///

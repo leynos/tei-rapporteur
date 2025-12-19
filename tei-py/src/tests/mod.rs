@@ -6,8 +6,8 @@ use pyo3::{
     Python,
     types::{PyAnyMethods, PyModule},
 };
-use rmp_serde::to_vec_named;
-use serde_json::json;
+use tei_serde::msgpack::to_vec_named;
+use tei_serde::serde_json::json;
 
 mod bindings_tests;
 mod dict;
