@@ -194,7 +194,7 @@ impl<'de> Deserialize<'de> for Speaker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json as json;
+    use tei_serde::json;
 
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {

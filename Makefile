@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie validate-xml
+.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -8,6 +8,8 @@ RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 FIXTURES_DIR ?= target/fixtures
+
+MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
 build: ## Build all workspace crates in debug mode
 	$(CARGO) build --workspace $(BUILD_JOBS)
@@ -34,8 +36,18 @@ fmt: ## Format Rust and Markdown sources
 check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
 
+typecheck: ## Typecheck all workspace crates
+	RUSTFLAGS="-D warnings" $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
+
 markdownlint: ## Lint Markdown files
-	$(MDLINT) '**/*.md'
+	@if [ -n "$(MDLINT_BIN)" ]; then \
+		"$(MDLINT_BIN)" '**/*.md'; \
+	elif [ -x "$(HOME)/.bun/bin/markdownlint-cli2" ]; then \
+		"$(HOME)/.bun/bin/markdownlint-cli2" '**/*.md'; \
+	else \
+		echo "error: markdownlint-cli2 not found; install it or set MDLINT=/path/to/markdownlint-cli2"; \
+		exit 1; \
+	fi
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox

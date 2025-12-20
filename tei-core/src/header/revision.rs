@@ -211,7 +211,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json as json;
+    use tei_serde::json;
 
     #[test]
     fn revision_change_requires_description() {

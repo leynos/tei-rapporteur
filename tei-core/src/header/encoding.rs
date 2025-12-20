@@ -179,8 +179,8 @@ impl From<AnnotationSystemId> for String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json as json;
     use std::convert::TryFrom;
+    use tei_serde::json;
 
     #[test]
     fn annotation_system_requires_identifier() {

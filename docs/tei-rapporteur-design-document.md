@@ -199,14 +199,17 @@ clarity and allows reuse or independent testing of components:
   later iterations support alternative input formats (e.g., if someone wanted
   to import a Markdown transcript and produce TEI).
 
-- **`tei-serde`**: (Optional) A crate providing serde serializers/deserializers
-  for converting the TEI data structures to/from other formats like JSON or
-  MessagePack. For example, it might use `serde_json` and `rmp-serde` to enable
-  (de)serializing `TeiDocument` to JSON/MsgPack. This crate ensures that the
-  Rust data model can be cleanly represented in JSON (the same structure that
-  `msgspec.Struct` expects on the Python side). Versioned JSON schema snapshots
-  can also be included here for integration testing and for documentation of
-  the JSON structure.
+- **`tei-serde`**: A crate providing serde serializers/deserializers for
+  converting the TEI data structures to/from other formats like JSON or
+  MessagePack. The crate centralises the `serde_json` and `rmp-serde`
+  dependencies and exposes small wrapper modules (`tei_serde::json`,
+  `tei_serde::msgpack`) for the rest of the workspace. This keeps
+  serialization-format concerns isolated from the core domain model and from
+  the PyO3 glue. For convenience, `tei-serde` may re-export the underlying
+  crates to support internal test fixtures, but workspace code should prefer
+  the wrapper modules so dependency boundaries stay explicit. Versioned JSON
+  schema snapshots can also be included here for integration testing and for
+  documentation of the JSON structure.
 
 - **`tei-ann`**: (Optional/future) A helper crate for working with annotations
   (spans). It could provide utilities to apply stand-off `<span>` annotations
@@ -615,10 +618,10 @@ MessagePack, facilitating two things:
   decoding in Python (or vice versa) allows easy data exchange.
 
 The implementation derives `serde::Serialize`/`Deserialize` on all core types,
-which automatically provides JSON and MessagePack support via `serde_json` and
-`rmp-serde` respectively. The JSON structure is a **semantic projection** of
-the TEI. For instance, a TEI `<spanGrp type="cliche">` might be represented in
-JSON as an object like:
+and the workspace routes JSON and MessagePack encoding/decoding through
+`tei-serde` (wrapping `serde_json` and `rmp-serde`). The JSON structure is a
+**semantic projection** of the TEI. For instance, a TEI
+`<spanGrp type="cliche">` might be represented in JSON as an object like:
 
 ```json
 { "type": "cliche", "spans": [ { "id": "c1", "start": 100, "end": 120, "ana": "cliche:idiom.snowclone" } ] }
@@ -689,12 +692,12 @@ key functions include:
   writing XML.
 
 - `from_msgpack(bytes_obj: bytes) -> Document` – Accept a MessagePack binary
-  (as `bytes`) and deserialize it (using `rmp_serde`) into a `TeiDocument`.
+  (as `bytes`) and deserialize it (using `tei-serde`) into a `TeiDocument`.
   This is a very efficient path if the Python side already has a
   `msgspec.Struct` and encodes it to bytes. The binding now uses
-  `rmp_serde::from_slice` and converts any decode failure into a Python
-  `ValueError`, ensuring callers never need to reason about Rust-only error
-  types.
+  `tei_serde::msgpack::from_slice` and converts any decode failure into a
+  Python `ValueError`, ensuring callers never need to reason about Rust-only
+  error types.
 
   The following sequence diagram captures the end-to-end control flow for
   `from_msgpack`, including the propagation of successful documents and the
@@ -706,18 +709,18 @@ key functions include:
       participant tei_rapporteur_Python as "tei_rapporteur (Python)"
       participant PyO3_FFI_Bridge as "PyO3 FFI Bridge"
       participant Rust_document_from_msgpack as "Rust: document_from_msgpack()"
-      participant rmp_serde
+      participant tei_serde
       PythonUser->>tei_rapporteur_Python: from_msgpack(payload: bytes)
       tei_rapporteur_Python->>PyO3_FFI_Bridge: Call from_msgpack(bytes)
       PyO3_FFI_Bridge->>Rust_document_from_msgpack: document_from_msgpack(bytes)
-      Rust_document_from_msgpack->>rmp_serde: from_slice(bytes)
+      Rust_document_from_msgpack->>tei_serde: msgpack::from_slice(bytes)
       alt Valid MessagePack
-          rmp_serde-->>Rust_document_from_msgpack: TeiDocument
+          tei_serde-->>Rust_document_from_msgpack: TeiDocument
           Rust_document_from_msgpack-->>PyO3_FFI_Bridge: TeiDocument
           PyO3_FFI_Bridge-->>tei_rapporteur_Python: Document
           tei_rapporteur_Python-->>PythonUser: Document
       else Invalid MessagePack
-          rmp_serde-->>Rust_document_from_msgpack: Error
+          tei_serde-->>Rust_document_from_msgpack: Error
           Rust_document_from_msgpack-->>PyO3_FFI_Bridge: Error
           PyO3_FFI_Bridge-->>tei_rapporteur_Python: Raise ValueError
           tei_rapporteur_Python-->>PythonUser: ValueError
@@ -725,7 +728,8 @@ key functions include:
   ```
 
 - `from_json(json_str_or_bytes) -> Document` – Similar to above, but for JSON
-  text. Uses `serde_json` in Rust. (This might be slightly less efficient than
+  text. Rust uses `tei_serde::json::from_str` (wrapping `serde_json`) to
+  deserialize JSON text. (This might be slightly less efficient than
   MessagePack due to parsing text, but convenient for debugging.)
 
 - Corresponding **output** functions to retrieve data from a `Document`:
@@ -735,7 +739,7 @@ key functions include:
   that could be used directly or fed into other libraries.
 
 - `to_msgpack(doc: Document) -> bytes` – Serialize the `TeiDocument` to
-  MessagePack bytes (using `rmp_serde`).
+  MessagePack bytes (using `tei-serde`).
 
 - `to_json(doc: Document) -> bytes|str` – Serialize to JSON (the API can allow
   returning either a Python bytes or str for the JSON text).
@@ -749,15 +753,16 @@ classes for any intensive work. The `Document` class is mostly a vessel to
 carry data between functions in this minimal API approach.
 
 The encoder half of this API now exists alongside the decoder. `to_msgpack`
-wraps a small Rust helper that invokes `rmp_serde::to_vec_named(&TeiDocument)`
-and maps any `encode::Error` into a Python `ValueError`. Although the current
-`TeiDocument` serialiser is infallible for valid data, the explicit error
-conversion keeps the glue predictable if future schema additions require custom
-serialisation. PyO3 enforces that callers pass a `tei_rapporteur.Document`
-instance, so attempts to invoke `to_msgpack` with other Python objects are
-rejected with a standard `TypeError` before even entering Rust. The helper is
-re-exported to Rust callers as well so internal tests can drive round-trip
-assertions without going through Python.
+wraps a small Rust helper that invokes
+`tei_serde::msgpack::to_vec_named(&TeiDocument)` and maps any `encode::Error`
+into a Python `ValueError`. Although the current `TeiDocument` serialiser is
+infallible for valid data, the explicit error conversion keeps the glue
+predictable if future schema additions require custom serialisation. PyO3
+enforces that callers pass a `tei_rapporteur.Document` instance, so attempts to
+invoke `to_msgpack` with other Python objects are rejected with a standard
+`TypeError` before even entering Rust. The helper is re-exported to Rust
+callers as well so internal tests can drive round-trip assertions without going
+through Python.
 
 Behaviour-driven coverage now mirrors the decoder scenarios: one feature builds
 `Document` via the Python constructor, calls `to_msgpack`, and confirms that
@@ -946,10 +951,10 @@ xml = tei_rapporteur.emit_xml(doc)
 
 This sequence performs a single fast binary serialization of the whole object
 (`msgspec` uses a performant native implementation), and Rust deserializes it
-in one go (`rmp_serde` directly to `TeiDocument`). This **binary boundary**
-approach is extremely efficient for large data because it avoids per-field
-conversions across the FFI boundary. By contrast, manually setting attributes
-on PyO3 classes for each field would incur many Python C-API calls.
+in one go via `tei_serde::msgpack` directly into a `TeiDocument`. This **binary
+boundary** approach is extremely efficient for large data because it avoids
+per-field conversions across the FFI boundary. By contrast, manually setting
+attributes on PyO3 classes for each field would incur many Python C-API calls.
 
 For smaller documents or convenience, the API also allows passing Python dicts
 or even the `Struct` object directly:
@@ -969,22 +974,22 @@ builtins is implemented in Rust and is quite efficient).
 The table below summarizes the Python-facing API and how each function
 exchanges data:
 
-| Python Function           | Input (Python side)                 | Conversion Mechanism                                     | When to Use                                          |
-| ------------------------- | ----------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| `parse_xml(xml_str)`      | XML string (TEI P5)                 | Rust parses XML (quick-xml) into `TeiDocument`           | Reading TEI files from disk                          |
-| `from_dict(obj)`          | `dict`/`list` tree (JSON structure) | Serde via `pyo3_serde` to Rust `TeiDocument`             | Constructing from Python data (e.g., test cases)     |
-| `from_struct(obj)`        | `msgspec.Struct` instance           | Calls `msgspec.to_builtins`, then same as above          | High-level, Pythonic import of msgspec data          |
-| `from_msgpack(bytes)`     | MessagePack bytes                   | Rust uses `rmp_serde` to decode to `TeiDocument`         | Fast path for large data, or transferring via binary |
-| `from_json(str_or_bytes)` | JSON string or bytes                | Rust uses `serde_json` to decode                         | When JSON text is available (slower than MsgPack)    |
-| *Return: `Document`*      | *(PyO3 class wrapping data)*        | Holds Rust `TeiDocument` inside (no copy unless mutated) | Represents TEI document in Python                    |
+| Python Function           | Input (Python side)                 | Conversion Mechanism                                      | When to Use                                          |
+| ------------------------- | ----------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| `parse_xml(xml_str)`      | XML string (TEI P5)                 | Rust parses XML (quick-xml) into `TeiDocument`            | Reading TEI files from disk                          |
+| `from_dict(obj)`          | `dict`/`list` tree (JSON structure) | Serde via `pyo3_serde` to Rust `TeiDocument`              | Constructing from Python data (e.g., test cases)     |
+| `from_struct(obj)`        | `msgspec.Struct` instance           | Calls `msgspec.to_builtins`, then same as above           | High-level, Pythonic import of msgspec data          |
+| `from_msgpack(bytes)`     | MessagePack bytes                   | Rust uses `tei_serde::msgpack` to decode to `TeiDocument` | Fast path for large data, or transferring via binary |
+| `from_json(str_or_bytes)` | JSON string or bytes                | Rust uses `tei_serde::json::from_str` to decode           | When JSON text is available (slower than MsgPack)    |
+| *Return: `Document`*      | *(PyO3 class wrapping data)*        | Holds Rust `TeiDocument` inside (no copy unless mutated)  | Represents TEI document in Python                    |
 
 | Python Function   | Output (Python side)       | Conversion Mechanism                                | Notes                               |
 | ----------------- | -------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `validate(doc)`   | `None` or throws exception | Rust validation logic, throws PyErr on failure      | Checks IDs, structure, etc.         |
 | `emit_xml(doc)`   | XML string                 | Rust serializes `TeiDocument` via quick-xml         | Canonical XML output                |
 | `to_dict(doc)`    | `dict`/`list` (JSON-like)  | Rust uses `pyo3_serde` to convert to Python objects | For interoperability or inspection  |
-| `to_msgpack(doc)` | bytes (MessagePack)        | Rust uses `rmp_serde` to encode                     | For binary storage or fast transfer |
-| `to_json(doc)`    | str (JSON text) or bytes   | Rust uses `serde_json` to encode                    | Human-readable serialization        |
+| `to_msgpack(doc)` | bytes (MessagePack)        | Rust uses `tei_serde::msgpack` to encode            | For binary storage or fast transfer |
+| `to_json(doc)`    | str (JSON text) or bytes   | Rust uses `tei_serde::json` to encode               | Human-readable serialization        |
 
 (Table: Python API functions provided by `tei-rapporteur` and their data
 exchange mechanisms. The `Document` class is returned by parse/from functions
@@ -1284,10 +1289,10 @@ schema.
      annotation systems, revision history, mixed body content)
 
   This strategy keeps the repository clean (no committed XML files) while
-  ensuring comprehensive coverage. The generated XML includes the TEI
-  namespace declaration required for schema validation, which is added by the
-  fixture generator since `quick-xml`'s serde integration does not emit
-  namespace declarations.
+  ensuring comprehensive coverage. The generated XML includes the TEI namespace
+  declaration required for schema validation, which is added by the fixture
+  generator since `quick-xml`'s serde integration does not emit namespace
+  declarations.
 
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.

@@ -1241,7 +1241,7 @@ dependencies = [
  "rstest-bdd",
  "rstest-bdd-macros",
  "serde",
- "serde_json",
+ "tei-serde",
  "tei-test-helpers",
  "thiserror 2.0.17",
 ]
@@ -1253,16 +1253,24 @@ dependencies = [
  "anyhow",
  "pyo3",
  "pyo3-build-config",
- "rmp-serde",
  "rstest",
  "rstest-bdd",
  "rstest-bdd-macros",
  "serde",
  "serde-pyobject",
- "serde_json",
  "tei-core",
+ "tei-serde",
  "tei-test-helpers",
  "tei-xml",
+]
+
+[[package]]
+name = "tei-serde"
+version = "0.1.0"
+dependencies = [
+ "rmp-serde",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -3,12 +3,12 @@
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
 use pyo3::{prelude::*, types::PyDict};
-use rmp_serde::{from_slice, to_vec_named};
 use rstest_bdd_macros::{scenario, when};
 use serde::Deserialize;
-use serde_json::Value;
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
 use tei_py::test_support::msgspec_available;
+use tei_serde::json::Value;
+use tei_serde::msgpack::{from_slice, to_vec_named};
 
 const _: fn() -> PythonModuleState = python_state;
 

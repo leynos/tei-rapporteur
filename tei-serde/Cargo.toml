@@ -1,0 +1,14 @@
+[package]
+name = "tei-serde"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = "1.0.145"
+rmp-serde = "1.3.0"

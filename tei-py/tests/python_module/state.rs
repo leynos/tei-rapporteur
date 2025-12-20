@@ -8,9 +8,9 @@ use pyo3::{
     types::{PyAnyMethods, PyModule},
 };
 use rstest::fixture;
-use serde_json::Value;
 use std::cell::RefCell;
 use tei_py::tei_rapporteur;
+use tei_serde::json::Value;
 
 pub(super) struct PythonModuleState {
     module: RefCell<Option<Py<PyModule>>>,
