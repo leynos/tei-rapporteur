@@ -641,6 +641,193 @@ and the root schema sets `$id` to
 `urn:tei-rapporteur:schema:tei-document:X.Y.Z`. Maintainers regenerate the
 snapshot with `make json-schema` whenever the Serde layout changes.
 
+Figure: Class diagram of the core `tei-core` data model and the
+`tei-serde::schema` entry points used to generate the published JSON Schema
+snapshots.
+
+```mermaid
+classDiagram
+    %% Core document structure
+    class TeiDocument {
+        +TeiHeader tei_header
+        +TeiText text
+        +JsonSchema
+    }
+
+    class TeiHeader {
+        +FileDesc file_desc
+        +EncodingDesc encoding_desc
+        +ProfileDesc profile_desc
+        +RevisionDesc revision_desc
+        +JsonSchema
+    }
+
+    class TeiText {
+        +TeiBody body
+        +JsonSchema
+    }
+
+    class TeiBody {
+        +BodyBlock[] content
+        +JsonSchema
+    }
+
+    class BodyBlock {
+        <<enum>>
+        +P p
+        +Utterance utterance
+        +JsonSchema
+    }
+
+    class P {
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Utterance {
+        +XmlId xml_id
+        +Speaker speaker
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Inline {
+        <<enum>>
+        +String text
+        +Hi hi
+        +Pause pause
+        +JsonSchema
+    }
+
+    class Hi {
+        +String rend
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Pause {
+        +String dur
+        +JsonSchema
+    }
+
+    class XmlId {
+        +String value
+        +JsonSchema
+    }
+
+    class Speaker {
+        +String value
+        +JsonSchema
+    }
+
+    class DocumentTitle {
+        +String value
+        +JsonSchema
+    }
+
+    %% Header subcomponents
+    class FileDesc {
+        +DocumentTitle title
+        +JsonSchema
+    }
+
+    class EncodingDesc {
+        +AnnotationSystem[] annotation_systems
+        +JsonSchema
+    }
+
+    class AnnotationSystem {
+        +AnnotationSystemId identifier
+        +String description
+        +JsonSchema
+    }
+
+    class AnnotationSystemId {
+        +String value
+        +JsonSchema
+    }
+
+    class ProfileDesc {
+        +SpeakerName[] speakers
+        +LanguageTag[] languages
+        +JsonSchema
+    }
+
+    class SpeakerName {
+        +String value
+        +JsonSchema
+    }
+
+    class LanguageTag {
+        +String value
+        +JsonSchema
+    }
+
+    class RevisionDesc {
+        +RevisionChange[] changes
+        +JsonSchema
+    }
+
+    class RevisionChange {
+        +String description
+        +ResponsibleParty who
+        +JsonSchema
+    }
+
+    class ResponsibleParty {
+        +String value
+        +JsonSchema
+    }
+
+    %% tei-serde schema module
+    class TeiSerdeSchemaModule {
+        +String tei_document_schema_id()
+        +Schema tei_document_schema()
+        +Result~String, Error~ tei_document_schema_json_pretty()
+    }
+
+    class Schema {
+    }
+
+    %% Relationships within tei-core
+    TeiDocument --> TeiHeader
+    TeiDocument --> TeiText
+
+    TeiText --> TeiBody
+    TeiBody --> BodyBlock
+
+    BodyBlock --> P
+    BodyBlock --> Utterance
+
+    P --> Inline
+    Utterance --> XmlId
+    Utterance --> Speaker
+    Utterance --> Inline
+
+    Inline --> Hi
+    Inline --> Pause
+
+    FileDesc --> DocumentTitle
+
+    TeiHeader --> FileDesc
+    TeiHeader --> EncodingDesc
+    TeiHeader --> ProfileDesc
+    TeiHeader --> RevisionDesc
+
+    EncodingDesc --> AnnotationSystem
+    AnnotationSystem --> AnnotationSystemId
+
+    ProfileDesc --> SpeakerName
+    ProfileDesc --> LanguageTag
+
+    RevisionDesc --> RevisionChange
+    RevisionChange --> ResponsibleParty
+
+    %% Schema generation coupling
+    TeiSerdeSchemaModule ..> TeiDocument : JsonSchema for
+    TeiSerdeSchemaModule ..> Schema : returns
+```
+
 One important design consideration is that the JSON output should be
 **deterministic**. If the system serializes the same `TeiDocument` twice, it
 should produce the exact same JSON string (apart from spacing if any). Serde
