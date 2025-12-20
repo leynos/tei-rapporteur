@@ -1,0 +1,371 @@
+{
+  "$id": "urn:tei-rapporteur:schema:tei-document:0.1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TEI",
+  "description": "Root TEI document combining metadata and textual content.\n\n# Examples\n\n```\nuse tei_core::{TeiDocument, TeiError};\n\nlet document = TeiDocument::from_title_str(\"Night Vale Episode\")?;\nassert_eq!(document.title().as_str(), \"Night Vale Episode\");\n# Ok::<(), TeiError>(())\n```",
+  "type": "object",
+  "properties": {
+    "teiHeader": {
+      "$ref": "#/$defs/teiHeader"
+    },
+    "text": {
+      "$ref": "#/$defs/text"
+    }
+  },
+  "required": [
+    "teiHeader",
+    "text"
+  ],
+  "$defs": {
+    "AnnotationSystem": {
+      "description": "Annotation toolkit metadata.",
+      "type": "object",
+      "properties": {
+        "@xml:id": {
+          "$ref": "#/$defs/AnnotationSystemId"
+        },
+        "desc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "@xml:id"
+      ]
+    },
+    "AnnotationSystemId": {
+      "description": "Canonical identifier for an annotation system.",
+      "type": "string"
+    },
+    "BodyBlock": {
+      "description": "Block-level body content.",
+      "oneOf": [
+        {
+          "description": "A prose paragraph.",
+          "type": "object",
+          "properties": {
+            "p": {
+              "$ref": "#/$defs/p"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "p"
+          ]
+        },
+        {
+          "description": "A spoken utterance.",
+          "type": "object",
+          "properties": {
+            "u": {
+              "$ref": "#/$defs/u"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "u"
+          ]
+        }
+      ]
+    },
+    "DocumentTitle": {
+      "description": "Title metadata carried by a [`crate::TeiDocument`].\n\nTitles are trimmed and must not be empty, ensuring downstream consumers can\nalways serialise a non-empty `<title>` element.\n\n# Examples\n\n```\nuse tei_core::{DocumentTitle, DocumentTitleError};\n\nlet title = DocumentTitle::new(\"Voynich Manuscript\")?;\nassert_eq!(title.as_str(), \"Voynich Manuscript\");\n# Ok::<(), DocumentTitleError>(())\n```",
+      "type": "string"
+    },
+    "Inline": {
+      "description": "Inline content occurring inside paragraphs and utterances.\n\n# Examples\n\n```\nuse tei_core::{Hi, Inline, P};\n\nlet emphasis = Inline::Hi(Hi::new([Inline::text(\"important\")]));\nlet paragraph = match P::from_inline([Inline::text(\"An \"), emphasis]) {\n    Ok(paragraph) => paragraph,\n    Err(error) => panic!(\"paragraph should be valid: {error}\"),\n};\n\nassert_eq!(paragraph.content().len(), 2);\n```",
+      "anyOf": [
+        {
+          "description": "Plain text content.",
+          "type": "string"
+        },
+        {
+          "description": "Emphasised content wrapped in `<hi>`.",
+          "$ref": "#/$defs/hi"
+        },
+        {
+          "description": "A pause marker rendered as `<pause/>`.",
+          "$ref": "#/$defs/pause"
+        }
+      ]
+    },
+    "LanguageTag": {
+      "description": "Validated language identifier stored within [`ProfileDesc`].",
+      "type": "string"
+    },
+    "ResponsibleParty": {
+      "description": "Named agent responsible for a revision note.",
+      "type": "string"
+    },
+    "RevisionChange": {
+      "description": "Individual revision note captured in `<revisionDesc>`.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "string"
+        },
+        "resp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResponsibleParty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$value"
+      ]
+    },
+    "Speaker": {
+      "description": "Validated wrapper for utterance speaker references.",
+      "type": "string"
+    },
+    "SpeakerName": {
+      "description": "Validated speaker name stored within [`ProfileDesc`].",
+      "type": "string"
+    },
+    "XmlId": {
+      "description": "Validated wrapper for TEI `xml:id` attributes.",
+      "type": "string"
+    },
+    "body": {
+      "description": "Ordered collection of block-level TEI elements.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BodyBlock"
+          }
+        }
+      }
+    },
+    "encodingDesc": {
+      "description": "Aggregates encoding metadata such as annotation systems.",
+      "type": "object",
+      "properties": {
+        "annotationSystem": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnnotationSystem"
+          }
+        }
+      }
+    },
+    "fileDesc": {
+      "description": "Bibliographic metadata describing the TEI file.",
+      "type": "object",
+      "properties": {
+        "series": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "synopsis": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/DocumentTitle"
+        }
+      },
+      "required": [
+        "title"
+      ]
+    },
+    "hi": {
+      "description": "Emphasised inline element corresponding to `<hi>`.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        },
+        "@rend": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "p": {
+      "description": "Paragraph element containing linear text segments.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "pause": {
+      "description": "Pause marker rendered as `<pause/>`.",
+      "type": "object",
+      "properties": {
+        "@dur": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profileDesc": {
+      "description": "Audience and linguistic profile metadata.",
+      "type": "object",
+      "properties": {
+        "lang": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LanguageTag"
+          }
+        },
+        "speaker": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpeakerName"
+          }
+        },
+        "synopsis": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "revisionDesc": {
+      "description": "Revision history records.",
+      "type": "object",
+      "properties": {
+        "change": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RevisionChange"
+          }
+        }
+      }
+    },
+    "teiHeader": {
+      "description": "Metadata container for TEI header information.",
+      "type": "object",
+      "properties": {
+        "encodingDesc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/encodingDesc"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fileDesc": {
+          "$ref": "#/$defs/fileDesc"
+        },
+        "profileDesc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/profileDesc"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revisionDesc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revisionDesc"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "fileDesc"
+      ]
+    },
+    "text": {
+      "description": "Body of a TEI document, including paragraphs and utterances.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/body"
+        }
+      },
+      "required": [
+        "body"
+      ]
+    },
+    "u": {
+      "description": "Spoken utterance that may reference a speaker.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        },
+        "@who": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Speaker"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

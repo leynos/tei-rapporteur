@@ -152,7 +152,7 @@ This step modularizes the JSON and MessagePack logic into a dedicated crate.
       dependencies into it.
 - [x] Move serialization-specific logic from `tei-core` and `tei-py` into
       `tei-serde`.
-- [ ] Generate and publish a versioned JSON Schema corresponding to the
+- [x] Generate and publish a versioned JSON Schema corresponding to the
       `TeiDocument` structure.
 - [ ] Implement property-based tests to verify round-trip integrity between TEI
       XML, Rust structs, and JSON representations.

@@ -630,9 +630,16 @@ and the workspace routes JSON and MessagePack encoding/decoding through
 (This is illustrative; the actual JSON schema will be defined so that it aligns
 with the Python `Struct` definitions exactly, including any nesting.)
 Attributes become JSON fields, element names become object keys or struct field
-names, and lists of elements become JSON arrays. The JSON payload includes a
-top-level field like `"model_version": 1` to allow evolution of the schema over
-time.
+names, and lists of elements become JSON arrays.
+
+To formalise the on-the-wire format, the repository publishes a versioned JSON
+Schema snapshot for `TeiDocument` under
+`schemas/tei-document.schema.vX.Y.Z.json` (with
+`schemas/tei-document.schema.json` tracking the latest workspace version). The
+schema is generated from the canonical Rust types in `tei-core` via `schemars`,
+and the root schema sets `$id` to
+`urn:tei-rapporteur:schema:tei-document:X.Y.Z`. Maintainers regenerate the
+snapshot with `make json-schema` whenever the Serde layout changes.
 
 One important design consideration is that the JSON output should be
 **deterministic**. If the system serializes the same `TeiDocument` twice, it
@@ -931,7 +938,6 @@ class Episode(msgspec.Struct):
     title: str
     utterances: list[Utterance]
     spans: list[Span] = []       # maybe stand-off annotations
-    model_version: int = 1
 ```
 
 *(In practice, `msgspec` can also support recursive types and union types; the
@@ -1302,23 +1308,21 @@ schema.
   canonicalized `original_xml`. JSON idempotence is also tested. This provides
   confidence in the correctness of the (de)serializers.
 
-- **Evolution and Versioning**: The data includes a `model_version` (as noted in
-  the JSON). The Rust library can handle version migrations by detecting an
-  older version and upgrading it (if breaking changes arise in the JSON format
-  in future). For example, if `model_version: 2` adds a new field, the library
-  might provide a function to convert v1 -> v2 (filling defaults) so that older
-  JSON can still be parsed. All such migrations will be documented, and the
-  version field in the JSON (and perhaps in the TEI header via `<revisionDesc>`
-  or `<encodingDesc>`) will trace this. This strategy is more about maintaining
-  data integrity across versions, ensuring that user data in a database doesn’t
-  become unreadable after an update.
+- **Evolution and Versioning**: The JSON format is versioned via published JSON
+  Schema snapshots. Consumers should pin validations to a specific
+  `schemas/tei-document.schema.vX.Y.Z.json` artifact (or the root schema `$id`)
+  to ensure the accepted shape matches the workspace version that produced the
+  payload. If the Serde layout requires a breaking change, the project will
+  publish a new schema snapshot and document the compatibility story. The Rust
+  library may eventually add explicit version fields and migration helpers, but
+  the current contract is the schema snapshot itself.
 
-- **Database considerations**: If storing episodes in a Postgres JSONB,
-  deployments are encouraged to use **database constraints** to catch major
-  issues early (for example, ensuring a `model_version` field exists and is
-  within a known range). Also, since the TEI ID might be used as a key in
-  related tables, the system should enforce proper generation of IDs (using
-  UUIDs or nanoid) to avoid collisions.
+- **Database considerations**: If storing documents in a Postgres JSONB column,
+  deployments are encouraged to validate payloads against the published schema
+  snapshot as early as possible (application layer, ingestion pipeline, or
+  database constraints where available). Since TEI identifiers may be used as
+  keys in related tables, the system should enforce proper generation of IDs
+  (for example via UUIDs or nanoid) to avoid collisions.
 
 Overall, the validation strategy is **pragmatic**: do as much as is reasonable
 in Rust (fast, on-the-fly checks), rely on external proven tools for full
@@ -1491,7 +1495,6 @@ class Episode(msgspec.Struct):
     title: str
     utterances: list[Utterance]
     spans: list[dict] = []     # spans as dicts with keys id, start, end, ana
-    model_version: int = 1
 ```
 
 Usage in Python:

@@ -14,7 +14,9 @@ pub use inline::{Hi, Inline, Pause};
 pub use types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId};
 
 /// Body of a TEI document, including paragraphs and utterances.
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
 #[serde(rename = "text")]
 pub struct TeiText {
     #[serde(rename = "body")]

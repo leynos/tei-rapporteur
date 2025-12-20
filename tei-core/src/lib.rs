@@ -92,7 +92,7 @@ impl TeiError {
 /// assert_eq!(document.title().as_str(), "Night Vale Episode");
 /// # Ok::<(), TeiError>(())
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename = "TEI")]
 pub struct TeiDocument {
     #[serde(rename = "teiHeader")]

@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml
+.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml json-schema
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -64,6 +64,9 @@ validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 		jing $(FIXTURES_DIR)/tei-episodic-profile.rng "$$xml" || exit 1; \
 	done
 	@echo "All fixtures validated successfully"
+
+json-schema: ## Generate JSON Schema snapshots for TeiDocument
+	$(CARGO) run --package tei-serde --bin generate-json-schema $(BUILD_JOBS)
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
