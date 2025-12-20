@@ -42,8 +42,8 @@ typecheck: ## Typecheck all workspace crates
 markdownlint: ## Lint Markdown files
 	@if [ -n "$(MDLINT_BIN)" ]; then \
 		"$(MDLINT_BIN)" '**/*.md'; \
-	elif [ -x /root/.bun/bin/markdownlint-cli2 ]; then \
-		/root/.bun/bin/markdownlint-cli2 '**/*.md'; \
+	elif [ -x "$(HOME)/.bun/bin/markdownlint-cli2" ]; then \
+		"$(HOME)/.bun/bin/markdownlint-cli2" '**/*.md'; \
 	else \
 		echo "error: markdownlint-cli2 not found; install it or set MDLINT=/path/to/markdownlint-cli2"; \
 		exit 1; \
