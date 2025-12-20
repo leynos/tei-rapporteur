@@ -12,7 +12,8 @@ use super::{
 use serde::{Deserialize, Serialize};
 
 /// Paragraph element containing linear text segments.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "p")]
 pub struct P {
     #[serde(

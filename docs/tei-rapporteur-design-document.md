@@ -632,7 +632,7 @@ with the Python `Struct` definitions exactly, including any nesting.)
 Attributes become JSON fields, element names become object keys or struct field
 names, and lists of elements become JSON arrays.
 
-To formalise the on-the-wire format, the repository publishes a versioned JSON
+To formalize the on-the-wire format, the repository publishes a versioned JSON
 Schema snapshot for `TeiDocument` under
 `schemas/tei-document.schema.vX.Y.Z.json` (with
 `schemas/tei-document.schema.json` tracking the latest workspace version). The

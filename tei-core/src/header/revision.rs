@@ -11,7 +11,8 @@ use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 
 /// Named agent responsible for a revision note.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct ResponsibleParty(String);
 
@@ -88,7 +89,8 @@ impl From<ResponsibleParty> for String {
 }
 
 /// Revision history records.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "revisionDesc")]
 pub struct RevisionDesc {
     #[serde(rename = "change", skip_serializing_if = "Vec::is_empty", default)]
@@ -144,7 +146,8 @@ impl<'a> IntoIterator for &'a RevisionDesc {
 }
 
 /// Individual revision note captured in `<revisionDesc>`.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub struct RevisionChange {
     #[serde(rename = "$value", deserialize_with = "de_nonempty_text")]
     description: String,

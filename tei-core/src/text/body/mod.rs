@@ -20,7 +20,8 @@ pub(crate) use validation::{
 use serde::{Deserialize, Serialize};
 
 /// Ordered collection of block-level TEI elements.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "body")]
 pub struct TeiBody {
     #[serde(rename = "$value", default)]
@@ -102,7 +103,8 @@ impl TeiBody {
 }
 
 /// Block-level body content.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub enum BodyBlock {
     /// A prose paragraph.
     #[serde(rename = "p")]

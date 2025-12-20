@@ -8,7 +8,8 @@ use super::{HeaderValidationError, normalise_optional_text};
 use serde::{Deserialize, Serialize};
 
 /// Aggregates encoding metadata such as annotation systems.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "encodingDesc")]
 pub struct EncodingDesc {
     #[serde(
@@ -61,7 +62,8 @@ impl EncodingDesc {
 }
 
 /// Annotation toolkit metadata.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub struct AnnotationSystem {
     #[serde(rename = "@xml:id", alias = "@id")]
     identifier: AnnotationSystemId,
@@ -102,7 +104,8 @@ impl AnnotationSystem {
 }
 
 /// Canonical identifier for an annotation system.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct AnnotationSystemId(String);
 

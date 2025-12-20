@@ -29,7 +29,8 @@ pub enum HeaderValidationError {
 }
 
 /// Metadata container for TEI header information.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "teiHeader")]
 pub struct TeiHeader {
     #[serde(rename = "fileDesc")]

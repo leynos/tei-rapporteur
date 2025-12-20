@@ -41,8 +41,11 @@ pub fn tei_document_schema_json_pretty() -> Result<String, serde_json::Error> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for JSON Schema generation and snapshot consistency.
+
     use super::*;
     use std::fs;
+    use std::io;
     use std::path::Path;
 
     #[test]
@@ -86,8 +89,14 @@ mod tests {
         let published_path = workspace_root
             .join("schemas")
             .join(format!("tei-document.schema.v{version}.json"));
-        let published = fs::read_to_string(&published_path).unwrap_or_else(|error| {
-            panic!("read schema snapshot {}: {error}", published_path.display())
+        let published = fs::read_to_string(&published_path).unwrap_or_else(|error| match error.kind() {
+            io::ErrorKind::NotFound => {
+                panic!(
+                    "read schema snapshot {}: {error} (snapshot missing — run `make json-schema` from the workspace root to generate it)",
+                    published_path.display()
+                );
+            }
+            _ => panic!("read schema snapshot {}: {error}", published_path.display()),
         });
 
         assert_eq!(published, expected, "schema snapshot is out of date");

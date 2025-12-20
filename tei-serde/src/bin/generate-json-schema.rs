@@ -14,33 +14,23 @@ fn versioned_schema_filename(version: &str) -> String {
     format!("tei-document.schema.v{version}.json")
 }
 
-fn parse_output_dir(arguments: &[OsString]) -> Result<PathBuf, Box<dyn Error>> {
-    let mut iter = arguments.iter();
-    let Some(program) = iter.next() else {
-        return Err("missing argv[0]".into());
-    };
+fn usage(program: &OsString) -> String {
+    format!("usage: {} [--out-dir PATH]", Path::new(program).display())
+}
 
-    let Some(flag) = iter.next() else {
-        return Ok(default_output_dir());
-    };
+fn parse_output_dir() -> Result<PathBuf, Box<dyn Error>> {
+    let mut args = env::args_os();
+    let program = args.next().ok_or("missing argv[0]")?;
 
-    if flag != "--out-dir" {
-        return Err(format!("usage: {} [--out-dir PATH]", Path::new(program).display()).into());
+    match (args.next(), args.next(), args.next()) {
+        (None, None, None) => Ok(default_output_dir()),
+        (Some(flag), Some(path), None) if flag == "--out-dir" => Ok(PathBuf::from(path)),
+        _ => Err(usage(&program).into()),
     }
-
-    let Some(path) = iter.next() else {
-        return Err(format!("usage: {} [--out-dir PATH]", Path::new(program).display()).into());
-    };
-
-    if iter.next().is_some() {
-        return Err(format!("usage: {} [--out-dir PATH]", Path::new(program).display()).into());
-    }
-
-    Ok(PathBuf::from(path))
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let output_dir = parse_output_dir(&env::args_os().collect::<Vec<_>>())?;
+    let output_dir = parse_output_dir()?;
     fs::create_dir_all(&output_dir)?;
 
     let version = env!("CARGO_PKG_VERSION");

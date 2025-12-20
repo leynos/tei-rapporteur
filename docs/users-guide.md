@@ -29,7 +29,7 @@ available today and how to exercise it.
   produce canonical Text Encoding Initiative (TEI) strings. All helpers return
   `TeiError`, so callers see consistent diagnostics whether parsing malformed
   input or attempting to emit control characters that XML forbids.
-- `tei-serde` centralises JSON and `MessagePack` serialization, allowing the
+- `tei-serde` centralizes JSON and `MessagePack` serialization, allowing the
   rest of the workspace to depend on a stable wrapper API (`tei_serde::json`,
   `tei_serde::msgpack`) instead of taking direct dependencies on `serde_json`
   and `rmp-serde`. It also publishes a versioned JSON Schema snapshot for
@@ -100,7 +100,7 @@ cast exists, while documents without a cast still pass validation.
 The `tei-serde` crate now publishes a versioned JSON Schema for `TeiDocument`.
 Its unit tests assert that the checked-in schema snapshot stays in sync with
 the generated output, and its behaviour tests validate both happy paths
-(serialised documents satisfy the schema) and unhappy paths (missing required
+(serialized documents satisfy the schema) and unhappy paths (missing required
 fields and unknown inline properties are rejected).
 
 ## Python bindings

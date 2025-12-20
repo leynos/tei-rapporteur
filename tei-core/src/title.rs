@@ -29,7 +29,8 @@ pub enum DocumentTitleError {
 /// assert_eq!(title.as_str(), "Voynich Manuscript");
 /// # Ok::<(), DocumentTitleError>(())
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct DocumentTitle(String);
 

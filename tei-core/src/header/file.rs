@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use super::normalise_optional_text;
 
 /// Bibliographic metadata describing the TEI file.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "fileDesc")]
 pub struct FileDesc {
     #[serde(rename = "title")]

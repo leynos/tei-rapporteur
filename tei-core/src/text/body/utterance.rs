@@ -15,7 +15,8 @@ use super::{
 use serde::{Deserialize, Serialize};
 
 /// Spoken utterance that may reference a speaker.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "u")]
 pub struct Utterance {
     #[serde(

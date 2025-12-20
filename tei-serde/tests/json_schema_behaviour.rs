@@ -11,10 +11,64 @@ fn compile_validator(schema: &serde_json::Value) -> Result<jsonschema::Validator
     jsonschema::validator_for(schema).context("compiled JSON schema must be valid")
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ExpectedSchemaFailure {
+    MissingTeiHeader,
+    UnknownHiProperty,
+}
+
+#[derive(Clone, Debug)]
+struct ValidationErrorRecord {
+    message: String,
+    schema_path: String,
+}
+
 fn collect_validation_errors<'i>(
     errors: impl Iterator<Item = jsonschema::ValidationError<'i>>,
-) -> Vec<String> {
-    errors.map(|error| error.to_string()).collect()
+) -> Vec<ValidationErrorRecord> {
+    errors
+        .map(|error| ValidationErrorRecord {
+            message: error.to_string(),
+            schema_path: error.schema_path().to_string(),
+        })
+        .collect()
+}
+
+fn find_hi_object_mut(
+    instance: &mut serde_json::Value,
+) -> Option<&mut serde_json::Map<String, serde_json::Value>> {
+    fn is_hi_object(map: &serde_json::Map<String, serde_json::Value>) -> bool {
+        matches!(map.get("@rend"), Some(serde_json::Value::String(_)))
+            && matches!(map.get("$value"), Some(serde_json::Value::Array(_)))
+            && map.get("@xml:id").is_none()
+            && map.get("@who").is_none()
+    }
+
+    match instance {
+        serde_json::Value::Object(map) => {
+            if is_hi_object(map) {
+                return Some(map);
+            }
+
+            for value in map.values_mut() {
+                if let Some(found) = find_hi_object_mut(value) {
+                    return Some(found);
+                }
+            }
+
+            None
+        }
+        serde_json::Value::Array(items) => {
+            for value in items.iter_mut() {
+                if let Some(found) = find_hi_object_mut(value) {
+                    return Some(found);
+                }
+            }
+
+            None
+        }
+        _ => None,
+    }
 }
 
 #[derive(Default)]
@@ -22,7 +76,8 @@ struct JsonSchemaState {
     schema: RefCell<Option<serde_json::Value>>,
     document: RefCell<Option<TeiDocument>>,
     instance: RefCell<Option<serde_json::Value>>,
-    validation_errors: RefCell<Option<Vec<String>>>,
+    validation_errors: RefCell<Option<Vec<ValidationErrorRecord>>>,
+    expected_failure: RefCell<Option<ExpectedSchemaFailure>>,
 }
 
 impl JsonSchemaState {
@@ -55,11 +110,19 @@ impl JsonSchemaState {
             .map_err(|_| anyhow::anyhow!("scenario must configure a JSON instance"))
     }
 
-    fn set_validation_errors(&self, errors: Vec<String>) {
+    fn set_expected_failure(&self, expected_failure: ExpectedSchemaFailure) {
+        *self.expected_failure.borrow_mut() = Some(expected_failure);
+    }
+
+    fn expected_failure(&self) -> Option<ExpectedSchemaFailure> {
+        *self.expected_failure.borrow()
+    }
+
+    fn set_validation_errors(&self, errors: Vec<ValidationErrorRecord>) {
         *self.validation_errors.borrow_mut() = Some(errors);
     }
 
-    fn validation_errors(&self) -> Result<std::cell::Ref<'_, Vec<String>>> {
+    fn validation_errors(&self) -> Result<std::cell::Ref<'_, Vec<ValidationErrorRecord>>> {
         std::cell::Ref::filter_map(self.validation_errors.borrow(), Option::as_ref)
             .map_err(|_| anyhow::anyhow!("scenario must validate JSON before assertions"))
     }
@@ -82,6 +145,10 @@ fn build_state() -> Result<JsonSchemaState> {
     ensure!(
         state.validation_errors.borrow().is_none(),
         "fresh state must not contain validation errors"
+    );
+    ensure!(
+        state.expected_failure.borrow().is_none(),
+        "fresh state must not contain expected failure state"
     );
     Ok(state)
 }
@@ -135,6 +202,7 @@ fn a_json_instance_missing_the_tei_header(
 
     object.remove("teiHeader");
     state.set_instance(instance);
+    state.set_expected_failure(ExpectedSchemaFailure::MissingTeiHeader);
     Ok(())
 }
 
@@ -145,7 +213,8 @@ fn a_json_instance_containing_a_hi_node_with_an_unknown_property(
     let file_desc = tei_core::FileDesc::from_title_str("fixture").context("file description")?;
     let header = TeiHeader::new(file_desc);
 
-    let hi = Hi::try_new([Inline::text("hello")]).context("hi content must validate")?;
+    let hi =
+        Hi::try_with_rend("emph", [Inline::text("hello")]).context("hi content must validate")?;
     let paragraph = P::from_inline([Inline::Hi(hi)]).context("paragraph must validate")?;
     let body = TeiBody::new([BodyBlock::Paragraph(paragraph)]);
     let text = TeiText::new(body);
@@ -154,14 +223,10 @@ fn a_json_instance_containing_a_hi_node_with_an_unknown_property(
     let mut instance =
         tei_serde::json::to_value(&document).context("fixture document must serialize to JSON")?;
 
-    let Some(hi_node) = instance.pointer_mut("/text/body/$value/0/p/$value/0") else {
+    let Some(object) = find_hi_object_mut(&mut instance) else {
         return Err(anyhow::anyhow!(
-            "expected hi node at /text/body/$value/0/p/$value/0"
+            "expected JSON instance to contain a hi node"
         ));
-    };
-
-    let Some(object) = hi_node.as_object_mut() else {
-        return Err(anyhow::anyhow!("expected hi node to be a JSON object"));
     };
     object.insert(
         "unknown".to_owned(),
@@ -169,6 +234,7 @@ fn a_json_instance_containing_a_hi_node_with_an_unknown_property(
     );
 
     state.set_instance(instance);
+    state.set_expected_failure(ExpectedSchemaFailure::UnknownHiProperty);
     Ok(())
 }
 
@@ -219,6 +285,26 @@ fn schema_validation_fails(#[from(validated_state)] state: &JsonSchemaState) -> 
         !errors.is_empty(),
         "expected validation to fail but no errors were recorded"
     );
+
+    match state.expected_failure() {
+        Some(ExpectedSchemaFailure::MissingTeiHeader) => ensure!(
+            errors
+                .iter()
+                .any(|error| error.message.contains("teiHeader")
+                    && error.schema_path.contains("/required")),
+            "expected at least one validation error to mention missing `teiHeader`, got {errors:?}"
+        ),
+        Some(ExpectedSchemaFailure::UnknownHiProperty) => ensure!(
+            errors.iter().any(|error| {
+                error.message.contains("\"unknown\":\"field\"")
+                    && error.message.contains("\"@rend\":\"emph\"")
+                    && error.schema_path.contains("/oneOf")
+            }),
+            "expected at least one validation error to mention unknown property on `hi`, got {errors:?}"
+        ),
+        None => {}
+    }
+
     Ok(())
 }
 

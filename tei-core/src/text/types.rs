@@ -12,7 +12,8 @@ use thiserror::Error;
 use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct XmlId(String);
 
@@ -106,7 +107,8 @@ impl<'de> Deserialize<'de> for XmlId {
 }
 
 /// Validated wrapper for utterance speaker references.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct Speaker(String);
 
