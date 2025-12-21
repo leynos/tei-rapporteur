@@ -71,7 +71,7 @@
       ]
     },
     "DocumentTitle": {
-      "description": "Title metadata carried by a [`crate::TeiDocument`].\n\nTitles are trimmed and must not be empty, ensuring downstream consumers can\nalways serialise a non-empty `<title>` element.\n\n# Examples\n\n```\nuse tei_core::{DocumentTitle, DocumentTitleError};\n\nlet title = DocumentTitle::new(\"Voynich Manuscript\")?;\nassert_eq!(title.as_str(), \"Voynich Manuscript\");\n# Ok::<(), DocumentTitleError>(())\n```",
+      "description": "Title metadata carried by a [`crate::TeiDocument`].\n\nTitles are trimmed and must not be empty, ensuring downstream consumers can\nalways serialize a non-empty `<title>` element.\n\n# Examples\n\n```\nuse tei_core::{DocumentTitle, DocumentTitleError};\n\nlet title = DocumentTitle::new(\"Voynich Manuscript\")?;\nassert_eq!(title.as_str(), \"Voynich Manuscript\");\n# Ok::<(), DocumentTitleError>(())\n```",
       "type": "string"
     },
     "Inline": {

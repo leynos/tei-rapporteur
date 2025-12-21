@@ -1,6 +1,6 @@
 //! TEI body model: ordered sequence of block-level elements.
 //!
-//! Serialises as `<body>` containing `<p>` and `<u>` elements via serde with
+//! Serializes as `<body>` containing `<p>` and `<u>` elements via serde with
 //! blocks stored in the `$value` field.
 
 mod error;

@@ -1,5 +1,5 @@
 //! Provides the validated document title type used by `FileDesc` and
-//! `TeiHeader`, guaranteeing non-empty trimmed text for serialisation.
+//! `TeiHeader`, guaranteeing non-empty trimmed text for serialization.
 
 use std::fmt;
 
@@ -18,7 +18,7 @@ pub enum DocumentTitleError {
 /// Title metadata carried by a [`crate::TeiDocument`].
 ///
 /// Titles are trimmed and must not be empty, ensuring downstream consumers can
-/// always serialise a non-empty `<title>` element.
+/// always serialize a non-empty `<title>` element.
 ///
 /// # Examples
 ///

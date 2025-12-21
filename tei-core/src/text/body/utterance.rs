@@ -1,6 +1,6 @@
 //! Spoken utterances with optional speaker metadata and inline content.
 //!
-//! Serialises as `<u who="…">…</u>` with mixed [`Inline`] nodes inside the
+//! Serializes as `<u who="…">…</u>` with mixed [`Inline`] nodes inside the
 //! `$value` field so emphasis and pause cues are preserved.
 
 use crate::text::{

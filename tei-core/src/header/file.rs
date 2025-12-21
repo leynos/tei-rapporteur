@@ -1,5 +1,5 @@
 //! Bibliographic file description (`<fileDesc>`) for TEI headers.
-//! Validates the title and normalises optional series and synopsis text.
+//! Validates the title and normalizes optional series and synopsis text.
 use crate::title::{DocumentTitle, DocumentTitleError};
 
 use serde::{Deserialize, Serialize};

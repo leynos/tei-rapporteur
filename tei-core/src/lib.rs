@@ -49,7 +49,7 @@ pub enum TeiError {
     /// Wrapper around [`ValidationError`] values.
     #[error(transparent)]
     Validation(#[from] ValidationError),
-    /// XML parsing or serialisation failed.
+    /// XML parsing or serialization failed.
     #[error("XML processing error: {message}")]
     Xml {
         /// Message describing the failure emitted by the XML layer.

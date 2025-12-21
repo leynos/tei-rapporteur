@@ -20,7 +20,7 @@ pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 /// Error raised when TEI header metadata fails validation.
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize)]
 pub enum HeaderValidationError {
-    /// A textual field was empty once normalised.
+    /// A textual field was empty once normalized.
     #[error("{field} may not be empty")]
     EmptyField {
         /// Name of the empty field.

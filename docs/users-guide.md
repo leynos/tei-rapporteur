@@ -148,7 +148,7 @@ document = tei.from_msgpack(payload)
 print(document.title)
 ```
 
-The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serialises the
+The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serializes the
 validated document into MessagePack bytes via `tei_serde::msgpack`. The
 function returns Python `bytes`, making it trivial to persist the payload or
 feed it straight into `msgspec.msgpack.decode` to hydrate a structured type.

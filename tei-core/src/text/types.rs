@@ -1,7 +1,7 @@
 //! Validated wrapper types for TEI identifier and speaker attributes.
 //!
 //! Provides `XmlId` and `Speaker` newtypes that enforce non-empty,
-//! normalised values and reject invalid whitespace patterns.
+//! normalized values and reject invalid whitespace patterns.
 
 use std::fmt;
 
@@ -17,7 +17,10 @@ use super::body::trim_preserving_original;
 #[serde(transparent)]
 pub struct XmlId(String);
 
-/// Errors raised when normalising identifier input.
+/// Errors raised when normalizing identifier input.
+///
+/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
+/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum IdentifierValidationError {
     /// The identifier trimmed to an empty string.
@@ -112,7 +115,10 @@ impl<'de> Deserialize<'de> for XmlId {
 #[serde(transparent)]
 pub struct Speaker(String);
 
-/// Errors raised when normalising speaker references.
+/// Errors raised when normalizing speaker references.
+///
+/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
+/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum SpeakerValidationError {
     /// The speaker trimmed to an empty string.
