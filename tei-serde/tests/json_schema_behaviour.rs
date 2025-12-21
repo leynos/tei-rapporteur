@@ -44,29 +44,25 @@ fn find_hi_object_mut(
             && map.get("@who").is_none()
     }
 
+    fn find_in_object_mut(
+        map: &mut serde_json::Map<String, serde_json::Value>,
+    ) -> Option<&mut serde_json::Map<String, serde_json::Value>> {
+        if is_hi_object(map) {
+            return Some(map);
+        }
+
+        map.values_mut().find_map(find_hi_object_mut)
+    }
+
+    fn find_in_array_mut(
+        items: &mut [serde_json::Value],
+    ) -> Option<&mut serde_json::Map<String, serde_json::Value>> {
+        items.iter_mut().find_map(find_hi_object_mut)
+    }
+
     match instance {
-        serde_json::Value::Object(map) => {
-            if is_hi_object(map) {
-                return Some(map);
-            }
-
-            for value in map.values_mut() {
-                if let Some(found) = find_hi_object_mut(value) {
-                    return Some(found);
-                }
-            }
-
-            None
-        }
-        serde_json::Value::Array(items) => {
-            for value in items.iter_mut() {
-                if let Some(found) = find_hi_object_mut(value) {
-                    return Some(found);
-                }
-            }
-
-            None
-        }
+        serde_json::Value::Object(map) => find_in_object_mut(map),
+        serde_json::Value::Array(items) => find_in_array_mut(items),
         _ => None,
     }
 }
