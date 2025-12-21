@@ -63,6 +63,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for JSON encoding and decoding helpers.
+
     use super::*;
     use serde::{Deserialize, Serialize};
 

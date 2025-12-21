@@ -116,6 +116,8 @@ pub enum BodyBlock {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for TEI body block construction and iterators.
+
     use super::*;
 
     #[test]

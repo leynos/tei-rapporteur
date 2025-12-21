@@ -223,7 +223,8 @@
             }
           ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "pause": {
       "description": "Pause marker rendered as `<pause/>`.",
@@ -365,7 +366,8 @@
             }
           ]
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

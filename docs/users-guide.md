@@ -35,7 +35,9 @@ available today and how to exercise it.
   and `rmp-serde`. It also publishes a versioned JSON Schema snapshot for
   `TeiDocument` under `schemas/tei-document.schema.vX.Y.Z.json` (with
   `schemas/tei-document.schema.json` tracking the latest snapshot), generated
-  from the `tei-core` Rust types via `schemars`.
+  from the `tei-core` Rust types via `schemars`. Schema generation is gated
+  behind the optional `tei-core` Cargo feature `json-schema` so consumers that
+  do not need schema publication can avoid pulling in `schemars`.
 - `tei-py` now ships the `tei_rapporteur` PyO3 module. The exported `Document`
   class wraps `TeiDocument`, validates titles via the Rust constructors, and
   exposes a `title` getter plus an `emit_title_markup` convenience method. The

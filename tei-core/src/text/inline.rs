@@ -251,6 +251,8 @@ impl Pause {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for inline element helpers and Serde behavior.
+
     use super::*;
     use crate::text::BodyContentError;
     use rstest::{fixture, rstest};

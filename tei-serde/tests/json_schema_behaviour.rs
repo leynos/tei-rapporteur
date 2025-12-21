@@ -20,6 +20,7 @@ enum ExpectedSchemaFailure {
 #[derive(Clone, Debug)]
 struct ValidationErrorRecord {
     message: String,
+    instance_path: String,
     schema_path: String,
 }
 
@@ -29,6 +30,7 @@ fn collect_validation_errors<'i>(
     errors
         .map(|error| ValidationErrorRecord {
             message: error.to_string(),
+            instance_path: error.instance_path().to_string(),
             schema_path: error.schema_path().to_string(),
         })
         .collect()
@@ -292,9 +294,11 @@ fn schema_validation_fails(#[from(validated_state)] state: &JsonSchemaState) -> 
         ),
         Some(ExpectedSchemaFailure::UnknownHiProperty) => ensure!(
             errors.iter().any(|error| {
-                error.message.contains("\"unknown\":\"field\"")
-                    && error.message.contains("\"@rend\":\"emph\"")
-                    && error.schema_path.contains("/oneOf")
+                error.message.contains("unknown")
+                    && (error.message.contains("additional")
+                        || error.schema_path.contains("additionalProperties")
+                        || error.schema_path.contains("/oneOf")
+                        || error.instance_path.contains("/unknown"))
             }),
             "expected at least one validation error to mention unknown property on `hi`, got {errors:?}"
         ),

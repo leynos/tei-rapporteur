@@ -114,7 +114,7 @@ impl TeiHeader {
 }
 
 #[must_use]
-fn normalise_optional_text(value: impl Into<String>) -> Option<String> {
+fn normalize_optional_text(value: impl Into<String>) -> Option<String> {
     let trimmed = value.into().trim().to_owned();
 
     if trimmed.is_empty() {
@@ -126,6 +126,8 @@ fn normalise_optional_text(value: impl Into<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for header composition and optional metadata.
+
     use super::*;
     use crate::title::DocumentTitle;
 

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// Spoken utterance that may reference a speaker.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
-#[serde(rename = "u")]
+#[serde(rename = "u", deny_unknown_fields)]
 pub struct Utterance {
     #[serde(
         rename = "@xml:id",
@@ -209,6 +209,8 @@ impl Utterance {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for utterance construction, validation, and content management.
+
     use super::*;
 
     #[test]

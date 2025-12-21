@@ -152,6 +152,8 @@ impl TeiDocument {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for core document constructors and error conversions.
+
     use super::*;
 
     #[test]

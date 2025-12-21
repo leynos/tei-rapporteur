@@ -6,7 +6,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::{HeaderValidationError, normalise_optional_text};
+use super::{HeaderValidationError, normalize_optional_text};
 use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 
@@ -170,7 +170,7 @@ impl RevisionChange {
 
         Ok(Self {
             description: normalised_description,
-            resp: normalise_optional_text(resp).map(ResponsibleParty::from_normalised),
+            resp: normalize_optional_text(resp).map(ResponsibleParty::from_normalised),
         })
     }
 
@@ -199,7 +199,7 @@ fn required_text(
     value: impl Into<String>,
     field: &'static str,
 ) -> Result<String, HeaderValidationError> {
-    normalise_optional_text(value).ok_or(HeaderValidationError::EmptyField { field })
+    normalize_optional_text(value).ok_or(HeaderValidationError::EmptyField { field })
 }
 
 fn de_nonempty_text<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -208,11 +208,13 @@ where
 {
     let raw = String::deserialize(deserializer)?;
 
-    normalise_optional_text(raw).ok_or_else(|| de::Error::custom("empty revision note"))
+    normalize_optional_text(raw).ok_or_else(|| de::Error::custom("empty revision note"))
 }
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for revision history wrappers and Serde validation.
+
     use super::*;
     use tei_serde::json;
 

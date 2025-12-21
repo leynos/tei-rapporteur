@@ -143,6 +143,8 @@ pub fn msgspec_available() -> bool {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for Python-side test support helpers.
+
     use super::*;
     use std::ffi::CString;
 

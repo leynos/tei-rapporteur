@@ -201,6 +201,8 @@ impl<'de> Deserialize<'de> for Speaker {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for identifier and speaker wrapper types.
+
     use super::*;
     use tei_serde::json;
 

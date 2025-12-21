@@ -158,6 +158,8 @@ impl TeiText {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for TEI text construction helpers.
+
     use super::{BodyBlock, P, TeiBody, TeiText, Utterance};
     use rstest::{fixture, rstest};
 

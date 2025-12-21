@@ -124,6 +124,8 @@ impl TryFrom<String> for DocumentTitle {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for document title validation and Serde behavior.
+
     use super::*;
     use rstest::rstest;
     use std::fmt::Display;
