@@ -70,7 +70,8 @@ impl Inline {
 /// Emphasised inline element corresponding to `<hi>`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
-#[serde(rename = "hi", deny_unknown_fields)]
+#[cfg_attr(feature = "json-schema", schemars(deny_unknown_fields))]
+#[serde(rename = "hi")]
 pub struct Hi {
     #[serde(rename = "@rend", skip_serializing_if = "Option::is_none", default)]
     rend: Option<String>,
@@ -251,7 +252,7 @@ impl Pause {
 
 #[cfg(test)]
 mod tests {
-    //! Unit tests for inline element helpers and Serde behavior.
+    //! Unit tests for inline element helpers and Serde behaviour.
 
     use super::*;
     use crate::text::BodyContentError;

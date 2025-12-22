@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {
         let identifier = XmlId::new("  intro ")
-            .unwrap_or_else(|error| panic!("identifier should be normalised: {error}"));
+            .unwrap_or_else(|error| panic!("identifier should be normalized: {error}"));
         assert_eq!(identifier.as_str(), "intro");
     }
 
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn speaker_accepts_trimmed_values() {
         let speaker = Speaker::new("  host  ")
-            .unwrap_or_else(|error| panic!("speaker should be normalised: {error}"));
+            .unwrap_or_else(|error| panic!("speaker should be normalized: {error}"));
         assert_eq!(speaker.as_str(), "host");
     }
 
