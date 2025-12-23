@@ -154,7 +154,7 @@ This step modularizes the JSON and MessagePack logic into a dedicated crate.
       `tei-serde`.
 - [x] Generate and publish a versioned JSON Schema corresponding to the
       `TeiDocument` structure.
-- [ ] Implement property-based tests to verify round-trip integrity between TEI
+- [x] Implement property-based tests to verify round-trip integrity between TEI
       XML, Rust structs, and JSON representations.
 
 ### Step 3.3: Streaming Parser (Future Work)

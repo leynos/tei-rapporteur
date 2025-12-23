@@ -1495,11 +1495,30 @@ schema.
 
 - **Round-trip validation**: As mentioned, one key validation is that
   converting from XML to JSON and back (or vice versa) yields the same content.
-  The suite will include property-based tests (using e.g. Rust’s `proptest`
-  crate and Python’s `hypothesis`) to generate random but valid structures and
-  ensure that `emit_xml(parse_xml(original_xml))` is equivalent to a
-  canonicalized `original_xml`. JSON idempotence is also tested. This provides
-  confidence in the correctness of the (de)serializers.
+  The suite includes property-based tests using Rust's `proptest` crate to
+  generate random but valid structures and ensure that
+  `emit_xml(parse_xml(original_xml))` is equivalent to a canonicalized
+  `original_xml`. JSON and MessagePack idempotence is also tested. This
+  provides confidence in the correctness of the (de)serializers.
+
+  Property-based tests using `proptest` complement the example-based tests by
+  generating arbitrary valid `TeiDocument` instances and verifying round-trip
+  invariants:
+
+  - **JSON round-trip**: `struct -> JSON -> struct` produces equal values
+  - **MessagePack round-trip**: `struct -> bytes -> struct` produces equal
+    values
+  - **XML round-trip**: `struct -> XML -> struct` produces semantically equal
+    values
+  - **Cross-format consistency**: JSON and MessagePack decode to equal values
+
+  The `proptest` strategies respect validation constraints: generated titles
+  are non-empty, identifiers contain no whitespace, and documents pass
+  `TeiDocument::validate()`. This ensures that edge cases (long strings, nested
+  inline elements, documents with many blocks) are exercised without triggering
+  validation failures that would obscure serialization bugs. The strategies are
+  depth-limited for recursive structures like `Hi` elements to prevent stack
+  overflow during generation.
 
 - **Evolution and Versioning**: The JSON format is versioned via published JSON
   Schema snapshots. Consumers should pin validations to a specific

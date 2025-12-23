@@ -105,6 +105,15 @@ the generated output, and its behaviour tests validate both happy paths
 (serialized documents satisfy the schema) and unhappy paths (missing required
 fields and unknown inline properties are rejected).
 
+The `tei-serde` crate also includes property-based tests using `proptest` to
+verify round-trip integrity between formats. These tests generate arbitrary
+valid `TeiDocument` instances and confirm that serialization to JSON,
+MessagePack, and XML preserves equality when deserialized. The property-based
+test suite complements the example-based tests by exercising edge cases that
+hand-written fixtures might miss, such as documents with many blocks, deeply
+nested inline elements, and titles containing punctuation. Run `make test` to
+execute all tests including the property suite.
+
 ## Python bindings
 
 The workspace now provides a ready-to-build Python wheel. `pyproject.toml`
