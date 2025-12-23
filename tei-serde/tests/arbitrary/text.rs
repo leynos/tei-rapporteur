@@ -4,38 +4,38 @@
 //! visible inline content.
 
 use proptest::prelude::*;
-use tei_core::{BodyBlock, P, TeiBody, TeiText, Utterance};
+use tei_core::{BodyBlock, Inline, P, TeiBody, TeiText, Utterance};
 
 use super::inline::{
     has_visible_content, has_visible_content_slice, inline_strategy, text_only_inline_strategy,
 };
 use super::primitives::{speaker_strategy, xml_id_strategy};
 
-/// Generates a paragraph with optional `xml:id`.
-pub fn paragraph_strategy() -> impl Strategy<Value = P> {
-    (
-        proptest::option::of(xml_id_strategy()),
-        prop::collection::vec(inline_strategy(), 1..=5)
-            .prop_filter("must have visible content", |v| has_visible_content(v)),
-    )
-        .prop_map(|(id, content)| {
-            let mut p = P::from_inline(content)
-                .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
-            if let Some(id_value) = id {
-                p.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
-            }
-            p
-        })
+/// Helper to generate a paragraph from any content strategy.
+fn paragraph_with_content_strategy<S>(content_strategy: S) -> impl Strategy<Value = P>
+where
+    S: Strategy<Value = Vec<Inline>>,
+{
+    (proptest::option::of(xml_id_strategy()), content_strategy).prop_map(|(id, content)| {
+        let mut p = P::from_inline(content)
+            .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
+        if let Some(id_value) = id {
+            p.set_id(id_value)
+                .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+        }
+        p
+    })
 }
 
-/// Generates an utterance with optional speaker and `xml:id`.
-pub fn utterance_strategy() -> impl Strategy<Value = Utterance> {
+/// Helper to generate an utterance from any content strategy.
+fn utterance_with_content_strategy<S>(content_strategy: S) -> impl Strategy<Value = Utterance>
+where
+    S: Strategy<Value = Vec<Inline>>,
+{
     (
         proptest::option::of(xml_id_strategy()),
         proptest::option::of(speaker_strategy()),
-        prop::collection::vec(inline_strategy(), 1..=5)
-            .prop_filter("must have visible content", |v| has_visible_content(v)),
+        content_strategy,
     )
         .prop_map(|(id, speaker, content)| {
             let mut u = Utterance::from_inline(speaker.as_deref(), content)
@@ -46,6 +46,22 @@ pub fn utterance_strategy() -> impl Strategy<Value = Utterance> {
             }
             u
         })
+}
+
+/// Generates a paragraph with optional `xml:id`.
+pub fn paragraph_strategy() -> impl Strategy<Value = P> {
+    paragraph_with_content_strategy(
+        prop::collection::vec(inline_strategy(), 1..=5)
+            .prop_filter("must have visible content", |v| has_visible_content(v)),
+    )
+}
+
+/// Generates an utterance with optional speaker and `xml:id`.
+pub fn utterance_strategy() -> impl Strategy<Value = Utterance> {
+    utterance_with_content_strategy(
+        prop::collection::vec(inline_strategy(), 1..=5)
+            .prop_filter("must have visible content", |v| has_visible_content(v)),
+    )
 }
 
 /// Generates a `BodyBlock` (either Paragraph or Utterance).
@@ -72,20 +88,8 @@ pub fn tei_text_strategy() -> impl Strategy<Value = TeiText> {
 /// integration does not support serializing complex inline structures.
 /// Uses a single text node to avoid adjacent text node merging during XML round-trip.
 pub fn text_only_paragraph_strategy() -> impl Strategy<Value = P> {
-    (
-        proptest::option::of(xml_id_strategy()),
-        // Use a single text node to avoid adjacent text merging in XML
-        text_only_inline_strategy().prop_map(|inline| vec![inline]),
-    )
-        .prop_map(|(id, content)| {
-            let mut p = P::from_inline(content)
-                .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
-            if let Some(id_value) = id {
-                p.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
-            }
-            p
-        })
+    // Use a single text node to avoid adjacent text merging in XML
+    paragraph_with_content_strategy(text_only_inline_strategy().prop_map(|inline| vec![inline]))
 }
 
 /// Generates a text-only utterance (no Hi or Pause elements).
@@ -94,21 +98,8 @@ pub fn text_only_paragraph_strategy() -> impl Strategy<Value = P> {
 /// integration does not support serializing complex inline structures.
 /// Uses a single text node to avoid adjacent text node merging during XML round-trip.
 pub fn text_only_utterance_strategy() -> impl Strategy<Value = Utterance> {
-    (
-        proptest::option::of(xml_id_strategy()),
-        proptest::option::of(speaker_strategy()),
-        // Use a single text node to avoid adjacent text merging in XML
-        text_only_inline_strategy().prop_map(|inline| vec![inline]),
-    )
-        .prop_map(|(id, speaker, content)| {
-            let mut u = Utterance::from_inline(speaker.as_deref(), content)
-                .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
-            if let Some(id_value) = id {
-                u.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
-            }
-            u
-        })
+    // Use a single text node to avoid adjacent text merging in XML
+    utterance_with_content_strategy(text_only_inline_strategy().prop_map(|inline| vec![inline]))
 }
 
 /// Generates a text-only `BodyBlock` (no Hi or Pause elements).
