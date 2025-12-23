@@ -1,6 +1,6 @@
 //! Spoken utterances with optional speaker metadata and inline content.
 //!
-//! Serialises as `<u who="…">…</u>` with mixed [`Inline`] nodes inside the
+//! Serializes as `<u who="…">…</u>` with mixed [`Inline`] nodes inside the
 //! `$value` field so emphasis and pause cues are preserved.
 
 use crate::text::{
@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 
 /// Spoken utterance that may reference a speaker.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename = "u")]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[serde(rename = "u", deny_unknown_fields)]
 pub struct Utterance {
     #[serde(
         rename = "@xml:id",
@@ -208,6 +209,8 @@ impl Utterance {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for utterance construction, validation, and content management.
+
     use super::*;
 
     #[test]

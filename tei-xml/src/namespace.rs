@@ -27,6 +27,8 @@ pub fn add_tei_namespace(xml: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for TEI namespace handling.
+
     use super::*;
 
     #[test]

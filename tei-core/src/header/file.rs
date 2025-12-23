@@ -1,13 +1,14 @@
 //! Bibliographic file description (`<fileDesc>`) for TEI headers.
-//! Validates the title and normalises optional series and synopsis text.
+//! Validates the title and normalizes optional series and synopsis text.
 use crate::title::{DocumentTitle, DocumentTitleError};
 
 use serde::{Deserialize, Serialize};
 
-use super::normalise_optional_text;
+use super::normalize_optional_text;
 
 /// Bibliographic metadata describing the TEI file.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "fileDesc")]
 pub struct FileDesc {
     #[serde(rename = "title")]
@@ -42,14 +43,14 @@ impl FileDesc {
     /// Assigns an optional series label.
     #[must_use]
     pub fn with_series(mut self, series: impl Into<String>) -> Self {
-        self.series = normalise_optional_text(series);
+        self.series = normalize_optional_text(series);
         self
     }
 
     /// Assigns an optional synopsis.
     #[must_use]
     pub fn with_synopsis(mut self, synopsis: impl Into<String>) -> Self {
-        self.synopsis = normalise_optional_text(synopsis);
+        self.synopsis = normalize_optional_text(synopsis);
         self
     }
 
@@ -74,6 +75,8 @@ impl FileDesc {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for [`FileDesc`] builder methods and optional metadata.
+
     use super::*;
 
     #[test]

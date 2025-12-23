@@ -20,6 +20,10 @@ following TEI modules:
 - `tei-episodic-profile.odd` – The ODD customization defining allowed elements,
   attributes, and validation constraints.
 - `tei-episodic-profile.rng` – Generated Relax NG schema derived from the ODD.
+- `tei-document.schema.vX.Y.Z.json` – Published JSON Schema snapshot for the
+  `TeiDocument` JSON serialization format (see "JSON Schema snapshots" below).
+- `tei-document.schema.json` – Alias for the latest `TeiDocument` schema
+  snapshot.
 
 ## About the Profile
 
@@ -57,6 +61,15 @@ The ODD can be processed by TEI tools to generate Relax NG and Schematron
 schemas. The generated Relax NG schema is committed to this directory as
 `tei-episodic-profile.rng`; when regenerating, replace that file after
 verifying the output is consistent with the profile.
+
+### JSON Schema snapshots
+
+The `TeiDocument` JSON Schema snapshots are generated from the canonical Rust
+types in `tei-core` via `schemars`. Regenerate them with:
+
+```bash
+make json-schema
+```
 
 ### Using Roma (Web Interface)
 

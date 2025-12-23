@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(paragraph.content().len(), 2);
 /// ```
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Inline {
     /// Plain text content.
@@ -68,6 +69,8 @@ impl Inline {
 
 /// Emphasised inline element corresponding to `<hi>`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "json-schema", schemars(deny_unknown_fields))]
 #[serde(rename = "hi")]
 pub struct Hi {
     #[serde(rename = "@rend", skip_serializing_if = "Option::is_none", default)]
@@ -195,6 +198,7 @@ impl Hi {
 
 /// Pause marker rendered as `<pause/>`.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "pause", deny_unknown_fields)]
 pub struct Pause {
     #[serde(rename = "@dur", skip_serializing_if = "Option::is_none", default)]
@@ -248,6 +252,8 @@ impl Pause {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for inline element helpers and Serde behaviour.
+
     use super::*;
     use crate::text::BodyContentError;
     use rstest::{fixture, rstest};

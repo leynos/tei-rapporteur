@@ -144,6 +144,8 @@ fn record_id(value: &str, sink: &mut HashSet<String>) -> Result<(), ValidationEr
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for document-wide validation invariants.
+
     use super::*;
     use crate::{
         header::{AnnotationSystem, EncodingDesc, FileDesc, ProfileDesc, TeiHeader},

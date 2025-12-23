@@ -8,8 +8,13 @@ authors.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+json-schema = ["dep:schemars"]
+
 [dependencies]
 serde = { workspace = true }
+schemars = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

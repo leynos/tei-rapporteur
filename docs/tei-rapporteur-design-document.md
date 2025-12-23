@@ -38,7 +38,7 @@ output, and the semantic content remains consistent across round-trips.
   `ParagraphBlock | UtteranceBlock`, `Inline` as `str | Hi | Pause`, with
   `Pause` expressed as a `TypedDict` carrying `@dur` and `@type`).
 - The `ensure_msgspec_installed` test helper is guarded by a Python-aware
-  initialiser (`GILOnceCell` / `OnceExt::call_once_py_attached`) so `pip`
+  initializer (`GILOnceCell` / `OnceExt::call_once_py_attached`) so `pip`
   installation runs exactly once across parallel tests while keeping the GIL
   interactions safe.
 
@@ -201,7 +201,7 @@ clarity and allows reuse or independent testing of components:
 
 - **`tei-serde`**: A crate providing serde serializers/deserializers for
   converting the TEI data structures to/from other formats like JSON or
-  MessagePack. The crate centralises the `serde_json` and `rmp-serde`
+  MessagePack. The crate centralizes the `serde_json` and `rmp-serde`
   dependencies and exposes small wrapper modules (`tei_serde::json`,
   `tei_serde::msgpack`) for the rest of the workspace. This keeps
   serialization-format concerns isolated from the core domain model and from
@@ -327,7 +327,7 @@ The initial implementation lands the document shell described above:
 - `TeiDocument` now owns a `TeiHeader` plus a placeholder `TeiText`. The text
   structure captures an ordered list of string segments for now; later phases
   will replace this with the richer body and inline models discussed below.
-- `FileDesc` wraps the validated `DocumentTitle` and normalises optional series
+- `FileDesc` wraps the validated `DocumentTitle` and normalizes optional series
   and synopsis strings, trimming whitespace and discarding blanks. This keeps
   metadata consistent regardless of how callers provide it.
 - `ProfileDesc` maintains trimmed speaker names and language tags. Attempts to
@@ -347,7 +347,7 @@ placeholder segments:
 - `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
   variants. This provides a single ordered surface today while leaving room for
   future variants such as divisions.
-- `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasised spans, and
+- `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasized spans, and
   pauses share a single ordered sequence. Both structs expose helper methods
   for attaching optional `xml:id` values and, in the case of `Utterance`, a
   speaker reference.
@@ -355,12 +355,12 @@ placeholder segments:
   and utterances must contain at least one meaningful inline node. Inline text
   nodes with only whitespace are rejected, inline elements such as `<hi>` must
   contain validated children, and identifiers/speaker names are trimmed before
-  being recorded. This mirrors the header module’s normalisation story and
+  being recorded. This mirrors the header module’s normalization story and
   keeps downstream consumers safe from accidentally blank content.
 
 Normalization helpers centralize the trimming logic so optional values never
 carry unintentional whitespace. This by-construction approach keeps downstream
-serialisers simple: they do not need to handle purely cosmetic differences in
+serializers simple: they do not need to handle purely cosmetic differences in
 header metadata.
 
 - For narrative text like paragraphs the implementation uses a struct `P` with a
@@ -404,7 +404,7 @@ pub struct Pause {
 
 `P` and `Utterance` both expose a `content: Vec<Inline>` surface. Inline helper
 constructors (`Inline::text`, `Inline::hi`, `Inline::pause`) ensure callers can
-describe emphasised segments and pause cues without juggling the underlying
+describe emphasized segments and pause cues without juggling the underlying
 structs. The `Hi::try_new` and `Hi::try_with_rend` helpers validate inline
 children up-front, and `Hi::push_inline` now returns a `Result` so invalid
 nodes are rejected rather than silently recorded. Validation walks the entire
@@ -419,10 +419,10 @@ manually collecting `Inline` variants. The previous `P::new` and
 to steer new code towards the clearer naming while preserving backwards
 compatibility.
 
-To keep serialisation ergonomic, every data model struct and enum derives
+To keep serialization ergonomic, every data model struct and enum derives
 `Serialize`/`Deserialize`. The derives include `#[serde(transparent)]` on the
 newtype wrappers so `quick-xml` and future JSON projections observe canonical
-string shapes. Error handling now centralises conversions via a `TeiError`
+string shapes. Error handling now centralizes conversions via a `TeiError`
 enum, allowing higher layers to convert `DocumentTitleError`,
 `HeaderValidationError`, `BodyContentError`, and related cases into a single
 type without losing context. Top-level constructors such as
@@ -510,7 +510,7 @@ faults consistently before we wire up emission.
 `tei-xml::emit_xml` now completes the round-trip by delegating to
 `quick_xml::se::to_string`. The emitter keeps XML-specific logic inside the
 `tei-xml` crate while returning `TeiError::Xml` when quick-xml refuses to
-serialise invalid data (for example, control characters that XML 1.0 forbids).
+serialize invalid data (for example, control characters that XML 1.0 forbids).
 Fresh unit and behaviour-driven tests assert both the happy path (emitting the
 minimal TEI skeleton) and the unhappy path (surfacing the serializer's control
 character error message) so callers see consistent diagnostics regardless of
@@ -630,9 +630,209 @@ and the workspace routes JSON and MessagePack encoding/decoding through
 (This is illustrative; the actual JSON schema will be defined so that it aligns
 with the Python `Struct` definitions exactly, including any nesting.)
 Attributes become JSON fields, element names become object keys or struct field
-names, and lists of elements become JSON arrays. The JSON payload includes a
-top-level field like `"model_version": 1` to allow evolution of the schema over
-time.
+names, and lists of elements become JSON arrays.
+
+To formalize the on-the-wire format, the repository publishes a versioned JSON
+Schema snapshot for `TeiDocument` under
+`schemas/tei-document.schema.vX.Y.Z.json` (with
+`schemas/tei-document.schema.json` tracking the latest workspace version). The
+schema is generated from the canonical Rust types in `tei-core` via `schemars`,
+and the root schema sets `$id` to
+`urn:tei-rapporteur:schema:tei-document:X.Y.Z`. Maintainers regenerate the
+snapshot with `make json-schema` whenever the Serde layout changes.
+
+Schema generation relies on `schemars::JsonSchema` derives on the core Rust
+types. To avoid forcing downstream users of `tei-core` to depend on `schemars`
+when they only need Serde, the `schemars` dependency and derives are gated
+behind the `tei-core` Cargo feature `json-schema`. `tei-serde` enables this
+feature when generating the published schema snapshots.
+
+Figure: Class diagram of the core `tei-core` data model and the
+`tei-serde::schema` entry points used to generate the published JSON Schema
+snapshots.
+
+```mermaid
+classDiagram
+    %% Core document structure
+    class TeiDocument {
+        +TeiHeader tei_header
+        +TeiText text
+        +JsonSchema
+    }
+
+    class TeiHeader {
+        +FileDesc file_desc
+        +EncodingDesc encoding_desc
+        +ProfileDesc profile_desc
+        +RevisionDesc revision_desc
+        +JsonSchema
+    }
+
+    class TeiText {
+        +TeiBody body
+        +JsonSchema
+    }
+
+    class TeiBody {
+        +BodyBlock[] content
+        +JsonSchema
+    }
+
+    class BodyBlock {
+        <<enum>>
+        +P p
+        +Utterance utterance
+        +JsonSchema
+    }
+
+    class P {
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Utterance {
+        +XmlId xml_id
+        +Speaker speaker
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Inline {
+        <<enum>>
+        +String text
+        +Hi hi
+        +Pause pause
+        +JsonSchema
+    }
+
+    class Hi {
+        +String rend
+        +Inline[] content
+        +JsonSchema
+    }
+
+    class Pause {
+        +String dur
+        +JsonSchema
+    }
+
+    class XmlId {
+        +String value
+        +JsonSchema
+    }
+
+    class Speaker {
+        +String value
+        +JsonSchema
+    }
+
+    class DocumentTitle {
+        +String value
+        +JsonSchema
+    }
+
+    %% Header subcomponents
+    class FileDesc {
+        +DocumentTitle title
+        +JsonSchema
+    }
+
+    class EncodingDesc {
+        +AnnotationSystem[] annotation_systems
+        +JsonSchema
+    }
+
+    class AnnotationSystem {
+        +AnnotationSystemId identifier
+        +String description
+        +JsonSchema
+    }
+
+    class AnnotationSystemId {
+        +String value
+        +JsonSchema
+    }
+
+    class ProfileDesc {
+        +SpeakerName[] speakers
+        +LanguageTag[] languages
+        +JsonSchema
+    }
+
+    class SpeakerName {
+        +String value
+        +JsonSchema
+    }
+
+    class LanguageTag {
+        +String value
+        +JsonSchema
+    }
+
+    class RevisionDesc {
+        +RevisionChange[] changes
+        +JsonSchema
+    }
+
+    class RevisionChange {
+        +String description
+        +ResponsibleParty who
+        +JsonSchema
+    }
+
+    class ResponsibleParty {
+        +String value
+        +JsonSchema
+    }
+
+    %% tei-serde schema module
+    class TeiSerdeSchemaModule {
+        +String tei_document_schema_id()
+        +Schema tei_document_schema()
+        +Result~String, Error~ tei_document_schema_json_pretty()
+    }
+
+    class Schema {
+    }
+
+    %% Relationships within tei-core
+    TeiDocument --> TeiHeader
+    TeiDocument --> TeiText
+
+    TeiText --> TeiBody
+    TeiBody --> BodyBlock
+
+    BodyBlock --> P
+    BodyBlock --> Utterance
+
+    P --> Inline
+    Utterance --> XmlId
+    Utterance --> Speaker
+    Utterance --> Inline
+
+    Inline --> Hi
+    Inline --> Pause
+
+    FileDesc --> DocumentTitle
+
+    TeiHeader --> FileDesc
+    TeiHeader --> EncodingDesc
+    TeiHeader --> ProfileDesc
+    TeiHeader --> RevisionDesc
+
+    EncodingDesc --> AnnotationSystem
+    AnnotationSystem --> AnnotationSystemId
+
+    ProfileDesc --> SpeakerName
+    ProfileDesc --> LanguageTag
+
+    RevisionDesc --> RevisionChange
+    RevisionChange --> ResponsibleParty
+
+    %% Schema generation coupling
+    TeiSerdeSchemaModule ..> TeiDocument : JsonSchema for
+    TeiSerdeSchemaModule ..> Schema : returns
+```
 
 One important design consideration is that the JSON output should be
 **deterministic**. If the system serializes the same `TeiDocument` twice, it
@@ -755,9 +955,9 @@ carry data between functions in this minimal API approach.
 The encoder half of this API now exists alongside the decoder. `to_msgpack`
 wraps a small Rust helper that invokes
 `tei_serde::msgpack::to_vec_named(&TeiDocument)` and maps any `encode::Error`
-into a Python `ValueError`. Although the current `TeiDocument` serialiser is
+into a Python `ValueError`. Although the current `TeiDocument` serializer is
 infallible for valid data, the explicit error conversion keeps the glue
-predictable if future schema additions require custom serialisation. PyO3
+predictable if future schema additions require custom serialization. PyO3
 enforces that callers pass a `tei_rapporteur.Document` instance, so attempts to
 invoke `to_msgpack` with other Python objects are rejected with a standard
 `TypeError` before even entering Rust. The helper is re-exported to Rust
@@ -770,7 +970,7 @@ the stored payload decodes back to the original title. A companion scenario
 intentionally calls `to_msgpack("not a document")` and asserts that the
 resulting error string mentions the incorrect type, ensuring misuse fails fast
 at the boundary. The unit suite supplements this with Rust-level tests that
-serialise titles containing XML special characters and immediately decode the
+serialize titles containing XML special characters and immediately decode the
 bytes via the internal helper.
 
 #### Current module scaffolding (Phase 2.1)
@@ -792,14 +992,14 @@ flags, mirroring the structure explained in `docs/workspace-layout.md`.
 Continuous integration now includes a wheel build/install smoke test on Ubuntu:
 the workflow provisions Python 3.11, invokes
 `maturin build --manifest-path tei-py/Cargo.toml`, installs the resulting wheel
-via `pip`, and imports `tei_rapporteur` to confirm the PyO3 module initialises
+via `pip`, and imports `tei_rapporteur` to confirm the PyO3 module initializes
 correctly. This guards against future regressions so the Python surface always
 builds alongside the Rust crates.
 
 #### XML data exchange bindings (Phase 2.2)
 
 The second milestone for the Python layer connects the core XML pipeline to
-PyO3 so Python callers can avoid serialising through MessagePack when they
+PyO3 so Python callers can avoid serializing through MessagePack when they
 already have TEI strings. The new `parse_xml` and `emit_xml` functions are thin
 shims: each delegates to `tei_xml::{parse_xml, emit_xml}` and then relies on
 the existing `Document` wrapper to keep ownership inside Rust. The binding
@@ -834,7 +1034,7 @@ instantiating the macros with the appropriate encoder/decoder pair. On the
 integration-test side, the behaviour-driven harness was decomposed into
 feature-specific modules (`steps_construction`, `steps_msgpack`, `steps_xml`,
 etc.) so no test file exceeds the 400-line guideline. Shared payload handling
-now relies on a `PayloadSlot<T>` helper that centralises the borrow/clear logic
+now relies on a `PayloadSlot<T>` helper that centralizes the borrow/clear logic
 for MessagePack and XML artefacts. This removes duplicated `RefCell` juggling
 and eliminates the double-borrow panic that previously occurred when an error
 was recorded while a document reference was still alive.
@@ -931,7 +1131,6 @@ class Episode(msgspec.Struct):
     title: str
     utterances: list[Utterance]
     spans: list[Span] = []       # maybe stand-off annotations
-    model_version: int = 1
 ```
 
 *(In practice, `msgspec` can also support recursive types and union types; the
@@ -1302,23 +1501,21 @@ schema.
   canonicalized `original_xml`. JSON idempotence is also tested. This provides
   confidence in the correctness of the (de)serializers.
 
-- **Evolution and Versioning**: The data includes a `model_version` (as noted in
-  the JSON). The Rust library can handle version migrations by detecting an
-  older version and upgrading it (if breaking changes arise in the JSON format
-  in future). For example, if `model_version: 2` adds a new field, the library
-  might provide a function to convert v1 -> v2 (filling defaults) so that older
-  JSON can still be parsed. All such migrations will be documented, and the
-  version field in the JSON (and perhaps in the TEI header via `<revisionDesc>`
-  or `<encodingDesc>`) will trace this. This strategy is more about maintaining
-  data integrity across versions, ensuring that user data in a database doesn’t
-  become unreadable after an update.
+- **Evolution and Versioning**: The JSON format is versioned via published JSON
+  Schema snapshots. Consumers should pin validations to a specific
+  `schemas/tei-document.schema.vX.Y.Z.json` artifact (or the root schema `$id`)
+  to ensure the accepted shape matches the workspace version that produced the
+  payload. If the Serde layout requires a breaking change, the project will
+  publish a new schema snapshot and document the compatibility story. The Rust
+  library may eventually add explicit version fields and migration helpers, but
+  the current contract is the schema snapshot itself.
 
-- **Database considerations**: If storing episodes in a Postgres JSONB,
-  deployments are encouraged to use **database constraints** to catch major
-  issues early (for example, ensuring a `model_version` field exists and is
-  within a known range). Also, since the TEI ID might be used as a key in
-  related tables, the system should enforce proper generation of IDs (using
-  UUIDs or nanoid) to avoid collisions.
+- **Database considerations**: If storing documents in a Postgres JSONB column,
+  deployments are encouraged to validate payloads against the published schema
+  snapshot as early as possible (application layer, ingestion pipeline, or
+  database constraints where available). Since TEI identifiers may be used as
+  keys in related tables, the system should enforce proper generation of IDs
+  (for example via UUIDs or nanoid) to avoid collisions.
 
 Overall, the validation strategy is **pragmatic**: do as much as is reasonable
 in Rust (fast, on-the-fly checks), rely on external proven tools for full
@@ -1491,7 +1688,6 @@ class Episode(msgspec.Struct):
     title: str
     utterances: list[Utterance]
     spans: list[dict] = []     # spans as dicts with keys id, start, end, ana
-    model_version: int = 1
 ```
 
 Usage in Python:

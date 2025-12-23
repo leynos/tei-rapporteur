@@ -15,6 +15,7 @@ pub use types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlI
 
 /// Body of a TEI document, including paragraphs and utterances.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "text")]
 pub struct TeiText {
     #[serde(rename = "body")]
@@ -157,6 +158,8 @@ impl TeiText {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for TEI text construction helpers.
+
     use super::{BodyBlock, P, TeiBody, TeiText, Utterance};
     use rstest::{fixture, rstest};
 

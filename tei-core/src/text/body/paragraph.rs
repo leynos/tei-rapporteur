@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 /// Paragraph element containing linear text segments.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename = "p")]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[serde(rename = "p", deny_unknown_fields)]
 pub struct P {
     #[serde(
         rename = "@xml:id",
@@ -148,6 +149,8 @@ impl P {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for paragraph construction and validation.
+
     use super::*;
     use crate::text::{Inline, body::Utterance};
     use rstest::rstest;

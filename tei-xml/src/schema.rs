@@ -44,6 +44,8 @@ pub fn write_relax_ng_schema(path: impl AsRef<Path>) -> Result<(), TeiError> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for schema-loading helpers.
+
     use super::*;
     use quick_xml::{Reader, events::Event};
     use tempfile::tempdir;

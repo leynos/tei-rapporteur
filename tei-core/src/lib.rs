@@ -49,7 +49,7 @@ pub enum TeiError {
     /// Wrapper around [`ValidationError`] values.
     #[error(transparent)]
     Validation(#[from] ValidationError),
-    /// XML parsing or serialisation failed.
+    /// XML parsing or serialization failed.
     #[error("XML processing error: {message}")]
     Xml {
         /// Message describing the failure emitted by the XML layer.
@@ -93,6 +93,7 @@ impl TeiError {
 /// # Ok::<(), TeiError>(())
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "TEI")]
 pub struct TeiDocument {
     #[serde(rename = "teiHeader")]
@@ -151,6 +152,8 @@ impl TeiDocument {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for core document constructors and error conversions.
+
     use super::*;
 
     #[test]

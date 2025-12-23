@@ -4,11 +4,12 @@
 
 use std::fmt;
 
-use super::{HeaderValidationError, normalise_optional_text};
+use super::{HeaderValidationError, normalize_optional_text};
 use serde::{Deserialize, Serialize};
 
 /// Aggregates encoding metadata such as annotation systems.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "encodingDesc")]
 pub struct EncodingDesc {
     #[serde(
@@ -62,6 +63,7 @@ impl EncodingDesc {
 
 /// Annotation toolkit metadata.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub struct AnnotationSystem {
     #[serde(rename = "@xml:id", alias = "@id")]
     identifier: AnnotationSystemId,
@@ -84,7 +86,7 @@ impl AnnotationSystem {
 
         Ok(Self {
             identifier: canonical_identifier,
-            description: normalise_optional_text(description),
+            description: normalize_optional_text(description),
         })
     }
 
@@ -103,6 +105,7 @@ impl AnnotationSystem {
 
 /// Canonical identifier for an annotation system.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct AnnotationSystemId(String);
 
@@ -114,7 +117,7 @@ impl AnnotationSystemId {
     /// Returns [`HeaderValidationError::EmptyField`] when the identifier is
     /// empty after normalization.
     pub fn new(value: impl Into<String>) -> Result<Self, HeaderValidationError> {
-        let Some(identifier) = normalise_optional_text(value) else {
+        let Some(identifier) = normalize_optional_text(value) else {
             return Err(HeaderValidationError::EmptyField {
                 field: "annotation system",
             });
@@ -178,6 +181,8 @@ impl From<AnnotationSystemId> for String {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for encoding metadata and annotation system validation.
+
     use super::*;
     use std::convert::TryFrom;
     use tei_serde::json;

@@ -1,7 +1,7 @@
 //! Validated wrapper types for TEI identifier and speaker attributes.
 //!
 //! Provides `XmlId` and `Speaker` newtypes that enforce non-empty,
-//! normalised values and reject invalid whitespace patterns.
+//! normalized values and reject invalid whitespace patterns.
 
 use std::fmt;
 
@@ -13,10 +13,14 @@ use super::body::trim_preserving_original;
 
 /// Validated wrapper for TEI `xml:id` attributes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct XmlId(String);
 
-/// Errors raised when normalising identifier input.
+/// Errors raised when normalizing identifier input.
+///
+/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
+/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum IdentifierValidationError {
     /// The identifier trimmed to an empty string.
@@ -107,10 +111,14 @@ impl<'de> Deserialize<'de> for XmlId {
 
 /// Validated wrapper for utterance speaker references.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct Speaker(String);
 
-/// Errors raised when normalising speaker references.
+/// Errors raised when normalizing speaker references.
+///
+/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
+/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum SpeakerValidationError {
     /// The speaker trimmed to an empty string.
@@ -193,13 +201,15 @@ impl<'de> Deserialize<'de> for Speaker {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for identifier and speaker wrapper types.
+
     use super::*;
     use tei_serde::json;
 
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {
         let identifier = XmlId::new("  intro ")
-            .unwrap_or_else(|error| panic!("identifier should be normalised: {error}"));
+            .unwrap_or_else(|error| panic!("identifier should be normalized: {error}"));
         assert_eq!(identifier.as_str(), "intro");
     }
 
@@ -234,7 +244,7 @@ mod tests {
     #[test]
     fn speaker_accepts_trimmed_values() {
         let speaker = Speaker::new("  host  ")
-            .unwrap_or_else(|error| panic!("speaker should be normalised: {error}"));
+            .unwrap_or_else(|error| panic!("speaker should be normalized: {error}"));
         assert_eq!(speaker.as_str(), "host");
     }
 

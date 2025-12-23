@@ -29,6 +29,15 @@ available today and how to exercise it.
   produce canonical Text Encoding Initiative (TEI) strings. All helpers return
   `TeiError`, so callers see consistent diagnostics whether parsing malformed
   input or attempting to emit control characters that XML forbids.
+- `tei-serde` centralizes JSON and `MessagePack` serialization, allowing the
+  rest of the workspace to depend on a stable wrapper API (`tei_serde::json`,
+  `tei_serde::msgpack`) instead of taking direct dependencies on `serde_json`
+  and `rmp-serde`. It also publishes a versioned JSON Schema snapshot for
+  `TeiDocument` under `schemas/tei-document.schema.vX.Y.Z.json` (with
+  `schemas/tei-document.schema.json` tracking the latest snapshot), generated
+  from the `tei-core` Rust types via `schemars`. Schema generation is gated
+  behind the optional `tei-core` Cargo feature `json-schema` so consumers that
+  do not need schema publication can avoid pulling in `schemars`.
 - `tei-py` now ships the `tei_rapporteur` PyO3 module. The exported `Document`
   class wraps `TeiDocument`, validates titles via the Rust constructors, and
   exposes a `title` getter plus an `emit_title_markup` convenience method. The
@@ -58,6 +67,8 @@ Use the Makefile targets to work with the entire workspace:
   `rstest-bdd`.
 - `make check-fmt`, `make lint`, and `make fmt` mirror the repository quality
   gates described in `AGENTS.md`.
+- `make json-schema` regenerates the published `TeiDocument` JSON Schema
+  snapshots under `schemas/`.
 - `make validate-xml` generates XML fixtures and validates them against the TEI
   Episodic Profile Relax NG schema using `jing`. This requires jing to be
   installed (see "External XML validation" below).
@@ -87,6 +98,12 @@ fields, blank titles, and the `TypeError` raised when `to_dict` is called with
 the wrong object. New validation scenarios assert that duplicate `xml:id`
 values are rejected and that utterance speakers must be declared when a profile
 cast exists, while documents without a cast still pass validation.
+
+The `tei-serde` crate now publishes a versioned JSON Schema for `TeiDocument`.
+Its unit tests assert that the checked-in schema snapshot stays in sync with
+the generated output, and its behaviour tests validate both happy paths
+(serialized documents satisfy the schema) and unhappy paths (missing required
+fields and unknown inline properties are rejected).
 
 ## Python bindings
 
@@ -133,7 +150,7 @@ document = tei.from_msgpack(payload)
 print(document.title)
 ```
 
-The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serialises the
+The inverse helper, `tei_rapporteur.to_msgpack(doc: Document)`, serializes the
 validated document into MessagePack bytes via `tei_serde::msgpack`. The
 function returns Python `bytes`, making it trivial to persist the payload or
 feed it straight into `msgspec.msgpack.decode` to hydrate a structured type.

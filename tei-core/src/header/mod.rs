@@ -20,7 +20,7 @@ pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 /// Error raised when TEI header metadata fails validation.
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize)]
 pub enum HeaderValidationError {
-    /// A textual field was empty once normalised.
+    /// A textual field was empty once normalized.
     #[error("{field} may not be empty")]
     EmptyField {
         /// Name of the empty field.
@@ -30,6 +30,7 @@ pub enum HeaderValidationError {
 
 /// Metadata container for TEI header information.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "teiHeader")]
 pub struct TeiHeader {
     #[serde(rename = "fileDesc")]
@@ -113,7 +114,7 @@ impl TeiHeader {
 }
 
 #[must_use]
-fn normalise_optional_text(value: impl Into<String>) -> Option<String> {
+fn normalize_optional_text(value: impl Into<String>) -> Option<String> {
     let trimmed = value.into().trim().to_owned();
 
     if trimmed.is_empty() {
@@ -125,6 +126,8 @@ fn normalise_optional_text(value: impl Into<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for header composition and optional metadata.
+
     use super::*;
     use crate::title::DocumentTitle;
 

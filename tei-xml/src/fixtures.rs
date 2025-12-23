@@ -157,6 +157,8 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for XML fixture loading and emission helpers.
+
     use super::*;
 
     #[test]

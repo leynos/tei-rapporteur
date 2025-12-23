@@ -5,11 +5,12 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::{HeaderValidationError, normalise_optional_text};
+use super::{HeaderValidationError, normalize_optional_text};
 use serde::{Deserialize, Serialize};
 
 /// Validated speaker name stored within [`ProfileDesc`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct SpeakerName(String);
 
@@ -81,6 +82,7 @@ impl From<SpeakerName> for String {
 
 /// Validated language identifier stored within [`ProfileDesc`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct LanguageTag(String);
 
@@ -152,6 +154,7 @@ impl From<LanguageTag> for String {
 
 /// Audience and linguistic profile metadata.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "profileDesc")]
 pub struct ProfileDesc {
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -172,7 +175,7 @@ impl ProfileDesc {
     /// Assigns an optional synopsis.
     #[must_use]
     pub fn with_synopsis(mut self, synopsis: impl Into<String>) -> Self {
-        self.synopsis = normalise_optional_text(synopsis);
+        self.synopsis = normalize_optional_text(synopsis);
         self
     }
 
@@ -244,11 +247,13 @@ fn build_validated_text(
     value: impl Into<String>,
     field: &'static str,
 ) -> Result<String, HeaderValidationError> {
-    normalise_optional_text(value).ok_or(HeaderValidationError::EmptyField { field })
+    normalize_optional_text(value).ok_or(HeaderValidationError::EmptyField { field })
 }
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for profile metadata wrappers and builders.
+
     use super::*;
     use tei_serde::json;
 
