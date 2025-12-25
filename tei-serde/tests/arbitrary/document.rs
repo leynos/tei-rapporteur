@@ -51,39 +51,19 @@ pub fn valid_text_only_tei_document_strategy() -> impl Strategy<Value = TeiDocum
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
+    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
     #[test]
     fn tei_document_strategy_produces_documents() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let doc = tei_document_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                !doc.title().as_str().trim().is_empty(),
-                "document title must not be empty"
-            );
-        }
+        assert_strategy_produces_valid_values(tei_document_strategy(), |doc| {
+            !doc.title().as_str().trim().is_empty()
+        });
     }
 
     #[test]
     fn valid_tei_document_strategy_produces_valid_documents() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let doc = valid_tei_document_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                doc.validate().is_ok(),
-                "document must pass validation: {:?}",
-                doc.validate()
-            );
-        }
+        assert_strategy_produces_valid_values(valid_tei_document_strategy(), |doc| {
+            doc.validate().is_ok()
+        });
     }
 }

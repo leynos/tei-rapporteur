@@ -112,7 +112,7 @@ MessagePack, and XML preserves equality when deserialized. The property-based
 test suite complements the example-based tests by exercising edge cases that
 hand-written fixtures might miss, such as documents with many blocks, deeply
 nested inline elements, and titles containing punctuation. Run `make test` to
-execute all tests including the property suite.
+execute all tests, including the property suite.
 
 ## Python bindings
 

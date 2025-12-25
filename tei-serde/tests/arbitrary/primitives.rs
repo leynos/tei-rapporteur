@@ -112,24 +112,7 @@ pub fn rend_strategy() -> impl Strategy<Value = String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
-
-    fn assert_strategy_produces_valid_values<S, F>(strategy: S, validator: F)
-    where
-        S: Strategy,
-        S::Value: std::fmt::Debug,
-        F: Fn(&S::Value) -> bool,
-    {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let value = strategy
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-            assert!(validator(&value), "invalid value: {value:?}");
-        }
-    }
+    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
     #[test]
     fn document_title_strategy_produces_nonempty_titles() {

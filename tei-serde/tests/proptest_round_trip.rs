@@ -48,8 +48,6 @@ proptest! {
     ///
     /// Note: This uses text-only documents because `quick-xml`'s serde integration
     /// does not support serializing Hi and Pause structs in `$value` fields.
-    /// XML normalizes whitespace in titles and may reorder attributes,
-    /// but the semantic content must be preserved.
     #[test]
     fn xml_round_trip_preserves_semantic_equality(doc in valid_text_only_tei_document_strategy()) {
         let xml_string = tei_xml::emit_xml(&doc)
@@ -58,27 +56,7 @@ proptest! {
         let decoded = tei_xml::parse_xml(&xml_string)
             .unwrap_or_else(|error| panic!("XML parsing should succeed: {error}"));
 
-        // Compare semantic content (titles are already normalized by DocumentTitle)
-        prop_assert_eq!(
-            doc.title().as_str(),
-            decoded.title().as_str(),
-            "XML round-trip should preserve title"
-        );
-
-        prop_assert_eq!(
-            doc.header().profile_desc().map(tei_core::ProfileDesc::len_speakers),
-            decoded.header().profile_desc().map(tei_core::ProfileDesc::len_speakers),
-            "XML round-trip should preserve speaker count"
-        );
-
-        prop_assert_eq!(
-            doc.text().body().blocks().len(),
-            decoded.text().body().blocks().len(),
-            "XML round-trip should preserve block count"
-        );
-
-        // Full structural equality
-        prop_assert_eq!(doc, decoded, "XML round-trip should preserve full equality");
+        prop_assert_eq!(doc, decoded, "XML round-trip should preserve equality");
     }
 
     /// Cross-format consistency: JSON and MessagePack should decode to equal values.

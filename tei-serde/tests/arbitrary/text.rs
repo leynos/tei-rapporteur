@@ -123,71 +123,30 @@ pub fn text_only_tei_text_strategy() -> impl Strategy<Value = TeiText> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
+    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
     #[test]
     fn paragraph_strategy_produces_valid_paragraphs() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let paragraph = paragraph_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                has_visible_content_slice(paragraph.content()),
-                "paragraph must have visible content"
-            );
-        }
+        assert_strategy_produces_valid_values(paragraph_strategy(), |paragraph| {
+            has_visible_content_slice(paragraph.content())
+        });
     }
 
     #[test]
     fn utterance_strategy_produces_valid_utterances() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let utterance = utterance_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                has_visible_content_slice(utterance.content()),
-                "utterance must have visible content"
-            );
-        }
+        assert_strategy_produces_valid_values(utterance_strategy(), |utterance| {
+            has_visible_content_slice(utterance.content())
+        });
     }
 
     #[test]
     fn tei_body_strategy_produces_valid_bodies() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let body = tei_body_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
+        assert_strategy_produces_valid_values(tei_body_strategy(), |body| {
             // Bodies can be empty, but any blocks must be valid
-            for block in body.blocks() {
-                assert_block_has_visible_content(block);
-            }
-        }
-    }
-
-    fn assert_block_has_visible_content(block: &BodyBlock) {
-        match block {
-            BodyBlock::Paragraph(p) => {
-                assert!(
-                    has_visible_content_slice(p.content()),
-                    "paragraph must have visible content"
-                );
-            }
-            BodyBlock::Utterance(u) => {
-                assert!(
-                    has_visible_content_slice(u.content()),
-                    "utterance must have visible content"
-                );
-            }
-        }
+            body.blocks().iter().all(|block| match block {
+                BodyBlock::Paragraph(p) => has_visible_content_slice(p.content()),
+                BodyBlock::Utterance(u) => has_visible_content_slice(u.content()),
+            })
+        });
     }
 }

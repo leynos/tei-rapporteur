@@ -95,58 +95,34 @@ pub fn text_only_inline_strategy() -> impl Strategy<Value = Inline> {
 pub fn has_visible_content(inlines: &[Inline]) -> bool {
     inlines.iter().any(|inline| match inline {
         Inline::Text(s) => !s.trim().is_empty(),
-        Inline::Hi(hi) => has_visible_content_slice(hi.content()),
+        Inline::Hi(hi) => has_visible_content(hi.content()),
         Inline::Pause(_) => true,
     })
 }
 
-/// Slice-based version for recursive calls and test assertions.
+/// Alias for [`has_visible_content`] for backward compatibility.
 pub fn has_visible_content_slice(inlines: &[Inline]) -> bool {
-    inlines.iter().any(|inline| match inline {
-        Inline::Text(s) => !s.trim().is_empty(),
-        Inline::Hi(hi) => has_visible_content_slice(hi.content()),
-        Inline::Pause(_) => true,
-    })
+    has_visible_content(inlines)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
+    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
     #[test]
     fn pause_strategy_produces_valid_pauses() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let pause = pause_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-            // Pause is always valid
-            let _ = pause;
-        }
+        // Pause is always valid, just verify generation succeeds
+        assert_strategy_produces_valid_values(pause_strategy(), |_| true);
     }
 
     #[test]
     fn inline_strategy_produces_valid_content() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let inline = inline_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            // Verify generated inline is non-empty
-            match &inline {
-                Inline::Text(s) => assert!(!s.trim().is_empty(), "text must not be empty"),
-                Inline::Hi(hi) => assert!(
-                    has_visible_content_slice(hi.content()),
-                    "hi must have visible content"
-                ),
-                Inline::Pause(_) => {}
-            }
-        }
+        assert_strategy_produces_valid_values(inline_strategy(), |inline| match inline {
+            Inline::Text(s) => !s.trim().is_empty(),
+            Inline::Hi(hi) => has_visible_content(hi.content()),
+            Inline::Pause(_) => true,
+        });
     }
 
     fn max_depth(inlines: &[Inline]) -> usize {
@@ -162,18 +138,8 @@ mod tests {
 
     #[test]
     fn hi_strategy_respects_depth_limit() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let hi = hi_strategy(0)
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            let depth = max_depth(hi.content());
-            assert!(
-                depth <= MAX_HI_DEPTH,
-                "hi nesting depth {depth} exceeds limit {MAX_HI_DEPTH}"
-            );
-        }
+        assert_strategy_produces_valid_values(hi_strategy(0), |hi| {
+            max_depth(hi.content()) <= MAX_HI_DEPTH
+        });
     }
 }

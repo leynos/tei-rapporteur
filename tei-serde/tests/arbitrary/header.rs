@@ -131,38 +131,19 @@ pub fn tei_header_strategy() -> impl Strategy<Value = TeiHeader> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
+    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
     #[test]
     fn file_desc_strategy_produces_valid_titles() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let fd = file_desc_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                !fd.title().as_str().trim().is_empty(),
-                "title must not be empty"
-            );
-        }
+        assert_strategy_produces_valid_values(file_desc_strategy(), |fd| {
+            !fd.title().as_str().trim().is_empty()
+        });
     }
 
     #[test]
     fn tei_header_strategy_produces_valid_headers() {
-        let mut runner = TestRunner::default();
-        for _ in 0..20 {
-            let header = tei_header_strategy()
-                .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
-                .current();
-
-            assert!(
-                !header.file_desc().title().as_str().trim().is_empty(),
-                "header title must not be empty"
-            );
-        }
+        assert_strategy_produces_valid_values(tei_header_strategy(), |header| {
+            !header.file_desc().title().as_str().trim().is_empty()
+        });
     }
 }
