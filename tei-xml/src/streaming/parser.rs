@@ -120,6 +120,9 @@ impl<R: BufRead> TeiPullParser<R> {
     }
 
     /// Handles a start element event.
+    ///
+    /// This method dispatches to state-specific handlers based on the current
+    /// parser state.
     fn handle_start_element(
         &mut self,
         element: &BytesStart<'_>,
@@ -127,52 +130,100 @@ impl<R: BufRead> TeiPullParser<R> {
         let name = element.local_name();
         let name_bytes = name.as_ref();
 
-        match &mut self.state {
-            ParserState::AwaitingRoot if name_bytes == b"TEI" => {
-                self.state = ParserState::AwaitingHeader;
-                Ok(None)
-            }
-            ParserState::AwaitingHeader if name_bytes == b"teiHeader" => {
-                self.state = ParserState::in_header(1);
-                self.append_to_header_buffer(element)?;
-                Ok(None)
-            }
-            ParserState::InHeader { depth, buffer } => {
-                *depth += 1;
-                append_start_element(buffer, element)?;
-                Ok(None)
-            }
-            ParserState::AwaitingText if name_bytes == b"text" => {
-                self.state = ParserState::AwaitingBody;
-                Ok(None)
-            }
-            ParserState::AwaitingBody if name_bytes == b"body" => {
-                self.state = ParserState::InBody;
-                Ok(None)
-            }
-            ParserState::InBody if name_bytes == b"p" => {
-                let id = extract_xml_id(element)?;
-                self.state = ParserState::in_paragraph(id);
-                Ok(None)
-            }
-            ParserState::InBody if name_bytes == b"u" => {
-                let id = extract_xml_id(element)?;
-                let who = extract_attribute(element, b"who")?;
-                self.state = ParserState::in_utterance(id, who);
-                Ok(None)
-            }
+        match &self.state {
+            ParserState::AwaitingRoot => Ok(self.handle_root_start(name_bytes)),
+            ParserState::AwaitingHeader => self.handle_awaiting_header_start(name_bytes, element),
+            ParserState::InHeader { .. } => self.handle_in_header_start(element),
+            ParserState::AwaitingText => Ok(self.handle_awaiting_text_start(name_bytes)),
+            ParserState::AwaitingBody => Ok(self.handle_awaiting_body_start(name_bytes)),
+            ParserState::InBody => self.handle_body_content_start(name_bytes, element),
             ParserState::InParagraph { .. }
             | ParserState::InUtterance { .. }
-            | ParserState::InEmphasis { .. }
-                if name_bytes == b"hi" =>
-            {
-                let rend = extract_attribute(element, b"rend")?;
-                let parent = std::mem::replace(&mut self.state, ParserState::Error);
-                self.state = ParserState::in_emphasis(parent, rend);
-                Ok(None)
+            | ParserState::InEmphasis { .. } => {
+                self.handle_block_content_start(name_bytes, element)
             }
             _ => Ok(None),
         }
+    }
+
+    /// Handles start elements when awaiting the root TEI element.
+    fn handle_root_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
+        if name_bytes == b"TEI" {
+            self.state = ParserState::AwaitingHeader;
+        }
+        None
+    }
+
+    /// Handles start elements when awaiting the teiHeader element.
+    fn handle_awaiting_header_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"teiHeader" {
+            self.state = ParserState::in_header(1);
+            self.append_to_header_buffer(element)?;
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements when inside the header.
+    fn handle_in_header_start(
+        &mut self,
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InHeader { depth, buffer } = &mut self.state {
+            *depth += 1;
+            append_start_element(buffer, element)?;
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements when awaiting the text element.
+    fn handle_awaiting_text_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
+        if name_bytes == b"text" {
+            self.state = ParserState::AwaitingBody;
+        }
+        None
+    }
+
+    /// Handles start elements when awaiting the body element.
+    fn handle_awaiting_body_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
+        if name_bytes == b"body" {
+            self.state = ParserState::InBody;
+        }
+        None
+    }
+
+    /// Handles start elements for body content (paragraphs and utterances).
+    fn handle_body_content_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"p" {
+            let id = extract_xml_id(element)?;
+            self.state = ParserState::in_paragraph(id);
+        } else if name_bytes == b"u" {
+            let id = extract_xml_id(element)?;
+            let who = extract_attribute(element, b"who")?;
+            self.state = ParserState::in_utterance(id, who);
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements for inline content (emphasis).
+    fn handle_block_content_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"hi" {
+            let rend = extract_attribute(element, b"rend")?;
+            let parent = std::mem::replace(&mut self.state, ParserState::Error);
+            self.state = ParserState::in_emphasis(parent, rend);
+        }
+        Ok(None)
     }
 
     /// Handles an end element event.
@@ -180,55 +231,84 @@ impl<R: BufRead> TeiPullParser<R> {
         let name = element.local_name();
         let name_bytes = name.as_ref();
 
-        match &mut self.state {
-            ParserState::InHeader { depth, buffer } => {
-                append_end_element(buffer, element);
-                *depth -= 1;
-                if *depth == 0 {
-                    let header = self.parse_accumulated_header()?;
-                    self.header = Some(header.clone());
-                    self.state = ParserState::AwaitingText;
-                    return Ok(Some(TeiEvent::Header(header)));
-                }
-                Ok(None)
-            }
-            ParserState::InParagraph { id, content } if name_bytes == b"p" => {
-                let id_val = id.take();
-                let content_val = std::mem::take(content);
-                let paragraph = build_paragraph(id_val, content_val)?;
-                self.state = ParserState::InBody;
-                Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))))
-            }
-            ParserState::InUtterance { id, who, content } if name_bytes == b"u" => {
-                let id_val = id.take();
-                let who_val = who.take();
-                let content_val = std::mem::take(content);
-                let utterance = build_utterance(id_val, who_val.as_deref(), content_val)?;
-                self.state = ParserState::InBody;
-                Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))))
-            }
-            ParserState::InEmphasis {
-                parent,
-                rend,
-                content,
-            } if name_bytes == b"hi" => {
-                let rend_val = rend.take();
-                let content_val = std::mem::take(content);
-                let hi = build_hi(rend_val, content_val);
-                let parent_state = std::mem::replace(parent.as_mut(), ParserState::Error);
-                self.state = parent_state;
-                self.state.push_inline(Inline::Hi(hi));
-                Ok(None)
-            }
-            ParserState::InBody if name_bytes == b"body" => {
-                // Body closed, wait for text and TEI to close
-                Ok(None)
-            }
-            ParserState::InBody if name_bytes == b"text" || name_bytes == b"TEI" => {
-                self.state = ParserState::DocumentComplete;
-                Ok(Some(TeiEvent::DocumentEnd))
-            }
+        match &self.state {
+            ParserState::InHeader { .. } => self.handle_header_end(element),
+            ParserState::InParagraph { .. } if name_bytes == b"p" => self.finish_paragraph(),
+            ParserState::InUtterance { .. } if name_bytes == b"u" => self.finish_utterance(),
+            ParserState::InEmphasis { .. } if name_bytes == b"hi" => Ok(self.finish_emphasis()),
+            ParserState::InBody => Ok(self.handle_body_end(name_bytes)),
             _ => Ok(None),
+        }
+    }
+
+    /// Handles closing of header elements and emits Header event when complete.
+    fn handle_header_end(&mut self, element: &BytesEnd<'_>) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InHeader { depth, buffer } = &mut self.state {
+            append_end_element(buffer, element);
+            *depth -= 1;
+            if *depth == 0 {
+                let header = self.parse_accumulated_header()?;
+                self.header = Some(header.clone());
+                self.state = ParserState::AwaitingText;
+                return Ok(Some(TeiEvent::Header(header)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing a paragraph and emits a `BodyBlock` event.
+    fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InParagraph { id, content } = &mut self.state {
+            let id_val = id.take();
+            let content_val = std::mem::take(content);
+            let paragraph = build_paragraph(id_val, content_val)?;
+            self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing an utterance and emits a `BodyBlock` event.
+    fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InUtterance { id, who, content } = &mut self.state {
+            let id_val = id.take();
+            let who_val = who.take();
+            let content_val = std::mem::take(content);
+            let utterance = build_utterance(id_val, who_val.as_deref(), content_val)?;
+            self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing emphasis and pushes it to the parent state.
+    fn finish_emphasis(&mut self) -> Option<TeiEvent> {
+        if let ParserState::InEmphasis {
+            parent,
+            rend,
+            content,
+        } = &mut self.state
+        {
+            let rend_val = rend.take();
+            let content_val = std::mem::take(content);
+            let hi = build_hi(rend_val, content_val);
+            let parent_state = std::mem::replace(parent.as_mut(), ParserState::Error);
+            self.state = parent_state;
+            self.state.push_inline(Inline::Hi(hi));
+        }
+        None
+    }
+
+    /// Handles body end elements.
+    fn handle_body_end(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
+        if name_bytes == b"body" {
+            // Body closed, wait for text and TEI to close
+            None
+        } else if name_bytes == b"text" || name_bytes == b"TEI" {
+            self.state = ParserState::DocumentComplete;
+            Some(TeiEvent::DocumentEnd)
+        } else {
+            None
         }
     }
 
@@ -382,7 +462,12 @@ fn extract_attribute(element: &BytesStart<'_>, name: &[u8]) -> Result<Option<Str
     Ok(None)
 }
 
-fn append_start_element(buffer: &mut Vec<u8>, element: &BytesStart<'_>) -> Result<(), TeiError> {
+/// Appends an element opening tag with attributes and a custom closing sequence.
+fn append_element_with_attributes(
+    buffer: &mut Vec<u8>,
+    element: &BytesStart<'_>,
+    closing: &[u8],
+) -> Result<(), TeiError> {
     buffer.push(b'<');
     buffer.extend_from_slice(element.name().as_ref());
     for attr_result in element.attributes() {
@@ -393,8 +478,12 @@ fn append_start_element(buffer: &mut Vec<u8>, element: &BytesStart<'_>) -> Resul
         buffer.extend_from_slice(&attr.value);
         buffer.push(b'"');
     }
-    buffer.push(b'>');
+    buffer.extend_from_slice(closing);
     Ok(())
+}
+
+fn append_start_element(buffer: &mut Vec<u8>, element: &BytesStart<'_>) -> Result<(), TeiError> {
+    append_element_with_attributes(buffer, element, b">")
 }
 
 fn append_end_element(buffer: &mut Vec<u8>, element: &BytesEnd<'_>) {
@@ -404,17 +493,18 @@ fn append_end_element(buffer: &mut Vec<u8>, element: &BytesEnd<'_>) {
 }
 
 fn append_empty_element(buffer: &mut Vec<u8>, element: &BytesStart<'_>) -> Result<(), TeiError> {
-    buffer.push(b'<');
-    buffer.extend_from_slice(element.name().as_ref());
-    for attr_result in element.attributes() {
-        let attr = attr_result.map_err(|e| TeiError::xml(e.to_string()))?;
-        buffer.push(b' ');
-        buffer.extend_from_slice(attr.key.as_ref());
-        buffer.extend_from_slice(b"=\"");
-        buffer.extend_from_slice(&attr.value);
-        buffer.push(b'"');
+    append_element_with_attributes(buffer, element, b"/>")
+}
+
+/// Sets the ID on a block element if present, using the provided setter closure.
+fn set_id_if_present<T, E, F>(block: &mut T, id: Option<String>, setter: F) -> Result<(), TeiError>
+where
+    E: std::fmt::Display,
+    F: FnOnce(&mut T, String) -> Result<(), E>,
+{
+    if let Some(id_str) = id {
+        setter(block, id_str).map_err(|e| TeiError::xml(e.to_string()))?;
     }
-    buffer.extend_from_slice(b"/>");
     Ok(())
 }
 
@@ -424,11 +514,11 @@ fn build_paragraph(id: Option<String>, content: Vec<Inline>) -> Result<P, TeiErr
     } else {
         P::from_inline(content).map_err(|e| TeiError::xml(e.to_string()))?
     };
-    if let Some(id_str) = id {
-        paragraph
-            .set_id(&id_str)
-            .map_err(|e| TeiError::xml(e.to_string()))?;
-    }
+    #[expect(
+        clippy::redundant_closure_for_method_calls,
+        reason = "Method reference causes lifetime inference failure with generic setter"
+    )]
+    set_id_if_present(&mut paragraph, id, |p, id_val| p.set_id(id_val))?;
     Ok(paragraph)
 }
 
@@ -442,11 +532,11 @@ fn build_utterance(
     } else {
         Utterance::from_inline(who, content).map_err(|e| TeiError::xml(e.to_string()))?
     };
-    if let Some(id_str) = id {
-        utterance
-            .set_id(&id_str)
-            .map_err(|e| TeiError::xml(e.to_string()))?;
-    }
+    #[expect(
+        clippy::redundant_closure_for_method_calls,
+        reason = "Method reference causes lifetime inference failure with generic setter"
+    )]
+    set_id_if_present(&mut utterance, id, |u, id_val| u.set_id(id_val))?;
     Ok(utterance)
 }
 

@@ -115,20 +115,27 @@ impl ParserState {
         }
     }
 
+    /// Returns a mutable reference to the inline content of the current block state.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on a state that does not contain inline content.
+    fn content_mut(&mut self) -> &mut Vec<Inline> {
+        match self {
+            Self::InParagraph { content, .. }
+            | Self::InUtterance { content, .. }
+            | Self::InEmphasis { content, .. } => content,
+            _ => panic!("content access attempted on non-block state: {self:?}"),
+        }
+    }
+
     /// Pushes inline content to the current block state.
     ///
     /// # Panics
     ///
     /// Panics if called on a state that does not accept inline content.
     pub fn push_inline(&mut self, inline: Inline) {
-        match self {
-            Self::InParagraph { content, .. }
-            | Self::InUtterance { content, .. }
-            | Self::InEmphasis { content, .. } => {
-                content.push(inline);
-            }
-            _ => panic!("push_inline called on non-block state: {self:?}"),
-        }
+        self.content_mut().push(inline);
     }
 }
 
@@ -155,12 +162,7 @@ impl ParserState {
     }
 
     fn take_content(&mut self) -> Vec<Inline> {
-        match self {
-            Self::InParagraph { content, .. }
-            | Self::InUtterance { content, .. }
-            | Self::InEmphasis { content, .. } => std::mem::take(content),
-            _ => panic!("take_content called on non-block state: {self:?}"),
-        }
+        std::mem::take(self.content_mut())
     }
 }
 
