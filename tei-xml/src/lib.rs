@@ -10,8 +10,14 @@ pub mod fixtures;
 mod namespace;
 mod schema;
 
+#[cfg(feature = "streaming")]
+pub mod streaming;
+
 pub use namespace::{TEI_NAMESPACE, add_tei_namespace};
 pub use schema::{relax_ng_schema, write_relax_ng_schema};
+
+#[cfg(feature = "streaming")]
+pub use streaming::{TeiEvent, TeiPullParser};
 
 /// Encodes text for inclusion in XML content.
 ///

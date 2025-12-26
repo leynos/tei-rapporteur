@@ -8,6 +8,10 @@ authors.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+streaming = []
+
 [[bin]]
 name = "generate-fixtures"
 path = "src/bin/generate-fixtures.rs"

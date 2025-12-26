@@ -1362,12 +1362,59 @@ in memory anyway to do planning and feedback loops, the streaming is more
 useful for extremely large inputs or integrating with pipelines that prefer
 streaming (e.g., if TEI input comes from a network stream).
 
-Nonetheless, having a pull-parser aligns with Rust’s zero-cost iterators
+Nonetheless, having a pull-parser aligns with Rust's zero-cost iterators
 philosophy and gives advanced users more flexibility. It differentiates the
 library by avoiding the all-or-nothing approach typical of many XML libraries.
 Because it is built on the same data model, each yielded element is a proper
 instance of the Rust structs (or easily convertible to the same) – ensuring
 consistency between streaming and full parse modes.
+
+### Implementation Notes (December 2025)
+
+The streaming parser was implemented using a **manual Iterator approach** on
+stable Rust, avoiding the need for nightly generator features. The
+implementation uses `quick_xml::Reader` directly with a state machine to track
+parsing context.
+
+**Key design decisions:**
+
+- **Header accumulation**: The `<teiHeader>` is accumulated as raw bytes and
+  deserialized in one pass using the existing Serde deserializers. This ensures
+  speaker declarations (in `<profileDesc>`) are available before body parsing
+  begins, which is necessary for validating utterance `@who` references. The
+  trade-off is that the header must fit in memory, but headers are typically
+  small compared to body content.
+
+- **State machine**: A `ParserState` enum tracks parsing context (awaiting root,
+  in header, in body, in paragraph, in utterance, in emphasis, etc.). This
+  enables correct handling of nested inline elements without recursion limits.
+  The state machine transitions on XML start/end events and yields high-level
+  domain events at appropriate boundaries.
+
+- **Event granularity**: Events are high-level domain objects (`TeiHeader`,
+  `BodyBlock`) rather than raw XML tokens. This matches the library's
+  philosophy that TEI XML is the canonical format with Rust types as validated
+  views. Body blocks (paragraphs and utterances) are yielded one at a time as
+  they complete parsing, providing the primary streaming benefit.
+
+- **Feature gating**: All streaming code is behind the `streaming` Cargo
+  feature, keeping the default build lightweight and avoiding any overhead for
+  users who don't need incremental parsing.
+
+**Module structure:**
+
+```
+tei-xml/src/streaming/
+├── mod.rs       # Module root, re-exports
+├── event.rs     # TeiEvent enum definition
+├── parser.rs    # TeiPullParser struct and Iterator impl
+└── state.rs     # ParserState enum and transitions
+```
+
+The implementation includes unit tests for event predicates and state
+transitions, plus behaviour-driven tests (rstest-bdd) covering happy paths
+(minimal documents, paragraphs, utterances, inline elements) and unhappy paths
+(malformed XML, missing header, truncated documents).
 
 ## Validation Strategy and Data Integrity
 
