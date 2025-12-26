@@ -2,6 +2,20 @@
 //!
 //! Generates valid body structures with paragraphs and utterances containing
 //! visible inline content.
+//!
+//! This module provides two sets of strategies:
+//!
+//! - **Full strategies** (e.g., `paragraph_strategy`, `utterance_strategy`) generate
+//!   complete structures with all inline node types (`Text`, `Hi`, `Pause`). Use these
+//!   for JSON and `MessagePack` round-trip tests where full content fidelity is preserved.
+//!
+//! - **Text-only strategies** (e.g., `text_only_paragraph_strategy`) generate structures
+//!   containing only plain text nodes. Use these for XML round-trip tests because
+//!   `quick-xml`'s serde integration cannot serialize `Hi` and `Pause` structs in
+//!   `$value` fields. They also avoid adjacent text node merging issues that occur
+//!   during XML parsing.
+//!
+//! Choose the strategy variant that matches the serializer being exercised in your test.
 
 use proptest::prelude::*;
 use tei_core::{BodyBlock, Inline, P, TeiBody, TeiText, Utterance};
