@@ -1411,6 +1411,60 @@ tei-xml/src/streaming/
 └── state.rs     # ParserState enum and transitions
 ```
 
+**Parser state machine diagram:**
+
+The following diagram illustrates the state transitions in the streaming parser.
+Each state corresponds to a variant of the `ParserState` enum, and transitions
+occur in response to XML events (element starts, ends, and text content).
+
+```mermaid
+stateDiagram-v2
+    [*] --> Initial
+    Initial --> AwaitingRoot : advance()
+
+    AwaitingRoot --> AwaitingHeader : <TEI> start
+    AwaitingRoot --> Error : unexpected element
+
+    AwaitingHeader --> InHeader : <teiHeader> start
+    AwaitingHeader --> Error : missing teiHeader
+
+    InHeader --> InHeader : nested elements
+    InHeader --> AwaitingText : </teiHeader> and header parsed
+    InHeader --> Error : malformed header
+
+    AwaitingText --> AwaitingBody : <text> start
+    AwaitingText --> Error : missing text
+
+    AwaitingBody --> InBody : <body> start
+    AwaitingBody --> DocumentComplete : <body/> empty
+    AwaitingBody --> Error : missing body
+
+    InBody --> InParagraph : <p> start
+    InBody --> InUtterance : <u> start
+    InBody --> InBody : other elements
+    InBody --> DocumentComplete : </text> or </TEI> or eof
+
+    InParagraph --> InEmphasis : <hi> start
+    InParagraph --> InParagraph : text, inline
+    InParagraph --> InBody : </p> yields BodyBlock Paragraph
+
+    InUtterance --> InEmphasis : <hi> start
+    InUtterance --> InUtterance : text, inline
+    InUtterance --> InBody : </u> yields BodyBlock Utterance
+
+    InEmphasis --> InEmphasis : nested inline
+    InEmphasis --> InParagraph : </hi> when parent paragraph
+    InEmphasis --> InUtterance : </hi> when parent utterance
+
+    InBody --> Error : malformed xml
+    InParagraph --> Error : malformed xml
+    InUtterance --> Error : malformed xml
+    InEmphasis --> Error : malformed xml
+
+    DocumentComplete --> [*]
+    Error --> [*]
+```
+
 The implementation includes unit tests for event predicates and state
 transitions, plus behaviour-driven tests (rstest-bdd) covering happy paths
 (minimal documents, paragraphs, utterances, inline elements) and unhappy paths
