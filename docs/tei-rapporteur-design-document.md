@@ -1403,7 +1403,7 @@ parsing context.
 
 **Module structure:**
 
-```
+```text
 tei-xml/src/streaming/
 ├── mod.rs       # Module root, re-exports
 ├── event.rs     # TeiEvent enum definition
