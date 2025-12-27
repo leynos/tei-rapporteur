@@ -47,6 +47,18 @@ pub struct TeiPullParser<R: BufRead> {
     header: Option<TeiHeader>,
 }
 
+/// Macro to finish a block by extracting state, building, and wrapping in an event.
+macro_rules! finish_block {
+    ($self:expr, $pattern:pat => $extract:expr, $builder:expr, $variant:path) => {{
+        if let $pattern = &mut $self.state {
+            let result = $builder($extract)?;
+            $self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock($variant(result))));
+        }
+        Ok(None)
+    }};
+}
+
 impl<R: BufRead> TeiPullParser<R> {
     /// Creates a new pull parser from a buffered reader.
     #[must_use]
@@ -258,27 +270,28 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a paragraph and emits a `BodyBlock` event.
     fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InParagraph { id, content } = &mut self.state {
-            let id_val = id.take();
-            let content_val = std::mem::take(content);
-            let paragraph = build_paragraph(id_val, content_val)?;
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
-        }
-        Ok(None)
+        finish_block!(
+            self,
+            ParserState::InParagraph { id, content } => {
+                (id.take(), std::mem::take(content))
+            },
+            |(id_val, content_val)| build_paragraph(id_val, content_val),
+            BodyBlock::Paragraph
+        )
     }
 
     /// Finishes parsing an utterance and emits a `BodyBlock` event.
     fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InUtterance { id, who, content } = &mut self.state {
-            let id_val = id.take();
-            let who_val = who.take();
-            let content_val = std::mem::take(content);
-            let utterance = build_utterance(id_val, who_val.as_deref(), content_val)?;
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
-        }
-        Ok(None)
+        finish_block!(
+            self,
+            ParserState::InUtterance { id, who, content } => {
+                (id.take(), who.take(), std::mem::take(content))
+            },
+            |(id_val, who_val, content_val): (Option<String>, Option<String>, Vec<Inline>)| {
+                build_utterance(id_val, who_val.as_deref(), content_val)
+            },
+            BodyBlock::Utterance
+        )
     }
 
     /// Finishes parsing emphasis and pushes it to the parent state.
