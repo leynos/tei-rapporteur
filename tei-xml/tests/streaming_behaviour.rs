@@ -52,8 +52,8 @@ const UTTERANCES_FIXTURE: &str = concat!(
     "</teiHeader>",
     "<text>",
     "<body>",
-    "<u who=\"host\">Welcome to the show</u>",
-    "<u who=\"guest\">Thanks for having me</u>",
+    "<u xml:id=\"u1\" who=\"host\">Welcome to the show</u>",
+    "<u xml:id=\"u2\" who=\"guest\">Thanks for having me</u>",
     "</body>",
     "</text>",
     "</TEI>",
@@ -99,6 +99,34 @@ const UNTERMINATED_FIXTURE: &str = concat!(
 
 const MISSING_HEADER_FIXTURE: &str = concat!("<TEI>", "<text>", "<body/>", "</text>", "</TEI>",);
 
+const CDATA_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Test</title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<p>Before <![CDATA[raw <content>]]> after</p>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
+const EOF_AFTER_BODY_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Test</title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<p>Content</p>",
+    "</body>",
+);
+
 type EventResult = Result<TeiEvent, TeiError>;
 
 #[derive(Default)]
@@ -108,6 +136,7 @@ struct StreamingState {
     header_event: RefCell<Option<TeiHeader>>,
     parser_header: RefCell<Option<TeiHeader>>,
     last_error: RefCell<Option<TeiError>>,
+    header_was_none_before: RefCell<bool>,
 }
 
 impl StreamingState {
@@ -156,6 +185,14 @@ impl StreamingState {
     fn set_error(&self, error: TeiError) {
         *self.last_error.borrow_mut() = Some(error);
     }
+
+    fn set_header_was_none_before(&self, was_none: bool) {
+        *self.header_was_none_before.borrow_mut() = was_none;
+    }
+
+    fn header_was_none_before(&self) -> bool {
+        *self.header_was_none_before.borrow()
+    }
 }
 
 fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
@@ -167,6 +204,8 @@ fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
         "pause" => Ok(PAUSE_FIXTURE),
         "unterminated" => Ok(UNTERMINATED_FIXTURE),
         "missing-header" => Ok(MISSING_HEADER_FIXTURE),
+        "cdata" => Ok(CDATA_FIXTURE),
+        "eof-after-body" => Ok(EOF_AFTER_BODY_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
@@ -251,6 +290,21 @@ fn i_request_next_event_after_start(
     Ok(())
 }
 
+#[when("I check header before the Header event")]
+fn i_check_header_before_header_event(
+    #[from(validated_state)] state: &StreamingState,
+) -> anyhow::Result<()> {
+    let xml = state.xml()?;
+    let mut parser = TeiPullParser::from_str(&xml);
+
+    // After DocumentStart but before Header event, header() should be None
+    if let Some(Ok(TeiEvent::DocumentStart)) = parser.next() {
+        // Check header before consuming the Header event
+        state.set_header_was_none_before(parser.header().is_none());
+    }
+    Ok(())
+}
+
 #[then("the event sequence is \"{sequence}\"")]
 fn the_event_sequence_is(
     #[from(validated_state)] state: &StreamingState,
@@ -314,16 +368,24 @@ fn each_body_block_is_an_utterance_with_speaker(
     #[from(validated_state)] state: &StreamingState,
 ) -> anyhow::Result<()> {
     let events = state.events();
+    let mut utterance_count = 0;
     for event in events {
         if let Ok(TeiEvent::BodyBlock(block)) = event {
             match block {
                 BodyBlock::Utterance(u) => {
                     ensure!(u.speaker().is_some(), "utterance should have a speaker");
+                    // Verify xml:id is set
+                    ensure!(u.id().is_some(), "utterance should have an xml:id");
+                    utterance_count += 1;
                 }
                 BodyBlock::Paragraph(_) => bail!("expected Utterance, found Paragraph"),
             }
         }
     }
+    ensure!(
+        utterance_count == 2,
+        "expected 2 utterances, found {utterance_count}"
+    );
     Ok(())
 }
 
@@ -397,6 +459,43 @@ fn an_error_is_returned_mentioning(
     bail!("expected an error event mentioning {snippet:?}");
 }
 
+#[then("the parser header method returns None before the Header event")]
+fn the_parser_header_returns_none_before(
+    #[from(validated_state)] state: &StreamingState,
+) -> anyhow::Result<()> {
+    ensure!(
+        state.header_was_none_before(),
+        "parser.header() should return None before the Header event"
+    );
+    Ok(())
+}
+
+#[then("the first paragraph contains CDATA text")]
+fn the_first_paragraph_contains_cdata_text(
+    #[from(validated_state)] state: &StreamingState,
+) -> anyhow::Result<()> {
+    let events = state.events();
+    for event in events {
+        if let Ok(TeiEvent::BodyBlock(BodyBlock::Paragraph(p))) = event {
+            // Check that the paragraph contains the CDATA content (raw <content>)
+            let text: String = p
+                .content()
+                .iter()
+                .filter_map(|i| match i {
+                    Inline::Text(t) => Some(t.as_str()),
+                    _ => None,
+                })
+                .collect();
+            ensure!(
+                text.contains("raw <content>"),
+                "paragraph should contain CDATA text 'raw <content>', found {text:?}"
+            );
+            return Ok(());
+        }
+    }
+    bail!("no paragraph found");
+}
+
 #[scenario(path = "tests/features/streaming.feature", index = 0)]
 fn parse_minimal_incrementally(
     #[from(validated_state)] _: StreamingState,
@@ -455,6 +554,30 @@ fn report_malformed_xml(
 
 #[scenario(path = "tests/features/streaming.feature", index = 7)]
 fn report_missing_header(
+    #[from(validated_state)] _: StreamingState,
+    #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
+) {
+    expect_validated_state(result, "streaming");
+}
+
+#[scenario(path = "tests/features/streaming.feature", index = 8)]
+fn handle_cdata_in_body(
+    #[from(validated_state)] _: StreamingState,
+    #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
+) {
+    expect_validated_state(result, "streaming");
+}
+
+#[scenario(path = "tests/features/streaming.feature", index = 9)]
+fn handle_eof_after_body(
+    #[from(validated_state)] _: StreamingState,
+    #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
+) {
+    expect_validated_state(result, "streaming");
+}
+
+#[scenario(path = "tests/features/streaming.feature", index = 10)]
+fn header_is_none_before_header_event(
     #[from(validated_state)] _: StreamingState,
     #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
 ) {

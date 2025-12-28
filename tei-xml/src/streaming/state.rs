@@ -41,6 +41,9 @@ pub enum ParserState {
     /// Inside `<body>`, ready to parse block elements.
     InBody,
 
+    /// After `</body>` but before `</text>` or `</TEI>`.
+    AfterBody,
+
     /// Inside a `<p>` element, accumulating inline content.
     InParagraph {
         /// Optional `xml:id` attribute value.
@@ -115,27 +118,26 @@ impl ParserState {
         }
     }
 
-    /// Returns a mutable reference to the inline content of the current block state.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called on a state that does not contain inline content.
-    fn content_mut(&mut self) -> &mut Vec<Inline> {
+    /// Returns a mutable reference to the inline content of the current block state, if any.
+    #[expect(clippy::missing_const_for_fn, reason = "const fn with &mut self is not stable")]
+    fn content_mut(&mut self) -> Option<&mut Vec<Inline>> {
         match self {
             Self::InParagraph { content, .. }
             | Self::InUtterance { content, .. }
-            | Self::InEmphasis { content, .. } => content,
-            _ => panic!("content access attempted on non-block state: {self:?}"),
+            | Self::InEmphasis { content, .. } => Some(content),
+            _ => None,
         }
     }
 
-    /// Pushes inline content to the current block state.
+    /// Pushes inline content to any block state that accepts inline content.
     ///
-    /// # Panics
-    ///
-    /// Panics if called on a state that does not accept inline content.
+    /// In debug builds, asserts that the state has inline content.
     pub fn push_inline(&mut self, inline: Inline) {
-        self.content_mut().push(inline);
+        if let Some(content) = self.content_mut() {
+            content.push(inline);
+        } else {
+            debug_assert!(false, "push_inline called on non-block state: {self:?}");
+        }
     }
 }
 
@@ -162,7 +164,7 @@ impl ParserState {
     }
 
     fn take_content(&mut self) -> Vec<Inline> {
-        std::mem::take(self.content_mut())
+        self.content_mut().map(std::mem::take).unwrap_or_default()
     }
 }
 

@@ -45,3 +45,18 @@ Feature: Streaming TEI parsing
     Given a streaming parser for the "missing-header" TEI fixture
     When I collect all events
     Then an error is returned mentioning "unexpected end"
+
+  Scenario: Handle CDATA in body content
+    Given a streaming parser for the "cdata" TEI fixture
+    When I collect all events
+    Then the first paragraph contains CDATA text
+
+  Scenario: Handle EOF after body closes
+    Given a streaming parser for the "eof-after-body" TEI fixture
+    When I collect all events
+    Then the event sequence is "DocumentStart, Header, BodyBlock, DocumentEnd"
+
+  Scenario: Header is None before Header event
+    Given a streaming parser for the "minimal" TEI fixture
+    When I check header before the Header event
+    Then the parser header method returns None before the Header event

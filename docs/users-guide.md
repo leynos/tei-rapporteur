@@ -340,7 +340,7 @@ interface.
 
 ### Enabling the feature
 
-Add the `streaming` feature to your `tei-xml` dependency:
+Add the `streaming` feature to the `tei-xml` dependency:
 
 ```toml
 [dependencies]
@@ -357,19 +357,22 @@ use std::io::BufReader;
 use std::fs::File;
 use tei_xml::streaming::{TeiPullParser, TeiEvent};
 
-let file = File::open("large-episode.tei.xml")?;
-let reader = BufReader::new(file);
-let parser = TeiPullParser::new(reader);
+fn process_tei(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let parser = TeiPullParser::new(reader);
 
-for event in parser {
-    match event? {
-        TeiEvent::DocumentStart => println!("Parsing started"),
-        TeiEvent::Header(header) => {
-            println!("Title: {}", header.file_desc().title().as_str());
+    for event in parser {
+        match event? {
+            TeiEvent::DocumentStart => println!("Parsing started"),
+            TeiEvent::Header(header) => {
+                println!("Title: {}", header.file_desc().title().as_str());
+            }
+            TeiEvent::BodyBlock(block) => println!("Received block: {block:?}"),
+            TeiEvent::DocumentEnd => println!("Parsing complete"),
         }
-        TeiEvent::BodyBlock(block) => println!("Received block"),
-        TeiEvent::DocumentEnd => println!("Parsing complete"),
     }
+    Ok(())
 }
 ```
 

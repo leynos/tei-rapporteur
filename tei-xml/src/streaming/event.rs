@@ -22,17 +22,21 @@ use tei_core::{BodyBlock, TeiHeader};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```no_run
 /// use tei_xml::streaming::{TeiPullParser, TeiEvent};
 ///
-/// let parser = TeiPullParser::from_str(xml);
-/// for event in parser {
-///     match event? {
-///         TeiEvent::DocumentStart => println!("Parsing started"),
-///         TeiEvent::Header(header) => println!("Title: {}", header.file_desc().title().as_str()),
-///         TeiEvent::BodyBlock(block) => println!("Received block"),
-///         TeiEvent::DocumentEnd => println!("Parsing complete"),
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let xml = "<TEI>...</TEI>";
+///     let parser = TeiPullParser::from_str(xml);
+///     for event in parser {
+///         match event? {
+///             TeiEvent::DocumentStart => println!("Parsing started"),
+///             TeiEvent::Header(header) => println!("Title: {}", header.file_desc().title().as_str()),
+///             TeiEvent::BodyBlock(block) => println!("Received block: {block:?}"),
+///             TeiEvent::DocumentEnd => println!("Parsing complete"),
+///         }
 ///     }
+///     Ok(())
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -116,6 +120,7 @@ impl TeiEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
     use tei_core::{FileDesc, P};
 
     fn test_header() -> TeiHeader {
@@ -123,44 +128,40 @@ mod tests {
         TeiHeader::new(file_desc)
     }
 
-    #[test]
-    fn document_start_predicates() {
-        let event = TeiEvent::DocumentStart;
-        assert!(event.is_document_start());
-        assert!(!event.is_header());
-        assert!(!event.is_body_block());
-        assert!(!event.is_document_end());
+    fn test_body_block() -> BodyBlock {
+        let paragraph = P::from_text_segments(["Hello"]).expect("valid paragraph");
+        BodyBlock::Paragraph(paragraph)
+    }
+
+    /// Predicate expectations encoded as (`is_start`, `is_header`, `is_body`, `is_end`).
+    type PredicateExpectation = (bool, bool, bool, bool);
+
+    #[rstest]
+    #[case::document_start(TeiEvent::DocumentStart, (true, false, false, false))]
+    #[case::header(TeiEvent::Header(test_header()), (false, true, false, false))]
+    #[case::body_block(TeiEvent::BodyBlock(test_body_block()), (false, false, true, false))]
+    #[case::document_end(TeiEvent::DocumentEnd, (false, false, false, true))]
+    fn event_predicates(#[case] event: TeiEvent, #[case] expected: PredicateExpectation) {
+        let (is_start, is_header, is_body, is_end) = expected;
+        assert_eq!(event.is_document_start(), is_start);
+        assert_eq!(event.is_header(), is_header);
+        assert_eq!(event.is_body_block(), is_body);
+        assert_eq!(event.is_document_end(), is_end);
     }
 
     #[test]
-    fn header_predicates() {
+    fn header_accessor() {
         let header = test_header();
         let event = TeiEvent::Header(header.clone());
-        assert!(!event.is_document_start());
-        assert!(event.is_header());
-        assert!(!event.is_body_block());
-        assert!(!event.is_document_end());
         assert_eq!(event.as_header(), Some(&header));
+        assert!(TeiEvent::DocumentStart.as_header().is_none());
     }
 
     #[test]
-    fn body_block_predicates() {
-        let paragraph = P::from_text_segments(["Hello"]).expect("valid paragraph");
-        let block = BodyBlock::Paragraph(paragraph.clone());
+    fn body_block_accessor() {
+        let block = test_body_block();
         let event = TeiEvent::BodyBlock(block.clone());
-        assert!(!event.is_document_start());
-        assert!(!event.is_header());
-        assert!(event.is_body_block());
-        assert!(!event.is_document_end());
         assert_eq!(event.as_body_block(), Some(&block));
-    }
-
-    #[test]
-    fn document_end_predicates() {
-        let event = TeiEvent::DocumentEnd;
-        assert!(!event.is_document_start());
-        assert!(!event.is_header());
-        assert!(!event.is_body_block());
-        assert!(event.is_document_end());
+        assert!(TeiEvent::DocumentStart.as_body_block().is_none());
     }
 }

@@ -15,27 +15,31 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```no_run
 //! use std::io::BufReader;
 //! use std::fs::File;
 //! use tei_xml::streaming::{TeiPullParser, TeiEvent};
 //!
-//! let file = File::open("large-episode.tei.xml")?;
-//! let reader = BufReader::new(file);
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let file = File::open("large-episode.tei.xml")?;
+//!     let reader = BufReader::new(file);
 //!
-//! for event in TeiPullParser::new(reader) {
-//!     match event? {
-//!         TeiEvent::DocumentStart => println!("Parsing started"),
-//!         TeiEvent::Header(header) => {
-//!             println!("Title: {}", header.file_desc().title().as_str());
+//!     for event in TeiPullParser::new(reader) {
+//!         match event? {
+//!             TeiEvent::DocumentStart => println!("Parsing started"),
+//!             TeiEvent::Header(header) => {
+//!                 println!("Title: {}", header.file_desc().title().as_str());
+//!             }
+//!             TeiEvent::BodyBlock(block) => println!("Received block: {block:?}"),
+//!             TeiEvent::DocumentEnd => println!("Parsing complete"),
 //!         }
-//!         TeiEvent::BodyBlock(block) => println!("Received block"),
-//!         TeiEvent::DocumentEnd => println!("Parsing complete"),
 //!     }
+//!     Ok(())
 //! }
 //! ```
 
 mod event;
+mod helpers;
 mod parser;
 mod state;
 
