@@ -18,6 +18,27 @@ where
     Ok(())
 }
 
+/// Generic builder for block elements with optional empty/inline content handling.
+#[expect(clippy::too_many_arguments, reason = "generic builder requires multiple closures")]
+fn build_block_with_content<T, E>(
+    content: Vec<Inline>,
+    empty_constructor: impl FnOnce() -> Result<T, E>,
+    content_constructor: impl FnOnce(Vec<Inline>) -> Result<T, E>,
+    id: Option<String>,
+    id_setter: impl FnOnce(&mut T, String) -> Result<(), BodyContentError>,
+) -> Result<T, TeiError>
+where
+    E: std::fmt::Display,
+{
+    let mut element = if content.is_empty() {
+        empty_constructor().map_err(|e| TeiError::xml(e.to_string()))?
+    } else {
+        content_constructor(content).map_err(|e| TeiError::xml(e.to_string()))?
+    };
+    apply_id(&mut element, id, id_setter)?;
+    Ok(element)
+}
+
 /// Extracts the `xml:id` attribute from an element.
 pub fn extract_xml_id(element: &BytesStart<'_>) -> Result<Option<String>, TeiError> {
     extract_attribute(element, b"xml:id")
@@ -85,13 +106,13 @@ pub fn append_empty_element(
 
 /// Builds a paragraph from an optional ID and inline content.
 pub fn build_paragraph(id: Option<String>, content: Vec<Inline>) -> Result<P, TeiError> {
-    let mut paragraph = if content.is_empty() {
-        P::from_text_segments([""]).map_err(|e| TeiError::xml(e.to_string()))?
-    } else {
-        P::from_inline(content).map_err(|e| TeiError::xml(e.to_string()))?
-    };
-    apply_id(&mut paragraph, id, P::set_id)?;
-    Ok(paragraph)
+    build_block_with_content(
+        content,
+        || P::from_text_segments([""]),
+        P::from_inline,
+        id,
+        P::set_id,
+    )
 }
 
 /// Builds an utterance from an optional ID, speaker, and inline content.
@@ -100,13 +121,13 @@ pub fn build_utterance(
     who: Option<&str>,
     content: Vec<Inline>,
 ) -> Result<Utterance, TeiError> {
-    let mut utterance = if content.is_empty() {
-        Utterance::from_text_segments(who, [""]).map_err(|e| TeiError::xml(e.to_string()))?
-    } else {
-        Utterance::from_inline(who, content).map_err(|e| TeiError::xml(e.to_string()))?
-    };
-    apply_id(&mut utterance, id, Utterance::set_id)?;
-    Ok(utterance)
+    build_block_with_content(
+        content,
+        || Utterance::from_text_segments(who, [""]),
+        |c| Utterance::from_inline(who, c),
+        id,
+        Utterance::set_id,
+    )
 }
 
 /// Builds an emphasis (hi) element from an optional rendition and content.
