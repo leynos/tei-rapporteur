@@ -90,7 +90,7 @@ pub fn serialize_title(document: &TeiDocument) -> String {
 /// use tei_xml::serialize_document_title;
 ///
 /// let markup = serialize_document_title("Alice Isn't Dead")?;
-/// assert_eq!(markup, "<title>Alice Isn't Dead</title>");
+/// assert_eq!(markup, "<title>Alice Isn&apos;t Dead</title>");
 /// # Ok::<(), tei_core::TeiError>(())
 /// ```
 ///

@@ -5,7 +5,18 @@
 
 use quick_xml::events::{BytesEnd, BytesStart};
 
-use tei_core::{Hi, Inline, P, Pause, TeiError, Utterance};
+use tei_core::{BodyContentError, Hi, Inline, P, Pause, TeiError, Utterance};
+
+/// Applies an optional ID to a block element that supports `set_id`.
+fn apply_id<T, F>(element: &mut T, id: Option<String>, setter: F) -> Result<(), TeiError>
+where
+    F: FnOnce(&mut T, String) -> Result<(), BodyContentError>,
+{
+    if let Some(id_str) = id {
+        setter(element, id_str).map_err(|e| TeiError::xml(e.to_string()))?;
+    }
+    Ok(())
+}
 
 /// Extracts the `xml:id` attribute from an element.
 pub fn extract_xml_id(element: &BytesStart<'_>) -> Result<Option<String>, TeiError> {
@@ -79,11 +90,7 @@ pub fn build_paragraph(id: Option<String>, content: Vec<Inline>) -> Result<P, Te
     } else {
         P::from_inline(content).map_err(|e| TeiError::xml(e.to_string()))?
     };
-    if let Some(id_str) = id {
-        paragraph
-            .set_id(id_str)
-            .map_err(|e| TeiError::xml(e.to_string()))?;
-    }
+    apply_id(&mut paragraph, id, P::set_id)?;
     Ok(paragraph)
 }
 
@@ -98,29 +105,23 @@ pub fn build_utterance(
     } else {
         Utterance::from_inline(who, content).map_err(|e| TeiError::xml(e.to_string()))?
     };
-    if let Some(id_str) = id {
-        utterance
-            .set_id(id_str)
-            .map_err(|e| TeiError::xml(e.to_string()))?;
-    }
+    apply_id(&mut utterance, id, Utterance::set_id)?;
     Ok(utterance)
 }
 
 /// Builds an emphasis (hi) element from an optional rendition and content.
-pub fn build_hi(rend: Option<String>, content: Vec<Inline>) -> Hi {
-    if content.is_empty() {
-        // Empty hi element - use a single empty text node
-        let hi = Hi::new([Inline::text("")]);
-        return match rend {
-            Some(r) => Hi::with_rend(r, hi.content().iter().cloned()),
-            None => hi,
-        };
-    }
-
-    match rend {
-        Some(r) => Hi::with_rend(r, content),
-        None => Hi::new(content),
-    }
+///
+/// Uses validating constructors to reject empty content.
+///
+/// # Errors
+///
+/// Returns `TeiError::Xml` if the content is empty or contains only whitespace.
+pub fn build_hi(rend: Option<String>, content: Vec<Inline>) -> Result<Hi, TeiError> {
+    let result = match rend {
+        Some(r) => Hi::try_with_rend(r, content),
+        None => Hi::try_new(content),
+    };
+    result.map_err(|e| TeiError::xml(e.to_string()))
 }
 
 /// Builds a pause element from optional duration and type.

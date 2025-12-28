@@ -121,7 +121,7 @@ impl<R: BufRead> TeiPullParser<R> {
             Event::Empty(e) => self.handle_empty_element(e),
             Event::Eof => self.handle_eof(),
             Event::Decl(_) | Event::PI(_) | Event::Comment(_) | Event::DocType(_) => Ok(None),
-            Event::CData(e) => Ok(self.handle_cdata(e)),
+            Event::CData(e) => self.handle_cdata(e),
         }
     }
 
@@ -241,7 +241,7 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::InHeader { .. } => self.handle_header_end(element),
             ParserState::InParagraph { .. } if name_bytes == b"p" => self.finish_paragraph(),
             ParserState::InUtterance { .. } if name_bytes == b"u" => self.finish_utterance(),
-            ParserState::InEmphasis { .. } if name_bytes == b"hi" => Ok(self.finish_emphasis()),
+            ParserState::InEmphasis { .. } if name_bytes == b"hi" => self.finish_emphasis(),
             ParserState::InBody => Ok(self.handle_body_end(name_bytes)),
             ParserState::AfterBody => Ok(self.handle_after_body_end(name_bytes)),
             _ => Ok(None),
@@ -285,7 +285,7 @@ impl<R: BufRead> TeiPullParser<R> {
     }
 
     /// Finishes parsing emphasis and pushes it to the parent state.
-    fn finish_emphasis(&mut self) -> Option<TeiEvent> {
+    fn finish_emphasis(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InEmphasis {
             parent,
             rend,
@@ -294,12 +294,12 @@ impl<R: BufRead> TeiPullParser<R> {
         {
             let rend_val = rend.take();
             let content_val = std::mem::take(content);
-            let hi = build_hi(rend_val, content_val);
+            let hi = build_hi(rend_val, content_val)?;
             let parent_state = std::mem::replace(parent.as_mut(), ParserState::Error);
             self.state = parent_state;
             self.state.push_inline(Inline::Hi(hi));
         }
-        None
+        Ok(None)
     }
 
     /// Handles body end elements.
@@ -380,26 +380,30 @@ impl<R: BufRead> TeiPullParser<R> {
     }
 
     /// Handles CDATA sections.
-    fn handle_cdata(&mut self, cdata: &quick_xml::events::BytesCData<'_>) -> Option<TeiEvent> {
+    fn handle_cdata(
+        &mut self,
+        cdata: &quick_xml::events::BytesCData<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
         match &mut self.state {
             ParserState::InHeader { buffer, .. } => {
                 // Reconstruct CDATA for reparsing
                 buffer.extend_from_slice(b"<![CDATA[");
                 buffer.extend_from_slice(cdata.as_ref());
                 buffer.extend_from_slice(b"]]>");
-                None
+                Ok(None)
             }
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
             | ParserState::InEmphasis { content, .. } => {
                 // CDATA content is already unescaped, convert to string with strict UTF-8
-                let text = std::str::from_utf8(cdata.as_ref()).ok()?;
+                let text = std::str::from_utf8(cdata.as_ref())
+                    .map_err(|e| TeiError::xml(format!("invalid UTF-8 in CDATA: {e}")))?;
                 if !text.is_empty() {
                     content.push(Inline::Text(text.to_owned()));
                 }
-                None
+                Ok(None)
             }
-            _ => None,
+            _ => Ok(None),
         }
     }
 

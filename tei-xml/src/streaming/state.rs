@@ -119,7 +119,10 @@ impl ParserState {
     }
 
     /// Returns a mutable reference to the inline content of the current block state, if any.
-    #[expect(clippy::missing_const_for_fn, reason = "const fn with &mut self is not stable")]
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "const fn with &mut self is not stable"
+    )]
     fn content_mut(&mut self) -> Option<&mut Vec<Inline>> {
         match self {
             Self::InParagraph { content, .. }
