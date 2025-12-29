@@ -288,16 +288,17 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing emphasis and pushes it to the parent state.
     fn finish_emphasis(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        let state = std::mem::take(&mut self.state);
         if let ParserState::InEmphasis {
             parent,
             rend,
             content,
-        } = state
+        } = &mut self.state
         {
-            let hi = build_hi(rend, content)?;
-            self.state = *parent;
-            self.state.push_inline(Inline::Hi(hi));
+            let hi = build_hi(rend.take(), std::mem::take(content))?;
+            if let Some(parent_state) = parent.take() {
+                self.state = *parent_state;
+                self.state.push_inline(Inline::Hi(hi));
+            }
         }
         Ok(None)
     }

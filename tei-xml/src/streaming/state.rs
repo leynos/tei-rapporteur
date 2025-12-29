@@ -65,7 +65,9 @@ pub enum ParserState {
     /// Inside an inline `<hi>` element.
     InEmphasis {
         /// The parent state to return to after closing `</hi>`.
-        parent: Box<ParserState>,
+        ///
+        /// Uses `Option` to enable explicit ownership transfer via `.take()`.
+        parent: Option<Box<ParserState>>,
         /// Optional `rend` attribute for rendering hint.
         rend: Option<String>,
         /// Accumulated inline content within the emphasis.
@@ -112,7 +114,7 @@ impl ParserState {
     #[must_use]
     pub fn in_emphasis(parent: Self, rend: Option<String>) -> Self {
         Self::InEmphasis {
-            parent: Box::new(parent),
+            parent: Some(Box::new(parent)),
             rend,
             content: Vec::new(),
         }
