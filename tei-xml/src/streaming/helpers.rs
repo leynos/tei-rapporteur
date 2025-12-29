@@ -19,7 +19,10 @@ where
 }
 
 /// Generic builder for block elements with optional empty/inline content handling.
-#[expect(clippy::too_many_arguments, reason = "generic builder requires multiple closures")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "generic builder requires multiple closures"
+)]
 fn build_block_with_content<T, E>(
     content: Vec<Inline>,
     empty_constructor: impl FnOnce() -> Result<T, E>,

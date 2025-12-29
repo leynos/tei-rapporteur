@@ -1413,9 +1413,10 @@ tei-xml/src/streaming/
 
 **Parser state machine diagram:**
 
-The following diagram illustrates the state transitions in the streaming parser.
-Each state corresponds to a variant of the `ParserState` enum, and transitions
-occur in response to XML events (element starts, ends, and text content).
+The following diagram illustrates the state transitions in the streaming
+parser. Each state corresponds to a variant of the `ParserState` enum, and
+transitions occur in response to XML events (element starts, ends, and text
+content).
 
 ```mermaid
 stateDiagram-v2
