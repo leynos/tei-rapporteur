@@ -10,8 +10,14 @@ pub mod fixtures;
 mod namespace;
 mod schema;
 
+#[cfg(feature = "streaming")]
+pub mod streaming;
+
 pub use namespace::{TEI_NAMESPACE, add_tei_namespace};
 pub use schema::{relax_ng_schema, write_relax_ng_schema};
+
+#[cfg(feature = "streaming")]
+pub use streaming::{TeiEvent, TeiPullParser};
 
 /// Encodes text for inclusion in XML content.
 ///
@@ -84,7 +90,7 @@ pub fn serialize_title(document: &TeiDocument) -> String {
 /// use tei_xml::serialize_document_title;
 ///
 /// let markup = serialize_document_title("Alice Isn't Dead")?;
-/// assert_eq!(markup, "<title>Alice Isn't Dead</title>");
+/// assert_eq!(markup, "<title>Alice Isn&apos;t Dead</title>");
 /// # Ok::<(), tei_core::TeiError>(())
 /// ```
 ///

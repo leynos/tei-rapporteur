@@ -331,3 +331,86 @@ cargo run --package tei-xml --bin generate-fixtures -- /path/to/output
 
 The generated XML includes the TEI namespace declaration required for schema
 validation.
+
+## Streaming parser (experimental)
+
+For processing very large TEI documents without loading them entirely into
+memory, the `streaming` feature enables incremental parsing via a pull-parser
+interface.
+
+### Enabling the feature
+
+Add the `streaming` feature to the `tei-xml` dependency:
+
+```toml
+[dependencies]
+tei-xml = { version = "0.1", features = ["streaming"] }
+```
+
+### Usage
+
+The `TeiPullParser` implements `Iterator`, yielding `TeiEvent` values as it
+processes the document:
+
+```rust
+use std::io::BufReader;
+use std::fs::File;
+use tei_xml::streaming::{TeiPullParser, TeiEvent};
+
+fn process_tei(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let parser = TeiPullParser::new(reader);
+
+    for event in parser {
+        match event? {
+            TeiEvent::DocumentStart => println!("Parsing started"),
+            TeiEvent::Header(header) => {
+                println!("Title: {}", header.file_desc().title().as_str());
+            }
+            TeiEvent::BodyBlock(block) => println!("Received block: {block:?}"),
+            TeiEvent::DocumentEnd => println!("Parsing complete"),
+        }
+    }
+    Ok(())
+}
+```
+
+For string slices, use the convenience constructor:
+
+```rust
+let parser = TeiPullParser::from_str(xml_string);
+```
+
+### Event types
+
+The parser yields four high-level event types:
+
+- **`DocumentStart`**: Emitted once at the beginning of parsing
+- **`Header(TeiHeader)`**: The complete header metadata, emitted once after the
+  header section is fully parsed
+- **`BodyBlock(BodyBlock)`**: A paragraph or utterance from the body, emitted
+  one at a time as each block is parsed
+- **`DocumentEnd`**: Emitted once after all content has been successfully parsed
+
+### Memory efficiency
+
+The streaming parser yields body blocks one at a time, allowing processing of
+documents larger than available RAM. The header is fully parsed before body
+blocks begin, ensuring speaker declarations are available for validation. After
+the `Header` event is yielded, the header is also accessible via the
+`parser.header()` method.
+
+### Error handling
+
+Errors are returned through the iterator's `Result` type. If an error occurs
+(malformed XML, unexpected structure, validation failure), the parser yields an
+`Err` value and subsequent calls to `next()` return `None`.
+
+### Limitations
+
+- The header is accumulated in memory before being deserialized, so documents
+  with unusually large headers may still consume significant memory during that
+  phase.
+- The streaming parser is currently Rust-only; Python bindings are not yet
+  available.

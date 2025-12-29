@@ -157,13 +157,12 @@ This step modularizes the JSON and MessagePack logic into a dedicated crate.
 - [x] Implement property-based tests to verify round-trip integrity between TEI
       XML, Rust structs, and JSON representations.
 
-### Step 3.3: Streaming Parser (Future Work)
+### Step 3.3: Streaming Parser
 
 This step outlines the implementation of the experimental pull-parser interface
-for handling very large documents. (This step is considered optional for the
-initial release).
+for handling very large documents.
 
-- [ ] Design and implement the `TeiPullParser` iterator in Rust, gated behind a
+- [x] Design and implement the `TeiPullParser` iterator in Rust, gated behind a
       `streaming` Cargo feature.
 - [ ] Expose the pull-parser to Python as a generator function,
       `tei_rapporteur.iter_parse()`, that yields `msgspec`-compatible
