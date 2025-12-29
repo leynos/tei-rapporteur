@@ -154,9 +154,7 @@ impl<R: BufRead> TeiPullParser<R> {
         {
             let hi = build_hi(rend.take(), std::mem::take(content))?;
             let Some(parent_state) = parent.take() else {
-                return Err(TeiError::xml(
-                    "internal error: InEmphasis parent was None",
-                ));
+                return Err(TeiError::xml("internal error: InEmphasis parent was None"));
             };
             self.state = *parent_state;
             self.state.push_inline(Inline::Hi(hi));
