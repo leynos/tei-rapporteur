@@ -168,7 +168,9 @@ impl<R: BufRead> TeiPullParser<R> {
     ) -> Result<Option<TeiEvent>, TeiError> {
         if name_bytes == b"teiHeader" {
             self.state = ParserState::in_header(1);
-            self.append_to_header_buffer(element)?;
+            if let ParserState::InHeader { buffer, .. } = &mut self.state {
+                append_start_element(buffer, element)?;
+            }
         }
         Ok(None)
     }
@@ -286,17 +288,15 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing emphasis and pushes it to the parent state.
     fn finish_emphasis(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        let state = std::mem::take(&mut self.state);
         if let ParserState::InEmphasis {
             parent,
             rend,
             content,
-        } = &mut self.state
+        } = state
         {
-            let rend_val = rend.take();
-            let content_val = std::mem::take(content);
-            let hi = build_hi(rend_val, content_val)?;
-            let parent_state = std::mem::replace(parent.as_mut(), ParserState::Error);
-            self.state = parent_state;
+            let hi = build_hi(rend, content)?;
+            self.state = *parent;
             self.state.push_inline(Inline::Hi(hi));
         }
         Ok(None)
@@ -421,14 +421,6 @@ impl<R: BufRead> TeiPullParser<R> {
                 Err(TeiError::xml("unexpected end of document"))
             }
         }
-    }
-
-    /// Appends start element to header buffer.
-    fn append_to_header_buffer(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
-        if let ParserState::InHeader { buffer, .. } = &mut self.state {
-            append_start_element(buffer, element)?;
-        }
-        Ok(())
     }
 
     /// Parses the accumulated header buffer into a `TeiHeader`.

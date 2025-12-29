@@ -145,35 +145,42 @@ impl ParserState {
 }
 
 #[cfg(test)]
-impl ParserState {
-    fn is_initial(&self) -> bool {
-        matches!(self, Self::Initial)
-    }
-    fn is_complete(&self) -> bool {
-        matches!(self, Self::DocumentComplete)
-    }
-    fn is_error(&self) -> bool {
-        matches!(self, Self::Error)
-    }
-    fn is_in_body(&self) -> bool {
-        matches!(self, Self::InBody)
-    }
-
-    fn is_in_block(&self) -> bool {
-        matches!(
-            self,
-            Self::InParagraph { .. } | Self::InUtterance { .. } | Self::InEmphasis { .. }
-        )
-    }
-
-    fn take_content(&mut self) -> Vec<Inline> {
-        self.content_mut().map(std::mem::take).unwrap_or_default()
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Test-only helper trait for `ParserState` predicates.
+    trait ParserStateTestExt {
+        fn is_initial(&self) -> bool;
+        fn is_complete(&self) -> bool;
+        fn is_error(&self) -> bool;
+        fn is_in_body(&self) -> bool;
+        fn is_in_block(&self) -> bool;
+        fn take_content(&mut self) -> Vec<Inline>;
+    }
+
+    impl ParserStateTestExt for ParserState {
+        fn is_initial(&self) -> bool {
+            matches!(self, Self::Initial)
+        }
+        fn is_complete(&self) -> bool {
+            matches!(self, Self::DocumentComplete)
+        }
+        fn is_error(&self) -> bool {
+            matches!(self, Self::Error)
+        }
+        fn is_in_body(&self) -> bool {
+            matches!(self, Self::InBody)
+        }
+        fn is_in_block(&self) -> bool {
+            matches!(
+                self,
+                Self::InParagraph { .. } | Self::InUtterance { .. } | Self::InEmphasis { .. }
+            )
+        }
+        fn take_content(&mut self) -> Vec<Inline> {
+            self.content_mut().map(std::mem::take).unwrap_or_default()
+        }
+    }
 
     #[test]
     fn default_state_is_initial() {

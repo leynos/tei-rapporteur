@@ -1443,7 +1443,10 @@ stateDiagram-v2
     InBody --> InParagraph : <p> start
     InBody --> InUtterance : <u> start
     InBody --> InBody : other elements
-    InBody --> DocumentComplete : </text> or </TEI> or eof
+    InBody --> AfterBody : </body>
+    InBody --> DocumentComplete : eof (graceful)
+
+    AfterBody --> DocumentComplete : </text> or </TEI> or eof
 
     InParagraph --> InEmphasis : <hi> start
     InParagraph --> InParagraph : text, inline
@@ -1458,6 +1461,7 @@ stateDiagram-v2
     InEmphasis --> InUtterance : </hi> when parent utterance
 
     InBody --> Error : malformed xml
+    AfterBody --> Error : malformed xml
     InParagraph --> Error : malformed xml
     InUtterance --> Error : malformed xml
     InEmphasis --> Error : malformed xml
