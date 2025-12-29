@@ -6,15 +6,11 @@
 use std::io::BufRead;
 
 use quick_xml::Reader;
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::events::Event;
 
-use tei_core::{BodyBlock, Inline, TeiError, TeiHeader};
+use tei_core::{TeiError, TeiHeader};
 
 use super::event::TeiEvent;
-use super::helpers::{
-    append_empty_element, append_end_element, append_start_element, build_hi, build_paragraph,
-    build_pause, build_utterance, extract_attribute, extract_xml_id,
-};
 use super::state::ParserState;
 
 /// Incremental pull parser for TEI documents.
@@ -22,6 +18,15 @@ use super::state::ParserState;
 /// The parser implements [`Iterator`], yielding [`TeiEvent`] values as it
 /// processes the document. This allows handling of large documents without
 /// loading the entire content into memory.
+///
+/// # EOF Handling
+///
+/// The parser is lenient with end-of-file conditions: if the document body
+/// has been fully processed but the closing `</text>` or `</TEI>` tags are
+/// missing, the parser will still emit a [`TeiEvent::DocumentEnd`] event
+/// rather than returning an error. This accommodates truncated or incomplete
+/// documents while preserving successfully parsed content. Documents that
+/// end before the body content is complete will return an error.
 ///
 /// # Examples
 ///
@@ -49,9 +54,9 @@ use super::state::ParserState;
 /// }
 /// ```
 pub struct TeiPullParser<R: BufRead> {
-    reader: Reader<R>,
-    state: ParserState,
-    header: Option<TeiHeader>,
+    pub(super) reader: Reader<R>,
+    pub(super) state: ParserState,
+    pub(super) header: Option<TeiHeader>,
 }
 
 impl<R: BufRead> TeiPullParser<R> {
@@ -131,7 +136,7 @@ impl<R: BufRead> TeiPullParser<R> {
     /// parser state.
     fn handle_start_element(
         &mut self,
-        element: &BytesStart<'_>,
+        element: &quick_xml::events::BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         let name = element.local_name();
         let name_bytes = name.as_ref();
@@ -152,90 +157,11 @@ impl<R: BufRead> TeiPullParser<R> {
         }
     }
 
-    /// Handles start elements when awaiting the root TEI element.
-    fn handle_root_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
-        if name_bytes == b"TEI" {
-            self.state = ParserState::AwaitingHeader;
-        }
-        None
-    }
-
-    /// Handles start elements when awaiting the teiHeader element.
-    fn handle_awaiting_header_start(
-        &mut self,
-        name_bytes: &[u8],
-        element: &BytesStart<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes == b"teiHeader" {
-            self.state = ParserState::in_header(1);
-            if let ParserState::InHeader { buffer, .. } = &mut self.state {
-                append_start_element(buffer, element)?;
-            }
-        }
-        Ok(None)
-    }
-
-    /// Handles start elements when inside the header.
-    fn handle_in_header_start(
-        &mut self,
-        element: &BytesStart<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InHeader { depth, buffer } = &mut self.state {
-            *depth += 1;
-            append_start_element(buffer, element)?;
-        }
-        Ok(None)
-    }
-
-    /// Handles start elements when awaiting the text element.
-    fn handle_awaiting_text_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
-        if name_bytes == b"text" {
-            self.state = ParserState::AwaitingBody;
-        }
-        None
-    }
-
-    /// Handles start elements when awaiting the body element.
-    fn handle_awaiting_body_start(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
-        if name_bytes == b"body" {
-            self.state = ParserState::InBody;
-        }
-        None
-    }
-
-    /// Handles start elements for body content (paragraphs and utterances).
-    fn handle_body_content_start(
-        &mut self,
-        name_bytes: &[u8],
-        element: &BytesStart<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes == b"p" {
-            let id = extract_xml_id(element)?;
-            self.state = ParserState::in_paragraph(id);
-        } else if name_bytes == b"u" {
-            let id = extract_xml_id(element)?;
-            let who = extract_attribute(element, b"who")?;
-            self.state = ParserState::in_utterance(id, who);
-        }
-        Ok(None)
-    }
-
-    /// Handles start elements for inline content (emphasis).
-    fn handle_block_content_start(
-        &mut self,
-        name_bytes: &[u8],
-        element: &BytesStart<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes == b"hi" {
-            let rend = extract_attribute(element, b"rend")?;
-            let parent = std::mem::replace(&mut self.state, ParserState::Error);
-            self.state = ParserState::in_emphasis(parent, rend);
-        }
-        Ok(None)
-    }
-
     /// Handles an end element event.
-    fn handle_end_element(&mut self, element: &BytesEnd<'_>) -> Result<Option<TeiEvent>, TeiError> {
+    fn handle_end_element(
+        &mut self,
+        element: &quick_xml::events::BytesEnd<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
         let name = element.local_name();
         let name_bytes = name.as_ref();
 
@@ -250,182 +176,8 @@ impl<R: BufRead> TeiPullParser<R> {
         }
     }
 
-    /// Handles closing of header elements and emits Header event when complete.
-    fn handle_header_end(&mut self, element: &BytesEnd<'_>) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InHeader { depth, buffer } = &mut self.state {
-            append_end_element(buffer, element);
-            *depth -= 1;
-            if *depth == 0 {
-                let header = self.parse_accumulated_header()?;
-                self.header = Some(header.clone());
-                self.state = ParserState::AwaitingText;
-                return Ok(Some(TeiEvent::Header(header)));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Finishes parsing a paragraph and emits a `BodyBlock` event.
-    fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InParagraph { id, content } = &mut self.state {
-            let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
-        }
-        Ok(None)
-    }
-
-    /// Finishes parsing an utterance and emits a `BodyBlock` event.
-    fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InUtterance { id, who, content } = &mut self.state {
-            let utterance =
-                build_utterance(id.take(), who.take().as_deref(), std::mem::take(content))?;
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
-        }
-        Ok(None)
-    }
-
-    /// Finishes parsing emphasis and pushes it to the parent state.
-    fn finish_emphasis(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InEmphasis {
-            parent,
-            rend,
-            content,
-        } = &mut self.state
-        {
-            let hi = build_hi(rend.take(), std::mem::take(content))?;
-            if let Some(parent_state) = parent.take() {
-                self.state = *parent_state;
-                self.state.push_inline(Inline::Hi(hi));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Handles body end elements.
-    fn handle_body_end(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
-        match name_bytes {
-            b"body" => {
-                // Body closed, transition to AfterBody state
-                self.state = ParserState::AfterBody;
-                None
-            }
-            _ => None,
-        }
-    }
-
-    /// Handles end elements after the body has closed.
-    fn handle_after_body_end(&mut self, name_bytes: &[u8]) -> Option<TeiEvent> {
-        match name_bytes {
-            b"text" | b"TEI" => {
-                self.state = ParserState::DocumentComplete;
-                Some(TeiEvent::DocumentEnd)
-            }
-            _ => None,
-        }
-    }
-
-    /// Handles a text event.
-    fn handle_text(&mut self, text: &BytesText<'_>) -> Result<Option<TeiEvent>, TeiError> {
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                // Keep text escaped for later reparsing by quick_xml::de
-                buffer.extend_from_slice(text.as_ref());
-                Ok(None)
-            }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. } => {
-                let unescaped = text.unescape().map_err(|e| TeiError::xml(e.to_string()))?;
-                if !unescaped.is_empty() {
-                    content.push(Inline::Text(unescaped.into_owned()));
-                }
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Handles an empty element event (self-closing tag).
-    fn handle_empty_element(
-        &mut self,
-        element: &BytesStart<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        let name = element.local_name();
-        let name_bytes = name.as_ref();
-
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                append_empty_element(buffer, element)?;
-                Ok(None)
-            }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. }
-                if name_bytes == b"pause" =>
-            {
-                let dur = extract_attribute(element, b"dur")?;
-                let pause_type = extract_attribute(element, b"type")?;
-                let pause = build_pause(dur, pause_type);
-                content.push(Inline::Pause(pause));
-                Ok(None)
-            }
-            ParserState::AwaitingBody if name_bytes == b"body" => {
-                // Empty body, move to document end
-                self.state = ParserState::DocumentComplete;
-                Ok(Some(TeiEvent::DocumentEnd))
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Handles CDATA sections.
-    fn handle_cdata(
-        &mut self,
-        cdata: &quick_xml::events::BytesCData<'_>,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                // Reconstruct CDATA for reparsing
-                buffer.extend_from_slice(b"<![CDATA[");
-                buffer.extend_from_slice(cdata.as_ref());
-                buffer.extend_from_slice(b"]]>");
-                Ok(None)
-            }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. } => {
-                // CDATA content is already unescaped, convert to string with strict UTF-8
-                let text = std::str::from_utf8(cdata.as_ref())
-                    .map_err(|e| TeiError::xml(format!("invalid UTF-8 in CDATA: {e}")))?;
-                if !text.is_empty() {
-                    content.push(Inline::Text(text.to_owned()));
-                }
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Handles end-of-file.
-    fn handle_eof(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        match &self.state {
-            ParserState::DocumentComplete => Ok(None),
-            ParserState::InBody | ParserState::AfterBody => {
-                // Allow EOF after body content if document wasn't properly closed
-                self.state = ParserState::DocumentComplete;
-                Ok(Some(TeiEvent::DocumentEnd))
-            }
-            _ => {
-                self.state = ParserState::Error;
-                Err(TeiError::xml("unexpected end of document"))
-            }
-        }
-    }
-
     /// Parses the accumulated header buffer into a `TeiHeader`.
-    fn parse_accumulated_header(&mut self) -> Result<TeiHeader, TeiError> {
+    pub(super) fn parse_accumulated_header(&mut self) -> Result<TeiHeader, TeiError> {
         let buffer = match &mut self.state {
             ParserState::InHeader { buffer, .. } => std::mem::take(buffer),
             _ => return Err(TeiError::xml("not in header state")),

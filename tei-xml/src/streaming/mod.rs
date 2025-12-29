@@ -39,6 +39,7 @@
 //! ```
 
 mod event;
+mod handlers;
 mod helpers;
 mod parser;
 mod state;
