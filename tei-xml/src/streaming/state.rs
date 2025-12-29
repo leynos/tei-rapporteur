@@ -120,6 +120,15 @@ impl ParserState {
         }
     }
 
+    /// Transitions the current state to `InEmphasis`, preserving `self` as the parent.
+    ///
+    /// This method safely moves the current state into the new emphasis state without
+    /// exposing any temporary invalid state values externally.
+    pub fn transition_to_emphasis(&mut self, rend: Option<String>) {
+        let parent = std::mem::take(self);
+        *self = Self::in_emphasis(parent, rend);
+    }
+
     /// Returns a mutable reference to the inline content of the current block state, if any.
     #[expect(
         clippy::missing_const_for_fn,

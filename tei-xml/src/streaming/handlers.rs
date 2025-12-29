@@ -96,8 +96,7 @@ impl<R: BufRead> TeiPullParser<R> {
     ) -> Result<Option<TeiEvent>, TeiError> {
         if name_bytes == b"hi" {
             let rend = extract_attribute(element, b"rend")?;
-            let parent = std::mem::replace(&mut self.state, ParserState::Error);
-            self.state = ParserState::in_emphasis(parent, rend);
+            self.state.transition_to_emphasis(rend);
         }
         Ok(None)
     }
