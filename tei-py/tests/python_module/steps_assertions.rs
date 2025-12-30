@@ -38,9 +38,10 @@ pub(super) fn construction_fails_mentioning(
     snippet: String,
 ) -> Result<()> {
     let message = state.error()?;
+    let snippets: Vec<&str> = snippet.split('|').map(str::trim).collect();
     ensure!(
-        message.contains(&snippet),
-        "error should mention {snippet:?}, found {message:?}"
+        snippets.iter().any(|candidate| message.contains(candidate)),
+        "error should mention one of {snippets:?}, found {message:?}"
     );
     Ok(())
 }
