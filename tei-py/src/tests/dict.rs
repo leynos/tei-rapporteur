@@ -4,10 +4,10 @@ use pyo3::Python;
 use pyo3_serde::{from_pyobject, to_pyobject};
 use rstest::{fixture, rstest};
 use tei_core::TeiDocument;
-use tei_serde::json::{Value, to_value};
+use tei_serde::json::Value;
 use tei_serde::serde_json::json;
 
-use crate::{Document, from_dict, to_dict};
+use crate::{Document, from_dict, projection::document_to_value, to_dict};
 
 #[fixture]
 fn wolf_document() -> TeiDocument {
@@ -16,7 +16,8 @@ fn wolf_document() -> TeiDocument {
 
 #[fixture]
 fn wolf_payload(wolf_document: TeiDocument) -> Value {
-    to_value(&wolf_document).expect("serialising fixture to JSON should succeed")
+    document_to_value(&wolf_document)
+        .expect("serialising projection fixture to JSON should succeed")
 }
 
 #[fixture]
@@ -54,9 +55,9 @@ fn from_dict_rejects_missing_fields() {
 fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
     Python::with_gil(|py| {
         let mut payload =
-            to_value(&wolf_document).expect("serialising fixture to JSON should succeed");
+            document_to_value(&wolf_document).expect("serialising fixture to JSON should succeed");
 
-        if let Some(title) = payload.pointer_mut("/teiHeader/fileDesc/title") {
+        if let Some(title) = payload.pointer_mut("/header/file_desc/title") {
             *title = Value::String("   ".to_owned());
         }
 
@@ -81,7 +82,7 @@ fn to_dict_serialises_documents(bridgewater_document: Document) {
         let value: Value = from_pyobject(py_payload)
             .expect("converting PyObject back to JSON value should succeed");
         let title = value
-            .pointer("/teiHeader/fileDesc/title")
+            .pointer("/header/file_desc/title")
             .and_then(Value::as_str)
             .expect("title should be present in dictionary output");
         assert_eq!(title, "Bridgewater");

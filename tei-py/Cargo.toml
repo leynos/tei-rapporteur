@@ -18,9 +18,10 @@ extension-module = ["pyo3/extension-module"]
 [dependencies]
 tei-core = { path = "../tei-core" }
 tei-serde = { workspace = true }
-tei-xml = { path = "../tei-xml" }
+tei-xml = { path = "../tei-xml", features = ["streaming"] }
 pyo3 = { version = "0.23.3", features = ["auto-initialize"] }
 pyo3-serde = { package = "serde-pyobject", version = "0.6.2" }
+serde = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

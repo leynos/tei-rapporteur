@@ -89,8 +89,8 @@ pub(super) fn the_dictionary_payload_title_equals(
 ) -> Result<()> {
     let payload = state.dict_output()?;
     let title = payload
-        .get("teiHeader")
-        .and_then(|header| header.get("fileDesc"))
+        .get("header")
+        .and_then(|header| header.get("file_desc"))
         .and_then(|file_desc| file_desc.get("title"))
         .and_then(Value::as_str)
         .context("dictionary payload should include a title")?;

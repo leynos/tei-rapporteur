@@ -117,6 +117,21 @@ pub(crate) mod py_exports {
         wrap_tei_result(emit_title_markup(raw_title))
     }
 
+    #[pyfunction(name = "iter_parse")]
+    /// Streams TEI events from an XML string as tagged dictionaries.
+    ///
+    /// The iterator yields domain events (`document_start`, `header`,
+    /// `paragraph`, `utterance`, `document_end`). Malformed XML or validation
+    /// failures raise [`pyo3::exceptions::PyValueError`] and exhaust the
+    /// iterator.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PyValueError`] when parsing fails before exhaustion.
+    pub fn iter_parse(xml: &str) -> PyResult<crate::streaming::TeiEventIterator> {
+        Ok(crate::streaming::iter_parse_py(xml))
+    }
+
     define_py_from_error_wrapper!(
         /// Deserialises `MessagePack` bytes into a [`Document`].
         ///
@@ -285,6 +300,7 @@ pub(crate) mod py_exports {
         py_module.add_function(wrap_pyfunction!(to_dict, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(parse_xml, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(emit_xml, py_module)?)?;
+        py_module.add_function(wrap_pyfunction!(iter_parse, py_module)?)?;
         register_structs_module(py_context, py_module)?;
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
