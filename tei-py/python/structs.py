@@ -48,7 +48,7 @@ class InlineText(msgspec.Struct, tag="text", tag_field="type"):
 class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
     """Emphasised inline span."""
 
-    content: list["Inline"] = msgspec.field(default_factory=list)
+    content: list[Inline] = msgspec.field(default_factory=list)
     rend: str | None = None
 
 
@@ -181,7 +181,10 @@ class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
 class ParagraphEvent(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying a paragraph."""
+    """Streaming event carrying a paragraph.
+
+    Field duplication mirrors ``Paragraph`` so events stay flat for msgspec's
+    tagged-union decoding."""
 
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
@@ -190,7 +193,10 @@ class ParagraphEvent(
 class UtteranceEvent(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying an utterance."""
+    """Streaming event carrying an utterance.
+
+    Fields are mirrored instead of composed to keep the tagged payload shape
+    stable and unambiguous."""
 
     xml_id: str | None = None
     speaker: str | None = None
@@ -200,4 +206,3 @@ class UtteranceEvent(
 Event: TypeAlias = (
     DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DocumentEnd
 )
-

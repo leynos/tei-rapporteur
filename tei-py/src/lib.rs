@@ -15,7 +15,7 @@ use projection::PyTeiDocument;
 use pyo3::types::PyAny;
 use pyo3::{Bound, Python};
 use pyo3_serde::{from_pyobject, to_pyobject};
-use serde::ser::Error as SerError;
+use serde::de::Error as DeError;
 use tei_core::{TeiDocument, TeiError};
 use tei_serde::msgpack::{
     MsgpackDecodeError, MsgpackEncodeError, from_slice as msgpack_from_slice, to_vec_named,

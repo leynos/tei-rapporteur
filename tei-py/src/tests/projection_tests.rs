@@ -1,6 +1,6 @@
 //! Unit tests covering projection tagging and conversions.
 
-use crate::projection::{PyInline, document_to_value, py_event_from_core};
+use crate::projection::{PyInline, document_to_value, py_event_from_core, value_to_document};
 use tei_core::{BodyBlock, Inline, P, TeiDocument};
 use tei_serde::{json::Value, serde_json::json};
 use tei_xml::streaming::TeiEvent;
@@ -65,4 +65,61 @@ fn streaming_event_projection_is_tagged() {
 
     assert_eq!(value.get("type"), Some(&json!("paragraph")));
     assert!(value.get("content").is_some());
+}
+
+#[test]
+fn round_trip_document_to_value_and_back_preserves_core_structure() {
+    let original = example_document();
+    let value = document_to_value(&original).expect("projection should serialise to JSON");
+    let round_tripped =
+        value_to_document(&value).expect("projection JSON should round-trip into TeiDocument");
+
+    assert_eq!(
+        original.header().file_desc().title(),
+        round_tripped.header().file_desc().title(),
+        "file description title should survive projection"
+    );
+
+    let original_blocks: Vec<&BodyBlock> = original.text().body().blocks().iter().collect();
+    let round_trip_blocks: Vec<&BodyBlock> = round_tripped.text().body().blocks().iter().collect();
+    assert_eq!(
+        original_blocks.len(),
+        round_trip_blocks.len(),
+        "body block counts should match"
+    );
+    assert!(
+        matches!(round_trip_blocks.first(), Some(BodyBlock::Paragraph(_))),
+        "first block should remain a paragraph"
+    );
+}
+
+#[test]
+fn value_to_document_reports_inline_union_errors() {
+    let invalid_json = json!({
+        "header": {
+            "file_desc": { "title": "Broken" }
+        },
+        "text": {
+            "body": {
+                "blocks": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            "just-a-string"
+                        ]
+                    }
+                ]
+            }
+        }
+    });
+
+    let result = value_to_document(&invalid_json);
+    let Err(error) = result else {
+        panic!("invalid inline union should fail conversion");
+    };
+    let message = error.to_string();
+    assert!(
+        message.contains("invalid TEI"),
+        "error should include projection prefix, got {message}"
+    );
 }

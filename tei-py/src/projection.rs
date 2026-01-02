@@ -10,8 +10,9 @@
 
 use serde::{Deserialize, Serialize, de::Error as DeError};
 use tei_core::{
-    BodyBlock, BodyContentError, FileDesc, Inline, P, Pause, ProfileDesc, TeiBody, TeiDocument,
-    TeiHeader, TeiText, Utterance,
+    AnnotationSystem, AnnotationSystemId, BodyBlock, BodyContentError, EncodingDesc, FileDesc,
+    Inline, LanguageTag, P, Pause, ProfileDesc, RevisionChange, RevisionDesc, SpeakerName, TeiBody,
+    TeiDocument, TeiHeader, TeiText, Utterance,
 };
 use tei_serde::json::Value;
 
@@ -105,11 +106,53 @@ pub(crate) struct PyTeiHeader {
     #[serde(rename = "file_desc")]
     pub(crate) file_desc: FileDesc,
     #[serde(rename = "profile_desc", skip_serializing_if = "Option::is_none")]
-    pub(crate) profile_desc: Option<ProfileDesc>,
+    pub(crate) profile_desc: Option<PyProfileDesc>,
     #[serde(rename = "encoding_desc", skip_serializing_if = "Option::is_none")]
-    pub(crate) encoding_desc: Option<tei_core::EncodingDesc>,
+    pub(crate) encoding_desc: Option<PyEncodingDesc>,
     #[serde(rename = "revision_desc", skip_serializing_if = "Option::is_none")]
-    pub(crate) revision_desc: Option<tei_core::RevisionDesc>,
+    pub(crate) revision_desc: Option<PyRevisionDesc>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyProfileDesc {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    synopsis: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "speakers")]
+    speakers: Vec<SpeakerName>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default, rename = "languages")]
+    languages: Vec<LanguageTag>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyAnnotationSystem {
+    #[serde(rename = "xml_id")]
+    xml_id: AnnotationSystemId,
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "desc")]
+    desc: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyEncodingDesc {
+    #[serde(
+        rename = "annotation_systems",
+        skip_serializing_if = "Vec::is_empty",
+        default
+    )]
+    annotation_systems: Vec<PyAnnotationSystem>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyRevisionChange {
+    #[serde(rename = "desc")]
+    desc: String,
+    #[serde(skip_serializing_if = "Option::is_none", default, rename = "resp")]
+    resp: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyRevisionDesc {
+    #[serde(rename = "change", skip_serializing_if = "Vec::is_empty", default)]
+    changes: Vec<PyRevisionChange>,
 }
 
 /// Python projection of the full TEI document.
@@ -123,9 +166,9 @@ impl From<&TeiHeader> for PyTeiHeader {
     fn from(header: &TeiHeader) -> Self {
         Self {
             file_desc: header.file_desc().clone(),
-            profile_desc: header.profile_desc().cloned(),
-            encoding_desc: header.encoding_desc().cloned(),
-            revision_desc: header.revision_desc().cloned(),
+            profile_desc: header.profile_desc().map(PyProfileDesc::from),
+            encoding_desc: header.encoding_desc().map(PyEncodingDesc::from),
+            revision_desc: header.revision_desc().map(PyRevisionDesc::from),
         }
     }
 }
@@ -134,15 +177,118 @@ impl From<PyTeiHeader> for TeiHeader {
     fn from(value: PyTeiHeader) -> Self {
         let mut header = Self::new(value.file_desc);
         if let Some(profile) = value.profile_desc {
-            header = header.with_profile_desc(profile);
+            header = header.with_profile_desc(ProfileDesc::from(profile));
         }
         if let Some(encoding) = value.encoding_desc {
-            header = header.with_encoding_desc(encoding);
+            header = header.with_encoding_desc(EncodingDesc::from(encoding));
         }
         if let Some(revision) = value.revision_desc {
-            header = header.with_revision_desc(revision);
+            header = header.with_revision_desc(RevisionDesc::from(revision));
         }
         header
+    }
+}
+
+impl From<&ProfileDesc> for PyProfileDesc {
+    fn from(value: &ProfileDesc) -> Self {
+        Self {
+            synopsis: value.synopsis().map(str::to_owned),
+            speakers: value.speakers().to_vec(),
+            languages: value.languages().to_vec(),
+        }
+    }
+}
+
+impl From<PyProfileDesc> for ProfileDesc {
+    fn from(value: PyProfileDesc) -> Self {
+        let mut profile = Self::new();
+        if let Some(synopsis) = value.synopsis {
+            profile = profile.with_synopsis(synopsis);
+        }
+        for speaker in value.speakers {
+            if let Err(error) = profile.add_speaker(speaker.as_str()) {
+                panic!("stored speaker should be valid: {error}");
+            }
+        }
+        for language in value.languages {
+            if let Err(error) = profile.add_language(language.as_str()) {
+                panic!("stored language should be valid: {error}");
+            }
+        }
+        profile
+    }
+}
+
+impl From<&AnnotationSystem> for PyAnnotationSystem {
+    fn from(system: &AnnotationSystem) -> Self {
+        Self {
+            xml_id: system.identifier().clone(),
+            desc: system.description().map(str::to_owned),
+        }
+    }
+}
+
+impl From<PyAnnotationSystem> for AnnotationSystem {
+    fn from(system: PyAnnotationSystem) -> Self {
+        let description = system.desc.unwrap_or_default();
+        Self::new(system.xml_id.as_str(), description)
+            .unwrap_or_else(|error| panic!("stored annotation system should be valid: {error}"))
+    }
+}
+
+impl From<&EncodingDesc> for PyEncodingDesc {
+    fn from(value: &EncodingDesc) -> Self {
+        Self {
+            annotation_systems: value
+                .annotation_systems()
+                .iter()
+                .map(PyAnnotationSystem::from)
+                .collect(),
+        }
+    }
+}
+
+impl From<PyEncodingDesc> for EncodingDesc {
+    fn from(value: PyEncodingDesc) -> Self {
+        let mut encoding = Self::new();
+        for system in value.annotation_systems {
+            encoding.add_annotation_system(AnnotationSystem::from(system));
+        }
+        encoding
+    }
+}
+
+impl From<&RevisionChange> for PyRevisionChange {
+    fn from(change: &RevisionChange) -> Self {
+        Self {
+            desc: change.description().to_owned(),
+            resp: change.resp().map(|resp| resp.as_ref().to_owned()),
+        }
+    }
+}
+
+impl From<PyRevisionChange> for RevisionChange {
+    fn from(change: PyRevisionChange) -> Self {
+        Self::new(change.desc, change.resp.unwrap_or_default())
+            .unwrap_or_else(|error| panic!("stored revision change should be valid: {error}"))
+    }
+}
+
+impl From<&RevisionDesc> for PyRevisionDesc {
+    fn from(desc: &RevisionDesc) -> Self {
+        Self {
+            changes: desc.iter().map(PyRevisionChange::from).collect(),
+        }
+    }
+}
+
+impl From<PyRevisionDesc> for RevisionDesc {
+    fn from(desc: PyRevisionDesc) -> Self {
+        let mut revision = Self::new();
+        for change in desc.changes {
+            revision.add_change(RevisionChange::from(change));
+        }
+        revision
     }
 }
 
@@ -293,7 +439,10 @@ pub fn document_to_value(document: &TeiDocument) -> Result<Value, tei_serde::ser
 /// Returns a JSON deserialisation error when the payload is not a valid
 /// projection or when conversion back to the core TEI model fails.
 pub fn value_to_document(value: &Value) -> Result<TeiDocument, tei_serde::serde_json::Error> {
-    let projection: PyTeiDocument = tei_serde::json::from_value(value.clone())?;
+    let projection: PyTeiDocument =
+        tei_serde::json::from_value(value.clone()).map_err(|error| {
+            tei_serde::serde_json::Error::custom(format!("invalid TEI projection: {error}"))
+        })?;
     TeiDocument::try_from(projection)
         .map_err(|error| tei_serde::serde_json::Error::custom(format!("invalid TEI body: {error}")))
 }
