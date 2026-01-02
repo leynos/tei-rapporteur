@@ -114,16 +114,14 @@ class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
     """Metadata describing an annotation system."""
 
-    xml_id: str = msgspec.field(name="xml_id")
+    xml_id: str
     desc: str | None = msgspec.field(default=None, name="desc")
 
 
 class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
     """Collection of annotation systems."""
 
-    annotation_systems: list[AnnotationSystem] = msgspec.field(
-        default_factory=list, name="annotation_systems"
-    )
+    annotation_systems: list[AnnotationSystem] = msgspec.field(default_factory=list)
 
 
 class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):

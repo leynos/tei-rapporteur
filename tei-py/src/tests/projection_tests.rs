@@ -77,7 +77,7 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
     assert_eq!(
         original.header().file_desc().title(),
         round_tripped.header().file_desc().title(),
-        "file description title should survive projection"
+        "header title should be preserved by document_to_value/value_to_document round-trip"
     );
 
     let original_blocks: Vec<&BodyBlock> = original.text().body().blocks().iter().collect();
