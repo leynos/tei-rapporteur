@@ -178,6 +178,20 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
         matches!(round_trip_blocks.first(), Some(BodyBlock::Paragraph(_))),
         "first block should remain a paragraph"
     );
+    if let (Some(BodyBlock::Paragraph(orig_p)), Some(BodyBlock::Paragraph(rt_p))) =
+        (original_blocks.first(), round_trip_blocks.first())
+    {
+        assert_eq!(
+            orig_p.id(),
+            rt_p.id(),
+            "paragraph xml:id should survive projection"
+        );
+        assert_eq!(
+            orig_p.content().len(),
+            rt_p.content().len(),
+            "inline content count should match"
+        );
+    }
 }
 
 #[test]
