@@ -66,13 +66,21 @@ pub(super) fn i_emit_markup_from_the_document(
 }
 
 #[scenario(path = "tests/features/python_module.feature", index = 0)]
-pub fn constructs_a_document(#[from(python_state)] _: PythonModuleState) {}
+pub fn constructs_a_document(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 1)]
-pub fn rejects_blank_titles(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_blank_titles(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 2)]
-pub fn emits_title_markup(#[from(python_state)] _: PythonModuleState) {}
+pub fn emits_title_markup(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 3)]
-pub fn document_markup_escapes_special_characters(#[from(python_state)] _: PythonModuleState) {}
+pub fn document_markup_escapes_special_characters(python_state: PythonModuleState) {
+    let _ = python_state;
+}

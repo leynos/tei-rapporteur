@@ -154,8 +154,12 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 
 /// Scenario: Round-trip a Document through the Python Episode struct.
 #[scenario(path = "tests/features/python_module.feature", index = 18)]
-pub fn round_trips_via_episode_struct(#[from(python_state)] _: PythonModuleState) {}
+pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Surface struct decoding errors for malformed `MessagePack` payloads.
 #[scenario(path = "tests/features/python_module.feature", index = 19)]
-pub fn episode_decoding_reports_errors(#[from(python_state)] _: PythonModuleState) {}
+pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {
+    let _ = python_state;
+}

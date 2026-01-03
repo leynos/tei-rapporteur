@@ -85,13 +85,21 @@ pub(super) fn i_emit_the_document_to_tei_xml(
 }
 
 #[scenario(path = "tests/features/python_module.feature", index = 9)]
-pub fn parses_tei_xml_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn parses_tei_xml_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 10)]
-pub fn rejects_invalid_tei_xml_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_invalid_tei_xml_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 11)]
-pub fn emits_documents_to_tei_xml(#[from(python_state)] _: PythonModuleState) {}
+pub fn emits_documents_to_tei_xml(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 #[scenario(path = "tests/features/python_module.feature", index = 12)]
-pub fn rejects_emit_xml_with_control_characters(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_emit_xml_with_control_characters(python_state: PythonModuleState) {
+    let _ = python_state;
+}

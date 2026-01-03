@@ -1,9 +1,18 @@
 //! Unit tests covering projection tagging and conversions.
 
-use crate::projection::{PyInline, document_to_value, py_event_from_core, value_to_document};
-use tei_core::{BodyBlock, Inline, P, TeiDocument};
+use crate::projection::{
+    ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
+};
+use tei_core::{BodyBlock, Inline, P, TeiDocument, Utterance};
 use tei_serde::{json::Value, serde_json::json};
 use tei_xml::streaming::TeiEvent;
+
+const TAG_FIELD: &str = "type";
+const TAG_DOCUMENT_START: &str = "document_start";
+const TAG_HEADER: &str = "header";
+const TAG_PARAGRAPH: &str = "paragraph";
+const TAG_UTTERANCE: &str = "utterance";
+const TAG_DOCUMENT_END: &str = "document_end";
 
 fn example_document() -> TeiDocument {
     let emphasised =
@@ -63,8 +72,35 @@ fn streaming_event_projection_is_tagged() {
     let projected = py_event_from_core(event);
     let value = tei_serde::json::to_value(&projected).expect("event should serialise");
 
-    assert_eq!(value.get("type"), Some(&json!("paragraph")));
+    assert_eq!(value.get(TAG_FIELD), Some(&json!(TAG_PARAGRAPH)));
     assert!(value.get("content").is_some());
+}
+
+#[test]
+fn streaming_event_discriminators_remain_aligned() {
+    let start = tei_serde::json::to_value(&py_event_from_core(TeiEvent::DocumentStart))
+        .expect("document_start serialises");
+    assert_eq!(start.get(TAG_FIELD), Some(&json!(TAG_DOCUMENT_START)));
+
+    let end = tei_serde::json::to_value(&py_event_from_core(TeiEvent::DocumentEnd))
+        .expect("document_end serialises");
+    assert_eq!(end.get(TAG_FIELD), Some(&json!(TAG_DOCUMENT_END)));
+
+    let header_event = tei_serde::json::to_value(&py_event_from_core(TeiEvent::Header(
+        tei_core::TeiHeader::new(
+            tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
+        ),
+    )))
+    .expect("header serialises");
+    assert_eq!(header_event.get(TAG_FIELD), Some(&json!(TAG_HEADER)));
+
+    let utterance =
+        Utterance::from_text_segments(Some("speaker"), ["hi"]).expect("valid utterance fixture");
+    let utterance_event = tei_serde::json::to_value(&py_event_from_core(TeiEvent::BodyBlock(
+        BodyBlock::Utterance(utterance),
+    )))
+    .expect("utterance serialises");
+    assert_eq!(utterance_event.get(TAG_FIELD), Some(&json!(TAG_UTTERANCE)));
 }
 
 #[test]
@@ -115,11 +151,14 @@ fn value_to_document_reports_inline_union_errors() {
 
     let result = value_to_document(&invalid_json);
     let Err(error) = result else {
-        panic!("invalid inline union should fail conversion");
+        panic!("invalid inline union should fail JSON projection decoding");
     };
-    let message = error.to_string();
     assert!(
-        message.contains("invalid TEI"),
-        "error should include projection prefix, got {message}"
+        matches!(error, ProjectionError::Serde(_)),
+        "projection errors should remain distinguishable from TEI validation failures"
+    );
+    assert!(
+        error.to_string().contains("invalid TEI projection"),
+        "errors must carry the projection prefix for debugging clarity"
     );
 }

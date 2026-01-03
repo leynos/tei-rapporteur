@@ -45,9 +45,9 @@ output, and the semantic content remains consistent across round-trips.
 ### Python projection decisions (December 2025)
 
 - Python-facing payloads are now **internally tagged** so `msgspec` can decode
-  fully typed structures without resorting to `Any`. Inline content is a
-  tagged union on the `type` field (`text`, `hi`, `pause`) with pause metadata
-  renamed to `dur` and `kind` to avoid discriminator collisions.
+  fully typed structures without resorting to `Any`. Inline content is a tagged
+  union on the `type` field (`text`, `hi`, `pause`) with pause metadata renamed
+  to `dur` and `kind` to avoid discriminator collisions.
 - Body blocks are likewise tagged (`paragraph`, `utterance`) and unwrapped
   (fields live alongside the discriminator), enabling streaming events to share
   the same shapes.

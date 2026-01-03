@@ -13,12 +13,12 @@ use crate::projection::py_event_from_core;
 
 #[pyclass(module = "tei_rapporteur", name = "TeiEventIterator")]
 pub struct TeiEventIterator {
-    parser: Option<TeiPullParser<Cursor<Vec<u8>>>>,
+    parser: Option<TeiPullParser<Cursor<String>>>,
 }
 
 impl TeiEventIterator {
     fn new(xml: &str) -> Self {
-        let cursor = Cursor::new(xml.as_bytes().to_vec());
+        let cursor = Cursor::new(xml.to_owned());
         let parser = TeiPullParser::new(cursor);
         Self {
             parser: Some(parser),

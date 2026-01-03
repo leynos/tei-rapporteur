@@ -176,20 +176,30 @@ pub(super) fn i_encode_a_dictionary_without_providing_a_document(
 
 /// Scenario: Decode a `Document` from a dictionary payload.
 #[scenario(path = "tests/features/python_module.feature", index = 13)]
-pub fn decodes_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject dictionary payloads missing required fields.
 #[scenario(path = "tests/features/python_module.feature", index = 14)]
-pub fn rejects_incomplete_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_incomplete_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject dictionary payloads with invalid titles.
 #[scenario(path = "tests/features/python_module.feature", index = 15)]
-pub fn rejects_blank_titles_in_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_blank_titles_in_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Encode a constructed `Document` to a dictionary.
 #[scenario(path = "tests/features/python_module.feature", index = 16)]
-pub fn encodes_documents_to_dictionaries(#[from(python_state)] _: PythonModuleState) {}
+pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Surface errors when `to_dict` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 17)]
-pub fn rejects_to_dict_without_document(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
+    let _ = python_state;
+}

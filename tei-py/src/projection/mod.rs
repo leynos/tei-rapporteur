@@ -12,7 +12,7 @@ mod events;
 mod header;
 
 use header::PyTeiHeader;
-use serde::{Deserialize, Serialize, de::Error as DeError};
+use serde::{Deserialize, Serialize};
 use tei_core::{
     BodyBlock, BodyContentError, Inline, P, Pause, TeiBody, TeiDocument, TeiError, TeiHeader,
     TeiText, Utterance,
@@ -93,7 +93,10 @@ impl TryFrom<PyTeiBody> for TeiBody {
     fn try_from(value: PyTeiBody) -> Result<Self, Self::Error> {
         let mut body = Self::default();
         for block in value.blocks {
-            body.extend([core_block_from_py(block)?]);
+            match core_block_from_py(block)? {
+                BodyBlock::Paragraph(paragraph) => body.push_paragraph(paragraph),
+                BodyBlock::Utterance(utterance) => body.push_utterance(utterance),
+            }
         }
         Ok(body)
     }
@@ -210,7 +213,10 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, BodyContentError>
     }
 }
 
-/// Converts a core TEI document into a projection `Value` for tests.
+/// Converts a core TEI document into a projection `Value` for Python exchange.
+///
+/// Primarily used by integration tests and Python fixtures; not part of the
+/// stable public surface.
 ///
 /// # Errors
 ///
@@ -220,19 +226,29 @@ pub fn document_to_value(document: &TeiDocument) -> Result<Value, tei_serde::ser
     tei_serde::json::to_value(&projection)
 }
 
-/// Converts a projection `Value` into a core document for tests.
+/// Errors surfaced during projection deserialisation.
+#[derive(thiserror::Error, Debug)]
+pub enum ProjectionError {
+    /// JSON decoding failed.
+    #[error("invalid TEI projection: {0}")]
+    Serde(#[from] tei_serde::serde_json::Error),
+    /// TEI validation failed after successful decoding.
+    #[error("invalid TEI body: {0}")]
+    Tei(#[from] TeiError),
+}
+
+/// Converts a projection `Value` into a core document.
+///
+/// This is exposed for integration tests and fixtures that round-trip through
+/// the Python projection shape; it is not a stable public API.
 ///
 /// # Errors
 ///
-/// Returns a JSON deserialisation error when the payload is not a valid
-/// projection or when conversion back to the core TEI model fails.
-pub fn value_to_document(value: &Value) -> Result<TeiDocument, tei_serde::serde_json::Error> {
-    let projection: PyTeiDocument =
-        tei_serde::json::from_value(value.clone()).map_err(|error| {
-            tei_serde::serde_json::Error::custom(format!("invalid TEI projection: {error}"))
-        })?;
-    TeiDocument::try_from(projection)
-        .map_err(|error| tei_serde::serde_json::Error::custom(format!("invalid TEI body: {error}")))
+/// Returns a [`ProjectionError`] when the payload is not a valid projection or
+/// when conversion back to the core TEI model fails.
+pub fn value_to_document(value: &Value) -> Result<TeiDocument, ProjectionError> {
+    let projection: PyTeiDocument = tei_serde::json::from_value(value.clone())?;
+    TeiDocument::try_from(projection).map_err(ProjectionError::from)
 }
 
 pub(crate) use events::py_event_from_core;

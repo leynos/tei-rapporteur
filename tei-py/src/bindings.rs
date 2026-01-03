@@ -117,7 +117,6 @@ pub(crate) mod py_exports {
         wrap_tei_result(emit_title_markup(raw_title))
     }
 
-    #[pyfunction(name = "iter_parse")]
     /// Streams TEI events from an XML string as tagged dictionaries.
     ///
     /// The iterator yields domain events (`document_start`, `header`,
@@ -128,6 +127,7 @@ pub(crate) mod py_exports {
     /// # Errors
     ///
     /// Returns [`PyValueError`] when parsing fails before exhaustion.
+    #[pyfunction(name = "iter_parse")]
     pub fn iter_parse(xml: &str) -> PyResult<crate::streaming::TeiEventIterator> {
         Ok(crate::streaming::iter_parse_py(xml))
     }

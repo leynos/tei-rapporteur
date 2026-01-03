@@ -1984,6 +1984,7 @@ dependencies = [
  "tei-serde",
  "tei-test-helpers",
  "tei-xml",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

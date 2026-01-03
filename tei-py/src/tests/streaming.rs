@@ -49,7 +49,7 @@ fn state() -> StreamingState {
 }
 
 #[given("the tei_rapporteur Python module is initialised for streaming")]
-fn module_initialised(#[from(state)] state: &mut StreamingState) {
+fn module_initialised(state: &mut StreamingState) {
     let _ = state;
 }
 
@@ -223,22 +223,36 @@ fn events_decode(#[from(state)] state: &StreamingState) {
 }
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 0)]
-fn minimal_document_streams(#[from(state)] _: StreamingState) {}
+fn minimal_document_streams(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 1)]
-fn paragraph_streams(#[from(state)] _: StreamingState) {}
+fn paragraph_streams(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 2)]
-fn utterance_streams(#[from(state)] _: StreamingState) {}
+fn utterance_streams(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 3)]
-fn header_event_exposes_title(#[from(state)] _: StreamingState) {}
+fn header_event_exposes_title(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 4)]
-fn malformed_xml_errors(#[from(state)] _: StreamingState) {}
+fn malformed_xml_errors(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 5)]
-fn missing_header_errors(#[from(state)] _: StreamingState) {}
+fn missing_header_errors(state: StreamingState) {
+    let _ = state;
+}
 
 #[scenario(path = "tests/features/python_streaming.feature", index = 6)]
-fn events_decode_with_msgspec(#[from(state)] _: StreamingState) {}
+fn events_decode_with_msgspec(state: StreamingState) {
+    let _ = state;
+}
