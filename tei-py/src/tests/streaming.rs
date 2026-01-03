@@ -50,6 +50,8 @@ fn state() -> StreamingState {
 
 #[given("the tei_rapporteur Python module is initialised for streaming")]
 fn module_initialised(state: &mut StreamingState) {
+    // BDD fixture hook: state is intentionally untouched; the binding ensures
+    // the shared `StreamingState` is registered before scenarios execute.
     let _ = state;
 }
 

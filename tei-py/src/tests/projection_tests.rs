@@ -1,8 +1,13 @@
 //! Unit tests covering projection tagging and conversions.
 
-use crate::projection::{
-    ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
+use crate::{
+    projection::{
+        ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
+    },
+    test_support::ensure_msgspec_installed,
 };
+use pyo3::{Python, types::PyAnyMethods, types::PyModule};
+use pyo3_serde::to_pyobject;
 use tei_core::{BodyBlock, Inline, P, TeiDocument, Utterance};
 use tei_serde::{json::Value, serde_json::json};
 use tei_xml::streaming::TeiEvent;
@@ -101,6 +106,52 @@ fn streaming_event_discriminators_remain_aligned() {
     )))
     .expect("utterance serialises");
     assert_eq!(utterance_event.get(TAG_FIELD), Some(&json!(TAG_UTTERANCE)));
+}
+
+#[test]
+fn streaming_events_decode_into_python_event_union() {
+    Python::with_gil(|py| {
+        if ensure_msgspec_installed(py).is_err() {
+            return;
+        }
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
+        crate::bindings::py_exports::tei_rapporteur(py, &module)
+            .expect("module registration should succeed");
+        let structs = module
+            .getattr("structs")
+            .expect("structs module must exist");
+        let event_type = structs
+            .getattr("Event")
+            .expect("Event union must be exported");
+        let converter = py
+            .import("msgspec")
+            .expect("msgspec import")
+            .getattr("convert")
+            .expect("msgspec.convert available");
+
+        let events = [
+            py_event_from_core(TeiEvent::DocumentStart),
+            py_event_from_core(TeiEvent::Header(tei_core::TeiHeader::new(
+                tei_core::FileDesc::from_title_str("Bridgewater")
+                    .expect("header title should validate"),
+            ))),
+            py_event_from_core(TeiEvent::BodyBlock(BodyBlock::Paragraph(
+                P::from_text_segments(["hello"]).expect("paragraph fixture should validate"),
+            ))),
+            py_event_from_core(TeiEvent::BodyBlock(BodyBlock::Utterance(
+                Utterance::from_text_segments(Some("host"), ["hi"])
+                    .expect("utterance fixture should validate"),
+            ))),
+            py_event_from_core(TeiEvent::DocumentEnd),
+        ];
+
+        for event in events {
+            let py_event = to_pyobject(py, &event).expect("event projection should serialise");
+            converter
+                .call((py_event, event_type.clone()), None)
+                .expect("msgspec conversion should succeed for all PyEvent variants");
+        }
+    });
 }
 
 #[test]

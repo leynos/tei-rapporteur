@@ -227,6 +227,9 @@ pub fn document_to_value(document: &TeiDocument) -> Result<Value, tei_serde::ser
 }
 
 /// Errors surfaced during projection deserialisation.
+///
+/// These distinguish JSON decoding problems from TEI validation failures so
+/// callers can report precise failure causes back to Python.
 #[derive(thiserror::Error, Debug)]
 pub enum ProjectionError {
     /// JSON decoding failed.

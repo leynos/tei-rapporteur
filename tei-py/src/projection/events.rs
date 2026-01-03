@@ -8,7 +8,7 @@ use super::{PyInline, PyTeiHeader};
 /// Tagged streaming event union surfaced to Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type")]
-pub enum PyEvent {
+pub(crate) enum PyEvent {
     /// Signals the start of the document stream.
     #[serde(rename = "document_start")]
     DocumentStart,
