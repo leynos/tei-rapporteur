@@ -108,6 +108,12 @@ impl TeiEventIterator {
 
 /// Exposes `iter_parse` to Python, yielding streaming events for the provided
 /// XML string.
+///
+/// # Parameters
+/// - `xml`: TEI XML markup to parse.
+///
+/// # Returns
+/// A new [`TeiEventIterator`] ready for Python iteration.
 pub(crate) fn iter_parse_py(xml: &str) -> TeiEventIterator {
     TeiEventIterator::new(xml)
 }
