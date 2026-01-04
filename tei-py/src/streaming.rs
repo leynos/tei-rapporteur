@@ -30,11 +30,9 @@ impl Read for SliceReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let available = self.data.get(self.pos..).unwrap_or_default();
         let len = available.len().min(buf.len());
-        let dest = buf.get_mut(..len).ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "buffer shorter than len")
-        })?;
-        let src = available.get(..len).unwrap_or_default();
-        dest.copy_from_slice(src);
+        if let (Some(dest), Some(src)) = (buf.get_mut(..len), available.get(..len)) {
+            dest.copy_from_slice(src);
+        }
         self.pos += len;
         Ok(len)
     }
@@ -73,10 +71,24 @@ impl TeiEventIterator {
         clippy::missing_const_for_fn,
         reason = "PyO3 iterator signature cannot be const"
     )]
+    /// Returns the iterator instance for Python `for` loops.
+    ///
+    /// # Returns
+    /// The same iterator, enabling `for event in iter_parse(xml)` in Python.
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
 
+    /// Retrieves the next streaming event.
+    ///
+    /// # Returns
+    /// - `Some(PyObject)` containing a tagged event dict/struct until the
+    ///   stream completes.
+    /// - `None` when the stream is exhausted.
+    ///
+    /// # Errors
+    /// Raises [`PyValueError`] on malformed XML or TEI validation failures and
+    /// exhausts the iterator thereafter.
     pub fn __next__<'py>(&'py mut self, py: Python<'py>) -> PyResult<Option<PyObject>> {
         let Some(parser) = self.parser.as_mut() else {
             return Ok(None);
