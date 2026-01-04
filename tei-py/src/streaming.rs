@@ -50,6 +50,7 @@ impl BufRead for SliceReader {
     }
 }
 
+/// Python-visible iterator yielding streaming TEI events.
 #[pyclass(module = "tei_rapporteur", name = "TeiEventIterator")]
 pub struct TeiEventIterator {
     parser: Option<TeiPullParser<SliceReader>>,
