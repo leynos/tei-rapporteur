@@ -33,12 +33,12 @@ impl Read for SliceReader {
         if len == 0 {
             return Ok(0);
         }
-        let dest = buf
-            .get_mut(..len)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "buffer too small"))?;
-        let src = available
-            .get(..len)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "source underflow"))?;
+        let dest = buf.get_mut(..len).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "buffer too small")
+        })?;
+        let src = available.get(..len).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "source underflow")
+        })?;
         dest.copy_from_slice(src);
         self.pos += len;
         Ok(len)
