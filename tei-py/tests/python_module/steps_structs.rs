@@ -6,6 +6,7 @@ use pyo3::{prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
 use serde::Deserialize;
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
+use tei_py::projection::PyTeiDocument;
 use tei_py::test_support::msgspec_available;
 use tei_serde::json::Value;
 use tei_serde::msgpack::{from_slice, to_vec_named};
@@ -75,11 +76,14 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
     let payload = state.msgpack_payload()?;
 
     if !msgspec_available() {
-        let document: TeiDocument =
+        let projection: PyTeiDocument =
             from_slice(&payload).context("fallback decoding MessagePack document")?;
+        let document: TeiDocument = TeiDocument::try_from(projection)
+            .context("projection should convert to TeiDocument")?;
         let retitled = retitle_document(&document, title.as_str())?;
+        let projection_updated = PyTeiDocument::from(&retitled);
         let updated_payload =
-            to_vec_named(&retitled).context("fallback encoding updated document")?;
+            to_vec_named(&projection_updated).context("fallback encoding updated document")?;
         state.store_msgpack_payload(updated_payload);
         return Ok(());
     }
@@ -126,7 +130,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
         #[derive(Debug, Deserialize)]
         struct EpisodeCarrier {
             header: Value,
-            body: Value,
+            text: Value,
         }
 
         if let Err(error) = from_slice::<EpisodeCarrier>(&payload) {
@@ -150,8 +154,12 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 
 /// Scenario: Round-trip a Document through the Python Episode struct.
 #[scenario(path = "tests/features/python_module.feature", index = 18)]
-pub fn round_trips_via_episode_struct(#[from(python_state)] _: PythonModuleState) {}
+pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Surface struct decoding errors for malformed `MessagePack` payloads.
 #[scenario(path = "tests/features/python_module.feature", index = 19)]
-pub fn episode_decoding_reports_errors(#[from(python_state)] _: PythonModuleState) {}
+pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {
+    let _ = python_state;
+}

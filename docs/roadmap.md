@@ -164,7 +164,7 @@ for handling very large documents.
 
 - [x] Design and implement the `TeiPullParser` iterator in Rust, gated behind a
       `streaming` Cargo feature.
-- [ ] Expose the pull-parser to Python as a generator function,
+- [x] Expose the pull-parser to Python as a generator function,
       `tei_rapporteur.iter_parse()`, that yields `msgspec`-compatible
       dictionaries.
 - [ ] Write performance benchmarks comparing the memory and time usage of the

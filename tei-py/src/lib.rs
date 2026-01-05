@@ -11,11 +11,15 @@
 //! directly into typed objects. Rust callers continue to reuse the same
 //! helpers without the `PyO3` glue, keeping validation logic centralised.
 
+use projection::PyTeiDocument;
 use pyo3::types::PyAny;
 use pyo3::{Bound, Python};
 use pyo3_serde::{from_pyobject, to_pyobject};
+use serde::de::Error as DeError;
 use tei_core::{TeiDocument, TeiError};
-use tei_serde::msgpack::{MsgpackDecodeError, MsgpackEncodeError};
+use tei_serde::msgpack::{
+    MsgpackDecodeError, MsgpackEncodeError, from_slice as msgpack_from_slice, to_vec_named,
+};
 use tei_xml::{
     emit_xml as emit_document_xml, parse_xml as parse_document_xml, serialize_document_title,
 };
@@ -27,11 +31,13 @@ use macros::{
 };
 
 mod bindings;
+pub mod projection;
+mod streaming;
 mod structs;
 pub mod test_support;
 pub use bindings::Document;
 pub use bindings::py_exports::{
-    emit_xml, from_dict, from_msgpack, parse_xml, tei_rapporteur, to_dict, to_msgpack,
+    emit_xml, from_dict, from_msgpack, iter_parse, parse_xml, tei_rapporteur, to_dict, to_msgpack,
 };
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
@@ -55,9 +61,14 @@ pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
     serialize_document_title(raw_title)
 }
 
-define_conversion_pair! {
-    from document_from_msgpack(bytes: &[u8]) -> MsgpackDecodeError { tei_serde::msgpack::from_slice(bytes) };
-    to document_to_msgpack(document: &TeiDocument) -> Vec<u8>, MsgpackEncodeError { tei_serde::msgpack::to_vec_named(document) }
+fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackDecodeError> {
+    let projection: PyTeiDocument = msgpack_from_slice(bytes)?;
+    TeiDocument::try_from(projection).map_err(|error| MsgpackDecodeError::Syntax(error.to_string()))
+}
+
+fn document_to_msgpack(document: &TeiDocument) -> Result<Vec<u8>, MsgpackEncodeError> {
+    let projection = PyTeiDocument::from(document);
+    to_vec_named(&projection)
 }
 
 define_conversion_pair! {
@@ -68,14 +79,16 @@ define_conversion_pair! {
 pub(crate) fn document_from_dict(
     payload: Bound<'_, PyAny>,
 ) -> Result<TeiDocument, pyo3_serde::Error> {
-    from_pyobject(payload)
+    let projection: PyTeiDocument = from_pyobject(payload)?;
+    TeiDocument::try_from(projection).map_err(|error| pyo3_serde::Error::custom(error.to_string()))
 }
 
 pub(crate) fn document_to_dict<'py>(
     py: Python<'py>,
     document: &TeiDocument,
 ) -> Result<Bound<'py, PyAny>, pyo3_serde::Error> {
-    to_pyobject(py, document)
+    let projection = PyTeiDocument::from(document);
+    to_pyobject(py, &projection)
 }
 
 #[cfg(test)]

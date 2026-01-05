@@ -38,9 +38,10 @@ pub(super) fn construction_fails_mentioning(
     snippet: String,
 ) -> Result<()> {
     let message = state.error()?;
+    let snippets: Vec<&str> = snippet.split('|').map(str::trim).collect();
     ensure!(
-        message.contains(&snippet),
-        "error should mention {snippet:?}, found {message:?}"
+        snippets.iter().any(|candidate| message.contains(candidate)),
+        "error should mention one of {snippets:?}, found {message:?}"
     );
     Ok(())
 }
@@ -89,8 +90,8 @@ pub(super) fn the_dictionary_payload_title_equals(
 ) -> Result<()> {
     let payload = state.dict_output()?;
     let title = payload
-        .get("teiHeader")
-        .and_then(|header| header.get("fileDesc"))
+        .get("header")
+        .and_then(|header| header.get("file_desc"))
         .and_then(|file_desc| file_desc.get("title"))
         .and_then(Value::as_str)
         .context("dictionary payload should include a title")?;

@@ -407,10 +407,38 @@ Errors are returned through the iterator's `Result` type. If an error occurs
 (malformed XML, unexpected structure, validation failure), the parser yields an
 `Err` value and subsequent calls to `next()` return `None`.
 
+### Python usage
+
+The `tei_rapporteur` Python module exposes the same streaming iterator via
+`iter_parse(xml: str)`. Events are returned as tagged dictionaries that decode
+directly into the `tei_rapporteur.structs.Event` union:
+
+```python
+import msgspec
+import tei_rapporteur as tr
+from tei_rapporteur.structs import Event
+
+xml = "<TEI><teiHeader><fileDesc><title>Wolf 359</title></fileDesc></teiHeader>" \
+      "<text><body><p>Hello <hi rend='stress'>there</hi></p></body></text></TEI>"
+
+for event in tr.iter_parse(xml):
+    typed = msgspec.convert(event, type=Event)
+    print(typed)
+```
+
+Events use internal tagging (`type`), covering:
+
+- `document_start`
+- `header` (with a structured `header` field)
+- `paragraph` / `utterance` (unwrapped, carrying inline `content` as tagged
+  `Inline` values)
+- `document_end`
+
+Inline content is also tagged (`text`, `hi`, `pause`), so Python callers can
+type-check inline nodes without falling back to `Any`.
+
 ### Limitations
 
 - The header is accumulated in memory before being deserialized, so documents
   with unusually large headers may still consume significant memory during that
   phase.
-- The streaming parser is currently Rust-only; Python bindings are not yet
-  available.

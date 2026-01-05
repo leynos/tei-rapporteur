@@ -11,6 +11,8 @@ use tei_serde::serde_json::json;
 
 mod bindings_tests;
 mod dict;
+mod projection_tests;
+mod streaming;
 mod structs_tests;
 mod validation;
 mod xml;
@@ -82,7 +84,8 @@ fn document_method_emits_markup() {
 fn from_msgpack_decodes_documents() {
     let fixture =
         TeiDocument::from_title_str("Wolf 359").expect("valid title should build a TeiDocument");
-    let payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
+    let projection = crate::projection::PyTeiDocument::from(&fixture);
+    let payload = to_vec_named(&projection).expect("MessagePack encoding should succeed");
 
     let document = from_msgpack(&payload).expect("MessagePack payload should decode");
     assert_eq!(document.title(), "Wolf 359");
@@ -105,7 +108,8 @@ fn from_msgpack_rejects_empty_payloads() {
 fn from_msgpack_rejects_truncated_payloads() {
     let fixture = TeiDocument::from_title_str("The Magnus Archives")
         .expect("valid title should build a TeiDocument");
-    let mut payload = to_vec_named(&fixture).expect("MessagePack encoding should succeed");
+    let projection = crate::projection::PyTeiDocument::from(&fixture);
+    let mut payload = to_vec_named(&projection).expect("MessagePack encoding should succeed");
     payload.pop();
     let error = from_msgpack(&payload).expect_err("truncated payload should fail");
     assert!(error.to_string().contains("invalid MessagePack payload"));

@@ -56,7 +56,8 @@ pub enum TeiEvent {
     /// - Speaker declarations must be available before validating utterance
     ///   `@who` references in body blocks
     ///
-    /// After this event, [`TeiPullParser::header`] returns the same header.
+    /// After this event, [`crate::streaming::TeiPullParser::header`] returns
+    /// the same header.
     Header(TeiHeader),
 
     /// A body block element (paragraph or utterance).

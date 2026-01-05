@@ -1,55 +1,33 @@
-"""msgspec.Struct projections of the TEI data model.
+"""msgspec.Struct projections of the TEI data model (tagged unions).
 
-The classes mirror the serde layout used by the Rust `tei-core` crate so that
-MessagePack produced by `tei_rapporteur.to_msgpack` decodes directly into
-Python objects. Likewise, encoding these structs with ``msgspec.msgpack.encode``
-produces a payload that ``tei_rapporteur.from_msgpack`` accepts.
-
-Note
-----
-`msgspec` limits unions to one mapping/struct type. To stay compatible with
-the untagged serde layout, the runtime types for inline nodes and body blocks
-are left as plain ``dict``/``list`` instances even though the static type
-annotations reference :class:`Hi`, :class:`Pause`, :class:`ParagraphBlock`, and
-:class:`UtteranceBlock`. Callers should treat decoded inline/body content as
-untyped containers.
-
-Examples
---------
-Create an :class:`Episode`, encode it, and round-trip via Rust helpers::
-
-    from tei_rapporteur.structs import Episode, FileDesc, TeiHeader, TeiText, TeiBody
-    import msgspec
-    import tei_rapporteur as tei
-
-    episode = Episode(
-        header=TeiHeader(
-            file_desc=FileDesc(title="Bridgewater"),
-        ),
-        text=TeiText(body=TeiBody()),
-    )
-
-    payload = msgspec.msgpack.encode(episode)
-    document = tei.from_msgpack(payload)
-    assert document.title == "Bridgewater"
+The projection mirrors the Rust-side Python-facing representation rather than
+the canonical XML/serde layout. Inline content is fully typed using internally
+tagged unions so `msgspec` can materialise precise Python objects without
+falling back to `Any`. Streaming events share the same tagged shapes, making
+`iter_parse` output directly decodable into these structs.
 """
 
 from __future__ import annotations
 
 import msgspec
-from typing import TYPE_CHECKING, Any, TypedDict, TypeAlias
+from typing import TypeAlias
 
 __all__ = [
     "AnnotationSystem",
     "BodyBlock",
+    "DocumentEnd",
+    "DocumentStart",
     "EncodingDesc",
     "Episode",
+    "Event",
     "FileDesc",
-    "Hi",
+    "HeaderEvent",
     "Inline",
+    "InlineHi",
+    "InlinePause",
+    "InlineText",
     "Paragraph",
-    "ParagraphBlock",
-    "Pause",
+    "ParagraphEvent",
     "ProfileDesc",
     "RevisionChange",
     "RevisionDesc",
@@ -57,163 +35,76 @@ __all__ = [
     "TeiHeader",
     "TeiText",
     "Utterance",
-    "UtteranceBlock",
+    "UtteranceEvent",
 ]
 
 
-class Hi(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Emphasised inline span corresponding to ``<hi>``.
+class InlineText(msgspec.Struct, tag="text", tag_field="type"):
+    """Plain text inline node."""
 
-    Attributes
-    ----------
-    rend:
-        Optional rendering hint from ``@rend``.
-    content:
-        Nested inline content contained within the emphasis span.
-    """
+    value: str
 
+
+class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
+    """Emphasised inline span."""
+
+    content: list[Inline] = msgspec.field(default_factory=list)
     rend: str | None = None
-    content: list[Inline] = msgspec.field(default_factory=list, name="$value")
 
 
-Pause = TypedDict(
-    "Pause",
-    {
-        "@dur": str | None,
-        "@type": str | None,
-    },
-    total=False,
-)
+class InlinePause(msgspec.Struct, tag="pause", tag_field="type", omit_defaults=True):
+    """Pause marker corresponding to ``<pause/>``."""
 
-# Inline can be plain text, emphasised spans, or pause maps. For static
-# type-checking we expose the full union, while msgspec receives `Any` at
-# runtime to avoid the restriction on multiple dict-like types in a single
-# union.
-if TYPE_CHECKING:
-    Inline: TypeAlias = str | Hi | Pause
-else:
-    Inline = Any
+    dur: str | None = None
+    kind: str | None = None
 
 
-class Paragraph(msgspec.Struct, kw_only=True):
-    """Paragraph block (``<p>``) containing inline content.
-
-    Attributes
-    ----------
-    xml_id:
-        Optional XML identifier mapped from ``@xml:id``.
-    content:
-        Ordered list of inline nodes comprising the paragraph. At runtime this
-        is a plain ``list`` of ``dict``/``str`` values because msgspec cannot
-        materialise multiple mapping types in one union.
-    """
-
-    xml_id: str | None = msgspec.field(default=None, name="@xml:id")
-    content: list[Inline] = msgspec.field(default_factory=list, name="$value")
+Inline: TypeAlias = InlineText | InlineHi | InlinePause
 
 
-class Utterance(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Spoken utterance (``<u>``) with an optional speaker reference.
+class Paragraph(
+    msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
+):
+    """Paragraph block (``<p>``) containing inline content."""
 
-    Attributes
-    ----------
-    xml_id:
-        Optional XML identifier mapped from ``@xml:id``.
-    speaker:
-        Optional speaker identifier mapped from ``@who``.
-    content:
-        Ordered list of inline nodes comprising the utterance. At runtime this
-        is a plain ``list`` of ``dict``/``str`` values because msgspec cannot
-        materialise multiple mapping types in one union.
-    """
-
-    xml_id: str | None = msgspec.field(default=None, name="@xml:id")
-    speaker: str | None = msgspec.field(default=None, name="@who")
-    content: list[Inline] = msgspec.field(default_factory=list, name="$value")
+    xml_id: str | None = None
+    content: list[Inline] = msgspec.field(default_factory=list)
 
 
-class ParagraphBlock(msgspec.Struct):
-    """Externally tagged paragraph wrapper emitted by serde.
+class Utterance(
+    msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
+):
+    """Spoken utterance (``<u>``) with optional speaker reference."""
 
-    Attributes
-    ----------
-    paragraph:
-        The wrapped :class:`Paragraph` stored under the ``p`` tag.
-    """
-
-    paragraph: Paragraph = msgspec.field(name="p")
+    xml_id: str | None = None
+    speaker: str | None = None
+    content: list[Inline] = msgspec.field(default_factory=list)
 
 
-class UtteranceBlock(msgspec.Struct):
-    """Externally tagged utterance wrapper emitted by serde.
-
-    Attributes
-    ----------
-    utterance:
-        The wrapped :class:`Utterance` stored under the ``u`` tag.
-    """
-
-    utterance: Utterance = msgspec.field(name="u")
-
-
-# Body blocks are externally tagged in serde as either `p` or `u`. As with
-# `Inline`, we keep static typing precise while relaxing runtime typing for
-# msgspec compatibility.
-if TYPE_CHECKING:
-    BodyBlock: TypeAlias = ParagraphBlock | UtteranceBlock
-else:
-    BodyBlock = Any
+BodyBlock: TypeAlias = Paragraph | Utterance
 
 
 class TeiBody(msgspec.Struct):
-    """Ordered TEI body content.
+    """Ordered TEI body content."""
 
-    Attributes
-    ----------
-    blocks:
-        Sequence of :class:`ParagraphBlock` and :class:`UtteranceBlock` items
-        mapped from the TEI ``<body>`` content. At runtime this is a plain
-        ``list`` of dicts for compatibility with untagged unions.
-    """
-
-    blocks: list[BodyBlock] = msgspec.field(default_factory=list, name="$value")
+    blocks: list[BodyBlock] = msgspec.field(default_factory=list)
 
 
 class TeiText(msgspec.Struct):
-    """Text node containing the TEI body.
-
-    Attributes
-    ----------
-    body:
-        The :class:`TeiBody` element nested under ``<text>``.
-    """
+    """Text node containing the TEI body."""
 
     body: TeiBody
 
 
 class RevisionChange(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Single revision note within ``<revisionDesc>``.
+    """Single revision note within ``<revisionDesc>``."""
 
-    Attributes
-    ----------
-    description:
-        Free-text description stored in ``<change>`` contents.
-    resp:
-        Optional responsible party mapped from ``@resp``.
-    """
-
-    description: str = msgspec.field(name="$value")
+    description: str = msgspec.field(name="desc")
     resp: str | None = msgspec.field(default=None, name="resp")
 
 
 class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Revision history container.
-
-    Attributes
-    ----------
-    changes:
-        List of :class:`RevisionChange` entries mapped from ``<change>`` nodes.
-    """
+    """Revision history container."""
 
     changes: list[RevisionChange] = msgspec.field(
         default_factory=list, name="change"
@@ -221,64 +112,28 @@ class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Metadata describing an annotation system.
+    """Metadata describing an annotation system."""
 
-    Attributes
-    ----------
-    xml_id:
-        Identifier mapped from ``@xml:id``.
-    desc:
-        Optional description mapped from ``desc``.
-    """
-
-    xml_id: str = msgspec.field(name="@xml:id")
+    xml_id: str
     desc: str | None = msgspec.field(default=None, name="desc")
 
 
 class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Collection of annotation systems.
+    """Collection of annotation systems."""
 
-    Attributes
-    ----------
-    annotation_systems:
-        List of :class:`AnnotationSystem` items mapped from ``annotationSystem``.
-    """
-
-    annotation_systems: list[AnnotationSystem] = msgspec.field(
-        default_factory=list, name="annotationSystem"
-    )
+    annotation_systems: list[AnnotationSystem] = msgspec.field(default_factory=list)
 
 
 class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Audience and linguistic profile metadata.
-
-    Attributes
-    ----------
-    synopsis:
-        Optional profile summary.
-    speakers:
-        Speaker identifiers mapped from ``speaker`` elements.
-    languages:
-        Language tags mapped from ``lang`` elements.
-    """
+    """Audience and linguistic profile metadata."""
 
     synopsis: str | None = None
-    speakers: list[str] = msgspec.field(default_factory=list, name="speaker")
-    languages: list[str] = msgspec.field(default_factory=list, name="lang")
+    speakers: list[str] = msgspec.field(default_factory=list, name="speakers")
+    languages: list[str] = msgspec.field(default_factory=list, name="languages")
 
 
 class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Bibliographic file description.
-
-    Attributes
-    ----------
-    title:
-        Document title.
-    series:
-        Optional series name.
-    synopsis:
-        Optional synopsis text.
-    """
+    """Bibliographic file description."""
 
     title: str
     series: str | None = None
@@ -286,42 +141,66 @@ class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Aggregated TEI header sections.
+    """Aggregated TEI header sections."""
 
-    Attributes
-    ----------
-    file_desc:
-        Mandatory :class:`FileDesc` mapped from ``fileDesc``.
-    profile_desc:
-        Optional :class:`ProfileDesc` mapped from ``profileDesc``.
-    encoding_desc:
-        Optional :class:`EncodingDesc` mapped from ``encodingDesc``.
-    revision_desc:
-        Optional :class:`RevisionDesc` mapped from ``revisionDesc``.
-    """
-
-    file_desc: FileDesc = msgspec.field(name="fileDesc")
+    file_desc: FileDesc = msgspec.field(name="file_desc")
     profile_desc: ProfileDesc | None = msgspec.field(
-        default=None, name="profileDesc"
+        default=None, name="profile_desc"
     )
     encoding_desc: EncodingDesc | None = msgspec.field(
-        default=None, name="encodingDesc"
+        default=None, name="encoding_desc"
     )
     revision_desc: RevisionDesc | None = msgspec.field(
-        default=None, name="revisionDesc"
+        default=None, name="revision_desc"
     )
 
 
 class Episode(msgspec.Struct):
-    """Top-level TEI document.
+    """Top-level TEI document."""
 
-    Attributes
-    ----------
-    header:
-        The :class:`TeiHeader` node mapped from ``teiHeader``.
-    text:
-        The :class:`TeiText` node.
-    """
-
-    header: TeiHeader = msgspec.field(name="teiHeader")
+    header: TeiHeader
     text: TeiText
+
+
+class DocumentStart(msgspec.Struct, tag="document_start", tag_field="type"):
+    """Streaming event signalling the start of parsing."""
+
+
+class DocumentEnd(msgspec.Struct, tag="document_end", tag_field="type"):
+    """Streaming event signalling parsing completion."""
+
+
+class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
+    """Streaming event carrying the parsed header."""
+
+    header: TeiHeader
+
+
+class ParagraphEvent(
+    msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
+):
+    """Streaming event carrying a paragraph.
+
+    Field duplication mirrors ``Paragraph`` so events stay flat for msgspec's
+    tagged-union decoding."""
+
+    xml_id: str | None = None
+    content: list[Inline] = msgspec.field(default_factory=list)
+
+
+class UtteranceEvent(
+    msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
+):
+    """Streaming event carrying an utterance.
+
+    Fields are mirrored instead of composed to keep the tagged payload shape
+    stable and unambiguous."""
+
+    xml_id: str | None = None
+    speaker: str | None = None
+    content: list[Inline] = msgspec.field(default_factory=list)
+
+
+Event: TypeAlias = (
+    DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DocumentEnd
+)

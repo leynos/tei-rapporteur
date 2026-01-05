@@ -42,6 +42,19 @@ output, and the semantic content remains consistent across round-trips.
   installation runs exactly once across parallel tests while keeping the GIL
   interactions safe.
 
+### Python projection decisions (December 2025)
+
+- Python-facing payloads are now **internally tagged** so `msgspec` can decode
+  fully typed structures without resorting to `Any`. Inline content is a tagged
+  union on the `type` field (`text`, `hi`, `pause`) with pause metadata renamed
+  to `dur` and `kind` to avoid discriminator collisions.
+- Body blocks are likewise tagged (`paragraph`, `utterance`) and unwrapped
+  (fields live alongside the discriminator), enabling streaming events to share
+  the same shapes.
+- A dedicated projection layer in `tei-py` translates between the canonical
+  Rust TEI model and the tagged Python representation, isolating the breaking
+  change to the FFI boundary while keeping the XML/serde shapes unchanged.
+
 This document outlines the design of the `tei-rapporteur` library, including
 the TEI P5 subset definition, Rust data model and crate architecture,
 parsing/emitting strategy, Python integration layer, a proposed streaming

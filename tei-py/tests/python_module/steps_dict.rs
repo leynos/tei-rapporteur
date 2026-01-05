@@ -6,8 +6,10 @@ use pyo3::prelude::*;
 use pyo3_serde::{from_pyobject, to_pyobject};
 use rstest_bdd_macros::{given, scenario, when};
 use tei_core::{P, ProfileDesc, TeiDocument, Utterance};
-use tei_serde::json::{Value, to_value};
+use tei_serde::json::Value;
 use tei_serde::serde_json::json;
+
+use tei_py::projection::document_to_value;
 
 const _: fn() -> PythonModuleState = python_state;
 
@@ -18,7 +20,8 @@ pub(super) fn i_provide_a_dictionary_payload(
 ) -> Result<()> {
     let document = TeiDocument::from_title_str(title.as_str())
         .context("dictionary fixtures must construct valid documents")?;
-    let payload = to_value(&document).context("serialising fixtures to JSON should succeed")?;
+    let payload =
+        document_to_value(&document).context("serialising fixtures to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
@@ -42,11 +45,11 @@ pub(super) fn i_provide_a_dictionary_payload_with_a_blank_title(
     let document = TeiDocument::from_title_str("placeholder")
         .context("placeholder title should construct a fixture")?;
     let mut payload =
-        to_value(&document).context("serialising placeholder document should succeed")?;
+        document_to_value(&document).context("serialising placeholder document should succeed")?;
 
     if let Some(Value::String(title)) = payload
-        .get_mut("teiHeader")
-        .and_then(|header| header.get_mut("fileDesc"))
+        .get_mut("header")
+        .and_then(|header| header.get_mut("file_desc"))
         .and_then(|file_desc| file_desc.get_mut("title"))
     {
         title.clear();
@@ -74,7 +77,8 @@ pub(super) fn i_provide_a_dictionary_payload_with_duplicate_identifiers(
     text.body_mut().push_paragraph(p2);
 
     let invalid_doc = TeiDocument::new(document.header().clone(), text);
-    let payload = to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
+    let payload =
+        document_to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
@@ -98,7 +102,8 @@ pub(super) fn i_provide_a_dictionary_payload_with_unknown_speaker(
     text.body_mut().push_utterance(utterance);
 
     let invalid_doc = TeiDocument::new(header, text);
-    let payload = to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
+    let payload =
+        document_to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
@@ -171,20 +176,30 @@ pub(super) fn i_encode_a_dictionary_without_providing_a_document(
 
 /// Scenario: Decode a `Document` from a dictionary payload.
 #[scenario(path = "tests/features/python_module.feature", index = 13)]
-pub fn decodes_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject dictionary payloads missing required fields.
 #[scenario(path = "tests/features/python_module.feature", index = 14)]
-pub fn rejects_incomplete_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_incomplete_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject dictionary payloads with invalid titles.
 #[scenario(path = "tests/features/python_module.feature", index = 15)]
-pub fn rejects_blank_titles_in_dictionary_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_blank_titles_in_dictionary_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Encode a constructed `Document` to a dictionary.
 #[scenario(path = "tests/features/python_module.feature", index = 16)]
-pub fn encodes_documents_to_dictionaries(#[from(python_state)] _: PythonModuleState) {}
+pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Surface errors when `to_dict` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 17)]
-pub fn rejects_to_dict_without_document(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
+    let _ = python_state;
+}

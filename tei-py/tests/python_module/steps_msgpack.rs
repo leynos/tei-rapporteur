@@ -17,8 +17,9 @@ pub(super) fn i_encode_a_messagepack_document(
 ) -> Result<()> {
     let document = TeiDocument::from_title_str(title.as_str())
         .context("MessagePack fixtures must construct valid documents")?;
+    let projection = tei_py::projection::PyTeiDocument::from(&document);
     let payload =
-        to_vec_named(&document).context("serialising fixtures to MessagePack should succeed")?;
+        to_vec_named(&projection).context("serialising fixtures to MessagePack should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())
 }
@@ -39,7 +40,7 @@ pub(super) fn i_provide_an_invalid_messagepack_payload(
 pub(super) fn i_encode_a_messagepack_document_missing_required_fields(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    let payload = to_vec_named(&json!({ "header": {}, "text": {} }))
+    let payload = to_vec_named(&json!({ "text": {} }))
         .context("serialising malformed MessagePack fixture should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())
@@ -110,20 +111,30 @@ pub(super) fn i_encode_messagepack_without_a_document(
 
 /// Scenario: Deserialize a `Document` from `MessagePack` bytes.
 #[scenario(path = "tests/features/python_module.feature", index = 4)]
-pub fn decodes_messagepack_documents(#[from(python_state)] _: PythonModuleState) {}
+pub fn decodes_messagepack_documents(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject invalid `MessagePack` payloads during decoding.
 #[scenario(path = "tests/features/python_module.feature", index = 5)]
-pub fn rejects_invalid_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_invalid_messagepack_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Reject `MessagePack` payloads missing required fields.
 #[scenario(path = "tests/features/python_module.feature", index = 6)]
-pub fn rejects_missing_field_messagepack_payloads(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_missing_field_messagepack_payloads(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Encode a constructed `Document` into `MessagePack` bytes.
 #[scenario(path = "tests/features/python_module.feature", index = 7)]
-pub fn encodes_documents_to_messagepack(#[from(python_state)] _: PythonModuleState) {}
+pub fn encodes_documents_to_messagepack(python_state: PythonModuleState) {
+    let _ = python_state;
+}
 
 /// Scenario: Surface errors when `to_msgpack` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 8)]
-pub fn rejects_to_msgpack_without_document(#[from(python_state)] _: PythonModuleState) {}
+pub fn rejects_to_msgpack_without_document(python_state: PythonModuleState) {
+    let _ = python_state;
+}
