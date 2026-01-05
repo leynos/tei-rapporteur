@@ -30,9 +30,16 @@ impl Read for SliceReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let available = self.data.get(self.pos..).unwrap_or_default();
         let len = available.len().min(buf.len());
-        if let (Some(dest), Some(src)) = (buf.get_mut(..len), available.get(..len)) {
-            dest.copy_from_slice(src);
+        if len == 0 {
+            return Ok(0);
         }
+        let dest = buf
+            .get_mut(..len)
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "buffer too small"))?;
+        let src = available
+            .get(..len)
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "source underflow"))?;
+        dest.copy_from_slice(src);
         self.pos += len;
         Ok(len)
     }
@@ -49,6 +56,18 @@ impl BufRead for SliceReader {
 }
 
 /// Python-visible iterator yielding streaming TEI events.
+///
+/// The iterator produces msgspec-compatible tagged dictionaries representing
+/// TEI streaming events (`document_start`, `header`, `paragraph`, `utterance`,
+/// `document_end`). Its internal `parser` is set to `None` after the stream
+/// finishes or if an error occurs, ensuring subsequent `__next__` calls
+/// immediately return `None`.
+///
+/// # Usage
+/// ```
+/// for event in tei_rapporteur.iter_parse(xml_string):
+///     ...
+/// ```
 #[pyclass(module = "tei_rapporteur", name = "TeiEventIterator")]
 pub struct TeiEventIterator {
     parser: Option<TeiPullParser<SliceReader>>,
@@ -89,6 +108,10 @@ impl TeiEventIterator {
     /// # Errors
     /// Raises [`PyValueError`] on malformed XML or TEI validation failures and
     /// exhausts the iterator thereafter.
+    ///
+    /// The parser call runs inside `py.allow_threads()`, releasing the GIL
+    /// while `parser.next()` performs blocking XML parsing so other Python
+    /// threads may progress.
     pub fn __next__<'py>(&'py mut self, py: Python<'py>) -> PyResult<Option<PyObject>> {
         let Some(parser) = self.parser.as_mut() else {
             return Ok(None);
