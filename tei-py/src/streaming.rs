@@ -67,14 +67,14 @@ impl TeiEventIterator {
 
 #[pymethods]
 impl TeiEventIterator {
-    #[expect(
-        clippy::missing_const_for_fn,
-        reason = "PyO3 iterator signature cannot be const"
-    )]
     /// Returns the iterator instance for Python `for` loops.
     ///
     /// # Returns
     /// The same iterator, enabling `for event in iter_parse(xml)` in Python.
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "PyO3 iterator signature cannot be const"
+    )]
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
