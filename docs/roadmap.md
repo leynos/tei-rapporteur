@@ -167,5 +167,5 @@ for handling very large documents.
 - [x] Expose the pull-parser to Python as a generator function,
       `tei_rapporteur.iter_parse()`, that yields `msgspec`-compatible
       dictionaries.
-- [ ] Write performance benchmarks comparing the memory and time usage of the
+- [x] Write performance benchmarks comparing the memory and time usage of the
       full-document parser versus the streaming parser for large TEI files.

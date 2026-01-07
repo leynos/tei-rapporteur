@@ -68,6 +68,16 @@ validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 json-schema: ## Generate JSON Schema snapshots for TeiDocument
 	$(CARGO) run --package tei-serde --bin generate-json-schema $(BUILD_JOBS)
 
+bench: ## Run performance benchmarks
+	$(CARGO) bench --package tei-xml --features streaming $(BUILD_JOBS)
+
+bench-memory: ## Measure peak memory usage during parsing
+	$(CARGO) build --release --package tei-xml --features streaming --example bench_memory $(BUILD_JOBS)
+	@echo "=== Streaming parser memory usage ==="
+	/usr/bin/time -v ./target/release/examples/bench_memory streaming 2>&1 | grep -E "(Maximum resident|Command)"
+	@echo "=== Full document parser memory usage ==="
+	/usr/bin/time -v ./target/release/examples/bench_memory full 2>&1 | grep -E "(Maximum resident|Command)"
+
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'

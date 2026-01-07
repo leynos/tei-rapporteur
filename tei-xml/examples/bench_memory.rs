@@ -1,0 +1,116 @@
+//! Memory measurement helper for parser comparison.
+//!
+//! This example parses a generated very large document using either the full
+//! or streaming parser, allowing external tools like `/usr/bin/time -v` to
+//! measure peak memory usage.
+//!
+//! # Usage
+//!
+//! ```bash
+//! cargo build --release --package tei-xml --features streaming --example bench_memory
+//!
+//! # Measure streaming parser memory
+//! /usr/bin/time -v ./target/release/examples/bench_memory streaming
+//!
+//! # Measure full document parser memory
+//! /usr/bin/time -v ./target/release/examples/bench_memory full
+//! ```
+//!
+//! Compare the "Maximum resident set size" values to see the memory advantage
+//! of the streaming parser for large documents.
+
+// This example binary intentionally uses panic-based error handling and
+// stderr output for status messages, as it's a measurement tool not a library.
+#![allow(
+    clippy::print_stderr,
+    clippy::expect_used,
+    clippy::let_underscore_must_use,
+    reason = "Example binary: panicking and stderr output are appropriate for measurement tools"
+)]
+
+use std::env;
+use std::io::{self, Write};
+
+use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
+use tei_xml::parse_xml;
+use tei_xml::streaming::{TeiEvent, TeiPullParser};
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mode = args.get(1).map_or("help", String::as_str);
+
+    match mode {
+        "streaming" => run_streaming_parser(),
+        "full" => run_full_parser(),
+        _ => print_usage(),
+    }
+}
+
+/// Writes a status message to stderr.
+fn status(message: &str) {
+    let _ = writeln!(io::stderr(), "{message}");
+}
+
+/// Runs the streaming parser and counts body blocks.
+fn run_streaming_parser() {
+    status("Generating very large benchmark fixture...");
+    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
+        .expect("fixture generation should succeed");
+    status(&format!("Generated {} bytes of XML", xml.len()));
+
+    status("Parsing with streaming parser...");
+    let parser = TeiPullParser::from_str(&xml);
+    let mut block_count = 0;
+
+    for result in parser {
+        let tei_event = result.expect("benchmark fixture should parse");
+        if matches!(tei_event, TeiEvent::BodyBlock(_)) {
+            block_count += 1;
+        }
+    }
+
+    status(&format!(
+        "Streaming parser processed {block_count} body blocks"
+    ));
+}
+
+/// Runs the full document parser and counts body blocks.
+fn run_full_parser() {
+    status("Generating very large benchmark fixture...");
+    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
+        .expect("fixture generation should succeed");
+    status(&format!("Generated {} bytes of XML", xml.len()));
+
+    status("Parsing with full document parser...");
+    let document = parse_xml(&xml).expect("benchmark fixture should parse");
+
+    let block_count = document.text().body().blocks().len();
+    status(&format!("Full parser loaded {block_count} body blocks"));
+}
+
+/// Prints usage information.
+fn print_usage() {
+    let stderr = io::stderr();
+    let mut handle = stderr.lock();
+    let _ = writeln!(handle, "Usage: bench_memory <mode>");
+    let _ = writeln!(handle);
+    let _ = writeln!(handle, "Modes:");
+    let _ = writeln!(
+        handle,
+        "  streaming  Parse using TeiPullParser (low memory)"
+    );
+    let _ = writeln!(
+        handle,
+        "  full       Parse using parse_xml (loads entire document)"
+    );
+    let _ = writeln!(handle);
+    let _ = writeln!(handle, "Example:");
+    let _ = writeln!(
+        handle,
+        "  /usr/bin/time -v ./target/release/examples/bench_memory streaming"
+    );
+    let _ = writeln!(
+        handle,
+        "  /usr/bin/time -v ./target/release/examples/bench_memory full"
+    );
+}

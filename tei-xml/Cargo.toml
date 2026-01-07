@@ -28,3 +28,9 @@ rstest-bdd-macros = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
 serde = { workspace = true }
 tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "parser_comparison"
+harness = false
+required-features = ["streaming"]

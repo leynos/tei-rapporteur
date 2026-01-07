@@ -25,6 +25,7 @@ quick-xml = { version = "0.36.2", features = ["serialize"] }
 tempfile = { version = "3.14" }
 schemars = { version = "1.1.0" }
 proptest = { version = "1.9.0" }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 tei-serde = { path = "tei-serde" }
 
 [workspace.lints.clippy]

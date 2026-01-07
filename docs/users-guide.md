@@ -442,3 +442,56 @@ type-check inline nodes without falling back to `Any`.
 - The header is accumulated in memory before being deserialized, so documents
   with unusually large headers may still consume significant memory during that
   phase.
+
+## Performance benchmarks
+
+The workspace includes criterion benchmarks comparing the full-document parser
+(`parse_xml`) with the streaming parser (`TeiPullParser`). These benchmarks help
+quantify the performance characteristics of each parsing approach.
+
+### Running benchmarks
+
+```bash
+make bench           # Run all parser benchmarks
+make bench-memory    # Measure peak memory usage
+```
+
+Results are written to `target/criterion/` with HTML reports available at
+`target/criterion/report/index.html`.
+
+### Benchmark sizes
+
+Benchmarks measure throughput (bytes/second) and latency for documents of
+varying sizes:
+
+| Size | Utterances | Paragraphs | Description |
+|------|------------|------------|-------------|
+| small | 10 | 2 | Unit test baseline (~2 KB) |
+| medium | 100 | 10 | Typical podcast transcript (~20 KB) |
+| large | 1,000 | 50 | Long-form interview (~200 KB) |
+| very_large | 10,000 | 200 | Multi-episode compilation (~2 MB) |
+
+### Interpreting results
+
+- **Throughput**: Higher is better; measures parsing speed in bytes/second
+- **Streaming advantage**: The streaming parser maintains constant memory
+  regardless of document size, while the full parser scales linearly with
+  document size
+- **Latency trade-off**: The streaming parser may have slightly higher per-event
+  overhead for small documents due to state machine transitions
+
+### Memory profiling
+
+For peak memory measurement, the `bench_memory` example can be run with external
+profiling tools:
+
+```bash
+cargo build --release --package tei-xml --features streaming --example bench_memory
+/usr/bin/time -v ./target/release/examples/bench_memory streaming
+/usr/bin/time -v ./target/release/examples/bench_memory full
+```
+
+Compare the "Maximum resident set size" values to observe the memory advantage
+of the streaming parser for large documents. The streaming parser processes body
+blocks one at a time without accumulating them in memory, making it suitable for
+documents that exceed available RAM.
