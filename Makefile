@@ -8,6 +8,8 @@ RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 FIXTURES_DIR ?= target/fixtures
+TIME_BIN ?= /usr/bin/time
+TIME_ARGS ?= -v
 
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
@@ -74,9 +76,9 @@ bench: ## Run performance benchmarks
 bench-memory: ## Measure peak memory usage during parsing
 	$(CARGO) build --release --package tei-xml --features streaming --example bench_memory $(BUILD_JOBS)
 	@echo "=== Streaming parser memory usage ==="
-	/usr/bin/time -v ./target/release/examples/bench_memory streaming 2>&1 | grep -E "(Maximum resident|Command)"
+	@$(TIME_BIN) $(TIME_ARGS) ./target/release/examples/bench_memory streaming 2>&1 | grep -E "(Maximum resident|Command)" || true
 	@echo "=== Full document parser memory usage ==="
-	/usr/bin/time -v ./target/release/examples/bench_memory full 2>&1 | grep -E "(Maximum resident|Command)"
+	@$(TIME_BIN) $(TIME_ARGS) ./target/release/examples/bench_memory full 2>&1 | grep -E "(Maximum resident|Command)" || true
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

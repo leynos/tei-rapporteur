@@ -80,6 +80,10 @@ fn consume_streaming_events(xml: &str) {
 ///
 /// This measures the time to parse a complete TEI document into a `TeiDocument`
 /// structure. The entire document is loaded into memory.
+#[expect(
+    clippy::expect_used,
+    reason = "Benchmark fixtures are pre-validated; parsing failure indicates implementation bug"
+)]
 fn bench_full_document_parser(c: &mut Criterion) {
     let fixtures = BenchFixtures::new();
     let mut group = c.benchmark_group("full_document_parse");
@@ -93,7 +97,11 @@ fn bench_full_document_parser(c: &mut Criterion) {
             BenchmarkId::new("parse_xml", name),
             &fixture_xml,
             |bencher, input| {
-                bencher.iter(|| parse_xml(black_box(input)));
+                bencher.iter(|| {
+                    black_box(
+                        parse_xml(black_box(input)).expect("benchmark fixture should parse"),
+                    )
+                });
             },
         );
     }
@@ -131,6 +139,10 @@ fn bench_streaming_parser(c: &mut Criterion) {
 ///
 /// This group makes it easy to compare the performance characteristics of
 /// each parser at the same document size.
+#[expect(
+    clippy::expect_used,
+    reason = "Benchmark fixtures are pre-validated; parsing failure indicates implementation bug"
+)]
 fn bench_parser_comparison(c: &mut Criterion) {
     let fixtures = BenchFixtures::new();
     let mut group = c.benchmark_group("parser_comparison");
@@ -146,7 +158,11 @@ fn bench_parser_comparison(c: &mut Criterion) {
             BenchmarkId::new("full", name),
             &fixture_xml,
             |bencher, input| {
-                bencher.iter(|| parse_xml(black_box(input)));
+                bencher.iter(|| {
+                    black_box(
+                        parse_xml(black_box(input)).expect("benchmark fixture should parse"),
+                    )
+                });
             },
         );
 

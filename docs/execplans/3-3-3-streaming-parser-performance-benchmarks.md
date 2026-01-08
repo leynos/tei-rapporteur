@@ -36,8 +36,10 @@ of the full-document parser (`parse_xml`) versus the streaming parser
 | `/root/repo/tei-xml/benches/parser_comparison.rs` | Criterion benchmark suite |
 | `/root/repo/tei-xml/examples/bench_memory.rs` | Memory measurement helper |
 
-Note: BDD behavioural tests for the benchmark fixtures were deferred. Unit tests
-in `fixtures.rs` provide adequate coverage for the benchmark fixture generator.
+Note: Behaviour-driven development (BDD) behavioural tests for the benchmark
+fixtures are provided in `tei-xml/tests/benchmark_fixtures_behaviour.rs`. Unit
+tests in `fixtures.rs` provide additional coverage for the benchmark fixture
+generator.
 
 ## Implementation Steps
 
@@ -146,14 +148,14 @@ both parsers.
 
      Scenario: Generate a small benchmark fixture
        Given a small benchmark configuration
-       When I generate a benchmark document
+       When a benchmark document is generated
        Then the document passes validation
        And the document contains 10 utterances
 
      Scenario: Generated XML parses with streaming parser
        Given a medium benchmark configuration
-       When I generate benchmark XML
-       And I parse it with the streaming parser
+       When benchmark XML is generated
+       And the XML is parsed with the streaming parser
        Then all events are yielded without errors
    ```
 
@@ -238,7 +240,8 @@ large (10,000) utterance counts.
 
 **Rationale:**
 
-- Python binding performance includes FFI overhead, not parser performance
+- Python binding performance includes foreign function interface (FFI) overhead,
+  not parser performance
 - Rust benchmarks measure core parsing capability
 - Python benchmarks could be a separate follow-up task
 
@@ -253,9 +256,11 @@ large (10,000) utterance counts.
 ## Acceptance Criteria
 
 - [x] `make bench` runs criterion benchmarks for both parsers
-- [x] Benchmarks cover three document size categories (small/medium/large)
-- [x] `make bench-memory` measures peak RSS for both parsers
+- [x] Benchmarks cover four document size categories (small/medium/large/very
+  large)
+- [x] `make bench-memory` measures peak resident set size (RSS) for both parsers
 - [x] Unit tests validate benchmark fixture generation
+- [x] BDD behavioural tests validate benchmark fixture integration
 - [x] `docs/users-guide.md` documents benchmarking
 - [x] `docs/roadmap.md` marks Step 3.3 task 3 as complete
 - [x] `make check-fmt`, `make lint`, `make test` all pass

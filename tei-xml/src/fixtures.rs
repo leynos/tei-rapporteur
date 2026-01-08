@@ -296,9 +296,9 @@ fn generate_body_blocks(config: &BenchFixtureConfig) -> Result<Vec<BodyBlock>, T
     let mut blocks = Vec::with_capacity(config.total_blocks());
     let speakers = ["host", "guest1", "guest2"];
 
-    // Calculate paragraph insertion interval
+    // Calculate paragraph insertion interval, clamping to at least 1 to preserve interspersing
     let paragraph_interval = if config.paragraph_count > 0 {
-        config.utterance_count / config.paragraph_count
+        (config.utterance_count / config.paragraph_count).max(1)
     } else {
         usize::MAX
     };
@@ -375,14 +375,14 @@ fn generate_paragraph(index: usize, word_count: usize) -> Result<P, TeiError> {
 fn generate_text_content(index: usize, target_words: usize, block_type: &str) -> String {
     // Vocabulary for generating varied but deterministic content
     const SENTENCE_TEMPLATES: &[&str] = &[
-        "This is {} number {} in our benchmark fixture.",
-        "We continue with {} {} which contains more content.",
-        "The {} at position {} demonstrates typical transcript patterns.",
-        "Here we have {} {} with representative text.",
-        "Moving on to {} {}, we see standard formatting.",
-        "In {} {} the conversation continues naturally.",
-        "The speaker delivers {} {} with clarity.",
-        "Proceeding to {} {}, the discussion evolves.",
+        "This is {type} number {index} in our benchmark fixture.",
+        "We continue with {type} {index} which contains more content.",
+        "The {type} at position {index} demonstrates typical transcript patterns.",
+        "Here we have {type} {index} with representative text.",
+        "Moving on to {type} {index}, we see standard formatting.",
+        "In {type} {index} the conversation continues naturally.",
+        "The speaker delivers {type} {index} with clarity.",
+        "Proceeding to {type} {index}, the discussion evolves.",
     ];
 
     const FILLER_PHRASES: &[&str] = &[
@@ -402,8 +402,8 @@ fn generate_text_content(index: usize, target_words: usize, block_type: &str) ->
     let template = select_from_array(SENTENCE_TEMPLATES, index);
     result.push_str(
         &template
-            .replace("{}", block_type)
-            .replace("{}", &index.to_string()),
+            .replace("{type}", block_type)
+            .replace("{index}", &index.to_string()),
     );
 
     // Add filler phrases until we reach the target word count
@@ -423,8 +423,8 @@ fn generate_text_content(index: usize, target_words: usize, block_type: &str) ->
 
 /// Selects an element from an array by cycling through indices.
 ///
-/// Returns the first element if the array is empty (should never happen with
-/// our const arrays, but satisfies the borrow checker).
+/// Returns an empty string if the array is empty (should never happen with
+/// our const arrays, but provides a safe fallback).
 #[expect(
     clippy::integer_division_remainder_used,
     reason = "Modulo is intentional for cycling through arrays"
@@ -440,6 +440,8 @@ fn select_from_array<'a>(array: &'a [&'a str], index: usize) -> &'a str {
 #[cfg(test)]
 mod tests {
     //! Unit tests for XML fixture loading and emission helpers.
+
+    use rstest::rstest;
 
     use super::*;
 
@@ -487,9 +489,15 @@ mod tests {
     // Benchmark fixture tests
     // -----------------------------------------------------------------------
 
-    /// Asserts that a benchmark fixture generates the correct utterance and paragraph counts.
-    fn assert_benchmark_fixture_counts(config: &BenchFixtureConfig, fixture_name: &str) {
-        let doc = generate_benchmark_document(config)
+    #[rstest]
+    #[case::small(BenchFixtureConfig::SMALL, "small")]
+    #[case::medium(BenchFixtureConfig::MEDIUM, "medium")]
+    #[case::large(BenchFixtureConfig::LARGE, "large")]
+    fn benchmark_fixture_generates_correct_counts(
+        #[case] config: BenchFixtureConfig,
+        #[case] fixture_name: &str,
+    ) {
+        let doc = generate_benchmark_document(&config)
             .unwrap_or_else(|e| panic!("{fixture_name} benchmark fixture should build: {e}"));
 
         assert_eq!(
@@ -502,21 +510,6 @@ mod tests {
             config.paragraph_count,
             "{fixture_name} fixture should have correct paragraph count"
         );
-    }
-
-    #[test]
-    fn small_benchmark_fixture_generates_correct_counts() {
-        assert_benchmark_fixture_counts(&BenchFixtureConfig::SMALL, "small");
-    }
-
-    #[test]
-    fn medium_benchmark_fixture_generates_correct_counts() {
-        assert_benchmark_fixture_counts(&BenchFixtureConfig::MEDIUM, "medium");
-    }
-
-    #[test]
-    fn large_benchmark_fixture_generates_correct_counts() {
-        assert_benchmark_fixture_counts(&BenchFixtureConfig::LARGE, "large");
     }
 
     #[test]

@@ -19,15 +19,6 @@
 //! Compare the "Maximum resident set size" values to see the memory advantage
 //! of the streaming parser for large documents.
 
-// This example binary intentionally uses panic-based error handling and
-// stderr output for status messages, as it's a measurement tool not a library.
-#![allow(
-    clippy::print_stderr,
-    clippy::expect_used,
-    clippy::let_underscore_must_use,
-    reason = "Example binary: panicking and stderr output are appropriate for measurement tools"
-)]
-
 use std::env;
 use std::io::{self, Write};
 
@@ -47,11 +38,19 @@ fn main() {
 }
 
 /// Writes a status message to stderr.
+#[expect(
+    clippy::let_underscore_must_use,
+    reason = "Measurement tool: ignoring stderr write errors is acceptable"
+)]
 fn status(message: &str) {
     let _ = writeln!(io::stderr(), "{message}");
 }
 
 /// Runs the streaming parser and counts body blocks.
+#[expect(
+    clippy::expect_used,
+    reason = "Measurement tool: panicking on fixture errors is appropriate"
+)]
 fn run_streaming_parser() {
     status("Generating very large benchmark fixture...");
     let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
@@ -75,6 +74,10 @@ fn run_streaming_parser() {
 }
 
 /// Runs the full document parser and counts body blocks.
+#[expect(
+    clippy::expect_used,
+    reason = "Measurement tool: panicking on fixture errors is appropriate"
+)]
 fn run_full_parser() {
     status("Generating very large benchmark fixture...");
     let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
@@ -89,6 +92,10 @@ fn run_full_parser() {
 }
 
 /// Prints usage information.
+#[expect(
+    clippy::let_underscore_must_use,
+    reason = "Measurement tool: ignoring stderr write errors is acceptable"
+)]
 fn print_usage() {
     let stderr = io::stderr();
     let mut handle = stderr.lock();
