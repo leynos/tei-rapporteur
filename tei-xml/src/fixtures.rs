@@ -290,7 +290,7 @@ pub fn generate_benchmark_xml(config: &BenchFixtureConfig) -> Result<String, Tei
 #[expect(
     clippy::integer_division,
     clippy::integer_division_remainder_used,
-    reason = "Integer division is intentional for distributing paragraphs evenly among utterances"
+    reason = "Integer division and modulo are intentional for distributing paragraphs and cycling speakers"
 )]
 fn generate_body_blocks(config: &BenchFixtureConfig) -> Result<Vec<BodyBlock>, TeiError> {
     let mut blocks = Vec::with_capacity(config.total_blocks());
@@ -306,11 +306,12 @@ fn generate_body_blocks(config: &BenchFixtureConfig) -> Result<Vec<BodyBlock>, T
     let mut paragraph_index = 0;
     for utterance_index in 0..config.utterance_count {
         // Insert paragraph at regular intervals
-        if paragraph_interval > 0
-            && utterance_index > 0
-            && utterance_index % paragraph_interval == 0
-            && paragraph_index < config.paragraph_count
-        {
+        if should_insert_paragraph(
+            paragraph_interval,
+            utterance_index,
+            paragraph_index,
+            config.paragraph_count,
+        ) {
             let paragraph = generate_paragraph(paragraph_index, config.words_per_utterance)?;
             blocks.push(BodyBlock::Paragraph(paragraph));
             paragraph_index += 1;
@@ -330,6 +331,20 @@ fn generate_body_blocks(config: &BenchFixtureConfig) -> Result<Vec<BodyBlock>, T
     }
 
     Ok(blocks)
+}
+
+/// Determines whether a paragraph should be inserted at the current utterance index.
+#[inline]
+const fn should_insert_paragraph(
+    paragraph_interval: usize,
+    utterance_index: usize,
+    paragraph_index: usize,
+    total_paragraphs: usize,
+) -> bool {
+    paragraph_interval > 0
+        && utterance_index > 0
+        && utterance_index.is_multiple_of(paragraph_interval)
+        && paragraph_index < total_paragraphs
 }
 
 /// Generates a single utterance with deterministic content.
@@ -472,55 +487,36 @@ mod tests {
     // Benchmark fixture tests
     // -----------------------------------------------------------------------
 
-    #[test]
-    fn small_benchmark_fixture_generates_correct_counts() {
-        let doc = generate_benchmark_document(&BenchFixtureConfig::SMALL)
-            .expect("small benchmark fixture should build");
+    /// Asserts that a benchmark fixture generates the correct utterance and paragraph counts.
+    fn assert_benchmark_fixture_counts(config: &BenchFixtureConfig, fixture_name: &str) {
+        let doc = generate_benchmark_document(config)
+            .unwrap_or_else(|e| panic!("{fixture_name} benchmark fixture should build: {e}"));
 
         assert_eq!(
             doc.text().body().utterances().count(),
-            BenchFixtureConfig::SMALL.utterance_count,
-            "small fixture should have correct utterance count"
+            config.utterance_count,
+            "{fixture_name} fixture should have correct utterance count"
         );
         assert_eq!(
             doc.text().body().paragraphs().count(),
-            BenchFixtureConfig::SMALL.paragraph_count,
-            "small fixture should have correct paragraph count"
+            config.paragraph_count,
+            "{fixture_name} fixture should have correct paragraph count"
         );
+    }
+
+    #[test]
+    fn small_benchmark_fixture_generates_correct_counts() {
+        assert_benchmark_fixture_counts(&BenchFixtureConfig::SMALL, "small");
     }
 
     #[test]
     fn medium_benchmark_fixture_generates_correct_counts() {
-        let doc = generate_benchmark_document(&BenchFixtureConfig::MEDIUM)
-            .expect("medium benchmark fixture should build");
-
-        assert_eq!(
-            doc.text().body().utterances().count(),
-            BenchFixtureConfig::MEDIUM.utterance_count,
-            "medium fixture should have correct utterance count"
-        );
-        assert_eq!(
-            doc.text().body().paragraphs().count(),
-            BenchFixtureConfig::MEDIUM.paragraph_count,
-            "medium fixture should have correct paragraph count"
-        );
+        assert_benchmark_fixture_counts(&BenchFixtureConfig::MEDIUM, "medium");
     }
 
     #[test]
     fn large_benchmark_fixture_generates_correct_counts() {
-        let doc = generate_benchmark_document(&BenchFixtureConfig::LARGE)
-            .expect("large benchmark fixture should build");
-
-        assert_eq!(
-            doc.text().body().utterances().count(),
-            BenchFixtureConfig::LARGE.utterance_count,
-            "large fixture should have correct utterance count"
-        );
-        assert_eq!(
-            doc.text().body().paragraphs().count(),
-            BenchFixtureConfig::LARGE.paragraph_count,
-            "large fixture should have correct paragraph count"
-        );
+        assert_benchmark_fixture_counts(&BenchFixtureConfig::LARGE, "large");
     }
 
     #[test]
