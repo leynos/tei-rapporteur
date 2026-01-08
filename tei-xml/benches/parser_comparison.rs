@@ -98,9 +98,7 @@ fn bench_full_document_parser(c: &mut Criterion) {
             &fixture_xml,
             |bencher, input| {
                 bencher.iter(|| {
-                    black_box(
-                        parse_xml(black_box(input)).expect("benchmark fixture should parse"),
-                    )
+                    black_box(parse_xml(black_box(input)).expect("benchmark fixture should parse"))
                 });
             },
         );
@@ -159,9 +157,7 @@ fn bench_parser_comparison(c: &mut Criterion) {
             &fixture_xml,
             |bencher, input| {
                 bencher.iter(|| {
-                    black_box(
-                        parse_xml(black_box(input)).expect("benchmark fixture should parse"),
-                    )
+                    black_box(parse_xml(black_box(input)).expect("benchmark fixture should parse"))
                 });
             },
         );
