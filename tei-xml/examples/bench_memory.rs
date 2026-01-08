@@ -97,27 +97,18 @@ fn run_full_parser() {
     reason = "Measurement tool: ignoring stderr write errors is acceptable"
 )]
 fn print_usage() {
-    let stderr = io::stderr();
-    let mut handle = stderr.lock();
-    let _ = writeln!(handle, "Usage: bench_memory <mode>");
-    let _ = writeln!(handle);
-    let _ = writeln!(handle, "Modes:");
     let _ = writeln!(
-        handle,
-        "  streaming  Parse using TeiPullParser (low memory)"
-    );
-    let _ = writeln!(
-        handle,
-        "  full       Parse using parse_xml (loads entire document)"
-    );
-    let _ = writeln!(handle);
-    let _ = writeln!(handle, "Example:");
-    let _ = writeln!(
-        handle,
-        "  /usr/bin/time -v ./target/release/examples/bench_memory streaming"
-    );
-    let _ = writeln!(
-        handle,
-        "  /usr/bin/time -v ./target/release/examples/bench_memory full"
+        io::stderr(),
+        concat!(
+            "Usage: bench_memory <mode>\n",
+            "\n",
+            "Modes:\n",
+            "  streaming  Parse using TeiPullParser (low memory)\n",
+            "  full       Parse using parse_xml (loads entire document)\n",
+            "\n",
+            "Example:\n",
+            "  /usr/bin/time -v ./target/release/examples/bench_memory streaming\n",
+            "  /usr/bin/time -v ./target/release/examples/bench_memory full"
+        )
     );
 }

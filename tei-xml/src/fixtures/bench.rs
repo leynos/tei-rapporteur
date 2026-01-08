@@ -312,20 +312,18 @@ mod tests {
         );
     }
 
-    #[test]
-    fn benchmark_fixtures_pass_validation() {
-        for (name, config) in [
-            ("small", BenchFixtureConfig::SMALL),
-            ("medium", BenchFixtureConfig::MEDIUM),
-            ("large", BenchFixtureConfig::LARGE),
-        ] {
-            let doc = generate_benchmark_document(&config).unwrap_or_else(|error| {
-                panic!("{name} benchmark fixture should build: {error}");
-            });
-            doc.validate().unwrap_or_else(|error| {
-                panic!("{name} benchmark fixture should validate: {error}");
-            });
-        }
+    #[rstest]
+    #[case::small(BenchFixtureConfig::SMALL, "small")]
+    #[case::medium(BenchFixtureConfig::MEDIUM, "medium")]
+    #[case::large(BenchFixtureConfig::LARGE, "large")]
+    fn benchmark_fixtures_pass_validation(
+        #[case] config: BenchFixtureConfig,
+        #[case] fixture_name: &str,
+    ) {
+        let doc = generate_benchmark_document(&config)
+            .unwrap_or_else(|e| panic!("{fixture_name} benchmark fixture should build: {e}"));
+        doc.validate()
+            .unwrap_or_else(|e| panic!("{fixture_name} benchmark fixture should validate: {e}"));
     }
 
     #[test]

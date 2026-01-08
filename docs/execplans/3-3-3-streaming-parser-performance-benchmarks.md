@@ -130,7 +130,7 @@ generation for benchmarks.
    - Accepts `full` or `streaming` mode argument
    - Generates `VERY_LARGE` fixture
    - Parses using the selected mode
-   - Prints block count to prevent optimisation
+   - Prints block count to prevent optimization
 
 2. Add `bench-memory` Makefile target using `/usr/bin/time -v`.
 

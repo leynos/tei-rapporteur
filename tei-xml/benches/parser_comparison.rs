@@ -16,7 +16,7 @@
 //! `target/criterion/report/index.html`.
 
 // Benchmark harness requires relaxed linting for macro-generated code.
-#![allow(missing_docs, reason = "Benchmark harness generates code without docs")]
+#![expect(missing_docs, reason = "Benchmark harness generates code without docs")]
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
@@ -56,10 +56,10 @@ impl BenchFixtures {
 
     fn get(&self, name: &str) -> &str {
         match name {
+            "small" => &self.small,
             "medium" => &self.medium,
             "large" => &self.large,
-            // Default to small for unknown names
-            _ => &self.small,
+            unknown => panic!("unknown fixture name: {unknown}; expected small, medium, or large"),
         }
     }
 }

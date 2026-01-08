@@ -320,7 +320,7 @@ fn generate_large_benchmark_fixture(
 }
 
 #[scenario(path = "tests/features/benchmark_fixtures.feature", index = 3)]
-fn generated_xml_parses_with_streaming_parser(
+fn small_fixture_parses_with_streaming_parser(
     #[from(validated_state)] _: BenchmarkState,
     #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
 ) {
@@ -328,7 +328,39 @@ fn generated_xml_parses_with_streaming_parser(
 }
 
 #[scenario(path = "tests/features/benchmark_fixtures.feature", index = 4)]
-fn generated_xml_round_trips_through_full_parser(
+fn medium_fixture_parses_with_streaming_parser(
+    #[from(validated_state)] _: BenchmarkState,
+    #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
+) {
+    expect_validated_state(result, "benchmark_fixtures");
+}
+
+#[scenario(path = "tests/features/benchmark_fixtures.feature", index = 5)]
+fn large_fixture_parses_with_streaming_parser(
+    #[from(validated_state)] _: BenchmarkState,
+    #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
+) {
+    expect_validated_state(result, "benchmark_fixtures");
+}
+
+#[scenario(path = "tests/features/benchmark_fixtures.feature", index = 6)]
+fn small_fixture_round_trips_through_full_parser(
+    #[from(validated_state)] _: BenchmarkState,
+    #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
+) {
+    expect_validated_state(result, "benchmark_fixtures");
+}
+
+#[scenario(path = "tests/features/benchmark_fixtures.feature", index = 7)]
+fn medium_fixture_round_trips_through_full_parser(
+    #[from(validated_state)] _: BenchmarkState,
+    #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
+) {
+    expect_validated_state(result, "benchmark_fixtures");
+}
+
+#[scenario(path = "tests/features/benchmark_fixtures.feature", index = 8)]
+fn large_fixture_round_trips_through_full_parser(
     #[from(validated_state)] _: BenchmarkState,
     #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
 ) {
