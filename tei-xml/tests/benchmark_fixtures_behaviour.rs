@@ -5,10 +5,13 @@
 
 #![cfg(feature = "streaming")]
 
+use std::cell::RefCell;
+use std::io::BufReader;
+use std::path::PathBuf;
+
 use anyhow::ensure;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
-use std::cell::RefCell;
 use tei_core::{TeiDocument, TeiError};
 use tei_test_helpers::expect_validated_state;
 use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_document, generate_benchmark_xml};
@@ -24,6 +27,7 @@ struct BenchmarkState {
     config: RefCell<Option<BenchFixtureConfig>>,
     document: RefCell<Option<TeiDocument>>,
     xml: RefCell<Option<String>>,
+    temp_file_path: RefCell<Option<PathBuf>>,
     streaming_events: RefCell<Vec<Result<TeiEvent, TeiError>>>,
     streaming_error: RefCell<Option<TeiError>>,
     parsed_document: RefCell<Option<TeiDocument>>,
@@ -60,6 +64,17 @@ impl BenchmarkState {
             .borrow()
             .clone()
             .ok_or_else(|| anyhow::anyhow!("scenario must generate XML"))
+    }
+
+    fn set_temp_file_path(&self, path: PathBuf) {
+        *self.temp_file_path.borrow_mut() = Some(path);
+    }
+
+    fn temp_file_path(&self) -> anyhow::Result<PathBuf> {
+        self.temp_file_path
+            .borrow()
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("scenario must write XML to a temporary file"))
     }
 
     fn push_event(&self, event: Result<TeiEvent, TeiError>) {
@@ -131,6 +146,11 @@ fn a_large_benchmark_configuration(#[from(validated_state)] state: &BenchmarkSta
     state.set_config(BenchFixtureConfig::LARGE);
 }
 
+#[given("a very large benchmark configuration")]
+fn a_very_large_benchmark_configuration(#[from(validated_state)] state: &BenchmarkState) {
+    state.set_config(BenchFixtureConfig::VERY_LARGE);
+}
+
 // ---------------------------------------------------------------------------
 // When steps
 // ---------------------------------------------------------------------------
@@ -184,6 +204,48 @@ fn the_xml_is_parsed_with_full_parser(
     let xml = state.xml()?;
     let document = parse_xml(&xml).map_err(|e| anyhow::anyhow!("parsing failed: {e}"))?;
     state.set_parsed_document(document);
+    Ok(())
+}
+
+#[when("benchmark XML is generated to a temporary file")]
+fn benchmark_xml_is_generated_to_temp_file(
+    #[from(validated_state)] state: &BenchmarkState,
+) -> anyhow::Result<()> {
+    let config = state.config()?;
+    let xml = generate_benchmark_xml(&config)
+        .map_err(|e| anyhow::anyhow!("XML generation failed: {e}"))?;
+
+    let temp_path = std::env::temp_dir().join("benchmark_fixture_test.xml");
+    std::fs::write(&temp_path, &xml).map_err(|e| anyhow::anyhow!("temp file write failed: {e}"))?;
+
+    state.set_temp_file_path(temp_path);
+    Ok(())
+}
+
+#[when("the file is parsed with the streaming parser")]
+fn the_file_is_parsed_with_streaming_parser(
+    #[from(validated_state)] state: &BenchmarkState,
+) -> anyhow::Result<()> {
+    let temp_path = state.temp_file_path()?;
+    let file = std::fs::File::open(&temp_path)
+        .map_err(|e| anyhow::anyhow!("temp file open failed: {e}"))?;
+    let reader = BufReader::new(file);
+    let parser = TeiPullParser::new(reader);
+
+    for event in parser {
+        match &event {
+            Ok(_) => state.push_event(event),
+            Err(e) => {
+                state.set_streaming_error(e.clone());
+                state.push_event(event);
+                break;
+            }
+        }
+    }
+
+    // Clean up temp file (ignore any errors)
+    drop(std::fs::remove_file(&temp_path));
+
     Ok(())
 }
 
@@ -361,6 +423,14 @@ fn medium_fixture_round_trips_through_full_parser(
 
 #[scenario(path = "tests/features/benchmark_fixtures.feature", index = 8)]
 fn large_fixture_round_trips_through_full_parser(
+    #[from(validated_state)] _: BenchmarkState,
+    #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
+) {
+    expect_validated_state(result, "benchmark_fixtures");
+}
+
+#[scenario(path = "tests/features/benchmark_fixtures.feature", index = 9)]
+fn very_large_fixture_parses_from_file_with_streaming_parser(
     #[from(validated_state)] _: BenchmarkState,
     #[from(validated_state_result)] result: anyhow::Result<BenchmarkState>,
 ) {

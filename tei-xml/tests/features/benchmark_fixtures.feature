@@ -66,3 +66,10 @@ Feature: Benchmark fixture generation
     And the XML is parsed with the full parser
     Then the parsed document has the same utterance count
     And the parsed document has the same paragraph count
+
+  Scenario: Very large fixture parses from file with streaming parser
+    Given a very large benchmark configuration
+    When benchmark XML is generated to a temporary file
+    And the file is parsed with the streaming parser
+    Then all events are yielded without errors
+    And the body block count matches the configuration

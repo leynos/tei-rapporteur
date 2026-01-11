@@ -4,6 +4,10 @@
 //! or streaming parser, allowing external tools like `/usr/bin/time -v` to
 //! measure peak memory usage.
 //!
+//! The streaming parser reads from a temporary file to avoid inflating peak
+//! RSS (resident set size) by holding the entire XML string in memory during
+//! parsing.
+//!
 //! # Usage
 //!
 //! ```bash
@@ -20,7 +24,8 @@
 //! of the streaming parser for large documents.
 
 use std::env;
-use std::io::{self, Write};
+use std::fs;
+use std::io::{self, BufReader, Write};
 
 use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
 use tei_xml::parse_xml;
@@ -47,18 +52,34 @@ fn status(message: &str) {
 }
 
 /// Runs the streaming parser and counts body blocks.
+///
+/// Writes generated XML to a temporary file then parses from it, ensuring peak
+/// RSS measurement reflects only streaming parser memory usage (not the XML
+/// string).
 #[expect(
     clippy::expect_used,
     reason = "Measurement tool: panicking on fixture errors is appropriate"
 )]
 fn run_streaming_parser() {
-    status("Generating very large benchmark fixture...");
+    status("Generating very large benchmark fixture to temporary file...");
     let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
         .expect("fixture generation should succeed");
-    status(&format!("Generated {} bytes of XML", xml.len()));
+    let xml_len = xml.len();
 
-    status("Parsing with streaming parser...");
-    let parser = TeiPullParser::from_str(&xml);
+    // Write to temp file and drop the XML string to free memory before parsing
+    let temp_path = std::env::temp_dir().join("bench_memory_fixture.xml");
+    fs::write(&temp_path, &xml).expect("temp file write should succeed");
+    drop(xml);
+
+    status(&format!(
+        "Generated {xml_len} bytes of XML, written to {}",
+        temp_path.display()
+    ));
+
+    status("Parsing with streaming parser from file...");
+    let file = fs::File::open(&temp_path).expect("temp file open should succeed");
+    let reader = BufReader::new(file);
+    let parser = TeiPullParser::new(reader);
     let mut block_count = 0;
 
     for result in parser {
@@ -67,6 +88,9 @@ fn run_streaming_parser() {
             block_count += 1;
         }
     }
+
+    // Clean up temp file (ignore any errors)
+    drop(fs::remove_file(&temp_path));
 
     status(&format!(
         "Streaming parser processed {block_count} body blocks"
