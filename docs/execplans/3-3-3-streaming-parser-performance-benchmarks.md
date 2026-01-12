@@ -24,7 +24,7 @@ of the full-document parser (`parse_xml`) versus the streaming parser
 |------|--------|
 | `/root/repo/Cargo.toml` | Add criterion to workspace dependencies |
 | `/root/repo/tei-xml/Cargo.toml` | Add bench target and criterion dev-dependency |
-| `/root/repo/tei-xml/src/fixtures.rs` | Add benchmark fixture generator |
+| `/root/repo/tei-xml/src/fixtures/bench.rs` | Add benchmark fixture generator |
 | `/root/repo/Makefile` | Add `bench` target |
 | `/root/repo/docs/users-guide.md` | Add benchmarking section |
 | `/root/repo/docs/roadmap.md` | Mark task as complete |

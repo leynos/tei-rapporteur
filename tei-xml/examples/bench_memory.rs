@@ -67,7 +67,9 @@ fn run_streaming_parser() {
     let xml_len = xml.len();
 
     // Write to temp file and drop the XML string to free memory before parsing
-    let temp_path = std::env::temp_dir().join("bench_memory_fixture.xml");
+    // Include PID in filename to avoid conflicts with concurrent runs
+    let temp_path =
+        std::env::temp_dir().join(format!("bench_memory_fixture_{}.xml", std::process::id()));
     fs::write(&temp_path, &xml).expect("temp file write should succeed");
     drop(xml);
 
