@@ -1,14 +1,22 @@
-//! TEI document fixtures for validation testing.
+//! TEI document fixtures for validation testing and benchmarking.
 //!
 //! This module provides builders for generating canonical TEI documents that
 //! exercise the TEI Episodic Profile schema. The fixtures are used by the
 //! `generate-fixtures` binary to produce XML files for external validation
 //! against the Relax NG schema using tools like `jing`.
 //!
+//! The module also provides scalable benchmark fixture generation via
+//! [`BenchFixtureConfig`] and [`generate_benchmark_document`], enabling
+//! performance comparisons between the full-document and streaming parsers.
+//!
 //! Note: Due to quick-xml serialization limitations with mixed content in
 //! `$value` fields, fixtures avoid inline elements (`<hi>`, `<pause>`) which
 //! cannot round-trip through serialization. The fixtures focus on structural
 //! elements (paragraphs, utterances, header metadata) that can be serialized.
+
+mod bench;
+
+pub use bench::{BenchFixtureConfig, generate_benchmark_document, generate_benchmark_xml};
 
 use tei_core::{
     AnnotationSystem, BodyBlock, EncodingDesc, FileDesc, P, ProfileDesc, RevisionChange,
@@ -104,7 +112,7 @@ pub fn comprehensive_document() -> Result<TeiDocument, TeiError> {
 
     // Build encoding description with annotation system
     let mut encoding = EncodingDesc::new();
-    let annotation = AnnotationSystem::new("cliche", "Cliché detection annotations")?;
+    let annotation = AnnotationSystem::new("cliche", "Cliche detection annotations")?;
     encoding.add_annotation_system(annotation);
 
     // Build revision description
@@ -157,8 +165,6 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
 
 #[cfg(test)]
 mod tests {
-    //! Unit tests for XML fixture loading and emission helpers.
-
     use super::*;
 
     #[test]

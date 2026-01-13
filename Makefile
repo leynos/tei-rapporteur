@@ -8,6 +8,8 @@ RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 FIXTURES_DIR ?= target/fixtures
+TIME_BIN ?= /usr/bin/time
+TIME_ARGS ?= -v
 
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
@@ -67,6 +69,17 @@ validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 
 json-schema: ## Generate JSON Schema snapshots for TeiDocument
 	$(CARGO) run --package tei-serde --bin generate-json-schema $(BUILD_JOBS)
+
+bench: ## Run performance benchmarks
+	$(CARGO) bench --package tei-xml --features streaming $(BUILD_JOBS)
+
+bench-memory: ## Measure peak memory usage during parsing (GNU time required; see TIME_BIN)
+	$(CARGO) build --release --package tei-xml --features streaming --example bench_memory $(BUILD_JOBS)
+	@echo "=== Streaming parser memory usage ==="
+	@$(TIME_BIN) $(TIME_ARGS) ./target/release/examples/bench_memory streaming 2>&1 | grep -E "(Maximum resident|Command)" || true
+	@echo "=== Full document parser memory usage ==="
+	@$(TIME_BIN) $(TIME_ARGS) ./target/release/examples/bench_memory full 2>&1 | grep -E "(Maximum resident|Command)" || true
+	@echo "Note: Requires GNU time for -v flag (Linux default). On macOS: brew install gnu-time && TIME_BIN=gtime make bench-memory"
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
