@@ -1228,6 +1228,40 @@ experience using Pydantic-like or dataclass-like objects that can be easily
 printed, accessed, and even validated on the Python side if needed (msgspec can
 perform schema validation).
 
+### PEP 561 type stubs
+
+The package ships type information per [PEP 561][pep561] so that downstream
+consumers get full static-analysis coverage without resorting to `cast(Any, …)`
+or hand-rolled `Protocol` wrappers.
+
+**Layout.** The project uses maturin's *mixed* Python/Rust layout with
+`python-source = "python"`.  The `python/tei_rapporteur/` directory contains:
+
+| File           | Purpose                                              |
+| -------------- | ---------------------------------------------------- |
+| `__init__.py`  | Re-export shim for the native extension              |
+| `__init__.pyi` | Stub file covering all public functions and classes  |
+| `py.typed`     | PEP 561 marker (empty)                               |
+| `structs.pyi`  | Stub file mirroring the `msgspec.Struct` projections |
+
+The native extension (`.so` / `.pyd`) is placed alongside these files by
+maturin during `maturin develop` or `maturin build`.
+
+**Structs submodule.** The `tei_rapporteur.structs` submodule is implemented in
+pure Python (`tei-py/python/structs.py`) and embedded into the extension at
+compile time via `include_str!`.  Because the source file is not present in the
+installed package, the companion `structs.pyi` stub provides the
+type-checker-visible declarations. The stub mirrors the runtime definitions
+exactly, including tagged union `TypeAlias` entries (`Inline`, `BodyBlock`,
+`Event`).
+
+**Compatibility.** Validated against `mypy` and `pyright`.  The
+`reportMissingModuleSource` warning emitted by pyright for the `structs`
+submodule is expected (stub-only module, no `.py` source in the installed
+package) and does not indicate a type error.
+
+[pep561]: https://peps.python.org/pep-0561/
+
 ## Pull-Parser Interface (Streaming Parsing)
 
 For certain use cases, it may be desirable to parse a TEI document

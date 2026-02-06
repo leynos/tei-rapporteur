@@ -47,17 +47,19 @@ The repository has the following high-level layout:
 │
 ├── tei-py/             # Crate for the PyO3 wrapper and Python FFI.
 │   ├── Cargo.toml
+│   ├── python/         # Embedded Python source (structs.py, included via include_str!).
 │   └── src/
 │
 ├── tei-test-helpers/   # Crate with shared testing utilities for all crates.
 │   ├── Cargo.toml
 │   └── src/
 │
-├── tei-rapporteur/     # (Optional) Python package source directory.
-│   └── __init__.py
+├── python/             # Python source root (maturin python-source).
+│   ├── tei_rapporteur/ # Package directory with __init__.py, stubs, and py.typed.
+│   └── tests/          # Python integration tests.
 │
 ├── .github/            # CI/CD workflows for both Rust and Python.
-└── tests/              # Python integration tests.
+└── docs/               # Design documents and user guides.
 
 ```
 
@@ -70,7 +72,10 @@ The repository has the following high-level layout:
 - `pyproject.toml`**(Root)**: This file configures the Python package build
   process. It specifies `maturin` as the build backend and points to the
   `tei-py` crate's manifest (`manifest-path = "tei-py/Cargo.toml"`) to identify
-  which crate should be compiled into the Python extension module.
+  which crate should be compiled into the Python extension module. The
+  `python-source = "python"` setting tells maturin to look in the `python/`
+  directory for the Python package source, keeping it separate from the project
+  root and avoiding import-shadowing during development.
 - **Crate Directories (**`tei-*`**)**: Each directory is a self-contained Rust
   crate with its own `Cargo.toml`. Dependencies between crates (e.g., `tei-py`
   depending on `tei-core`) are defined within these individual manifests using

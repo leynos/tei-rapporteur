@@ -31,6 +31,7 @@ dev = [
 [tool.maturin]
 manifest-path = "tei-py/Cargo.toml"
 module-name = "tei_rapporteur"
+python-source = "python"
 bindings = "pyo3"
 strip = true
 features = ["extension-module"]

@@ -121,6 +121,25 @@ print("tei_rapporteur:", getattr(tr, "__version__", "dev"))
 PY
 ```
 
+### Type checking (PEP 561)
+
+The package ships inline type stubs and a `py.typed` marker per [PEP
+561][pep561], so type checkers recognise the public API without extra
+configuration:
+
+```python
+import tei_rapporteur as tr
+
+doc: tr.Document = tr.Document("Wolf 359")
+xml: str = tr.emit_xml(doc)
+```
+
+Compatible with `mypy`, `pyright`, and other PEP 561-aware type checkers. The
+`tei_rapporteur.structs` submodule (containing `msgspec` projection types) also
+provides stub coverage.
+
+[pep561]: https://peps.python.org/pep-0561/
+
 ### Feature: experimental pull‑parser (gated)
 
 The pull‑parser may depend on Rust nightly features (continuations/generators).

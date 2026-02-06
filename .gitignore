@@ -5,6 +5,7 @@
 .idea/
 **/__pycache__/
 *.py[cod]
+*.so
 .pytest_cache/
 Cargo.lock.bak
 /.venv/
