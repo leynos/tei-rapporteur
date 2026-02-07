@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from tei_rapporteur.structs import Event as Event
+
 __version__: str
 """Package version sourced from Cargo metadata."""
 
@@ -42,14 +44,23 @@ class Document:
         ...
 
 class TeiEventIterator:
-    """Streaming iterator yielding tagged TEI event dictionaries."""
+    """Streaming iterator yielding tagged TEI event dictionaries.
+
+    Each element is a ``dict`` whose ``"type"`` key discriminates the
+    event kind.  The dicts conform to the shapes defined by
+    :data:`tei_rapporteur.structs.Event` and can be materialised into
+    typed structs via ``msgspec.convert(event, Event)``.
+    """
 
     def __iter__(self) -> TeiEventIterator: ...
-    def __next__(self) -> Any:
+    def __next__(self) -> dict[str, Any]:
         """Yield the next streaming event as a tagged dictionary.
 
-        Events are one of ``document_start``, ``header``, ``paragraph``,
-        ``utterance``, or ``document_end``.
+        The returned ``dict`` always contains a ``"type"`` key with one
+        of the values ``"document_start"``, ``"header"``,
+        ``"paragraph"``, ``"utterance"``, or ``"document_end"``.  Use
+        ``msgspec.convert(event, tei_rapporteur.structs.Event)`` to
+        decode into the corresponding typed struct.
 
         Raises:
             ValueError: On malformed XML or TEI validation failures.
