@@ -92,8 +92,8 @@ def emit_xml(document: Document) -> str:
     """
     ...
 
-def from_msgpack(bytes: bytes) -> Document:
-    """Deserialise MessagePack bytes into a :class:`Document`.
+def from_msgpack(data: bytes) -> Document:
+    """Deserialise MessagePack *data* into a :class:`Document`.
 
     Raises:
         ValueError: When the payload cannot be decoded.
