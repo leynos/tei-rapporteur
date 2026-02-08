@@ -14,153 +14,158 @@ Run with::
 
 from __future__ import annotations
 
-from typing import Any, assert_type
+from typing import TYPE_CHECKING
 
-import tei_rapporteur as tr
-from tei_rapporteur import structs
+__test__ = False
 
-# -- Module-level attributes --------------------------------------------------
+if TYPE_CHECKING:
+    from typing import Any, assert_type
 
-assert_type(tr.__version__, str)
-assert_type(tr.__py_runtime__, str)
+    import tei_rapporteur as tr
+    from tei_rapporteur import structs
 
-# -- Document class ------------------------------------------------------------
+    # -- Module-level attributes ----------------------------------------------
 
-_doc = tr.Document("Example")
-assert_type(_doc, tr.Document)
-assert_type(_doc.title, str)
-assert_type(_doc.emit_title_markup(), str)
-assert_type(_doc.validate(), None)
+    assert_type(tr.__version__, str)
+    assert_type(tr.__py_runtime__, str)
 
-# -- Free functions: XML round-trip --------------------------------------------
+    # -- Document class -------------------------------------------------------
 
-assert_type(tr.emit_title_markup("Example"), str)
-assert_type(tr.parse_xml("<TEI/>"), tr.Document)
-assert_type(tr.emit_xml(_doc), str)
+    _doc = tr.Document("Example")
+    assert_type(_doc, tr.Document)
+    assert_type(_doc.title, str)
+    assert_type(_doc.emit_title_markup(), str)
+    assert_type(_doc.validate(), None)
 
-# -- Free functions: MessagePack round-trip ------------------------------------
+    # -- Free functions: XML round-trip ---------------------------------------
 
-assert_type(tr.to_msgpack(_doc), bytes)
-assert_type(tr.from_msgpack(b""), tr.Document)
+    assert_type(tr.emit_title_markup("Example"), str)
+    assert_type(tr.parse_xml("<TEI/>"), tr.Document)
+    assert_type(tr.emit_xml(_doc), str)
 
-# -- Free functions: dict round-trip -------------------------------------------
+    # -- Free functions: MessagePack round-trip -------------------------------
 
-assert_type(tr.to_dict(_doc), Any)
-assert_type(tr.from_dict({}), tr.Document)
+    assert_type(tr.to_msgpack(_doc), bytes)
+    assert_type(tr.from_msgpack(b""), tr.Document)
 
-# -- Streaming iterator --------------------------------------------------------
+    # -- Free functions: dict round-trip --------------------------------------
 
-_iter = tr.iter_parse("<TEI/>")
-assert_type(_iter, tr.TeiEventIterator)
-assert_type(_iter.__iter__(), tr.TeiEventIterator)
+    assert_type(tr.to_dict(_doc), Any)
+    assert_type(tr.from_dict({}), tr.Document)
 
-# -- structs: inline content types (tagged union) ------------------------------
+    # -- Streaming iterator ---------------------------------------------------
 
-_inline_text = structs.InlineText(value="hello")
-assert_type(_inline_text, structs.InlineText)
-assert_type(_inline_text.value, str)
+    _iter = tr.iter_parse("<TEI/>")
+    assert_type(_iter, tr.TeiEventIterator)
+    assert_type(_iter.__iter__(), tr.TeiEventIterator)
 
-_inline_hi = structs.InlineHi()
-assert_type(_inline_hi, structs.InlineHi)
-assert_type(_inline_hi.rend, str | None)
+    # -- structs: inline content types (tagged union) -------------------------
 
-_inline_pause = structs.InlinePause()
-assert_type(_inline_pause, structs.InlinePause)
-assert_type(_inline_pause.dur, str | None)
-assert_type(_inline_pause.kind, str | None)
+    _inline_text = structs.InlineText(value="hello")
+    assert_type(_inline_text, structs.InlineText)
+    assert_type(_inline_text.value, str)
 
-# -- structs: body block types (tagged union) ----------------------------------
+    _inline_hi = structs.InlineHi()
+    assert_type(_inline_hi, structs.InlineHi)
+    assert_type(_inline_hi.rend, str | None)
 
-_para = structs.Paragraph()
-assert_type(_para, structs.Paragraph)
-assert_type(_para.xml_id, str | None)
+    _inline_pause = structs.InlinePause()
+    assert_type(_inline_pause, structs.InlinePause)
+    assert_type(_inline_pause.dur, str | None)
+    assert_type(_inline_pause.kind, str | None)
 
-_utt = structs.Utterance()
-assert_type(_utt, structs.Utterance)
-assert_type(_utt.xml_id, str | None)
-assert_type(_utt.speaker, str | None)
+    # -- structs: body block types (tagged union) -----------------------------
 
-# -- structs: body / text structure --------------------------------------------
+    _para = structs.Paragraph()
+    assert_type(_para, structs.Paragraph)
+    assert_type(_para.xml_id, str | None)
 
-_body = structs.TeiBody(blocks=[])
-assert_type(_body, structs.TeiBody)
+    _utt = structs.Utterance()
+    assert_type(_utt, structs.Utterance)
+    assert_type(_utt.xml_id, str | None)
+    assert_type(_utt.speaker, str | None)
 
-_text = structs.TeiText(body=_body)
-assert_type(_text, structs.TeiText)
-assert_type(_text.body, structs.TeiBody)
+    # -- structs: body / text structure ---------------------------------------
 
-# -- structs: header metadata --------------------------------------------------
+    _body = structs.TeiBody(blocks=[])
+    assert_type(_body, structs.TeiBody)
 
-_file_desc = structs.FileDesc(title="T")
-assert_type(_file_desc, structs.FileDesc)
-assert_type(_file_desc.title, str)
-assert_type(_file_desc.series, str | None)
-assert_type(_file_desc.synopsis, str | None)
+    _text = structs.TeiText(body=_body)
+    assert_type(_text, structs.TeiText)
+    assert_type(_text.body, structs.TeiBody)
 
-_header = structs.TeiHeader(file_desc=_file_desc)
-assert_type(_header, structs.TeiHeader)
-assert_type(_header.file_desc, structs.FileDesc)
-assert_type(_header.profile_desc, structs.ProfileDesc | None)
-assert_type(_header.encoding_desc, structs.EncodingDesc | None)
-assert_type(_header.revision_desc, structs.RevisionDesc | None)
+    # -- structs: header metadata ---------------------------------------------
 
-_rev_change = structs.RevisionChange(description="Initial")
-assert_type(_rev_change, structs.RevisionChange)
+    _file_desc = structs.FileDesc(title="T")
+    assert_type(_file_desc, structs.FileDesc)
+    assert_type(_file_desc.title, str)
+    assert_type(_file_desc.series, str | None)
+    assert_type(_file_desc.synopsis, str | None)
 
-_rev_desc = structs.RevisionDesc(changes=[_rev_change])
-assert_type(_rev_desc, structs.RevisionDesc)
+    _header = structs.TeiHeader(file_desc=_file_desc)
+    assert_type(_header, structs.TeiHeader)
+    assert_type(_header.file_desc, structs.FileDesc)
+    assert_type(_header.profile_desc, structs.ProfileDesc | None)
+    assert_type(_header.encoding_desc, structs.EncodingDesc | None)
+    assert_type(_header.revision_desc, structs.RevisionDesc | None)
 
-_ann = structs.AnnotationSystem(xml_id="a1")
-assert_type(_ann, structs.AnnotationSystem)
+    _rev_change = structs.RevisionChange(description="Initial")
+    assert_type(_rev_change, structs.RevisionChange)
 
-_enc = structs.EncodingDesc(annotation_systems=[_ann])
-assert_type(_enc, structs.EncodingDesc)
+    _rev_desc = structs.RevisionDesc(changes=[_rev_change])
+    assert_type(_rev_desc, structs.RevisionDesc)
 
-_prof = structs.ProfileDesc()
-assert_type(_prof, structs.ProfileDesc)
-assert_type(_prof.synopsis, str | None)
+    _ann = structs.AnnotationSystem(xml_id="a1")
+    assert_type(_ann, structs.AnnotationSystem)
 
-# -- structs: top-level document -----------------------------------------------
+    _enc = structs.EncodingDesc(annotation_systems=[_ann])
+    assert_type(_enc, structs.EncodingDesc)
 
-_episode = structs.Episode(header=_header, text=_text)
-assert_type(_episode, structs.Episode)
-assert_type(_episode.header, structs.TeiHeader)
-assert_type(_episode.text, structs.TeiText)
+    _prof = structs.ProfileDesc()
+    assert_type(_prof, structs.ProfileDesc)
+    assert_type(_prof.synopsis, str | None)
 
-# -- structs: streaming event types (tagged union) -----------------------------
+    # -- structs: top-level document ------------------------------------------
 
-_doc_start = structs.DocumentStart()
-assert_type(_doc_start, structs.DocumentStart)
+    _episode = structs.Episode(header=_header, text=_text)
+    assert_type(_episode, structs.Episode)
+    assert_type(_episode.header, structs.TeiHeader)
+    assert_type(_episode.text, structs.TeiText)
 
-_doc_end = structs.DocumentEnd()
-assert_type(_doc_end, structs.DocumentEnd)
+    # -- structs: streaming event types (tagged union) ------------------------
 
-_hdr_event = structs.HeaderEvent(header=_header)
-assert_type(_hdr_event, structs.HeaderEvent)
-assert_type(_hdr_event.header, structs.TeiHeader)
+    _doc_start = structs.DocumentStart()
+    assert_type(_doc_start, structs.DocumentStart)
 
-_para_event = structs.ParagraphEvent()
-assert_type(_para_event, structs.ParagraphEvent)
+    _doc_end = structs.DocumentEnd()
+    assert_type(_doc_end, structs.DocumentEnd)
 
-_utt_event = structs.UtteranceEvent()
-assert_type(_utt_event, structs.UtteranceEvent)
+    _hdr_event = structs.HeaderEvent(header=_header)
+    assert_type(_hdr_event, structs.HeaderEvent)
+    assert_type(_hdr_event.header, structs.TeiHeader)
 
-# -- Type aliases --------------------------------------------------------------
+    _para_event = structs.ParagraphEvent()
+    assert_type(_para_event, structs.ParagraphEvent)
 
-_inline_alias: structs.Inline = _inline_text
-assert_type(
-    _inline_alias,
-    structs.InlineText,  # narrowed by assignment
-)
+    _utt_event = structs.UtteranceEvent()
+    assert_type(_utt_event, structs.UtteranceEvent)
 
-_block_alias: structs.BodyBlock = _para
-assert_type(
-    _block_alias,
-    structs.Paragraph,  # narrowed by assignment
-)
+    # -- Type aliases ---------------------------------------------------------
 
-_event_alias: structs.Event = _doc_start
-assert_type(
-    _event_alias,
-    structs.DocumentStart,  # narrowed by assignment
-)
+    _inline_alias: structs.Inline = _inline_text
+    assert_type(
+        _inline_alias,
+        structs.InlineText,  # narrowed by assignment
+    )
+
+    _block_alias: structs.BodyBlock = _para
+    assert_type(
+        _block_alias,
+        structs.Paragraph,  # narrowed by assignment
+    )
+
+    _event_alias: structs.Event = _doc_start
+    assert_type(
+        _event_alias,
+        structs.DocumentStart,  # narrowed by assignment
+    )
