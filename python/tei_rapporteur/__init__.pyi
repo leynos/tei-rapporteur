@@ -48,7 +48,7 @@ class TeiEventIterator:
 
     Each element is a ``dict`` whose ``"type"`` key discriminates the
     event kind.  The dicts conform to the shapes defined by
-    :data:`tei_rapporteur.structs.Event` and can be materialised into
+    :data:`tei_rapporteur.structs.Event` and can be materialized into
     typed structs via ``msgspec.convert(event, Event)``.
     """
 
@@ -85,7 +85,7 @@ def parse_xml(xml: str) -> Document:
     ...
 
 def emit_xml(document: Document) -> str:
-    """Serialise a :class:`Document` to a TEI XML string.
+    """Serialize a :class:`Document` to a TEI XML string.
 
     Raises:
         ValueError: On forbidden control characters or emission failure.
@@ -93,7 +93,7 @@ def emit_xml(document: Document) -> str:
     ...
 
 def from_msgpack(data: bytes) -> Document:
-    """Deserialise MessagePack *data* into a :class:`Document`.
+    """Deserialize MessagePack *data* into a :class:`Document`.
 
     Raises:
         ValueError: When the payload cannot be decoded.
@@ -101,7 +101,7 @@ def from_msgpack(data: bytes) -> Document:
     ...
 
 def to_msgpack(document: Document) -> bytes:
-    """Serialise a :class:`Document` to MessagePack bytes.
+    """Serialize a :class:`Document` to MessagePack bytes.
 
     Raises:
         ValueError: When encoding fails.
@@ -112,7 +112,7 @@ def from_dict(payload: Any) -> Document:
     """Construct a :class:`Document` from a Python dict/list tree.
 
     Raises:
-        ValueError: When the payload cannot be deserialised.
+        ValueError: When the payload cannot be deserialized.
         TypeError: On type-mismatch errors in the payload structure.
     """
     ...
