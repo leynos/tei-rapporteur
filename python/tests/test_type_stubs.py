@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     _iter = tr.iter_parse("<TEI/>")
     assert_type(_iter, tr.TeiEventIterator)
     assert_type(_iter.__iter__(), tr.TeiEventIterator)
+    assert_type(_iter.__next__(), dict[str, Any])
 
     # -- structs: inline content types (tagged union) -------------------------
 
