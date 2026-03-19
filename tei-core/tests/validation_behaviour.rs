@@ -4,7 +4,10 @@ use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{AnnotationSystem, EncodingDesc, P, ProfileDesc, TeiDocument, TeiError, Utterance};
+use tei_core::{
+    AnnotationSystem, EncodingDesc, P, PointerList, ProfileDesc, Span, SpanGroup, StandOff,
+    TeiDocument, TeiError, Utterance,
+};
 use tei_test_helpers::expect_validated_state;
 
 #[derive(Default)]
@@ -149,6 +152,34 @@ fn i_validate_the_document(#[from(validated_state)] state: &ValidationState) -> 
     Ok(())
 }
 
+#[when("I add a stand-off span group \"{kind}\" with id \"{identifier}\"")]
+fn i_add_a_stand_off_span_group(
+    #[from(validated_state)] state: &ValidationState,
+    kind: String,
+    identifier: String,
+) -> Result<()> {
+    state.update_document(|document| add_span_group(document, &kind, &identifier))
+}
+
+#[when("I add a stand-off span \"{span_id}\" in group \"{group_id}\" targeting \"{target}\"")]
+fn i_add_a_stand_off_span_targeting(
+    #[from(validated_state)] state: &ValidationState,
+    span_id: String,
+    group_id: String,
+    target: String,
+) -> Result<()> {
+    state.update_document(|document| add_target_span(document, &group_id, &span_id, &target))
+}
+
+#[when("I add an anchorless stand-off span \"{span_id}\" in group \"{group_id}\"")]
+fn i_add_an_anchorless_stand_off_span(
+    #[from(validated_state)] state: &ValidationState,
+    span_id: String,
+    group_id: String,
+) -> Result<()> {
+    state.update_document(|document| add_anchorless_span(document, &group_id, &span_id))
+}
+
 #[then("validation succeeds")]
 fn validation_succeeds(#[from(validated_state)] state: &ValidationState) -> Result<()> {
     ensure!(
@@ -260,6 +291,62 @@ fn add_annotation_system(
     Ok(TeiDocument::new(header, document.text().clone()))
 }
 
+fn add_span_group(document: &TeiDocument, kind: &str, identifier: &str) -> Result<TeiDocument> {
+    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
+    let mut span_group = SpanGroup::new(kind);
+    span_group
+        .set_id(identifier)
+        .context("span group id should validate")?;
+    stand_off.add_span_group(span_group);
+
+    Ok(
+        TeiDocument::new(document.header().clone(), document.text().clone())
+            .with_stand_off(stand_off),
+    )
+}
+
+fn add_target_span(
+    document: &TeiDocument,
+    group_id: &str,
+    span_id: &str,
+    target: &str,
+) -> Result<TeiDocument> {
+    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
+    let span_group = stand_off
+        .find_span_group_mut(group_id)
+        .context("span group should exist before adding a span")?;
+
+    let mut span = Span::new();
+    span.set_id(span_id).context("span id should validate")?;
+    span.set_target(PointerList::new([target]).context("target pointers should validate")?);
+    span_group.add_span(span);
+
+    Ok(
+        TeiDocument::new(document.header().clone(), document.text().clone())
+            .with_stand_off(stand_off),
+    )
+}
+
+fn add_anchorless_span(
+    document: &TeiDocument,
+    group_id: &str,
+    span_id: &str,
+) -> Result<TeiDocument> {
+    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
+    let span_group = stand_off
+        .find_span_group_mut(group_id)
+        .context("span group should exist before adding a span")?;
+
+    let mut span = Span::new();
+    span.set_id(span_id).context("span id should validate")?;
+    span_group.add_span(span);
+
+    Ok(
+        TeiDocument::new(document.header().clone(), document.text().clone())
+            .with_stand_off(stand_off),
+    )
+}
+
 // Scenario indices are coupled to validation.feature ordering. Update the
 // indices below if scenarios are reordered or inserted; the guard test at the
 // end of this module ensures the names stay aligned with the feature file.
@@ -342,6 +429,9 @@ fn validation_feature_scenario_order_matches_expectations() {
         "Rejecting unknown speaker references",
         "Rejecting speakers when the cast is empty",
         "Allowing speakers when the cast list is absent",
+        "Accepting stand-off spans that target existing utterances",
+        "Rejecting stand-off spans that target missing ids",
+        "Rejecting stand-off spans without anchors",
     ];
 
     assert_eq!(

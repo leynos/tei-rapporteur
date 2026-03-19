@@ -3,8 +3,9 @@
 The projection mirrors the Rust-side Python-facing representation rather than
 the canonical XML/serde layout. Inline content is fully typed using internally
 tagged unions so `msgspec` can materialise precise Python objects without
-falling back to `Any`. Streaming events share the same tagged shapes, making
-`iter_parse` output directly decodable into these structs.
+falling back to `Any`. TEI pointer-list attributes are exposed as `list[str]`
+values, while stand-off annotations and citation declarations use snake_case
+field names throughout the Python surface.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from typing import TypeAlias
 __all__ = [
     "AnnotationSystem",
     "BodyBlock",
+    "CiteData",
+    "CiteStructure",
     "DocumentEnd",
     "DocumentStart",
     "EncodingDesc",
@@ -29,8 +32,12 @@ __all__ = [
     "Paragraph",
     "ParagraphEvent",
     "ProfileDesc",
+    "RefsDecl",
     "RevisionChange",
     "RevisionDesc",
+    "Span",
+    "SpanGroup",
+    "StandOff",
     "TeiBody",
     "TeiHeader",
     "TeiText",
@@ -74,10 +81,16 @@ class Paragraph(
 class Utterance(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Spoken utterance (``<u>``) with optional speaker reference."""
+    """Spoken utterance (``<u>``) with local provenance metadata."""
 
     xml_id: str | None = None
+    n: str | None = None
     speaker: str | None = None
+    source: list[str] = msgspec.field(default_factory=list)
+    resp: list[str] = msgspec.field(default_factory=list)
+    cert: str | None = None
+    corresp: list[str] = msgspec.field(default_factory=list)
+    ana: list[str] = msgspec.field(default_factory=list)
     content: list[Inline] = msgspec.field(default_factory=list)
 
 
@@ -118,10 +131,35 @@ class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
     desc: str | None = msgspec.field(default=None, name="desc")
 
 
+class CiteData(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Property extraction entry within a citation structure."""
+
+    property: str
+    use_expr: str | None = None
+
+
+class CiteStructure(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Canonical citation declaration entry."""
+
+    match_expr: str
+    unit: str | None = None
+    use_expr: str | None = None
+    delim: str | None = None
+    cite_data: list[CiteData] = msgspec.field(default_factory=list)
+    cite_structures: list[CiteStructure] = msgspec.field(default_factory=list)
+
+
+class RefsDecl(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Container for canonical citation declarations."""
+
+    cite_structures: list[CiteStructure] = msgspec.field(default_factory=list)
+
+
 class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Collection of annotation systems."""
+    """Collection of annotation systems and citation declarations."""
 
     annotation_systems: list[AnnotationSystem] = msgspec.field(default_factory=list)
+    refs_decl: RefsDecl | None = None
 
 
 class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
@@ -155,10 +193,42 @@ class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
     )
 
 
+class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Stand-off span with many-to-many or range-based targets."""
+
+    xml_id: str | None = None
+    target: list[str] = msgspec.field(default_factory=list)
+    from_ref: str | None = msgspec.field(default=None, name="from")
+    to_ref: str | None = msgspec.field(default=None, name="to")
+    source: list[str] = msgspec.field(default_factory=list)
+    resp: list[str] = msgspec.field(default_factory=list)
+    cert: str | None = None
+    corresp: list[str] = msgspec.field(default_factory=list)
+    ana: list[str] = msgspec.field(default_factory=list)
+
+
+class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Logical stand-off grouping of related spans."""
+
+    xml_id: str | None = None
+    kind: str
+    resp: list[str] = msgspec.field(default_factory=list)
+    corresp: list[str] = msgspec.field(default_factory=list)
+    ana: list[str] = msgspec.field(default_factory=list)
+    spans: list[Span] = msgspec.field(default_factory=list)
+
+
+class StandOff(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Root stand-off annotation layer."""
+
+    span_groups: list[SpanGroup] = msgspec.field(default_factory=list)
+
+
 class Episode(msgspec.Struct):
     """Top-level TEI document."""
 
     header: TeiHeader
+    stand_off: StandOff | None = None
     text: TeiText
 
 
@@ -179,10 +249,7 @@ class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
 class ParagraphEvent(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying a paragraph.
-
-    Field duplication mirrors ``Paragraph`` so events stay flat for msgspec's
-    tagged-union decoding."""
+    """Streaming event carrying a paragraph."""
 
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
@@ -191,13 +258,16 @@ class ParagraphEvent(
 class UtteranceEvent(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying an utterance.
-
-    Fields are mirrored instead of composed to keep the tagged payload shape
-    stable and unambiguous."""
+    """Streaming event carrying an utterance."""
 
     xml_id: str | None = None
+    n: str | None = None
     speaker: str | None = None
+    source: list[str] = msgspec.field(default_factory=list)
+    resp: list[str] = msgspec.field(default_factory=list)
+    cert: str | None = None
+    corresp: list[str] = msgspec.field(default_factory=list)
+    ana: list[str] = msgspec.field(default_factory=list)
     content: list[Inline] = msgspec.field(default_factory=list)
 
 

@@ -1,14 +1,15 @@
 //! Document-level validation for TEI structures.
 //!
 //! The routines in this module enforce invariants that the type system does
-//! not capture, such as uniqueness of `xml:id` values and the relationship
-//! between utterance speaker references and the header cast list.
+//! not capture, such as uniqueness of `xml:id` values, the relationship
+//! between utterance speaker references and the header cast list, and
+//! resolution of internal TEI pointers.
 
 use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::{TeiDocument, text::BodyBlock};
+use crate::{BodyBlock, CiteStructure, Pointer, PointerList, Span, TeiDocument, Utterance};
 
 /// Errors raised when validating a [`TeiDocument`].
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
@@ -26,28 +27,49 @@ pub enum ValidationError {
         /// Speaker reference captured from the utterance.
         speaker: String,
     },
+
+    /// A required field was blank after normalization.
+    #[error("{field} must not be empty")]
+    EmptyField {
+        /// Name of the empty field.
+        field: &'static str,
+    },
+
+    /// An internal pointer target could not be resolved.
+    #[error("internal pointer '{pointer}' in {attribute} does not resolve")]
+    UnresolvedPointer {
+        /// Name of the TEI attribute that carried the pointer.
+        attribute: &'static str,
+        /// Original pointer token.
+        pointer: String,
+    },
+
+    /// A stand-off span omitted both `@target` and `@from`.
+    #[error("span must define @target or @from")]
+    SpanMissingAnchor,
+
+    /// A stand-off span declared `@to` without `@from`.
+    #[error("span @to requires @from")]
+    SpanToWithoutFrom,
 }
 
 /// Validates document-wide invariants for a [`TeiDocument`].
 ///
-/// Checks that all `xml:id` values are unique across annotation systems,
-/// paragraphs, and utterances, and that utterance speaker references match the
-/// declared cast list when present.
-///
 /// # Errors
 ///
-/// Returns [`ValidationError::DuplicateXmlId`] if any `xml:id` appears more
-/// than once. Returns [`ValidationError::UnknownSpeaker`] if an utterance
-/// references a speaker not declared in the profile description's cast list
-/// (when a cast has been provided).
+/// Returns [`ValidationError`] when duplicated identifiers, invalid citation
+/// declarations, unresolved internal pointers, or unknown speakers are
+/// detected.
 pub(crate) fn validate_document(document: &TeiDocument) -> Result<(), ValidationError> {
-    let mut seen_ids: HashSet<String> = HashSet::new();
+    let mut known_ids: HashSet<String> = HashSet::new();
 
-    validate_annotation_systems(document, &mut seen_ids)?;
+    validate_annotation_systems(document, &mut known_ids)?;
+    validate_stand_off_structure(document, &mut known_ids)?;
 
     let known_speakers = extract_known_speakers(document);
-
-    validate_body_blocks(document, &mut seen_ids, known_speakers.as_ref())?;
+    validate_body_blocks(document, &mut known_ids, known_speakers.as_ref())?;
+    validate_refs_decl(document)?;
+    validate_internal_pointers(document, &known_ids)?;
 
     Ok(())
 }
@@ -67,36 +89,184 @@ fn validate_annotation_systems(
     Ok(())
 }
 
+fn validate_stand_off_structure(
+    document: &TeiDocument,
+    seen_ids: &mut HashSet<String>,
+) -> Result<(), ValidationError> {
+    let Some(stand_off) = document.stand_off() else {
+        return Ok(());
+    };
+
+    for span_group in stand_off.span_groups() {
+        validate_non_empty_field(span_group.kind(), "spanGrp @type")?;
+        if let Some(identifier) = span_group.id() {
+            record_id(identifier.as_str(), seen_ids)?;
+        }
+
+        for span in span_group.spans() {
+            if let Some(identifier) = span.id() {
+                record_id(identifier.as_str(), seen_ids)?;
+            }
+            validate_span_structure(span)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn validate_body_blocks(
     document: &TeiDocument,
     seen_ids: &mut HashSet<String>,
     known_speakers: Option<&HashSet<String>>,
 ) -> Result<(), ValidationError> {
     for block in document.text().body().blocks() {
-        validate_body_block(block, seen_ids, known_speakers)?;
+        match block {
+            BodyBlock::Paragraph(paragraph) => {
+                if let Some(identifier) = paragraph.id() {
+                    record_id(identifier.as_str(), seen_ids)?;
+                }
+            }
+            BodyBlock::Utterance(utterance) => {
+                if let Some(identifier) = utterance.id() {
+                    record_id(identifier.as_str(), seen_ids)?;
+                }
+                validate_speaker_reference(utterance, known_speakers)?;
+            }
+        }
     }
     Ok(())
 }
 
-fn validate_body_block(
-    block: &BodyBlock,
-    seen_ids: &mut HashSet<String>,
-    known_speakers: Option<&HashSet<String>>,
+fn validate_refs_decl(document: &TeiDocument) -> Result<(), ValidationError> {
+    let Some(encoding) = document.header().encoding_desc() else {
+        return Ok(());
+    };
+    let Some(refs_decl) = encoding.refs_decl() else {
+        return Ok(());
+    };
+
+    for cite_structure in refs_decl.cite_structures() {
+        validate_cite_structure(cite_structure)?;
+    }
+
+    Ok(())
+}
+
+fn validate_cite_structure(cite_structure: &CiteStructure) -> Result<(), ValidationError> {
+    validate_non_empty_field(cite_structure.match_expr(), "citeStructure @match")?;
+
+    for cite_data in cite_structure.cite_data() {
+        validate_non_empty_field(cite_data.property(), "citeData @property")?;
+    }
+
+    for child in cite_structure.children() {
+        validate_cite_structure(child)?;
+    }
+
+    Ok(())
+}
+
+fn validate_internal_pointers(
+    document: &TeiDocument,
+    known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
-    match block {
-        BodyBlock::Paragraph(paragraph) => {
-            if let Some(identifier) = paragraph.id() {
-                record_id(identifier.as_str(), seen_ids)?;
-            }
-        }
-        BodyBlock::Utterance(utterance) => {
-            if let Some(identifier) = utterance.id() {
-                record_id(identifier.as_str(), seen_ids)?;
-            }
-            validate_speaker_reference(utterance, known_speakers)?;
+    for block in document.text().body().blocks() {
+        if let BodyBlock::Utterance(utterance) = block {
+            validate_utterance_pointers(utterance, known_ids)?;
         }
     }
+
+    let Some(stand_off) = document.stand_off() else {
+        return Ok(());
+    };
+
+    for span_group in stand_off.span_groups() {
+        validate_pointer_list("@resp", span_group.resp(), known_ids)?;
+        validate_pointer_list("@corresp", span_group.corresp(), known_ids)?;
+        validate_pointer_list("@ana", span_group.ana(), known_ids)?;
+
+        for span in span_group.spans() {
+            validate_pointer_list("@target", span.target(), known_ids)?;
+            validate_pointer("@from", span.from(), known_ids)?;
+            validate_pointer("@to", span.to(), known_ids)?;
+            validate_pointer_list("@source", span.source(), known_ids)?;
+            validate_pointer_list("@resp", span.resp(), known_ids)?;
+            validate_pointer_list("@corresp", span.corresp(), known_ids)?;
+            validate_pointer_list("@ana", span.ana(), known_ids)?;
+        }
+    }
+
     Ok(())
+}
+
+fn validate_utterance_pointers(
+    utterance: &Utterance,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    validate_pointer_list("@source", utterance.source(), known_ids)?;
+    validate_pointer_list("@resp", utterance.resp(), known_ids)?;
+    validate_pointer_list("@corresp", utterance.corresp(), known_ids)?;
+    validate_pointer_list("@ana", utterance.ana(), known_ids)?;
+    Ok(())
+}
+
+fn validate_pointer_list(
+    attribute: &'static str,
+    pointer_list: Option<&PointerList>,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    let Some(values) = pointer_list else {
+        return Ok(());
+    };
+
+    for pointer in values.iter() {
+        validate_pointer(attribute, Some(pointer), known_ids)?;
+    }
+
+    Ok(())
+}
+
+fn validate_pointer(
+    attribute: &'static str,
+    candidate: Option<&Pointer>,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    let Some(pointer) = candidate else {
+        return Ok(());
+    };
+
+    let Some(target_id) = pointer.internal_id() else {
+        return Ok(());
+    };
+
+    if known_ids.contains(target_id) {
+        Ok(())
+    } else {
+        Err(ValidationError::UnresolvedPointer {
+            attribute,
+            pointer: pointer.as_str().to_owned(),
+        })
+    }
+}
+
+const fn validate_span_structure(span: &Span) -> Result<(), ValidationError> {
+    if span.target().is_none() && span.from().is_none() {
+        return Err(ValidationError::SpanMissingAnchor);
+    }
+
+    if span.to().is_some() && span.from().is_none() {
+        return Err(ValidationError::SpanToWithoutFrom);
+    }
+
+    Ok(())
+}
+
+fn validate_non_empty_field(value: &str, field: &'static str) -> Result<(), ValidationError> {
+    if value.trim().is_empty() {
+        Err(ValidationError::EmptyField { field })
+    } else {
+        Ok(())
+    }
 }
 
 fn extract_known_speakers(document: &TeiDocument) -> Option<HashSet<String>> {
@@ -110,26 +280,23 @@ fn extract_known_speakers(document: &TeiDocument) -> Option<HashSet<String>> {
 }
 
 fn validate_speaker_reference(
-    utterance: &crate::text::Utterance,
+    utterance: &Utterance,
     known_speakers: Option<&HashSet<String>>,
 ) -> Result<(), ValidationError> {
-    // Early return if no cast list exists - speakers are allowed without validation
     let Some(speakers) = known_speakers else {
         return Ok(());
     };
-
-    // Early return if utterance has no speaker reference
     let Some(speaker) = utterance.speaker() else {
         return Ok(());
     };
 
     if speakers.contains(speaker.as_str()) {
-        return Ok(());
+        Ok(())
+    } else {
+        Err(ValidationError::UnknownSpeaker {
+            speaker: speaker.as_str().to_owned(),
+        })
     }
-
-    Err(ValidationError::UnknownSpeaker {
-        speaker: speaker.as_str().to_owned(),
-    })
 }
 
 fn record_id(value: &str, sink: &mut HashSet<String>) -> Result<(), ValidationError> {
@@ -148,184 +315,94 @@ mod tests {
 
     use super::*;
     use crate::{
-        header::{AnnotationSystem, EncodingDesc, FileDesc, ProfileDesc, TeiHeader},
-        text::{BodyBlock, P, TeiBody, TeiText, Utterance},
-        title::DocumentTitle,
+        Certainty, CiteData, CiteStructure, EncodingDesc, FileDesc, Pointer, PointerList, RefsDecl,
+        Span, SpanGroup, StandOff, TeiBody, TeiHeader, TeiText, Utterance,
     };
-    use rstest::{fixture, rstest};
 
-    #[fixture]
-    fn document_title() -> DocumentTitle {
-        DocumentTitle::new("Intro").expect("title should validate")
-    }
-
-    #[fixture]
-    fn base_header(document_title: DocumentTitle) -> TeiHeader {
-        TeiHeader::new(FileDesc::new(document_title))
-    }
-
-    #[fixture]
-    fn encoding() -> EncodingDesc {
-        let mut encoding = EncodingDesc::new();
-        let system = crate::AnnotationSystem::new("sys1", "annotations")
-            .expect("annotation system id should validate");
-        encoding.add_annotation_system(system);
-        encoding
-    }
-
-    #[fixture]
-    fn paragraph_with_id() -> P {
-        let mut paragraph =
-            P::from_text_segments(["Hello"]).expect("paragraph should accept content");
-        paragraph
-            .set_id("p1")
-            .expect("paragraph identifier should validate");
-        paragraph
-    }
-
-    #[fixture]
-    fn utterance_with_id() -> Utterance {
-        let mut utterance = Utterance::from_text_segments(Some("host"), ["Hi there"])
-            .expect("utterance should accept content");
+    fn document_with_stand_off() -> TeiDocument {
+        let header = TeiHeader::new(
+            FileDesc::from_title_str("Fixture").unwrap_or_else(|error| panic!("title: {error}")),
+        );
+        let mut utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("utterance: {error}"));
         utterance
             .set_id("u1")
-            .expect("utterance identifier should validate");
-        utterance
+            .unwrap_or_else(|error| panic!("utterance id: {error}"));
+
+        let mut span = Span::new();
+        span.set_id("sp1")
+            .unwrap_or_else(|error| panic!("span id: {error}"));
+        span.set_target(
+            PointerList::new(["#u1"]).unwrap_or_else(|error| panic!("target pointers: {error}")),
+        );
+        span.set_cert(Certainty::new("high").unwrap_or_else(|error| panic!("certainty: {error}")));
+        span.set_from(Pointer::new("#u1").unwrap_or_else(|error| panic!("from pointer: {error}")));
+
+        let mut span_group = SpanGroup::new("citation");
+        span_group
+            .set_id("grp1")
+            .unwrap_or_else(|error| panic!("group id: {error}"));
+        span_group.add_span(span);
+
+        let mut stand_off = StandOff::new();
+        stand_off.add_span_group(span_group);
+
+        TeiDocument::new(
+            header,
+            TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)])),
+        )
+        .with_stand_off(stand_off)
     }
 
-    #[rstest]
-    fn accepts_unique_identifiers_and_known_speakers(
-        base_header: TeiHeader,
-        encoding: EncodingDesc,
-        paragraph_with_id: P,
-        utterance_with_id: Utterance,
-    ) {
-        let mut profile = ProfileDesc::new();
-        profile
-            .add_speaker("host")
-            .expect("speaker should validate");
-        let header_with_cast = base_header
-            .with_profile_desc(profile)
-            .with_encoding_desc(encoding);
-
-        let text = TeiText::new(TeiBody::new([
-            BodyBlock::Paragraph(paragraph_with_id),
-            BodyBlock::Utterance(utterance_with_id),
-        ]));
-
-        let document = TeiDocument::new(header_with_cast, text);
-
+    #[test]
+    fn accepts_resolved_stand_off_pointers() {
+        let document = document_with_stand_off();
         assert!(validate_document(&document).is_ok());
     }
 
-    #[rstest]
-    fn rejects_duplicate_xml_ids(base_header: TeiHeader) {
-        let mut first = P::from_text_segments(["Hello"]).expect("paragraph should accept content");
-        first
-            .set_id("shared")
-            .expect("paragraph identifier should validate");
-
-        let mut second = Utterance::from_text_segments(Some("host"), ["Hi there"])
-            .expect("utterance should accept content");
-        second
-            .set_id("shared")
-            .expect("utterance identifier should validate");
-
-        let text = TeiText::new(TeiBody::new([
-            BodyBlock::Paragraph(first),
-            BodyBlock::Utterance(second),
-        ]));
-
-        let document = TeiDocument::new(base_header, text);
-
-        let result = validate_document(&document);
+    #[test]
+    fn rejects_unresolved_internal_pointers() {
+        let mut document = document_with_stand_off();
+        let stand_off = document
+            .stand_off_mut()
+            .unwrap_or_else(|| panic!("document should contain standOff"));
+        let group = stand_off
+            .find_span_group_mut("grp1")
+            .unwrap_or_else(|| panic!("span group should exist"));
+        let mut span = Span::new();
+        span.set_target(
+            PointerList::new(["#missing"])
+                .unwrap_or_else(|error| panic!("target pointers: {error}")),
+        );
+        group.add_span(span);
 
         assert_eq!(
-            result,
-            Err(ValidationError::DuplicateXmlId {
-                id: String::from("shared"),
+            validate_document(&document),
+            Err(ValidationError::UnresolvedPointer {
+                attribute: "@target",
+                pointer: String::from("#missing"),
             })
         );
     }
 
-    #[rstest]
-    fn rejects_header_body_duplicate_xml_ids(base_header: TeiHeader) {
-        let mut encoding = EncodingDesc::new();
-        let system = AnnotationSystem::new("shared", "annotations")
-            .expect("annotation system id should validate");
-        encoding.add_annotation_system(system);
-        let header = base_header.with_encoding_desc(encoding);
+    #[test]
+    fn rejects_blank_citation_properties() {
+        let mut refs_decl = RefsDecl::new();
+        let mut cite_structure = CiteStructure::new("//u");
+        cite_structure.add_cite_data(CiteData::new("   "));
+        refs_decl.add_cite_structure(cite_structure);
 
-        let mut paragraph =
-            P::from_text_segments(["Hello"]).expect("paragraph should accept content");
-        paragraph
-            .set_id("shared")
-            .expect("paragraph identifier should validate");
-        let text = TeiText::new(TeiBody::new([BodyBlock::Paragraph(paragraph)]));
-
-        let document = TeiDocument::new(header, text);
-        let result = validate_document(&document);
+        let header = TeiHeader::new(
+            FileDesc::from_title_str("Fixture").unwrap_or_else(|error| panic!("title: {error}")),
+        )
+        .with_encoding_desc(EncodingDesc::new().with_refs_decl(refs_decl));
+        let document = TeiDocument::new(header, TeiText::empty());
 
         assert_eq!(
-            result,
-            Err(ValidationError::DuplicateXmlId {
-                id: String::from("shared"),
+            validate_document(&document),
+            Err(ValidationError::EmptyField {
+                field: "citeData @property",
             })
         );
-    }
-
-    #[rstest]
-    fn rejects_unknown_speaker_references_when_profile_exists(base_header: TeiHeader) {
-        let mut profile = ProfileDesc::new();
-        profile
-            .add_speaker("known")
-            .expect("speaker should validate");
-        let header_with_cast = base_header.with_profile_desc(profile);
-
-        let utterance = Utterance::from_text_segments(Some("unknown"), ["Hi there"])
-            .expect("utterance should accept content");
-        let text = TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)]));
-
-        let document = TeiDocument::new(header_with_cast, text);
-
-        let result = validate_document(&document);
-
-        assert_eq!(
-            result,
-            Err(ValidationError::UnknownSpeaker {
-                speaker: String::from("unknown"),
-            })
-        );
-    }
-
-    #[rstest]
-    fn rejects_speakers_when_cast_is_empty(base_header: TeiHeader) {
-        let header_with_empty_cast = base_header.with_profile_desc(ProfileDesc::new());
-
-        let utterance = Utterance::from_text_segments(Some("ghost"), ["Boo"])
-            .expect("utterance should accept content");
-        let text = TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)]));
-
-        let document = TeiDocument::new(header_with_empty_cast, text);
-
-        let result = validate_document(&document);
-
-        assert_eq!(
-            result,
-            Err(ValidationError::UnknownSpeaker {
-                speaker: String::from("ghost"),
-            })
-        );
-    }
-
-    #[rstest]
-    fn ignores_speaker_references_when_cast_is_missing(base_header: TeiHeader) {
-        let utterance = Utterance::from_text_segments(Some("ghost"), ["Boo"])
-            .expect("utterance should accept content");
-        let text = TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)]));
-
-        let document = TeiDocument::new(base_header, text);
-
-        assert!(validate_document(&document).is_ok());
     }
 }

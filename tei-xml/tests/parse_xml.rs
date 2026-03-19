@@ -49,6 +49,33 @@ const BLANK_TITLE_FIXTURE: &str = concat!(
     "</TEI>",
 );
 
+const ANNOTATED_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Annotated</title>",
+    "</fileDesc>",
+    "<encodingDesc>",
+    "<refsDecl>",
+    "<citeStructure match=\"//u[@xml:id]\" unit=\"utterance\">",
+    "<citeData property=\"speaker\" use=\"@who\"/>",
+    "</citeStructure>",
+    "</refsDecl>",
+    "</encodingDesc>",
+    "</teiHeader>",
+    "<standOff>",
+    "<spanGrp xml:id=\"sg1\" type=\"citation\" resp=\"#ann1\">",
+    "<span xml:id=\"sp1\" target=\"#u1\" cert=\"high\"/>",
+    "</spanGrp>",
+    "</standOff>",
+    "<text>",
+    "<body>",
+    "<u xml:id=\"u1\" who=\"host\">Hello</u>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 type DocumentResult = std::result::Result<TeiDocument, TeiError>;
 
 #[derive(Default)]
@@ -89,6 +116,7 @@ fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
         "missing-header" => Ok(MISSING_HEADER_FIXTURE),
         "unterminated" => Ok(UNTERMINATED_FIXTURE),
         "blank-title" => Ok(BLANK_TITLE_FIXTURE),
+        "annotated" => Ok(ANNOTATED_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
@@ -177,6 +205,35 @@ fn parsing_fails_with_snippet(
     Ok(())
 }
 
+#[then("the parsed document includes stand-off annotations and citation declarations")]
+fn parsed_document_includes_richer_tei(
+    #[from(validated_state)] state: &ParseState,
+) -> anyhow::Result<()> {
+    let document = state
+        .result()?
+        .context("expected successful parse before asserting TEI richness")?;
+    let stand_off = document
+        .stand_off()
+        .context("expected standOff section to be present")?;
+    ensure!(
+        stand_off.span_groups().len() == 1,
+        "expected one span group, found {}",
+        stand_off.span_groups().len()
+    );
+
+    let refs_decl = document
+        .header()
+        .encoding_desc()
+        .and_then(|encoding| encoding.refs_decl())
+        .context("expected refsDecl to be present")?;
+    ensure!(
+        refs_decl.cite_structures().len() == 1,
+        "expected one citeStructure, found {}",
+        refs_decl.cite_structures().len()
+    );
+    Ok(())
+}
+
 #[scenario(path = "tests/features/parse_xml.feature", index = 0)]
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
@@ -203,6 +260,14 @@ fn reports_malformed_xml(
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 3)]
 fn rejects_blank_titles(
+    #[from(validated_state)] _: ParseState,
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) {
+    expect_validated_state(result, "parse");
+}
+
+#[scenario(path = "tests/features/parse_xml.feature", index = 4)]
+fn parses_annotated_documents(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
 ) {

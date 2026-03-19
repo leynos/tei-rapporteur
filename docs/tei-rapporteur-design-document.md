@@ -346,11 +346,18 @@ The initial implementation lands the document shell described above:
 - `ProfileDesc` maintains trimmed speaker names and language tags. Attempts to
   add empty values return a `HeaderValidationError::EmptyField`, mirroring the
   strict validation approach used for titles.
-- `EncodingDesc` records `AnnotationSystem` entries. Each system validates that
-  its identifier is non-empty while allowing an optional free-text description.
+- `EncodingDesc` records `AnnotationSystem` entries and optional `RefsDecl`
+  citation declarations. Each annotation system validates that its identifier
+  is non-empty while allowing an optional free-text description. `RefsDecl`
+  keeps canonical citation rules in the TEI-native header location instead of
+  overloading body markup.
 - `RevisionDesc` stores a list of `RevisionChange` values. Changes require a
   non-empty description and optionally track responsibility strings, again
   reusing `HeaderValidationError::EmptyField` for invalid input.
+- `TeiDocument` now allows an optional root-level `StandOff` section between
+  the header and text. This is the home for many-to-many analytical overlays,
+  provenance spans, and canonical citation attachments that should not be
+  crammed into body-local attributes.
 
 The text module now models the `<text><body>` hierarchy instead of relying on
 placeholder segments:
@@ -362,8 +369,9 @@ placeholder segments:
   future variants such as divisions.
 - `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasized spans, and
   pauses share a single ordered sequence. Both structs expose helper methods
-  for attaching optional `xml:id` values and, in the case of `Utterance`, a
-  speaker reference.
+  for attaching optional `xml:id` values. `Utterance` now also models TEI's
+  local provenance and analysis attributes: `@n`, `@who`, `@source`, `@resp`,
+  `@cert`, `@corresp`, and `@ana`.
 - Input validation moved into a dedicated `BodyContentError` enum. Paragraphs
   and utterances must contain at least one meaningful inline node. Inline text
   nodes with only whitespace are rejected, inline elements such as `<hi>` must
@@ -457,13 +465,20 @@ struct Utterance {
 }
 ```
 
-The model uses `Option<String>` for the speaker reference (since it might be
-omitted if there's only one speaker or if using a different markup). Similarly,
-global attributes like `xml:id` can be included. The design includes an
-`id: Option<String>` field on any element that can carry an `xml:id`. This
-allows references between elements (e.g., a `<span from="#u42:...">`
-referencing an utterance with `xml:id="u42"`). Validation ensures that if an
-element says `xml:id="X"` then `X` is unique within the document.
+The model uses validated wrapper types for TEI-facing scalars and lists. For
+example, `xml:id` becomes `XmlId`, TEI pointer tokens become `Pointer`, and
+whitespace-separated pointer lists become `PointerList`. `Utterance` keeps its
+speaker reference optional, but now also carries typed provenance attributes so
+local citation hooks stay close to the `<u>` element when that is the natural
+TEI representation. Global identifiers are still modeled explicitly on each
+element that can carry `xml:id`, allowing references between body content and
+stand-off spans. Validation ensures those identifiers remain unique within the
+document.
+
+The stand-off layer uses `StandOff`, `SpanGroup`, and `Span` types. `Span`
+supports both `@target` for many-to-many attachment and `@from`/`@to` for
+range-oriented annotation, which lets the profile cover both canonical citation
+overlays and analytical ranges without forcing a single representation.
 
 - **Preservation of Unknowns**: Because TEI is extensible, the model should not
   choke on unexpected attributes or child elements that might appear if the
@@ -1572,18 +1587,26 @@ project enforces correctness through a combination of **Rust type structure**,
 These checks ensure that even if an XML passed parsing, it adheres to the
 semantic rules of the TEI profile.
 
-The first implementation of `TeiDocument::validate` now enforces two rules for
-the Episodic profile:
+The current implementation of `TeiDocument::validate` now enforces the
+following rules for the Episodic profile:
 
-- `xml:id` values must be unique across header annotation systems, paragraphs,
-  and utterances.
+- `xml:id` values must be unique across header annotation systems, stand-off
+  span groups, stand-off spans, paragraphs, and utterances.
 - When a cast list is present, every utterance `who` reference must match one
   of the declared speakers. An empty cast still counts as “declared”, so any
   speaker reference will fail validation until the cast is populated. If no
   cast is present, speaker references are accepted without cross-checking.
+- `refsDecl` entries must keep required `citeStructure @match` and
+  `citeData @property` values non-empty.
+- Stand-off spans must declare either `@target` or `@from`, and `@to` is only
+  valid alongside `@from`.
+- Internal `#id` pointers in utterance-local provenance attributes and in
+  stand-off attributes must resolve against known `xml:id` values. External
+  URIs remain valid and are not dereferenced by the validator.
 
-Behaviour-driven scenarios now exercise both body-only identifier clashes and
-collisions between header annotation systems and body blocks. The empty-cast
+Behaviour-driven scenarios now exercise body-only identifier clashes,
+collisions between header annotation systems and body blocks, resolved and
+unresolved stand-off pointers, and anchorless stand-off spans. The empty-cast
 edge case is encoded in the same suite: an explicitly declared but empty cast
 rejects all `who` references, whereas the absence of a cast allows them, so
 draft transcripts can be validated incrementally.

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use tei_core::BodyBlock;
 
-use super::{PyInline, PyTeiHeader};
+use super::{PyInline, PyTeiHeader, certainty_to_string, pointer_list_to_vec};
 
 /// Tagged streaming event union surfaced to Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -33,9 +33,27 @@ pub(crate) enum PyEvent {
         /// Optional TEI `xml:id` identifier.
         #[serde(skip_serializing_if = "Option::is_none")]
         xml_id: Option<String>,
+        /// Optional TEI `@n` label.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        n: Option<String>,
         /// Optional speaker reference.
         #[serde(skip_serializing_if = "Option::is_none")]
         speaker: Option<String>,
+        /// Optional source pointer list.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        source: Vec<String>,
+        /// Optional responsibility pointer list.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        resp: Vec<String>,
+        /// Optional certainty token.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cert: Option<String>,
+        /// Optional correspondence pointer list.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        corresp: Vec<String>,
+        /// Optional analysis pointer list.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        ana: Vec<String>,
         /// Inline content contained in the utterance.
         content: Vec<PyInline>,
     },
@@ -58,7 +76,13 @@ pub fn py_event_from_core(event: tei_xml::streaming::TeiEvent) -> PyEvent {
             },
             BodyBlock::Utterance(u) => PyEvent::Utterance {
                 xml_id: u.id().map(|id| id.as_str().to_owned()),
+                n: u.number().map(str::to_owned),
                 speaker: u.speaker().map(|s| s.as_str().to_owned()),
+                source: pointer_list_to_vec(u.source()),
+                resp: pointer_list_to_vec(u.resp()),
+                cert: certainty_to_string(u.cert()),
+                corresp: pointer_list_to_vec(u.corresp()),
+                ana: pointer_list_to_vec(u.ana()),
                 content: u.content().iter().cloned().map(PyInline::from).collect(),
             },
         },

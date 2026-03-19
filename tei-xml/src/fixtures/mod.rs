@@ -19,8 +19,9 @@ mod bench;
 pub use bench::{BenchFixtureConfig, generate_benchmark_document, generate_benchmark_xml};
 
 use tei_core::{
-    AnnotationSystem, BodyBlock, EncodingDesc, FileDesc, P, ProfileDesc, RevisionChange,
-    RevisionDesc, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
+    AnnotationSystem, BodyBlock, CiteData, CiteStructure, EncodingDesc, FileDesc, P, PointerList,
+    ProfileDesc, RefsDecl, RevisionChange, RevisionDesc, Span, SpanGroup, StandOff, TeiBody,
+    TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
 };
 
 /// A function that builds a TEI document fixture.
@@ -114,6 +115,12 @@ pub fn comprehensive_document() -> Result<TeiDocument, TeiError> {
     let mut encoding = EncodingDesc::new();
     let annotation = AnnotationSystem::new("cliche", "Cliche detection annotations")?;
     encoding.add_annotation_system(annotation);
+    let mut refs_decl = RefsDecl::new();
+    let mut cite_structure = CiteStructure::new("//u[@xml:id]");
+    cite_structure = cite_structure.with_unit("utterance");
+    cite_structure.add_cite_data(CiteData::new("speaker").with_use_expr("@who"));
+    refs_decl.add_cite_structure(cite_structure);
+    encoding.set_refs_decl(refs_decl);
 
     // Build revision description
     let mut revision = RevisionDesc::new();
@@ -146,8 +153,17 @@ pub fn comprehensive_document() -> Result<TeiDocument, TeiError> {
         BodyBlock::Utterance(u3),
     ]);
     let text = TeiText::new(body);
+    let mut span = Span::new();
+    span.set_id("sp1")?;
+    span.set_target(PointerList::new(["#u1"])?);
+    let mut span_group = SpanGroup::new("citation");
+    span_group.set_id("sg1")?;
+    span_group.set_resp(PointerList::new(["#cliche"])?);
+    span_group.add_span(span);
+    let mut stand_off = StandOff::new();
+    stand_off.add_span_group(span_group);
 
-    Ok(TeiDocument::new(header, text))
+    Ok(TeiDocument::new(header, text).with_stand_off(stand_off))
 }
 
 /// Returns an iterator over all fixture builders with their names.
@@ -192,6 +208,7 @@ mod tests {
         assert!(doc.header().profile_desc().is_some());
         assert!(doc.header().encoding_desc().is_some());
         assert!(doc.header().revision_desc().is_some());
+        assert!(doc.stand_off().is_some());
         assert_eq!(doc.text().body().blocks().len(), 4);
     }
 

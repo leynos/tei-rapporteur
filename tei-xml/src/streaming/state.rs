@@ -6,6 +6,27 @@
 
 use tei_core::Inline;
 
+/// Raw TEI utterance attributes captured during streaming parsing.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RawUtteranceAttrs {
+    /// Optional `xml:id` attribute value.
+    pub id: Option<String>,
+    /// Optional free-form `@n` label.
+    pub n: Option<String>,
+    /// Optional `who` attribute (speaker reference).
+    pub who: Option<String>,
+    /// Optional `source` pointer list.
+    pub source: Option<String>,
+    /// Optional `resp` pointer list.
+    pub resp: Option<String>,
+    /// Optional `cert` token.
+    pub cert: Option<String>,
+    /// Optional `corresp` pointer list.
+    pub corresp: Option<String>,
+    /// Optional `ana` pointer list.
+    pub ana: Option<String>,
+}
+
 /// Internal parsing state for the streaming parser.
 ///
 /// The state machine tracks where in the document structure the parser
@@ -54,10 +75,8 @@ pub enum ParserState {
 
     /// Inside a `<u>` element, accumulating inline content.
     InUtterance {
-        /// Optional `xml:id` attribute value.
-        id: Option<String>,
-        /// Optional `who` attribute (speaker reference).
-        who: Option<String>,
+        /// Raw utterance attributes.
+        attrs: RawUtteranceAttrs,
         /// Accumulated inline content.
         content: Vec<Inline>,
     },
@@ -100,12 +119,11 @@ impl ParserState {
         }
     }
 
-    /// Creates a new `InUtterance` state with the given optional id and speaker.
+    /// Creates a new `InUtterance` state with the given raw attributes.
     #[must_use]
-    pub const fn in_utterance(id: Option<String>, who: Option<String>) -> Self {
+    pub const fn in_utterance(attrs: RawUtteranceAttrs) -> Self {
         Self::InUtterance {
-            id,
-            who,
+            attrs,
             content: Vec::new(),
         }
     }
@@ -211,7 +229,11 @@ mod tests {
         let paragraph = ParserState::in_paragraph(None);
         assert!(paragraph.is_in_block());
 
-        let utterance = ParserState::in_utterance(Some("u1".into()), Some("speaker".into()));
+        let utterance = ParserState::in_utterance(RawUtteranceAttrs {
+            id: Some("u1".into()),
+            who: Some("speaker".into()),
+            ..RawUtteranceAttrs::default()
+        });
         assert!(utterance.is_in_block());
 
         let emphasis = ParserState::in_emphasis(ParserState::InBody, Some("italic".into()));

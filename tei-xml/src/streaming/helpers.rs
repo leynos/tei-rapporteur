@@ -5,7 +5,11 @@
 
 use quick_xml::events::{BytesEnd, BytesStart};
 
-use tei_core::{BodyContentError, Hi, Inline, P, Pause, TeiError, Utterance};
+use tei_core::{
+    BodyContentError, Certainty, Hi, Inline, P, Pause, PointerList, TeiError, Utterance,
+};
+
+use super::state::RawUtteranceAttrs;
 
 /// Applies an optional ID to a block element that supports `set_id`.
 fn apply_id<T, F>(element: &mut T, id: Option<String>, setter: F) -> Result<(), TeiError>
@@ -118,19 +122,56 @@ pub fn build_paragraph(id: Option<String>, content: Vec<Inline>) -> Result<P, Te
     )
 }
 
-/// Builds an utterance from an optional ID, speaker, and inline content.
+fn apply_pointer_list(
+    utterance: &mut Utterance,
+    attribute_value: Option<String>,
+    setter: impl FnOnce(&mut Utterance, PointerList),
+) -> Result<(), TeiError> {
+    if let Some(raw_value) = attribute_value {
+        setter(
+            utterance,
+            PointerList::parse_attribute(raw_value).map_err(TeiError::from)?,
+        );
+    }
+    Ok(())
+}
+
+/// Builds an utterance from raw TEI attributes and inline content.
 pub fn build_utterance(
-    id: Option<String>,
-    who: Option<&str>,
+    attrs: RawUtteranceAttrs,
     content: Vec<Inline>,
 ) -> Result<Utterance, TeiError> {
-    build_block_with_content(
+    let RawUtteranceAttrs {
+        id,
+        n,
+        who,
+        source,
+        resp,
+        cert,
+        corresp,
+        ana,
+    } = attrs;
+
+    let mut utterance = build_block_with_content(
         content,
-        || Utterance::from_text_segments(who, [""]),
-        |c| Utterance::from_inline(who, c),
+        || Utterance::from_text_segments(who.as_deref(), [""]),
+        |c| Utterance::from_inline(who.as_deref(), c),
         id,
         Utterance::set_id,
-    )
+    )?;
+
+    if let Some(number) = n {
+        utterance.set_number(number);
+    }
+    apply_pointer_list(&mut utterance, source, Utterance::set_source)?;
+    apply_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
+    if let Some(certainty) = cert {
+        utterance.set_cert(Certainty::new(certainty).map_err(TeiError::from)?);
+    }
+    apply_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
+    apply_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
+
+    Ok(utterance)
 }
 
 /// Builds an emphasis (hi) element from an optional rendition and content.

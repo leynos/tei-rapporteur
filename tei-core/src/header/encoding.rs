@@ -1,10 +1,12 @@
-//! Encoding documentation (`<encodingDesc>`) and annotation system metadata.
+//! Encoding documentation (`<encodingDesc>`), annotation systems, and
+//! canonical citation declarations.
 //!
-//! Validates identifiers and normalizes optional descriptions to keep the TEI header consistent.
+//! Validates identifiers and normalizes optional descriptions to keep the TEI
+//! header consistent.
 
 use std::fmt;
 
-use super::{HeaderValidationError, normalize_optional_text};
+use super::{HeaderValidationError, RefsDecl, normalize_optional_text};
 use serde::{Deserialize, Serialize};
 
 /// Aggregates encoding metadata such as annotation systems.
@@ -18,6 +20,8 @@ pub struct EncodingDesc {
         default
     )]
     annotation_systems: Vec<AnnotationSystem>,
+    #[serde(rename = "refsDecl", skip_serializing_if = "Option::is_none", default)]
+    refs_decl: Option<RefsDecl>,
 }
 
 impl EncodingDesc {
@@ -38,10 +42,28 @@ impl EncodingDesc {
         self.annotation_systems.as_slice()
     }
 
+    /// Returns the canonical citation declaration, when present.
+    #[must_use]
+    pub const fn refs_decl(&self) -> Option<&RefsDecl> {
+        self.refs_decl.as_ref()
+    }
+
+    /// Attaches a citation declaration to the encoding metadata.
+    #[must_use]
+    pub fn with_refs_decl(mut self, refs_decl: RefsDecl) -> Self {
+        self.refs_decl = Some(refs_decl);
+        self
+    }
+
+    /// Replaces the citation declaration.
+    pub fn set_refs_decl(&mut self, refs_decl: RefsDecl) {
+        self.refs_decl = Some(refs_decl);
+    }
+
     /// Reports whether any annotation systems were registered.
     #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.annotation_systems.is_empty()
+    pub fn is_empty(&self) -> bool {
+        self.annotation_systems.is_empty() && self.refs_decl.as_ref().is_none_or(RefsDecl::is_empty)
     }
 
     /// Finds an annotation system by identifier.
@@ -235,5 +257,15 @@ mod tests {
         let result = json::from_str::<AnnotationSystemId>("\"   \"");
 
         assert!(result.is_err(), "empty identifier should not deserialise");
+    }
+
+    #[test]
+    fn encoding_desc_tracks_refs_decl() {
+        let mut refs_decl = RefsDecl::new();
+        refs_decl.add_cite_structure(crate::CiteStructure::new("//u"));
+        let encoding = EncodingDesc::new().with_refs_decl(refs_decl.clone());
+
+        assert_eq!(encoding.refs_decl(), Some(&refs_decl));
+        assert!(!encoding.is_empty());
     }
 }

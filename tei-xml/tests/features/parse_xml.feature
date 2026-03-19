@@ -20,3 +20,9 @@ Feature: Parse TEI XML
     Given the TEI fixture "blank-title"
     When I parse the TEI input
     Then parsing fails mentioning "document title may not be empty"
+
+  Scenario: Parse TEI with citation declarations and stand-off annotations
+    Given the TEI fixture "annotated"
+    When I parse the TEI input
+    Then parsing succeeds
+    And the parsed document includes stand-off annotations and citation declarations

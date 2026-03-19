@@ -8,7 +8,10 @@ use crate::{
 };
 use pyo3::{Python, types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
-use tei_core::{BodyBlock, Inline, P, TeiDocument, Utterance};
+use tei_core::{
+    BodyBlock, CiteData, CiteStructure, EncodingDesc, Inline, P, PointerList, RefsDecl, Span,
+    SpanGroup, StandOff, TeiDocument, Utterance,
+};
 use tei_serde::{json::Value, serde_json::json};
 use tei_xml::streaming::TeiEvent;
 
@@ -27,12 +30,51 @@ fn example_document() -> TeiDocument {
     let mut body = tei_core::TeiBody::default();
     body.push_paragraph(paragraph);
     let text = tei_core::TeiText::new(body);
-    TeiDocument::new(
-        tei_core::TeiHeader::new(
-            tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
-        ),
-        text,
+    let mut refs_decl = RefsDecl::new();
+    let mut cite_structure = CiteStructure::new("//u[@xml:id]");
+    cite_structure.add_cite_data(CiteData::new("speaker"));
+    refs_decl.add_cite_structure(cite_structure);
+    let header = tei_core::TeiHeader::new(
+        tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
     )
+    .with_encoding_desc(EncodingDesc::new().with_refs_decl(refs_decl));
+
+    let mut span = Span::new();
+    span.set_target(PointerList::new(["#p1"]).expect("pointer list should validate"));
+    let mut span_group = SpanGroup::new("citation");
+    span_group.add_span(span);
+    let mut stand_off = StandOff::new();
+    stand_off.add_span_group(span_group);
+
+    TeiDocument::new(header, text).with_stand_off(stand_off)
+}
+
+fn assert_round_tripped_paragraph(original: &TeiDocument, round_tripped: &TeiDocument) {
+    let original_blocks: Vec<&BodyBlock> = original.text().body().blocks().iter().collect();
+    let round_trip_blocks: Vec<&BodyBlock> = round_tripped.text().body().blocks().iter().collect();
+    assert_eq!(
+        original_blocks.len(),
+        round_trip_blocks.len(),
+        "body block counts should match"
+    );
+    assert!(
+        matches!(round_trip_blocks.first(), Some(BodyBlock::Paragraph(_))),
+        "first block should remain a paragraph"
+    );
+    if let (Some(BodyBlock::Paragraph(orig_p)), Some(BodyBlock::Paragraph(rt_p))) =
+        (original_blocks.first(), round_trip_blocks.first())
+    {
+        assert_eq!(
+            orig_p.id(),
+            rt_p.id(),
+            "paragraph xml:id should survive projection"
+        );
+        assert_eq!(
+            orig_p.content().len(),
+            rt_p.content().len(),
+            "inline content count should match"
+        );
+    }
 }
 
 #[test]
@@ -99,13 +141,17 @@ fn streaming_event_discriminators_remain_aligned() {
     .expect("header serialises");
     assert_eq!(header_event.get(TAG_FIELD), Some(&json!(TAG_HEADER)));
 
-    let utterance =
+    let mut utterance =
         Utterance::from_text_segments(Some("speaker"), ["hi"]).expect("valid utterance fixture");
+    utterance.set_number("1");
+    utterance.set_source(PointerList::new(["#src1"]).expect("pointer list should validate"));
     let utterance_event = tei_serde::json::to_value(&py_event_from_core(TeiEvent::BodyBlock(
         BodyBlock::Utterance(utterance),
     )))
     .expect("utterance serialises");
     assert_eq!(utterance_event.get(TAG_FIELD), Some(&json!(TAG_UTTERANCE)));
+    assert_eq!(utterance_event.get("n"), Some(&json!("1")));
+    assert_eq!(utterance_event.get("source"), Some(&json!(["#src1"])));
 }
 
 #[test]
@@ -166,32 +212,19 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
         round_tripped.header().file_desc().title(),
         "header title should be preserved by document_to_value/value_to_document round-trip"
     );
-
-    let original_blocks: Vec<&BodyBlock> = original.text().body().blocks().iter().collect();
-    let round_trip_blocks: Vec<&BodyBlock> = round_tripped.text().body().blocks().iter().collect();
-    assert_eq!(
-        original_blocks.len(),
-        round_trip_blocks.len(),
-        "body block counts should match"
+    assert!(
+        round_tripped.stand_off().is_some(),
+        "standOff should survive projection"
     );
     assert!(
-        matches!(round_trip_blocks.first(), Some(BodyBlock::Paragraph(_))),
-        "first block should remain a paragraph"
+        round_tripped
+            .header()
+            .encoding_desc()
+            .and_then(|encoding| encoding.refs_decl())
+            .is_some(),
+        "refsDecl should survive projection"
     );
-    if let (Some(BodyBlock::Paragraph(orig_p)), Some(BodyBlock::Paragraph(rt_p))) =
-        (original_blocks.first(), round_trip_blocks.first())
-    {
-        assert_eq!(
-            orig_p.id(),
-            rt_p.id(),
-            "paragraph xml:id should survive projection"
-        );
-        assert_eq!(
-            orig_p.content().len(),
-            rt_p.content().len(),
-            "inline content count should match"
-        );
-    }
+    assert_round_tripped_paragraph(&original, &round_tripped);
 }
 
 #[test]

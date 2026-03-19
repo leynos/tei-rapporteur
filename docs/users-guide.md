@@ -136,10 +136,13 @@ healthy.
 
 Python data classes now live in `tei_rapporteur.structs`. The submodule defines
 `msgspec.Struct` projections (`Episode`, `TeiHeader`, `FileDesc`, `Paragraph`,
-`Utterance`, and `Hi`) that mirror the Rust serde layout. Inline nodes decode
-into plain Python objects, so pauses and other inline variants remain flexible.
-MessagePack emitted by `to_msgpack` decodes directly into these classes, and
-encoding them feeds the payload straight back into `from_msgpack`.
+`Utterance`, `StandOff`, `SpanGroup`, `Span`, and the citation-declaration
+types) that mirror the Python-facing Rust projection. Inline nodes decode into
+plain Python objects, and TEI pointer-list attributes such as `source`,
+`corresp`, and `ana` are exposed as `list[str]` instead of TEI's
+whitespace-separated attribute strings. MessagePack emitted by `to_msgpack`
+decodes directly into these classes, and encoding them feeds the payload
+straight back into `from_msgpack`.
 
 Binary interchange is now supported through
 `tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes
@@ -151,9 +154,12 @@ instead of a Rust-specific error type. This allows workflows such as:
 ```python
 import msgspec
 import tei_rapporteur as tei
-from tei_rapporteur.structs import Episode
+from tei_rapporteur.structs import Episode, FileDesc, TeiBody, TeiHeader, TeiText
 
-episode = Episode(title="Bridgewater")  # msgspec.Struct
+episode = Episode(
+    header=TeiHeader(file_desc=FileDesc(title="Bridgewater")),
+    text=TeiText(body=TeiBody()),
+)
 payload = msgspec.msgpack.encode(episode)
 document = tei.from_msgpack(payload)
 print(document.title)
@@ -218,8 +224,11 @@ the API expands.
 
 The `Document` class exposes a `validate()` method that performs document-wide
 integrity checks. It verifies that all `xml:id` values are unique across the
-document (including annotation systems, paragraphs, and utterances) and that
-utterance speaker references match the declared cast list when present.
+document (including annotation systems, stand-off span groups, stand-off spans,
+paragraphs, and utterances), that utterance speaker references match the
+declared cast list when present, that `refsDecl` entries keep their required
+`@match` and `@property` values, and that internal `#id` pointers in utterance
+and stand-off provenance attributes resolve against existing identifiers.
 
 ```python
 import tei_rapporteur as tei
@@ -239,6 +248,11 @@ Validation raises `ValueError` with a descriptive message when:
 - A speaker is referenced when the profile has an empty cast (an empty cast
   still counts as declared, so all speaker references fail until the cast is
   populated)
+- A `citeStructure` or `citeData` declaration leaves a required attribute blank
+- A stand-off `span` omits both `@target` and `@from`, or uses `@to` without
+  `@from`
+- A `#`-prefixed pointer in `source`, `resp`, `corresp`, `ana`, `target`,
+  `from`, or `to` does not resolve to a known `xml:id`
 
 Documents without a profile cast allow speaker references without validation,
 enabling incremental validation of draft documents.
@@ -262,9 +276,13 @@ all) specification at `schemas/tei-episodic-profile.odd`. This specification:
 The profile supports:
 
 - **Header metadata**: title, speaker declarations, annotation systems,
+  canonical citation declarations (`refsDecl` / `citeStructure` / `citeData`),
   revision history
 - **Body structure**: paragraphs (`<p>`) and utterances (`<u>`) with optional
-  speaker attribution via `@who`
+  speaker attribution via `@who` plus local provenance attributes (`@n`,
+  `@source`, `@resp`, `@cert`, `@corresp`, `@ana`)
+- **Stand-off overlays**: root-level `<standOff>` containers with
+  `<spanGrp>`/`<span>` layers for many-to-many citation and analytical markup
 - **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause
   markers (`<pause>` with optional `@dur` and `@type`)
 
@@ -287,9 +305,9 @@ make validate-xml
 ```
 
 This generates XML fixtures exercising different profile features (minimal
-documents, paragraphs, utterances, and comprehensive documents with full header
-metadata), writes the embedded Relax NG schema, and validates each fixture
-using jing.
+documents, paragraphs, utterances, and comprehensive documents with citation
+declarations plus stand-off annotations), writes the embedded Relax NG schema,
+and validates each fixture using jing.
 
 The `validate-xml` target requires jing to be installed. On Ubuntu/Debian:
 
@@ -446,8 +464,8 @@ type-check inline nodes without falling back to `Any`.
 ## Performance benchmarks
 
 The workspace includes criterion benchmarks comparing the full-document parser
-(`parse_xml`) with the streaming parser (`TeiPullParser`). These benchmarks help
-quantify the performance characteristics of each parsing approach.
+(`parse_xml`) with the streaming parser (`TeiPullParser`). These benchmarks
+help quantify the performance characteristics of each parsing approach.
 
 ### Running benchmarks
 
@@ -464,12 +482,12 @@ Results are written to `target/criterion/` with HTML reports available at
 Benchmarks measure throughput (bytes/second) and latency for documents of
 varying sizes:
 
-| Size | Utterances | Paragraphs | Description |
-|------|------------|------------|-------------|
-| small | 10 | 2 | Unit test baseline (~2 KB) |
-| medium | 100 | 10 | Typical podcast transcript (~20 KB) |
-| large | 1,000 | 50 | Long-form interview (~200 KB) |
-| very_large | 10,000 | 200 | Multi-episode compilation (~2 MB) |
+| Size       | Utterances | Paragraphs | Description                         |
+| ---------- | ---------- | ---------- | ----------------------------------- |
+| small      | 10         | 2          | Unit test baseline (~2 KB)          |
+| medium     | 100        | 10         | Typical podcast transcript (~20 KB) |
+| large      | 1,000      | 50         | Long-form interview (~200 KB)       |
+| very_large | 10,000     | 200        | Multi-episode compilation (~2 MB)   |
 
 ### Interpreting results
 
@@ -482,8 +500,8 @@ varying sizes:
 
 ### Memory profiling
 
-For peak memory measurement, the `bench_memory` example can be run with external
-profiling tools:
+For peak memory measurement, the `bench_memory` example can be run with
+external profiling tools:
 
 ```bash
 cargo build --release --package tei-xml --features streaming --example bench_memory
@@ -492,6 +510,6 @@ cargo build --release --package tei-xml --features streaming --example bench_mem
 ```
 
 Compare the "Maximum resident set size" values to observe the memory advantage
-of the streaming parser for large documents. The streaming parser processes body
-blocks one at a time without accumulating them in memory, making it suitable for
-documents that exceed available RAM.
+of the streaming parser for large documents. The streaming parser processes
+body blocks one at a time without accumulating them in memory, making it
+suitable for documents that exceed available RAM.

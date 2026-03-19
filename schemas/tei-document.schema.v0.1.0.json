@@ -5,6 +5,16 @@
   "description": "Root TEI document combining metadata and textual content.\n\n# Examples\n\n```\nuse tei_core::{TeiDocument, TeiError};\n\nlet document = TeiDocument::from_title_str(\"Night Vale Episode\")?;\nassert_eq!(document.title().as_str(), \"Night Vale Episode\");\n# Ok::<(), TeiError>(())\n```",
   "type": "object",
   "properties": {
+    "standOff": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/standOff"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "teiHeader": {
       "$ref": "#/$defs/teiHeader"
     },
@@ -69,6 +79,10 @@
           ]
         }
       ]
+    },
+    "Certainty": {
+      "description": "Validated wrapper for TEI certainty values.",
+      "type": "string"
     },
     "DocumentTitle": {
       "description": "Title metadata carried by a [`crate::TeiDocument`].\n\nTitles are trimmed and must not be empty, ensuring downstream consumers can\nalways serialize a non-empty `<title>` element.\n\n# Examples\n\n```\nuse tei_core::{DocumentTitle, DocumentTitleError};\n\nlet title = DocumentTitle::new(\"Voynich Manuscript\")?;\nassert_eq!(title.as_str(), \"Voynich Manuscript\");\n# Ok::<(), DocumentTitleError>(())\n```",
@@ -146,6 +160,66 @@
         }
       }
     },
+    "citeData": {
+      "description": "Property extraction entry nested inside a citation structure.",
+      "type": "object",
+      "properties": {
+        "@property": {
+          "type": "string"
+        },
+        "@use": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "@property"
+      ]
+    },
+    "citeStructure": {
+      "description": "Nested canonical citation structure.",
+      "type": "object",
+      "properties": {
+        "@delim": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@match": {
+          "type": "string"
+        },
+        "@unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@use": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "citeData": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citeData"
+          }
+        },
+        "citeStructure": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citeStructure"
+          }
+        }
+      },
+      "required": [
+        "@match"
+      ]
+    },
     "encodingDesc": {
       "description": "Aggregates encoding metadata such as annotation systems.",
       "type": "object",
@@ -155,6 +229,16 @@
           "items": {
             "$ref": "#/$defs/AnnotationSystem"
           }
+        },
+        "refsDecl": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/refsDecl"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -269,6 +353,18 @@
         }
       }
     },
+    "refsDecl": {
+      "description": "Citation declaration container.",
+      "type": "object",
+      "properties": {
+        "citeStructure": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citeStructure"
+          }
+        }
+      }
+    },
     "revisionDesc": {
       "description": "Revision history records.",
       "type": "object",
@@ -277,6 +373,132 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/RevisionChange"
+          }
+        }
+      }
+    },
+    "span": {
+      "description": "Stand-off analytical span.",
+      "type": "object",
+      "properties": {
+        "@ana": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@cert": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Certainty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "@corresp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@resp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@to": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "spanGrp": {
+      "description": "A logical grouping of analytical spans.",
+      "type": "object",
+      "properties": {
+        "@ana": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@corresp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@resp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@type": {
+          "type": "string"
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        }
+      },
+      "required": [
+        "@type"
+      ]
+    },
+    "standOff": {
+      "description": "Root TEI stand-off annotation container.",
+      "type": "object",
+      "properties": {
+        "spanGrp": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/spanGrp"
           }
         }
       }
@@ -336,7 +558,7 @@
       ]
     },
     "u": {
-      "description": "Spoken utterance that may reference a speaker.",
+      "description": "Spoken utterance that may reference a speaker and carry local provenance.",
       "type": "object",
       "properties": {
         "$value": {
@@ -345,6 +567,46 @@
           "items": {
             "$ref": "#/$defs/Inline"
           }
+        },
+        "@ana": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@cert": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Certainty"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "@corresp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@n": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@resp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@source": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "@who": {
           "anyOf": [
@@ -366,8 +628,7 @@
             }
           ]
         }
-      },
-      "additionalProperties": false
+      }
     }
   }
 }

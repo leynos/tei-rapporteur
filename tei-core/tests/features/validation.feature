@@ -52,3 +52,25 @@ Feature: TEI document validation
     When I add an utterance for "ghost" saying "Boo" with id "u1"
     And I validate the document
     Then validation succeeds
+
+  Scenario: Accepting stand-off spans that target existing utterances
+    Given a TEI document titled "Night Vale"
+    When I add an utterance for "host" saying "Hello" with id "u1"
+    And I add a stand-off span group "citation" with id "sg1"
+    And I add a stand-off span "sp1" in group "sg1" targeting "#u1"
+    And I validate the document
+    Then validation succeeds
+
+  Scenario: Rejecting stand-off spans that target missing ids
+    Given a TEI document titled "Night Vale"
+    When I add a stand-off span group "citation" with id "sg1"
+    And I add a stand-off span "sp1" in group "sg1" targeting "#missing"
+    And I validate the document
+    Then validation fails with "internal pointer '#missing' in @target does not resolve"
+
+  Scenario: Rejecting stand-off spans without anchors
+    Given a TEI document titled "Night Vale"
+    When I add a stand-off span group "citation" with id "sg1"
+    And I add an anchorless stand-off span "sp1" in group "sg1"
+    And I validate the document
+    Then validation fails with "span must define @target or @from"
