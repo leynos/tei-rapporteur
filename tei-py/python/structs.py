@@ -228,8 +228,8 @@ class Episode(msgspec.Struct):
     """Top-level TEI document."""
 
     header: TeiHeader
-    stand_off: StandOff | None = None
     text: TeiText
+    stand_off: StandOff | None = None
 
 
 class DocumentStart(msgspec.Struct, tag="document_start", tag_field="type"):

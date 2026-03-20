@@ -137,7 +137,13 @@ fn i_add_an_utterance(
     identifier: String,
 ) -> Result<()> {
     state.update_document(|document| {
-        add_utterance(document, &speaker, &content, Some(identifier.as_str()))
+        let mut utterance =
+            Utterance::from_text_segments(Some(speaker.as_str()), [content.as_str()])
+                .context("utterance should be valid")?;
+        utterance
+            .set_id(identifier.as_str())
+            .context("identifier should validate")?;
+        add_utterance_to_document(document, utterance)
     })
 }
 
@@ -168,7 +174,9 @@ fn i_add_a_stand_off_span_targeting(
     group_id: String,
     target: String,
 ) -> Result<()> {
-    state.update_document(|document| add_target_span(document, &group_id, &span_id, &target))
+    state.update_document(|document| {
+        add_span_to_group(document, &group_id, &span_id, Some(target.as_str()))
+    })
 }
 
 #[when("I add an anchorless stand-off span \"{span_id}\" in group \"{group_id}\"")]
@@ -177,7 +185,7 @@ fn i_add_an_anchorless_stand_off_span(
     span_id: String,
     group_id: String,
 ) -> Result<()> {
-    state.update_document(|document| add_anchorless_span(document, &group_id, &span_id))
+    state.update_document(|document| add_span_to_group(document, &group_id, &span_id, None))
 }
 
 #[then("validation succeeds")]
@@ -250,21 +258,13 @@ fn add_paragraph(document: &TeiDocument, content: &str, identifier: &str) -> Res
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
-fn add_utterance(
-    document: &TeiDocument,
-    speaker: &str,
-    content: &str,
-    identifier: Option<&str>,
-) -> Result<TeiDocument> {
-    let mut utterance = Utterance::from_text_segments(Some(speaker), [content])
-        .context("utterance should be valid")?;
-    if let Some(id) = identifier {
-        utterance.set_id(id).context("identifier should validate")?;
-    }
-
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "BDD state updates use fallible helper signatures for a consistent closure shape"
+)]
+fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> Result<TeiDocument> {
     let mut text = document.text().clone();
     text.body_mut().push_utterance(utterance);
-
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
@@ -305,11 +305,11 @@ fn add_span_group(document: &TeiDocument, kind: &str, identifier: &str) -> Resul
     )
 }
 
-fn add_target_span(
+fn add_span_to_group(
     document: &TeiDocument,
     group_id: &str,
     span_id: &str,
-    target: &str,
+    target: Option<&str>,
 ) -> Result<TeiDocument> {
     let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
     let span_group = stand_off
@@ -318,27 +318,11 @@ fn add_target_span(
 
     let mut span = Span::new();
     span.set_id(span_id).context("span id should validate")?;
-    span.set_target(PointerList::new([target]).context("target pointers should validate")?);
-    span_group.add_span(span);
-
-    Ok(
-        TeiDocument::new(document.header().clone(), document.text().clone())
-            .with_stand_off(stand_off),
-    )
-}
-
-fn add_anchorless_span(
-    document: &TeiDocument,
-    group_id: &str,
-    span_id: &str,
-) -> Result<TeiDocument> {
-    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
-    let span_group = stand_off
-        .find_span_group_mut(group_id)
-        .context("span group should exist before adding a span")?;
-
-    let mut span = Span::new();
-    span.set_id(span_id).context("span id should validate")?;
+    if let Some(target_value) = target {
+        span.set_target(
+            PointerList::new([target_value]).context("target pointers should validate")?,
+        );
+    }
     span_group.add_span(span);
 
     Ok(

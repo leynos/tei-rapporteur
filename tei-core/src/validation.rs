@@ -9,7 +9,9 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::{BodyBlock, CiteStructure, Pointer, PointerList, Span, TeiDocument, Utterance};
+use crate::{
+    BodyBlock, CiteStructure, Pointer, PointerList, Span, SpanGroup, TeiDocument, Utterance,
+};
 
 /// Errors raised when validating a [`TeiDocument`].
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
@@ -98,17 +100,26 @@ fn validate_stand_off_structure(
     };
 
     for span_group in stand_off.span_groups() {
-        validate_non_empty_field(span_group.kind(), "spanGrp @type")?;
-        if let Some(identifier) = span_group.id() {
+        validate_span_group_structure(span_group, seen_ids)?;
+    }
+
+    Ok(())
+}
+
+fn validate_span_group_structure(
+    span_group: &SpanGroup,
+    seen_ids: &mut HashSet<String>,
+) -> Result<(), ValidationError> {
+    validate_non_empty_field(span_group.kind(), "spanGrp @type")?;
+    if let Some(identifier) = span_group.id() {
+        record_id(identifier.as_str(), seen_ids)?;
+    }
+
+    for span in span_group.spans() {
+        if let Some(identifier) = span.id() {
             record_id(identifier.as_str(), seen_ids)?;
         }
-
-        for span in span_group.spans() {
-            if let Some(identifier) = span.id() {
-                record_id(identifier.as_str(), seen_ids)?;
-            }
-            validate_span_structure(span)?;
-        }
+        validate_span_structure(span)?;
     }
 
     Ok(())
@@ -170,32 +181,53 @@ fn validate_internal_pointers(
     document: &TeiDocument,
     known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
-    for block in document.text().body().blocks() {
-        if let BodyBlock::Utterance(utterance) = block {
-            validate_utterance_pointers(utterance, known_ids)?;
-        }
+    document
+        .text()
+        .body()
+        .blocks()
+        .iter()
+        .filter_map(|block| {
+            if let BodyBlock::Utterance(utterance) = block {
+                Some(utterance)
+            } else {
+                None
+            }
+        })
+        .try_for_each(|utterance| validate_utterance_pointers(utterance, known_ids))?;
+
+    if let Some(stand_off) = document.stand_off() {
+        stand_off
+            .span_groups()
+            .iter()
+            .try_for_each(|span_group| validate_span_group_pointers(span_group, known_ids))?;
     }
 
-    let Some(stand_off) = document.stand_off() else {
-        return Ok(());
-    };
+    Ok(())
+}
 
-    for span_group in stand_off.span_groups() {
-        validate_pointer_list("@resp", span_group.resp(), known_ids)?;
-        validate_pointer_list("@corresp", span_group.corresp(), known_ids)?;
-        validate_pointer_list("@ana", span_group.ana(), known_ids)?;
+fn validate_span_group_pointers(
+    span_group: &SpanGroup,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    validate_pointer_list("@resp", span_group.resp(), known_ids)?;
+    validate_pointer_list("@corresp", span_group.corresp(), known_ids)?;
+    validate_pointer_list("@ana", span_group.ana(), known_ids)?;
+    span_group
+        .spans()
+        .iter()
+        .try_for_each(|span| validate_span_pointers(span, known_ids))?;
 
-        for span in span_group.spans() {
-            validate_pointer_list("@target", span.target(), known_ids)?;
-            validate_pointer("@from", span.from(), known_ids)?;
-            validate_pointer("@to", span.to(), known_ids)?;
-            validate_pointer_list("@source", span.source(), known_ids)?;
-            validate_pointer_list("@resp", span.resp(), known_ids)?;
-            validate_pointer_list("@corresp", span.corresp(), known_ids)?;
-            validate_pointer_list("@ana", span.ana(), known_ids)?;
-        }
-    }
+    Ok(())
+}
 
+fn validate_span_pointers(span: &Span, known_ids: &HashSet<String>) -> Result<(), ValidationError> {
+    validate_pointer_list("@target", span.target(), known_ids)?;
+    validate_pointer("@from", span.from(), known_ids)?;
+    validate_pointer("@to", span.to(), known_ids)?;
+    validate_pointer_list("@source", span.source(), known_ids)?;
+    validate_pointer_list("@resp", span.resp(), known_ids)?;
+    validate_pointer_list("@corresp", span.corresp(), known_ids)?;
+    validate_pointer_list("@ana", span.ana(), known_ids)?;
     Ok(())
 }
 
