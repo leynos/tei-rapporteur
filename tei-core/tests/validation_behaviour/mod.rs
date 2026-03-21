@@ -4,11 +4,10 @@ use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{
-    AnnotationSystem, EncodingDesc, P, PointerList, ProfileDesc, Span, SpanGroup, StandOff,
-    TeiDocument, TeiError, Utterance,
-};
+use tei_core::{P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
+
+mod stand_off;
 
 #[derive(Default)]
 struct ValidationState {
@@ -104,22 +103,6 @@ fn the_profile_is_declared_but_empty(
     state.update_document(|document| Ok(declare_empty_profile(document)))
 }
 
-#[given("the encoding includes annotation system \"{identifier}\"")]
-fn the_encoding_includes_annotation_system(
-    #[from(validated_state)] state: &ValidationState,
-    identifier: String,
-) -> Result<()> {
-    add_annotation_system_step(state, &identifier)
-}
-
-#[given("the encoding also includes annotation system \"{identifier}\"")]
-fn the_encoding_also_includes_annotation_system(
-    #[from(validated_state)] state: &ValidationState,
-    identifier: String,
-) -> Result<()> {
-    add_annotation_system_step(state, &identifier)
-}
-
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
 fn i_add_a_paragraph(
     #[from(validated_state)] state: &ValidationState,
@@ -156,36 +139,6 @@ fn i_validate_the_document(#[from(validated_state)] state: &ValidationState) -> 
     }
 
     Ok(())
-}
-
-#[when("I add a stand-off span group \"{kind}\" with id \"{identifier}\"")]
-fn i_add_a_stand_off_span_group(
-    #[from(validated_state)] state: &ValidationState,
-    kind: String,
-    identifier: String,
-) -> Result<()> {
-    state.update_document(|document| add_span_group(document, &kind, &identifier))
-}
-
-#[when("I add a stand-off span \"{span_id}\" in group \"{group_id}\" targeting \"{target}\"")]
-fn i_add_a_stand_off_span_targeting(
-    #[from(validated_state)] state: &ValidationState,
-    span_id: String,
-    group_id: String,
-    target: String,
-) -> Result<()> {
-    state.update_document(|document| {
-        add_span_to_group(document, &group_id, &span_id, Some(target.as_str()))
-    })
-}
-
-#[when("I add an anchorless stand-off span \"{span_id}\" in group \"{group_id}\"")]
-fn i_add_an_anchorless_stand_off_span(
-    #[from(validated_state)] state: &ValidationState,
-    span_id: String,
-    group_id: String,
-) -> Result<()> {
-    state.update_document(|document| add_span_to_group(document, &group_id, &span_id, None))
 }
 
 #[then("validation succeeds")]
@@ -266,69 +219,6 @@ fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> Re
     let mut text = document.text().clone();
     text.body_mut().push_utterance(utterance);
     Ok(TeiDocument::new(document.header().clone(), text))
-}
-
-fn add_annotation_system_step(state: &ValidationState, identifier: &str) -> Result<()> {
-    state.update_document(|document| add_annotation_system(document, identifier, "annotations"))
-}
-
-fn add_annotation_system(
-    document: &TeiDocument,
-    identifier: &str,
-    description: &str,
-) -> Result<TeiDocument> {
-    let mut encoding = document
-        .header()
-        .encoding_desc()
-        .cloned()
-        .unwrap_or_else(EncodingDesc::new);
-    let system = AnnotationSystem::new(identifier, description)
-        .context("annotation system should validate")?;
-    encoding.add_annotation_system(system);
-
-    let header = document.header().clone().with_encoding_desc(encoding);
-
-    Ok(TeiDocument::new(header, document.text().clone()))
-}
-
-fn add_span_group(document: &TeiDocument, kind: &str, identifier: &str) -> Result<TeiDocument> {
-    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
-    let mut span_group = SpanGroup::new(kind);
-    span_group
-        .set_id(identifier)
-        .context("span group id should validate")?;
-    stand_off.add_span_group(span_group);
-
-    Ok(
-        TeiDocument::new(document.header().clone(), document.text().clone())
-            .with_stand_off(stand_off),
-    )
-}
-
-fn add_span_to_group(
-    document: &TeiDocument,
-    group_id: &str,
-    span_id: &str,
-    target: Option<&str>,
-) -> Result<TeiDocument> {
-    let mut stand_off = document.stand_off().cloned().unwrap_or_else(StandOff::new);
-    let span_group = stand_off
-        .find_span_group_mut(group_id)
-        .context("span group should exist before adding a span")?;
-
-    let mut span = Span::new();
-    span.set_id(span_id).context("span id should validate")?;
-    if let Some(target_value) = target {
-        span.set_target(
-            PointerList::new([target_value]).context("target pointers should validate")?,
-        );
-    }
-    span_group.add_span(span);
-
-    Ok(
-        TeiDocument::new(document.header().clone(), document.text().clone())
-            .with_stand_off(stand_off),
-    )
 }
 
 // Scenario indices are coupled to validation.feature ordering. Update the

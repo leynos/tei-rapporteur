@@ -89,7 +89,11 @@ impl CiteStructure {
 
     /// Returns the required match expression.
     #[must_use]
-    pub const fn match_expr(&self) -> &str {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "String::as_str is not const-stable on the current MSRV."
+    )]
+    pub fn match_expr(&self) -> &str {
         self.match_expr.as_str()
     }
 
@@ -107,13 +111,21 @@ impl CiteStructure {
 
     /// Returns the declared `citeData` entries.
     #[must_use]
-    pub const fn cite_data(&self) -> &[CiteData] {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Keep accessor constness aligned with adjacent string-backed accessors."
+    )]
+    pub fn cite_data(&self) -> &[CiteData] {
         self.cite_data.as_slice()
     }
 
     /// Returns child citation structures.
     #[must_use]
-    pub const fn children(&self) -> &[Self] {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "Keep accessor constness aligned with adjacent string-backed accessors."
+    )]
+    pub fn children(&self) -> &[Self] {
         self.children.as_slice()
     }
 
@@ -175,7 +187,11 @@ impl CiteData {
 
     /// Returns the property name.
     #[must_use]
-    pub const fn property(&self) -> &str {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "String::as_str is not const-stable on the current MSRV."
+    )]
+    pub fn property(&self) -> &str {
         self.property.as_str()
     }
 
@@ -212,7 +228,7 @@ mod tests {
         let cite_structure = refs_decl
             .cite_structures()
             .first()
-            .unwrap_or_else(|| panic!("refsDecl should contain a citeStructure"));
+            .expect("refsDecl should contain a citeStructure");
 
         assert_eq!(refs_decl.cite_structures().len(), 1);
         assert_eq!(cite_structure.cite_data().len(), 1);

@@ -20,8 +20,23 @@ pub struct EncodingDesc {
         default
     )]
     annotation_systems: Vec<AnnotationSystem>,
-    #[serde(rename = "refsDecl", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "refsDecl",
+        skip_serializing_if = "is_none_or_empty_refs_decl",
+        default
+    )]
     refs_decl: Option<RefsDecl>,
+}
+
+#[expect(
+    clippy::ref_option,
+    reason = "serde skip_serializing_if requires a predicate over &Option<RefsDecl>."
+)]
+const fn is_none_or_empty_refs_decl(value: &Option<RefsDecl>) -> bool {
+    match value.as_ref() {
+        Some(refs_decl) => refs_decl.is_empty(),
+        None => true,
+    }
 }
 
 impl EncodingDesc {
@@ -51,19 +66,31 @@ impl EncodingDesc {
     /// Attaches a citation declaration to the encoding metadata.
     #[must_use]
     pub fn with_refs_decl(mut self, refs_decl: RefsDecl) -> Self {
-        self.refs_decl = Some(refs_decl);
+        self.refs_decl = (!refs_decl.is_empty()).then_some(refs_decl);
         self
     }
 
     /// Replaces the citation declaration.
     pub fn set_refs_decl(&mut self, refs_decl: RefsDecl) {
-        self.refs_decl = Some(refs_decl);
+        self.refs_decl = (!refs_decl.is_empty()).then_some(refs_decl);
     }
 
     /// Reports whether any annotation systems were registered.
     #[must_use]
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "review requested avoiding newer std APIs in this accessor for MSRV compatibility"
+    )]
+    #[expect(
+        clippy::option_if_let_else,
+        reason = "explicit matching avoids the newer Option::is_none_or API on the current MSRV"
+    )]
     pub fn is_empty(&self) -> bool {
-        self.annotation_systems.is_empty() && self.refs_decl.as_ref().is_none_or(RefsDecl::is_empty)
+        self.annotation_systems.is_empty()
+            && match self.refs_decl.as_ref() {
+                Some(refs_decl) => refs_decl.is_empty(),
+                None => true,
+            }
     }
 
     /// Finds an annotation system by identifier.

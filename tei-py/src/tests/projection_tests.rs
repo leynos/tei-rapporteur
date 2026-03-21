@@ -41,7 +41,8 @@ fn example_document() -> TeiDocument {
 
     let mut span = Span::new();
     span.set_target(PointerList::new(["#p1"]).expect("pointer list should validate"));
-    let mut span_group = SpanGroup::new("citation");
+    let mut span_group =
+        SpanGroup::new("citation").unwrap_or_else(|error| panic!("group kind: {error}"));
     span_group.add_span(span);
     let mut stand_off = StandOff::new();
     stand_off.add_span_group(span_group);

@@ -13,7 +13,7 @@ mod events;
 mod header;
 
 pub(crate) use annotation::{
-    PyStandOff, certainty_from_option, certainty_to_string, pointer_list_from_vec,
+    PyStandOff, apply_optional_pointer_list, certainty_from_option, certainty_to_string,
     pointer_list_to_vec,
 };
 use header::PyTeiHeader;
@@ -208,58 +208,6 @@ fn py_body_block_from_core(block: &BodyBlock) -> PyBodyBlock {
     }
 }
 
-fn apply_optional_utterance_pointer_list(
-    utterance: &mut Utterance,
-    values: Vec<String>,
-    setter: impl FnOnce(&mut Utterance, tei_core::PointerList),
-) -> Result<(), TeiError> {
-    if let Some(pointer_list) = pointer_list_from_vec(values)? {
-        setter(utterance, pointer_list);
-    }
-    Ok(())
-}
-
-fn core_utterance_from_py(block: PyBodyBlock) -> Result<Utterance, TeiError> {
-    let PyBodyBlock::Utterance {
-        xml_id,
-        n,
-        speaker,
-        source,
-        resp,
-        cert,
-        corresp,
-        ana,
-        content,
-    } = block
-    else {
-        return Err(TeiError::xml(
-            "internal error: core_utterance_from_py received a non-utterance block",
-        ));
-    };
-
-    let mut utterance = Utterance::from_inline(
-        speaker.as_deref(),
-        content
-            .into_iter()
-            .map(inline_from_py)
-            .collect::<Result<Vec<_>, _>>()?,
-    )?;
-    if let Some(id) = xml_id {
-        utterance.set_id(id)?;
-    }
-    if let Some(number) = n {
-        utterance.set_number(number);
-    }
-    apply_optional_utterance_pointer_list(&mut utterance, source, Utterance::set_source)?;
-    apply_optional_utterance_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
-    if let Some(certainty) = certainty_from_option(cert)? {
-        utterance.set_cert(certainty);
-    }
-    apply_optional_utterance_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
-    apply_optional_utterance_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
-    Ok(utterance)
-}
-
 fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
     match block {
         PyBodyBlock::Paragraph { xml_id, content } => {
@@ -274,9 +222,39 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
             }
             Ok(BodyBlock::Paragraph(paragraph))
         }
-        utterance_block @ PyBodyBlock::Utterance { .. } => Ok(BodyBlock::Utterance(
-            core_utterance_from_py(utterance_block)?,
-        )),
+        PyBodyBlock::Utterance {
+            xml_id,
+            n,
+            speaker,
+            source,
+            resp,
+            cert,
+            corresp,
+            ana,
+            content,
+        } => {
+            let mut utterance = Utterance::from_inline(
+                speaker.as_deref(),
+                content
+                    .into_iter()
+                    .map(inline_from_py)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )?;
+            if let Some(id) = xml_id {
+                utterance.set_id(id)?;
+            }
+            if let Some(number) = n {
+                utterance.set_number(number);
+            }
+            apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
+            apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
+            if let Some(certainty) = certainty_from_option(cert)? {
+                utterance.set_cert(certainty);
+            }
+            apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
+            apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
+            Ok(BodyBlock::Utterance(utterance))
+        }
     }
 }
 

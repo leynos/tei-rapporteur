@@ -75,6 +75,17 @@ pub(crate) fn certainty_from_option(value: Option<String>) -> Result<Option<Cert
         .map_err(TeiError::from)
 }
 
+pub(crate) fn apply_optional_pointer_list<T>(
+    target: &mut T,
+    values: Vec<String>,
+    setter: impl FnOnce(&mut T, PointerList),
+) -> Result<(), TeiError> {
+    if let Some(pointer_list) = pointer_list_from_vec(values)? {
+        setter(target, pointer_list);
+    }
+    Ok(())
+}
+
 impl From<&StandOff> for PyStandOff {
     fn from(value: &StandOff) -> Self {
         Self {
@@ -112,19 +123,13 @@ impl TryFrom<PySpanGroup> for SpanGroup {
     type Error = TeiError;
 
     fn try_from(value: PySpanGroup) -> Result<Self, Self::Error> {
-        let mut span_group = Self::new(value.kind);
+        let mut span_group = Self::new(value.kind)?;
         if let Some(id) = value.xml_id {
             span_group.set_id(id)?;
         }
-        if let Some(resp) = pointer_list_from_vec(value.resp)? {
-            span_group.set_resp(resp);
-        }
-        if let Some(corresp) = pointer_list_from_vec(value.corresp)? {
-            span_group.set_corresp(corresp);
-        }
-        if let Some(ana) = pointer_list_from_vec(value.ana)? {
-            span_group.set_ana(ana);
-        }
+        apply_optional_pointer_list(&mut span_group, value.resp, Self::set_resp)?;
+        apply_optional_pointer_list(&mut span_group, value.corresp, Self::set_corresp)?;
+        apply_optional_pointer_list(&mut span_group, value.ana, Self::set_ana)?;
         for span in value.spans {
             span_group.add_span(Span::try_from(span)?);
         }
@@ -165,24 +170,13 @@ impl TryFrom<PySpan> for Span {
         if let Some(to_ref) = pointer_from_option(value.to_ref)? {
             span.set_to(to_ref);
         }
-        apply_optional_span_list(&mut span, value.source, Self::set_source)?;
-        apply_optional_span_list(&mut span, value.resp, Self::set_resp)?;
+        apply_optional_pointer_list(&mut span, value.source, Self::set_source)?;
+        apply_optional_pointer_list(&mut span, value.resp, Self::set_resp)?;
         if let Some(certainty) = certainty_from_option(value.cert)? {
             span.set_cert(certainty);
         }
-        apply_optional_span_list(&mut span, value.corresp, Self::set_corresp)?;
-        apply_optional_span_list(&mut span, value.ana, Self::set_ana)?;
+        apply_optional_pointer_list(&mut span, value.corresp, Self::set_corresp)?;
+        apply_optional_pointer_list(&mut span, value.ana, Self::set_ana)?;
         Ok(span)
     }
-}
-
-fn apply_optional_span_list(
-    span: &mut Span,
-    values: Vec<String>,
-    setter: impl FnOnce(&mut Span, PointerList),
-) -> Result<(), TeiError> {
-    if let Some(pointer_list) = pointer_list_from_vec(values)? {
-        setter(span, pointer_list);
-    }
-    Ok(())
 }

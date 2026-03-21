@@ -156,7 +156,7 @@ pub fn comprehensive_document() -> Result<TeiDocument, TeiError> {
     let mut span = Span::new();
     span.set_id("sp1")?;
     span.set_target(PointerList::new(["#u1"])?);
-    let mut span_group = SpanGroup::new("citation");
+    let mut span_group = SpanGroup::new("citation")?;
     span_group.set_id("sg1")?;
     span_group.set_resp(PointerList::new(["#cliche"])?);
     span_group.add_span(span);

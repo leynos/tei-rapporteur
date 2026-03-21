@@ -276,11 +276,11 @@ impl From<&CiteData> for PyCiteData {
 
 impl From<PyCiteData> for CiteData {
     fn from(value: PyCiteData) -> Self {
-        let cite_data = Self::new(value.property);
-        match value.use_expr {
-            Some(use_expr) => cite_data.with_use_expr(use_expr),
-            None => cite_data,
-        }
+        let property = value.property;
+        value.use_expr.map_or_else(
+            || Self::new(property.clone()),
+            |use_expr| Self::new(property.clone()).with_use_expr(use_expr),
+        )
     }
 }
 

@@ -628,7 +628,8 @@
             }
           ]
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

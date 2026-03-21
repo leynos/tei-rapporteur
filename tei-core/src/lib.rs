@@ -13,7 +13,7 @@ mod text;
 mod title;
 mod validation;
 
-pub use annotation::{Span, SpanGroup, StandOff};
+pub use annotation::{AnnotationValidationError, Span, SpanGroup, StandOff};
 pub use header::{
     AnnotationSystem, AnnotationSystemId, CiteData, CiteStructure, EncodingDesc, FileDesc,
     HeaderValidationError, LanguageTag, ProfileDesc, RefsDecl, ResponsibleParty, RevisionChange,
@@ -52,6 +52,9 @@ pub enum TeiError {
     /// Wrapper around [`PointerListValidationError`] values.
     #[error(transparent)]
     PointerList(#[from] PointerListValidationError),
+    /// Wrapper around [`AnnotationValidationError`] values.
+    #[error(transparent)]
+    Annotation(#[from] AnnotationValidationError),
     /// Wrapper around [`CertaintyValidationError`] values.
     #[error(transparent)]
     Certainty(#[from] CertaintyValidationError),
@@ -152,7 +155,11 @@ impl TeiDocument {
     }
 
     /// Returns the mutable stand-off annotation layer when present.
-    pub const fn stand_off_mut(&mut self) -> Option<&mut StandOff> {
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "review requested a non-const mutable accessor to avoid a misleading API surface"
+    )]
+    pub fn stand_off_mut(&mut self) -> Option<&mut StandOff> {
         self.stand_off.as_mut()
     }
 

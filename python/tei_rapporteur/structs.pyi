@@ -46,14 +46,14 @@ class Utterance(
     """Spoken utterance (``<u>``) with local provenance metadata."""
 
     xml_id: str | None = None
-    n: str | None = None
     speaker: str | None = None
+    content: list[Inline] = ...  # type: ignore[assignment]
+    n: str | None = None
     source: list[str] = ...  # type: ignore[assignment]
     resp: list[str] = ...  # type: ignore[assignment]
     cert: str | None = None
     corresp: list[str] = ...  # type: ignore[assignment]
     ana: list[str] = ...  # type: ignore[assignment]
-    content: list[Inline] = ...  # type: ignore[assignment]
 
 BodyBlock: TypeAlias = Paragraph | Utterance
 
@@ -187,7 +187,7 @@ class StandOff(
 
     span_groups: list[SpanGroup] = ...  # type: ignore[assignment]
 
-class Episode(msgspec.Struct):
+class Episode(msgspec.Struct, omit_defaults=True):
     """Top-level TEI document."""
 
     header: TeiHeader
@@ -225,14 +225,14 @@ class UtteranceEvent(
     """Streaming event carrying an utterance."""
 
     xml_id: str | None = None
-    n: str | None = None
     speaker: str | None = None
+    content: list[Inline] = ...  # type: ignore[assignment]
+    n: str | None = None
     source: list[str] = ...  # type: ignore[assignment]
     resp: list[str] = ...  # type: ignore[assignment]
     cert: str | None = None
     corresp: list[str] = ...  # type: ignore[assignment]
     ana: list[str] = ...  # type: ignore[assignment]
-    content: list[Inline] = ...  # type: ignore[assignment]
 
 Event: TypeAlias = (
     DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent

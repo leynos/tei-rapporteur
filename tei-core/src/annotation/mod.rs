@@ -5,8 +5,17 @@
 //! body-level provenance attributes.
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::text::{Certainty, IdentifierValidationError, Pointer, PointerList, XmlId};
+
+/// Errors raised when validating stand-off annotation metadata.
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
+pub enum AnnotationValidationError {
+    /// The `spanGrp @type` label trimmed to an empty string.
+    #[error("spanGrp @type must not be empty")]
+    EmptySpanGroupKind,
+}
 
 /// Root TEI stand-off annotation container.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -78,16 +87,25 @@ pub struct SpanGroup {
 
 impl SpanGroup {
     /// Creates a span group with the provided `@type`.
-    #[must_use]
-    pub fn new(kind: impl Into<String>) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AnnotationValidationError::EmptySpanGroupKind`] when the
+    /// supplied type label trims to an empty string.
+    pub fn new(kind: impl Into<String>) -> Result<Self, AnnotationValidationError> {
+        let normalized_kind = kind.into().trim().to_owned();
+        if normalized_kind.is_empty() {
+            return Err(AnnotationValidationError::EmptySpanGroupKind);
+        }
+
+        Ok(Self {
             id: None,
-            kind: kind.into().trim().to_owned(),
+            kind: normalized_kind,
             resp: None,
             corresp: None,
             ana: None,
             spans: Vec::new(),
-        }
+        })
     }
 
     /// Returns the optional identifier.
@@ -98,8 +116,8 @@ impl SpanGroup {
 
     /// Returns the group type label.
     #[must_use]
-    pub const fn kind(&self) -> &str {
-        self.kind.as_str()
+    pub fn kind(&self) -> &str {
+        &self.kind
     }
 
     /// Returns the responsibility pointers, when present.
@@ -315,7 +333,8 @@ mod tests {
     #[test]
     fn stand_off_tracks_groups_by_identifier() {
         let mut stand_off = StandOff::new();
-        let mut group = SpanGroup::new("citation");
+        let mut group =
+            SpanGroup::new("citation").unwrap_or_else(|error| panic!("group kind: {error}"));
         group
             .set_id("grp1")
             .unwrap_or_else(|error| panic!("group id should validate: {error}"));
@@ -342,5 +361,13 @@ mod tests {
             Some(vec![String::from("#u1"), String::from("#u2")])
         );
         assert_eq!(span.cert().map(Certainty::as_str), Some("high"));
+    }
+
+    #[test]
+    fn span_group_rejects_blank_kind() {
+        assert_eq!(
+            SpanGroup::new("   "),
+            Err(AnnotationValidationError::EmptySpanGroupKind)
+        );
     }
 }

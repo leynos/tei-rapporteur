@@ -185,6 +185,14 @@ fn utterance_exposes_provenance_metadata(#[from(state)] state: &StreamingState) 
             .map(Vec::len),
         Some(1)
     );
+    assert_eq!(
+        utterance
+            .get("resp")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#ann1")
+    );
     assert_eq!(utterance.get("cert").and_then(Value::as_str), Some("high"));
     assert_eq!(
         utterance
