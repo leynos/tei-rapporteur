@@ -10,18 +10,33 @@ pub(super) fn validate_internal_pointers(
     document: &TeiDocument,
     known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
+    validate_body_utterance_pointers(document, known_ids)?;
+    validate_stand_off_span_group_pointers(document, known_ids)?;
+    Ok(())
+}
+
+fn validate_body_utterance_pointers(
+    document: &TeiDocument,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
     for block in document.text().body().blocks() {
         if let BodyBlock::Utterance(utterance) = block {
             validate_utterance_pointers(utterance, known_ids)?;
         }
     }
+    Ok(())
+}
 
-    if let Some(stand_off) = document.stand_off() {
-        for span_group in stand_off.span_groups() {
-            validate_span_group_pointers(span_group, known_ids)?;
-        }
+fn validate_stand_off_span_group_pointers(
+    document: &TeiDocument,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    let Some(stand_off) = document.stand_off() else {
+        return Ok(());
+    };
+    for span_group in stand_off.span_groups() {
+        validate_span_group_pointers(span_group, known_ids)?;
     }
-
     Ok(())
 }
 

@@ -21,7 +21,10 @@ available today and how to exercise it.
   whereas the absence of a cast allows speaker references, so drafts can be
   validated incrementally. Identifier checks span the header as well, catching
   clashes between annotation systems and body blocks. Violations surface as
-  `TeiError::Validation`.
+  `TeiError::Validation`. Utterances now also carry local provenance and
+  citation attributes (`@n`, `@source`, `@resp`, `@cert`, `@corresp`, `@ana`),
+  and XML deserialization remains strict for `<u>`: misspelled or unsupported
+  attributes are rejected instead of being silently discarded.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
@@ -139,10 +142,15 @@ Python data classes now live in `tei_rapporteur.structs`. The submodule defines
 `Utterance`, `StandOff`, `SpanGroup`, `Span`, and the citation-declaration
 types) that mirror the Python-facing Rust projection. Inline nodes decode into
 plain Python objects, and TEI pointer-list attributes such as `source`,
-`corresp`, and `ana` are exposed as `list[str]` instead of TEI's
+`resp`, `corresp`, and `ana` are exposed as `list[str]` instead of TEI's
 whitespace-separated attribute strings. MessagePack emitted by `to_msgpack`
 decodes directly into these classes, and encoding them feeds the payload
 straight back into `from_msgpack`.
+
+Citation metadata is split along TEI-native boundaries. Canonical citation
+declarations live under `header.encoding_desc.refs_decl`, utterance-local
+provenance stays on `Utterance`, and many-to-many overlays live in the optional
+root `Episode.stand_off` layer via `SpanGroup` and `Span`.
 
 Binary interchange is now supported through
 `tei_rapporteur.from_msgpack(payload: bytes)`. The helper accepts the bytes
@@ -249,6 +257,7 @@ Validation raises `ValueError` with a descriptive message when:
   still counts as declared, so all speaker references fail until the cast is
   populated)
 - A `citeStructure` or `citeData` declaration leaves a required attribute blank
+- A stand-off `spanGrp` leaves `@type` blank after trimming
 - A stand-off `span` omits both `@target` and `@from`, or uses `@to` without
   `@from`
 - A `#`-prefixed pointer in `source`, `resp`, `corresp`, `ana`, `target`,
@@ -287,7 +296,10 @@ The profile supports:
   markers (`<pause>` with optional `@dur` and `@type`)
 
 See `schemas/README.md` for instructions on generating schemas and validating
-documents.
+documents. In this profile, canonical citation declarations belong in
+`<encodingDesc><refsDecl>...</refsDecl></encodingDesc>`, while citation and
+provenance overlays that target multiple body nodes belong in the root
+`<standOff>` section.
 
 ## External XML validation
 
@@ -411,6 +423,10 @@ The parser yields four high-level event types:
   one at a time as each block is parsed
 - **`DocumentEnd`**: Emitted once after all content has been successfully parsed
 
+The streaming parser currently streams the header and body only. Root-level
+`<standOff>` markup is supported by full-document parsing and emission, but it
+is not yet emitted as a streaming event.
+
 ### Memory efficiency
 
 The streaming parser yields body blocks one at a time, allowing processing of
@@ -453,7 +469,9 @@ Events use internal tagging (`type`), covering:
 - `document_end`
 
 Inline content is also tagged (`text`, `hi`, `pause`), so Python callers can
-type-check inline nodes without falling back to `Any`.
+type-check inline nodes without falling back to `Any`. Streamed utterance
+events include the same local provenance fields as full `Utterance` structs:
+`n`, `source`, `resp`, `cert`, `corresp`, and `ana`.
 
 ### Limitations
 
