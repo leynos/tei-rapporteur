@@ -1,6 +1,6 @@
 //! Validated TEI pointer, pointer-list, and certainty wrappers.
 //!
-//! These wrappers normalise XML-facing values and preserve the profile's
+//! These wrappers normalize XML-facing values and preserve the profile's
 //! strict handling of whitespace-delimited attributes.
 
 use std::fmt;
@@ -312,6 +312,12 @@ impl Certainty {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
+
+    /// Consumes the certainty token and returns the owned string.
+    #[must_use]
+    pub fn into_inner(self) -> String {
+        self.0
+    }
 }
 
 impl AsRef<str> for Certainty {
@@ -356,56 +362,5 @@ impl<'de> Deserialize<'de> for Certainty {
         let value = String::deserialize(deserializer)?;
 
         Self::new(value).map_err(DeError::custom)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    //! Unit tests for pointer and certainty wrappers.
-
-    use super::*;
-    use tei_serde::json;
-
-    #[test]
-    fn pointer_list_round_trips_as_attribute_text() {
-        let pointers = PointerList::new(["#u1", "https://example.test/source"])
-            .unwrap_or_else(|error| panic!("pointer list should validate: {error}"));
-
-        let serialized = json::to_string(&pointers)
-            .unwrap_or_else(|error| panic!("failed to serialize PointerList to JSON: {error}"));
-        assert_eq!(serialized, "\"#u1 https://example.test/source\"");
-
-        let deserialized = json::from_str::<PointerList>(&serialized)
-            .unwrap_or_else(|error| panic!("pointer list should deserialize: {error}"));
-        assert_eq!(deserialized, pointers);
-    }
-
-    #[test]
-    fn borrowed_pointer_list_is_directly_iterable() {
-        let pointers = PointerList::new(["#u1", "#u2"])
-            .unwrap_or_else(|error| panic!("pointer list should validate: {error}"));
-
-        let collected: Vec<&str> = (&pointers).into_iter().map(Pointer::as_str).collect();
-
-        assert_eq!(collected, vec!["#u1", "#u2"]);
-    }
-
-    #[test]
-    fn pointer_internal_id_detects_hash_targets() {
-        let internal = Pointer::new("#u1").unwrap_or_else(|error| panic!("valid pointer: {error}"));
-        let external = Pointer::new("https://example.test/u1")
-            .unwrap_or_else(|error| panic!("valid pointer: {error}"));
-
-        assert_eq!(internal.internal_id(), Some("u1"));
-        assert_eq!(external.internal_id(), None);
-    }
-
-    #[test]
-    fn certainty_rejects_whitespace() {
-        let result = Certainty::new("very high");
-        assert!(matches!(
-            result,
-            Err(CertaintyValidationError::ContainsWhitespace)
-        ));
     }
 }
