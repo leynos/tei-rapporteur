@@ -217,13 +217,44 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
         round_tripped.stand_off().is_some(),
         "standOff should survive projection"
     );
-    assert!(
-        round_tripped
-            .header()
-            .encoding_desc()
-            .and_then(|encoding| encoding.refs_decl())
-            .is_some(),
-        "refsDecl should survive projection"
+    let stand_off = round_tripped
+        .stand_off()
+        .unwrap_or_else(|| panic!("standOff should survive projection"));
+    let first_group = stand_off
+        .span_groups()
+        .first()
+        .unwrap_or_else(|| panic!("standOff should contain a span group"));
+    let first_span = first_group
+        .spans()
+        .first()
+        .unwrap_or_else(|| panic!("span group should contain a span"));
+    assert_eq!(
+        first_span.target().map(tei_core::PointerList::to_strings),
+        Some(vec![String::from("#p1")]),
+        "standOff span targets should survive projection"
+    );
+
+    let refs_decl = round_tripped
+        .header()
+        .encoding_desc()
+        .and_then(|encoding| encoding.refs_decl())
+        .unwrap_or_else(|| panic!("refsDecl should survive projection"));
+    let cite_structure = refs_decl
+        .cite_structures()
+        .first()
+        .unwrap_or_else(|| panic!("refsDecl should contain a citeStructure"));
+    assert_eq!(
+        cite_structure.match_expr(),
+        "//u[@xml:id]",
+        "citeStructure @match should survive projection"
+    );
+    assert_eq!(
+        cite_structure
+            .cite_data()
+            .first()
+            .map(tei_core::CiteData::property),
+        Some("speaker"),
+        "citeData entries should survive projection"
     );
     assert_round_tripped_paragraph(&original, &round_tripped);
 }

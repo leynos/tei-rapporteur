@@ -4,7 +4,38 @@
 //! metadata extraction structures without forcing callers to model the whole
 //! TEI header universe.
 
+use serde::de::Error as DeError;
 use serde::{Deserialize, Serialize};
+
+fn trim_required_string(value: impl Into<String>) -> String {
+    value.into().trim().to_owned()
+}
+
+fn trim_optional_string(value: impl Into<String>) -> Option<String> {
+    let trimmed = trim_required_string(value);
+    (!trimmed.is_empty()).then_some(trimmed)
+}
+
+fn deserialize_trimmed_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    let trimmed = trim_required_string(value);
+    if trimmed.is_empty() {
+        return Err(DeError::custom("value must not be empty"));
+    }
+
+    Ok(trimmed)
+}
+
+fn deserialize_trimmed_option<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    Ok(value.and_then(trim_optional_string))
+}
 
 /// Citation declaration container.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -49,13 +80,28 @@ impl RefsDecl {
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "citeStructure")]
 pub struct CiteStructure {
-    #[serde(rename = "@unit", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@unit",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_trimmed_option"
+    )]
     unit: Option<String>,
-    #[serde(rename = "@match")]
+    #[serde(rename = "@match", deserialize_with = "deserialize_trimmed_string")]
     match_expr: String,
-    #[serde(rename = "@use", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@use",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_trimmed_option"
+    )]
     use_expr: Option<String>,
-    #[serde(rename = "@delim", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@delim",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_trimmed_option"
+    )]
     delim: Option<String>,
     #[serde(rename = "citeData", default, skip_serializing_if = "Vec::is_empty")]
     cite_data: Vec<CiteData>,
@@ -73,7 +119,7 @@ impl CiteStructure {
     pub fn new(match_expr: impl Into<String>) -> Self {
         Self {
             unit: None,
-            match_expr: match_expr.into().trim().to_owned(),
+            match_expr: trim_required_string(match_expr),
             use_expr: None,
             delim: None,
             cite_data: Vec::new(),
@@ -132,24 +178,21 @@ impl CiteStructure {
     /// Assigns the optional unit label.
     #[must_use]
     pub fn with_unit(mut self, unit: impl Into<String>) -> Self {
-        let trimmed = unit.into().trim().to_owned();
-        self.unit = (!trimmed.is_empty()).then_some(trimmed);
+        self.unit = trim_optional_string(unit);
         self
     }
 
     /// Assigns the optional use expression.
     #[must_use]
     pub fn with_use_expr(mut self, use_expr: impl Into<String>) -> Self {
-        let trimmed = use_expr.into().trim().to_owned();
-        self.use_expr = (!trimmed.is_empty()).then_some(trimmed);
+        self.use_expr = trim_optional_string(use_expr);
         self
     }
 
     /// Assigns the optional delimiter.
     #[must_use]
     pub fn with_delim(mut self, delim: impl Into<String>) -> Self {
-        let trimmed = delim.into().trim().to_owned();
-        self.delim = (!trimmed.is_empty()).then_some(trimmed);
+        self.delim = trim_optional_string(delim);
         self
     }
 
@@ -169,9 +212,14 @@ impl CiteStructure {
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "citeData")]
 pub struct CiteData {
-    #[serde(rename = "@property")]
+    #[serde(rename = "@property", deserialize_with = "deserialize_trimmed_string")]
     property: String,
-    #[serde(rename = "@use", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@use",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_trimmed_option"
+    )]
     use_expr: Option<String>,
 }
 
@@ -180,7 +228,7 @@ impl CiteData {
     #[must_use]
     pub fn new(property: impl Into<String>) -> Self {
         Self {
-            property: property.into().trim().to_owned(),
+            property: trim_required_string(property),
             use_expr: None,
         }
     }
@@ -204,8 +252,7 @@ impl CiteData {
     /// Assigns the optional use expression.
     #[must_use]
     pub fn with_use_expr(mut self, use_expr: impl Into<String>) -> Self {
-        let trimmed = use_expr.into().trim().to_owned();
-        self.use_expr = (!trimmed.is_empty()).then_some(trimmed);
+        self.use_expr = trim_optional_string(use_expr);
         self
     }
 }
@@ -215,6 +262,7 @@ mod tests {
     //! Unit tests for citation declaration helpers.
 
     use super::*;
+    use tei_serde::json::from_str as from_json;
 
     #[test]
     fn refs_decl_tracks_nested_structures() {
@@ -233,5 +281,26 @@ mod tests {
         assert_eq!(refs_decl.cite_structures().len(), 1);
         assert_eq!(cite_structure.cite_data().len(), 1);
         assert_eq!(cite_structure.children().len(), 1);
+    }
+
+    #[test]
+    fn deserialization_trims_required_and_optional_citation_attributes() {
+        let cite_structure: CiteStructure =
+            from_json(r#"{"@match":" //u ","@unit":" utterance ","@use":"  ","@delim":" / "}"#)
+                .unwrap_or_else(|error| panic!("citeStructure JSON: {error}"));
+
+        assert_eq!(cite_structure.match_expr(), "//u");
+        assert_eq!(cite_structure.unit(), Some("utterance"));
+        assert_eq!(cite_structure.use_expr(), None);
+        assert_eq!(cite_structure.delim(), Some("/"));
+    }
+
+    #[test]
+    fn deserialization_trims_cite_data_attributes() {
+        let cite_data: CiteData = from_json(r#"{"@property":" speaker ","@use":"  @who  "}"#)
+            .unwrap_or_else(|error| panic!("citeData JSON: {error}"));
+
+        assert_eq!(cite_data.property(), "speaker");
+        assert_eq!(cite_data.use_expr(), Some("@who"));
     }
 }

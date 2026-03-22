@@ -126,7 +126,7 @@ fn i_add_an_utterance(
         utterance
             .set_id(identifier.as_str())
             .context("identifier should validate")?;
-        add_utterance_to_document(document, utterance)
+        Ok(add_utterance_to_document(document, utterance))
     })
 }
 
@@ -211,14 +211,10 @@ fn add_paragraph(document: &TeiDocument, content: &str, identifier: &str) -> Res
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "BDD state updates use fallible helper signatures for a consistent closure shape"
-)]
-fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> Result<TeiDocument> {
+fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> TeiDocument {
     let mut text = document.text().clone();
     text.body_mut().push_utterance(utterance);
-    Ok(TeiDocument::new(document.header().clone(), text))
+    TeiDocument::new(document.header().clone(), text)
 }
 
 // Scenario indices are coupled to validation.feature ordering. Update the

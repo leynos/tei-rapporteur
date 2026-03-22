@@ -210,4 +210,21 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn rejects_empty_refs_decl() {
+        let document: TeiDocument = tei_serde::json::from_value(tei_serde::serde_json::json!({
+            "teiHeader": {
+                "fileDesc": { "title": "Fixture" },
+                "encodingDesc": { "refsDecl": {} }
+            },
+            "text": { "body": {} }
+        }))
+        .unwrap_or_else(|error| panic!("document JSON: {error}"));
+
+        assert_eq!(
+            validate_document(&document),
+            Err(ValidationError::EmptyField { field: "refsDecl" })
+        );
+    }
 }

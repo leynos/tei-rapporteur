@@ -280,8 +280,8 @@ pub enum ProjectionError {
     /// JSON decoding failed.
     #[error("invalid TEI projection: {0}")]
     Serde(#[from] tei_serde::serde_json::Error),
-    /// TEI validation failed after successful decoding.
-    #[error("invalid TEI body: {0}")]
+    /// TEI conversion or validation failed after successful decoding.
+    #[error("invalid TEI document: {0}")]
     Tei(#[from] TeiError),
 }
 

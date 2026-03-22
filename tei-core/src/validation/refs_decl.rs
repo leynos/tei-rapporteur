@@ -11,6 +11,9 @@ pub(super) fn validate_refs_decl(document: &TeiDocument) -> Result<(), Validatio
     let Some(refs_decl) = encoding.refs_decl() else {
         return Ok(());
     };
+    if refs_decl.is_empty() {
+        return Err(ValidationError::EmptyField { field: "refsDecl" });
+    }
 
     for cite_structure in refs_decl.cite_structures() {
         validate_cite_structure(cite_structure)?;

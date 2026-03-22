@@ -132,6 +132,8 @@ pub enum PointerListValidationError {
 
 /// Whitespace-separated TEI pointer list attribute.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "json-schema", schemars(with = "String"))]
 pub struct PointerList(Vec<Pointer>);
 
 impl PointerList {

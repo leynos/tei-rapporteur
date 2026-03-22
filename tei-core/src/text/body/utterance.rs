@@ -12,7 +12,20 @@ use super::{
     BodyContentError, ensure_container_content, normalise_optional_speaker, push_validated_inline,
     push_validated_text_segment, set_optional_identifier,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+fn normalise_number(number: impl Into<String>) -> Option<String> {
+    let trimmed = number.into().trim().to_owned();
+    (!trimmed.is_empty()).then_some(trimmed)
+}
+
+fn deserialize_optional_number<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let number = Option::<String>::deserialize(deserializer)?;
+    Ok(number.and_then(normalise_number))
+}
 
 /// Spoken utterance that may reference a speaker and carry local provenance.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -26,7 +39,12 @@ pub struct Utterance {
         default
     )]
     id: Option<XmlId>,
-    #[serde(rename = "@n", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        rename = "@n",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_optional_number"
+    )]
     n: Option<String>,
     #[serde(rename = "@who", skip_serializing_if = "Option::is_none", default)]
     speaker: Option<Speaker>,
@@ -171,8 +189,7 @@ impl Utterance {
 
     /// Sets the optional free-form `@n` label.
     pub fn set_number(&mut self, number: impl Into<String>) {
-        let trimmed = number.into().trim().to_owned();
-        self.n = (!trimmed.is_empty()).then_some(trimmed);
+        self.n = normalise_number(number);
     }
 
     /// Returns the optional free-form `@n` label.
@@ -307,6 +324,7 @@ mod tests {
     //! Unit tests for utterance construction, validation, and content management.
 
     use super::*;
+    use tei_serde::json::from_str as from_json;
 
     #[test]
     fn rejects_empty_utterance_segments() {
@@ -351,5 +369,13 @@ mod tests {
             Some(vec![String::from("#src1")])
         );
         assert_eq!(utterance.cert().map(Certainty::as_str), Some("high"));
+    }
+
+    #[test]
+    fn deserialization_normalises_blank_number_to_none() {
+        let utterance: Utterance = from_json(r#"{"@who":"host","@n":"   ","$value":["Hello"]}"#)
+            .unwrap_or_else(|error| panic!("utterance JSON: {error}"));
+
+        assert_eq!(utterance.number(), None);
     }
 }

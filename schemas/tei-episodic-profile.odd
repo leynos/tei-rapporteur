@@ -76,7 +76,9 @@
 	          <moduleRef key="header"
 	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem refsDecl citeStructure citeData series synopsis speaker lang resp"/>
 	          <moduleRef key="textstructure" include="TEI text body"/>
-	          <moduleRef key="spoken" include="u pause standOff spanGrp span"/>
+	          <moduleRef key="spoken" include="u pause"/>
+	          <moduleRef key="linking" include="standOff"/>
+	          <moduleRef key="analysis" include="spanGrp span"/>
 
           <!-- ============================================================ -->
           <!-- Root Element                                                 -->
@@ -245,7 +247,7 @@
             <desc>Canonical citation declarations for utterances and
             analytical spans.</desc>
             <content>
-              <elementRef key="citeStructure" minOccurs="0"
+              <elementRef key="citeStructure" minOccurs="1"
                           maxOccurs="unbounded"/>
             </content>
           </elementSpec>

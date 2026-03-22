@@ -141,8 +141,8 @@ Python data classes now live in `tei_rapporteur.structs`. The submodule defines
 `msgspec.Struct` projections (`Episode`, `TeiHeader`, `FileDesc`, `Paragraph`,
 `Utterance`, `StandOff`, `SpanGroup`, `Span`, and the citation-declaration
 types) that mirror the Python-facing Rust projection. Inline nodes decode into
-plain Python objects, and TEI pointer-list attributes such as `source`,
-`resp`, `corresp`, and `ana` are exposed as `list[str]` instead of TEI's
+plain Python objects, and TEI pointer-list attributes such as `source`, `resp`,
+`corresp`, and `ana` are exposed as `list[str]` instead of TEI's
 whitespace-separated attribute strings. MessagePack emitted by `to_msgpack`
 decodes directly into these classes, and encoding them feeds the payload
 straight back into `from_msgpack`.

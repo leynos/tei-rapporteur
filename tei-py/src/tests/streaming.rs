@@ -182,8 +182,9 @@ fn utterance_exposes_provenance_metadata(#[from(state)] state: &StreamingState) 
         utterance
             .get("source")
             .and_then(Value::as_array)
-            .map(Vec::len),
-        Some(1)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#src1")
     );
     assert_eq!(
         utterance
@@ -198,12 +199,17 @@ fn utterance_exposes_provenance_metadata(#[from(state)] state: &StreamingState) 
         utterance
             .get("corresp")
             .and_then(Value::as_array)
-            .map(Vec::len),
-        Some(1)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#sp1")
     );
     assert_eq!(
-        utterance.get("ana").and_then(Value::as_array).map(Vec::len),
-        Some(1)
+        utterance
+            .get("ana")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#tag1")
     );
 }
 

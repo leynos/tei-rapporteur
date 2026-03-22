@@ -165,13 +165,15 @@
       "type": "object",
       "properties": {
         "@property": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "@use": {
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         }
       },
       "required": [
@@ -186,22 +188,26 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "@match": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "@unit": {
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "@use": {
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "citeData": {
           "type": "array",
@@ -213,7 +219,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/citeStructure"
-          }
+          },
+          "minItems": 1
         }
       },
       "required": [
@@ -361,9 +368,14 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/citeStructure"
-          }
+          },
+          "minItems": 1
         }
-      }
+      },
+      "minProperties": 1,
+      "required": [
+        "citeStructure"
+      ]
     },
     "revisionDesc": {
       "description": "Revision history records.",
@@ -443,7 +455,51 @@
             }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "@to"
+            ]
+          },
+          "then": {
+            "properties": {
+              "@from": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "@from"
+            ]
+          }
+        }
+      ],
+      "anyOf": [
+        {
+          "properties": {
+            "@target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "@target"
+          ]
+        },
+        {
+          "properties": {
+            "@from": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "@from"
+          ]
+        }
+      ]
     },
     "spanGrp": {
       "description": "A logical grouping of analytical spans.",
@@ -468,7 +524,8 @@
           ]
         },
         "@type": {
-          "type": "string"
+          "type": "string",
+          "pattern": "\\S"
         },
         "@xml:id": {
           "anyOf": [

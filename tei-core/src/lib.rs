@@ -187,7 +187,8 @@ impl TeiDocument {
     /// # Errors
     ///
     /// Returns [`TeiError::Validation`] when duplicated identifiers, unresolved
-    /// internal pointers, invalid citation declarations, or unknown speaker
+    /// internal pointers, invalid citation declarations, invalid stand-off
+    /// anchors or ranges such as `@to` without `@from`, or unknown speaker
     /// references are detected.
     pub fn validate(&self) -> Result<(), TeiError> {
         Ok(validation::validate_document(self)?)

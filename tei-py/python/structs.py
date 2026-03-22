@@ -1,9 +1,4 @@
-"""msgspec.Struct projections of the TEI data model.
-
-The Python surface mirrors the Rust projection rather than the XML wire format.
-Pointer-list attributes become ``list[str]`` values and public field names use
-snake_case throughout.
-"""
+"""msgspec.Struct projections of the TEI data model."""
 
 from __future__ import annotations
 
@@ -66,16 +61,7 @@ Inline: TypeAlias = InlineText | InlineHi | InlinePause
 class Paragraph(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Paragraph block from the TEI body.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional ``xml:id`` value for the paragraph.
-    content : list[Inline]
-        Inline nodes contained in the paragraph.
-    """
-
+    """Paragraph block from the TEI body."""
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
 
@@ -83,36 +69,7 @@ class Paragraph(
 class Utterance(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Spoken utterance with inline content and local provenance metadata.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional ``xml:id`` value for the utterance.
-    speaker : str | None
-        Optional ``@who`` speaker reference.
-    content : list[Inline]
-        Inline nodes contained in the utterance.
-    n : str | None
-        Optional ``@n`` label used for caller-facing numbering.
-    source : list[str]
-        Zero or more TEI pointer tokens from ``@source``.
-    resp : list[str]
-        Zero or more TEI pointer tokens from ``@resp``.
-    cert : str | None
-        Optional certainty token from ``@cert``.
-    corresp : list[str]
-        Zero or more TEI pointer tokens from ``@corresp``.
-    ana : list[str]
-        Zero or more TEI pointer tokens from ``@ana``.
-
-    Notes
-    -----
-    Utterance-level provenance and citation fields are local hooks that stay on
-    the body text itself. More complex many-to-many overlays belong in
-    :class:`StandOff`, :class:`SpanGroup`, and :class:`Span`.
-    """
-
+    """Spoken utterance with inline content and local provenance metadata."""
     xml_id: str | None = None
     speaker: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
@@ -128,26 +85,12 @@ BodyBlock: TypeAlias = Paragraph | Utterance
 
 
 class TeiBody(msgspec.Struct):
-    """Ordered TEI body content.
-
-    Attributes
-    ----------
-    blocks : list[BodyBlock]
-        Paragraph and utterance blocks in document order.
-    """
-
+    """Ordered TEI body content."""
     blocks: list[BodyBlock] = msgspec.field(default_factory=list)
 
 
 class TeiText(msgspec.Struct):
-    """Text node containing the TEI body.
-
-    Attributes
-    ----------
-    body : TeiBody
-        Ordered body blocks for the TEI document.
-    """
-
+    """Text node containing the TEI body."""
     body: TeiBody
 
 
@@ -171,13 +114,47 @@ class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class CiteData(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Property extraction entry within a citation structure."""
+    """Property extraction rule nested inside a citation declaration.
+
+    Attributes
+    ----------
+    property : str
+        Property name extracted from the matched TEI node.
+    use_expr : str | None
+        Optional TEI expression used to compute the property value.
+
+    Notes
+    -----
+    ``CiteData`` entries hang off :class:`CiteStructure` and describe which
+    citation metadata to pull from each matched node.
+    """
     property: str
     use_expr: str | None = None
 
 
 class CiteStructure(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Canonical citation declaration entry."""
+    """Canonical citation declaration with optional nesting and extraction.
+
+    Attributes
+    ----------
+    match_expr : str
+        Required TEI match expression selecting the cited nodes.
+    unit : str | None
+        Optional human-facing citation unit label.
+    use_expr : str | None
+        Optional expression used when formatting the citation unit.
+    delim : str | None
+        Optional delimiter applied between nested citation units.
+    cite_data : list[CiteData]
+        Citation metadata extraction entries for the matched nodes.
+    cite_structures : list[CiteStructure]
+        Nested citation structures for hierarchical citation schemes.
+
+    Notes
+    -----
+    ``CiteStructure`` models the TEI ``<citeStructure>`` tree inside
+    :class:`RefsDecl`.
+    """
     match_expr: str
     unit: str | None = None
     use_expr: str | None = None
@@ -187,12 +164,36 @@ class CiteStructure(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class RefsDecl(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Container for canonical citation declarations."""
+    """Container for canonical citation declarations.
+
+    Attributes
+    ----------
+    cite_structures : list[CiteStructure]
+        Top-level citation declaration entries.
+
+    Notes
+    -----
+    ``RefsDecl`` belongs under :class:`EncodingDesc` and documents how callers
+    derive canonical references from the TEI body.
+    """
     cite_structures: list[CiteStructure] = msgspec.field(default_factory=list)
 
 
 class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Collection of annotation systems and citation declarations."""
+    """Encoding metadata for annotation systems and canonical citations.
+
+    Attributes
+    ----------
+    annotation_systems : list[AnnotationSystem]
+        Annotation-system declarations associated with the document.
+    refs_decl : RefsDecl | None
+        Optional canonical citation declaration tree.
+
+    Notes
+    -----
+    ``EncodingDesc`` combines annotation-system documentation with
+    :class:`RefsDecl` so projection consumers can inspect both in one place.
+    """
     annotation_systems: list[AnnotationSystem] = msgspec.field(default_factory=list)
     refs_decl: RefsDecl | None = None
 
@@ -227,30 +228,7 @@ class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Stand-off span with many-to-many or range-based targets.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional ``xml:id`` for the span.
-    target : list[str]
-        Zero or more TEI pointer tokens from ``@target``.
-    from_ref : str | None
-        Optional range start pointer from ``@from``.
-    to_ref : str | None
-        Optional range end pointer from ``@to``.
-    source : list[str]
-        Zero or more TEI pointer tokens from ``@source``.
-    resp : list[str]
-        Zero or more TEI pointer tokens from ``@resp``.
-    cert : str | None
-        Optional certainty token from ``@cert``.
-    corresp : list[str]
-        Zero or more TEI pointer tokens from ``@corresp``.
-    ana : list[str]
-        Zero or more TEI pointer tokens from ``@ana``.
-    """
-
+    """Stand-off span with many-to-many or range-based targets."""
     xml_id: str | None = None
     target: list[str] = msgspec.field(default_factory=list)
     from_ref: str | None = msgspec.field(default=None, name="from")
@@ -263,24 +241,7 @@ class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Logical stand-off grouping of related spans.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional ``xml:id`` for the span group.
-    kind : str
-        Required TEI ``@type`` label describing the grouping semantics.
-    resp : list[str]
-        Zero or more TEI pointer tokens from ``@resp``.
-    corresp : list[str]
-        Zero or more TEI pointer tokens from ``@corresp``.
-    ana : list[str]
-        Zero or more TEI pointer tokens from ``@ana``.
-    spans : list[Span]
-        Stand-off spans that belong to the group.
-    """
-
+    """Logical stand-off grouping of related spans."""
     xml_id: str | None = None
     kind: str
     resp: list[str] = msgspec.field(default_factory=list)
@@ -290,30 +251,12 @@ class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class StandOff(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Root stand-off annotation layer.
-
-    Attributes
-    ----------
-    span_groups : list[SpanGroup]
-        Stand-off annotation groups attached to the document.
-    """
-
+    """Root stand-off annotation layer."""
     span_groups: list[SpanGroup] = msgspec.field(default_factory=list)
 
 
 class Episode(msgspec.Struct, omit_defaults=True):
-    """Top-level TEI document projection.
-
-    Attributes
-    ----------
-    header : TeiHeader
-        TEI header metadata for the document.
-    text : TeiText
-        Body content for the document.
-    stand_off : StandOff | None
-        Optional stand-off overlay layer for citations and provenance.
-    """
-
+    """Top-level TEI document projection."""
     header: TeiHeader
     text: TeiText
     stand_off: StandOff | None = None
@@ -335,16 +278,7 @@ class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
 class ParagraphEvent(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying a paragraph.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional paragraph identifier.
-    content : list[Inline]
-        Inline nodes for the streamed paragraph.
-    """
-
+    """Streaming event carrying a paragraph."""
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
 
@@ -352,35 +286,7 @@ class ParagraphEvent(
 class UtteranceEvent(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying an utterance.
-
-    Attributes
-    ----------
-    xml_id : str | None
-        Optional utterance identifier.
-    speaker : str | None
-        Optional speaker reference.
-    content : list[Inline]
-        Inline nodes for the streamed utterance.
-    n : str | None
-        Optional utterance number label.
-    source : list[str]
-        Zero or more TEI pointer tokens from ``@source``.
-    resp : list[str]
-        Zero or more TEI pointer tokens from ``@resp``.
-    cert : str | None
-        Optional certainty token from ``@cert``.
-    corresp : list[str]
-        Zero or more TEI pointer tokens from ``@corresp``.
-    ana : list[str]
-        Zero or more TEI pointer tokens from ``@ana``.
-
-    Notes
-    -----
-    Streaming events expose the same provenance and citation hooks as full
-    document projections so callers can process metadata incrementally.
-    """
-
+    """Streaming event carrying an utterance."""
     xml_id: str | None = None
     speaker: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
