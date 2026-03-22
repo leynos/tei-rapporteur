@@ -12,6 +12,26 @@ use thiserror::Error;
 
 use crate::text::body::trim_preserving_original;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SingleTokenError {
+    Empty,
+    ContainsWhitespace,
+}
+
+fn validate_single_token(value: impl Into<String>) -> Result<String, SingleTokenError> {
+    let trimmed = trim_preserving_original(value.into());
+
+    if trimmed.is_empty() {
+        return Err(SingleTokenError::Empty);
+    }
+
+    if trimmed.chars().any(char::is_whitespace) {
+        return Err(SingleTokenError::ContainsWhitespace);
+    }
+
+    Ok(trimmed)
+}
+
 /// Validated wrapper for TEI pointer tokens.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
@@ -38,15 +58,10 @@ impl Pointer {
     /// empty string. Returns [`PointerValidationError::ContainsWhitespace`]
     /// when interior whitespace is present.
     pub fn new(value: impl Into<String>) -> Result<Self, PointerValidationError> {
-        let trimmed = trim_preserving_original(value.into());
-
-        if trimmed.is_empty() {
-            return Err(PointerValidationError::Empty);
-        }
-
-        if trimmed.chars().any(char::is_whitespace) {
-            return Err(PointerValidationError::ContainsWhitespace);
-        }
+        let trimmed = validate_single_token(value).map_err(|error| match error {
+            SingleTokenError::Empty => PointerValidationError::Empty,
+            SingleTokenError::ContainsWhitespace => PointerValidationError::ContainsWhitespace,
+        })?;
 
         Ok(Self(trimmed))
     }
@@ -150,7 +165,7 @@ impl PointerList {
     {
         let pointers = values
             .into_iter()
-            .map(|value| Pointer::new(value.into()))
+            .map(Pointer::new)
             .collect::<Result<Vec<_>, _>>()?;
 
         if pointers.is_empty() {
@@ -234,6 +249,15 @@ impl Serialize for PointerList {
     }
 }
 
+impl<'a> IntoIterator for &'a PointerList {
+    type Item = &'a Pointer;
+    type IntoIter = std::slice::Iter<'a, Pointer>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
 impl<'de> Deserialize<'de> for PointerList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -271,15 +295,10 @@ impl Certainty {
     /// an empty string. Returns [`CertaintyValidationError::ContainsWhitespace`]
     /// when interior whitespace is present.
     pub fn new(value: impl Into<String>) -> Result<Self, CertaintyValidationError> {
-        let trimmed = trim_preserving_original(value.into());
-
-        if trimmed.is_empty() {
-            return Err(CertaintyValidationError::Empty);
-        }
-
-        if trimmed.chars().any(char::is_whitespace) {
-            return Err(CertaintyValidationError::ContainsWhitespace);
-        }
+        let trimmed = validate_single_token(value).map_err(|error| match error {
+            SingleTokenError::Empty => CertaintyValidationError::Empty,
+            SingleTokenError::ContainsWhitespace => CertaintyValidationError::ContainsWhitespace,
+        })?;
 
         Ok(Self(trimmed))
     }
@@ -359,6 +378,16 @@ mod tests {
         let deserialized = json::from_str::<PointerList>(&serialized)
             .unwrap_or_else(|error| panic!("pointer list should deserialize: {error}"));
         assert_eq!(deserialized, pointers);
+    }
+
+    #[test]
+    fn borrowed_pointer_list_is_directly_iterable() {
+        let pointers = PointerList::new(["#u1", "#u2"])
+            .unwrap_or_else(|error| panic!("pointer list should validate: {error}"));
+
+        let collected: Vec<&str> = (&pointers).into_iter().map(Pointer::as_str).collect();
+
+        assert_eq!(collected, vec!["#u1", "#u2"]);
     }
 
     #[test]
