@@ -9,8 +9,6 @@ from typing import TypeAlias
 
 __all__: list[str]
 
-# -- Inline content types (tagged union) ------------------------------------
-
 class InlineText(msgspec.Struct, tag="text", tag_field="type"):
     """Plain text inline node."""
 
@@ -34,8 +32,6 @@ class InlinePause(
 
 Inline: TypeAlias = InlineText | InlineHi | InlinePause
 
-# -- Body block types (tagged union) ----------------------------------------
-
 class Paragraph(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
@@ -47,15 +43,19 @@ class Paragraph(
 class Utterance(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Spoken utterance (``<u>``) with optional speaker reference."""
+    """Spoken utterance (``<u>``) with local provenance metadata."""
 
     xml_id: str | None = None
     speaker: str | None = None
     content: list[Inline] = ...  # type: ignore[assignment]
+    n: str | None = None
+    source: list[str] = ...  # type: ignore[assignment]
+    resp: list[str] = ...  # type: ignore[assignment]
+    cert: str | None = None
+    corresp: list[str] = ...  # type: ignore[assignment]
+    ana: list[str] = ...  # type: ignore[assignment]
 
 BodyBlock: TypeAlias = Paragraph | Utterance
-
-# -- Body / text structure --------------------------------------------------
 
 class TeiBody(msgspec.Struct):
     """Ordered TEI body content."""
@@ -66,8 +66,6 @@ class TeiText(msgspec.Struct):
     """Text node containing the TEI body."""
 
     body: TeiBody
-
-# -- Header metadata --------------------------------------------------------
 
 class RevisionChange(
     msgspec.Struct, kw_only=True, omit_defaults=True
@@ -92,12 +90,40 @@ class AnnotationSystem(
     xml_id: str
     desc: str | None = None
 
+class CiteData(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Property extraction entry within a citation structure."""
+
+    property: str
+    use_expr: str | None = None
+
+class CiteStructure(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Canonical citation declaration entry."""
+
+    match_expr: str
+    unit: str | None = None
+    use_expr: str | None = None
+    delim: str | None = None
+    cite_data: list[CiteData] = ...  # type: ignore[assignment]
+    cite_structures: list[CiteStructure] = ...  # type: ignore[assignment]
+
+class RefsDecl(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Container for canonical citation declarations."""
+
+    cite_structures: list[CiteStructure] = ...  # type: ignore[assignment]
+
 class EncodingDesc(
     msgspec.Struct, kw_only=True, omit_defaults=True
 ):
-    """Collection of annotation systems."""
+    """Collection of annotation systems and citation declarations."""
 
     annotation_systems: list[AnnotationSystem] = ...  # type: ignore[assignment]
+    refs_decl: RefsDecl | None = None
 
 class ProfileDesc(
     msgspec.Struct, kw_only=True, omit_defaults=True
@@ -127,15 +153,46 @@ class TeiHeader(
     encoding_desc: EncodingDesc | None = None
     revision_desc: RevisionDesc | None = None
 
-# -- Top-level document -----------------------------------------------------
+class Span(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Stand-off span with many-to-many or range-based targets."""
 
-class Episode(msgspec.Struct):
+    xml_id: str | None = None
+    target: list[str] = ...  # type: ignore[assignment]
+    from_ref: str | None = None
+    to_ref: str | None = None
+    source: list[str] = ...  # type: ignore[assignment]
+    resp: list[str] = ...  # type: ignore[assignment]
+    cert: str | None = None
+    corresp: list[str] = ...  # type: ignore[assignment]
+    ana: list[str] = ...  # type: ignore[assignment]
+
+class SpanGroup(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Logical stand-off grouping of related spans."""
+
+    xml_id: str | None = None
+    kind: str
+    resp: list[str] = ...  # type: ignore[assignment]
+    corresp: list[str] = ...  # type: ignore[assignment]
+    ana: list[str] = ...  # type: ignore[assignment]
+    spans: list[Span] = ...  # type: ignore[assignment]
+
+class StandOff(
+    msgspec.Struct, kw_only=True, omit_defaults=True
+):
+    """Root stand-off annotation layer."""
+
+    span_groups: list[SpanGroup] = ...  # type: ignore[assignment]
+
+class Episode(msgspec.Struct, omit_defaults=True):
     """Top-level TEI document."""
 
     header: TeiHeader
     text: TeiText
-
-# -- Streaming event types (tagged union) -----------------------------------
+    stand_off: StandOff | None = None
 
 class DocumentStart(
     msgspec.Struct, tag="document_start", tag_field="type"
@@ -170,6 +227,12 @@ class UtteranceEvent(
     xml_id: str | None = None
     speaker: str | None = None
     content: list[Inline] = ...  # type: ignore[assignment]
+    n: str | None = None
+    source: list[str] = ...  # type: ignore[assignment]
+    resp: list[str] = ...  # type: ignore[assignment]
+    cert: str | None = None
+    corresp: list[str] = ...  # type: ignore[assignment]
+    ana: list[str] = ...  # type: ignore[assignment]
 
 Event: TypeAlias = (
     DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent

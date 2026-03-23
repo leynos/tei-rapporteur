@@ -4,8 +4,10 @@ use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{AnnotationSystem, EncodingDesc, P, ProfileDesc, TeiDocument, TeiError, Utterance};
+use tei_core::{P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
+
+mod stand_off;
 
 #[derive(Default)]
 struct ValidationState {
@@ -101,22 +103,6 @@ fn the_profile_is_declared_but_empty(
     state.update_document(|document| Ok(declare_empty_profile(document)))
 }
 
-#[given("the encoding includes annotation system \"{identifier}\"")]
-fn the_encoding_includes_annotation_system(
-    #[from(validated_state)] state: &ValidationState,
-    identifier: String,
-) -> Result<()> {
-    add_annotation_system_step(state, &identifier)
-}
-
-#[given("the encoding also includes annotation system \"{identifier}\"")]
-fn the_encoding_also_includes_annotation_system(
-    #[from(validated_state)] state: &ValidationState,
-    identifier: String,
-) -> Result<()> {
-    add_annotation_system_step(state, &identifier)
-}
-
 #[when("I add a paragraph \"{content}\" with id \"{identifier}\"")]
 fn i_add_a_paragraph(
     #[from(validated_state)] state: &ValidationState,
@@ -134,7 +120,13 @@ fn i_add_an_utterance(
     identifier: String,
 ) -> Result<()> {
     state.update_document(|document| {
-        add_utterance(document, &speaker, &content, Some(identifier.as_str()))
+        let mut utterance =
+            Utterance::from_text_segments(Some(speaker.as_str()), [content.as_str()])
+                .context("utterance should be valid")?;
+        utterance
+            .set_id(identifier.as_str())
+            .context("identifier should validate")?;
+        Ok(add_utterance_to_document(document, utterance))
     })
 }
 
@@ -219,45 +211,10 @@ fn add_paragraph(document: &TeiDocument, content: &str, identifier: &str) -> Res
     Ok(TeiDocument::new(document.header().clone(), text))
 }
 
-fn add_utterance(
-    document: &TeiDocument,
-    speaker: &str,
-    content: &str,
-    identifier: Option<&str>,
-) -> Result<TeiDocument> {
-    let mut utterance = Utterance::from_text_segments(Some(speaker), [content])
-        .context("utterance should be valid")?;
-    if let Some(id) = identifier {
-        utterance.set_id(id).context("identifier should validate")?;
-    }
-
+fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> TeiDocument {
     let mut text = document.text().clone();
     text.body_mut().push_utterance(utterance);
-
-    Ok(TeiDocument::new(document.header().clone(), text))
-}
-
-fn add_annotation_system_step(state: &ValidationState, identifier: &str) -> Result<()> {
-    state.update_document(|document| add_annotation_system(document, identifier, "annotations"))
-}
-
-fn add_annotation_system(
-    document: &TeiDocument,
-    identifier: &str,
-    description: &str,
-) -> Result<TeiDocument> {
-    let mut encoding = document
-        .header()
-        .encoding_desc()
-        .cloned()
-        .unwrap_or_else(EncodingDesc::new);
-    let system = AnnotationSystem::new(identifier, description)
-        .context("annotation system should validate")?;
-    encoding.add_annotation_system(system);
-
-    let header = document.header().clone().with_encoding_desc(encoding);
-
-    Ok(TeiDocument::new(header, document.text().clone()))
+    TeiDocument::new(document.header().clone(), text)
 }
 
 // Scenario indices are coupled to validation.feature ordering. Update the
@@ -342,6 +299,9 @@ fn validation_feature_scenario_order_matches_expectations() {
         "Rejecting unknown speaker references",
         "Rejecting speakers when the cast is empty",
         "Allowing speakers when the cast list is absent",
+        "Accepting stand-off spans that target existing utterances",
+        "Rejecting stand-off spans that target missing ids",
+        "Rejecting stand-off spans without anchors",
     ];
 
     assert_eq!(

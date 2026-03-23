@@ -50,9 +50,12 @@
         <p>The profile supports:</p>
         <list>
           <item>Header metadata including title, speaker declarations,
-          annotation system descriptions, and revision history</item>
+          annotation system descriptions, citation declarations, and revision
+          history</item>
           <item>Body content structured as paragraphs and utterances with
-          optional speaker attribution</item>
+          optional speaker attribution plus local provenance attributes</item>
+          <item>Stand-off annotation overlays for many-to-many citation and
+          analysis markup</item>
           <item>Mixed inline content including emphasis and pause markers</item>
           <item>Validation constraints ensuring data integrity</item>
         </list>
@@ -71,9 +74,11 @@
 	          <moduleRef key="tei"/>
 	          <moduleRef key="core" include="p hi title desc"/>
 	          <moduleRef key="header"
-	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem series synopsis speaker lang resp"/>
+	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem refsDecl citeStructure citeData series synopsis speaker lang resp"/>
 	          <moduleRef key="textstructure" include="TEI text body"/>
 	          <moduleRef key="spoken" include="u pause"/>
+	          <moduleRef key="linking" include="standOff"/>
+	          <moduleRef key="analysis" include="spanGrp span"/>
 
           <!-- ============================================================ -->
           <!-- Root Element                                                 -->
@@ -84,6 +89,7 @@
             <content>
               <sequence>
                 <elementRef key="teiHeader"/>
+                <elementRef key="standOff" minOccurs="0"/>
                 <elementRef key="text"/>
               </sequence>
             </content>
@@ -197,8 +203,11 @@
             <desc>Documents annotation systems used in the episode, such as
             cliché detection or pronunciation analysis tools.</desc>
             <content>
-              <elementRef key="annotationSystem" minOccurs="0"
-                          maxOccurs="unbounded"/>
+              <sequence>
+                <elementRef key="annotationSystem" minOccurs="0"
+                            maxOccurs="unbounded"/>
+                <elementRef key="refsDecl" minOccurs="0"/>
+              </sequence>
             </content>
           </elementSpec>
 
@@ -232,6 +241,67 @@
             <content>
               <textNode/>
             </content>
+          </elementSpec>
+
+          <elementSpec ident="refsDecl" mode="change">
+            <desc>Canonical citation declarations for utterances and
+            analytical spans.</desc>
+            <content>
+              <elementRef key="citeStructure" minOccurs="1"
+                          maxOccurs="unbounded"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="citeStructure" mode="change">
+            <desc>Defines a canonical citation rule using match and extraction
+            expressions.</desc>
+            <content>
+              <alternate minOccurs="0" maxOccurs="unbounded">
+                <elementRef key="citeData"/>
+                <elementRef key="citeStructure"/>
+              </alternate>
+            </content>
+            <attList>
+              <attDef ident="unit" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="match" mode="change" usage="req">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="use" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="delim" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <elementSpec ident="citeData" mode="change">
+            <desc>Extracts a citation property from a matched TEI node.</desc>
+            <content>
+              <empty/>
+            </content>
+            <attList>
+              <attDef ident="property" mode="change" usage="req">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="use" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
           </elementSpec>
 
           <elementSpec ident="revisionDesc" mode="change">
@@ -288,6 +358,104 @@
                 <elementRef key="u"/>
               </alternate>
             </content>
+          </elementSpec>
+
+          <elementSpec ident="standOff" mode="change">
+            <desc>Contains stand-off analytical overlays and provenance
+            annotations.</desc>
+            <content>
+              <elementRef key="spanGrp" minOccurs="0" maxOccurs="unbounded"/>
+            </content>
+          </elementSpec>
+
+          <elementSpec ident="spanGrp" mode="change">
+            <desc>Groups related stand-off spans under a shared analytical
+            type.</desc>
+            <content>
+              <elementRef key="span" minOccurs="0" maxOccurs="unbounded"/>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+              <attDef ident="type" mode="change" usage="req">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="resp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="corresp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="ana" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <elementSpec ident="span" mode="change">
+            <desc>Stand-off annotation span targeting one or more TEI nodes or
+            a TEI range.</desc>
+            <content>
+              <empty/>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+              <attDef ident="target" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="from" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="to" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="source" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="resp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="cert" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="corresp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="ana" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
           </elementSpec>
 
           <!-- ============================================================ -->
@@ -348,6 +516,36 @@
                 pointer references (e.g., "#host"). Multi-valued speaker lists
                 are not supported; each utterance must reference exactly one
                 speaker.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="n" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="source" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="resp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="cert" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="corresp" mode="change" usage="opt">
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="ana" mode="change" usage="opt">
                 <datatype>
                   <dataRef key="teidata.text"/>
                 </datatype>
@@ -481,6 +679,67 @@
                 <sch:assert test="normalize-space(@who) != ''">
                   The @who attribute must not be empty or contain only
                   whitespace.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="non-empty-citation-fields" scheme="schematron">
+            <desc>Canonical citation declarations must keep required attribute
+            values non-empty.</desc>
+            <constraint>
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:citeStructure">
+                <sch:assert test="normalize-space(@match) != ''">
+                  The @match attribute on citeStructure must not be empty.
+                </sch:assert>
+              </sch:rule>
+              <sch:rule context="tei:citeData">
+                <sch:assert test="normalize-space(@property) != ''">
+                  The @property attribute on citeData must not be empty.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="internal-pointer-resolution" scheme="schematron">
+            <desc>`#`-prefixed pointer targets must resolve to an existing
+            `xml:id` in the document.</desc>
+            <constraint>
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:u[@source or @resp or @corresp or @ana] | tei:spanGrp[@resp or @corresp or @ana] | tei:span[@target or @from or @to or @source or @resp or @corresp or @ana]">
+                <sch:assert test="every $token in tokenize(string-join((@target, @from, @to, @source, @resp, @corresp, @ana), ' '), '\s+') satisfies (not(starts-with($token, '#')) or exists(//tei:*[@xml:id = substring-after($token, '#')]))">
+                  All internal `#id` pointer tokens must resolve to an existing
+                  xml:id in the document.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="span-anchor-requirements" scheme="schematron">
+            <desc>Stand-off spans must declare either `@target` or `@from`,
+            and `@to` may only appear alongside `@from`.</desc>
+            <constraint>
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:span">
+                <sch:assert test="@target or @from">
+                  Each span must define either @target or @from.
+                </sch:assert>
+                <sch:assert test="not(@to) or @from">
+                  The @to attribute requires @from.
+                </sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+
+          <constraintSpec ident="spangrp-type-requirement" scheme="schematron">
+            <desc>Stand-off span groups must declare a non-empty `@type`
+            value.</desc>
+            <constraint>
+              <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+              <sch:rule context="tei:spanGrp">
+                <sch:assert test="normalize-space(@type) != ''">
+                  The @type attribute on spanGrp must not be empty.
                 </sch:assert>
               </sch:rule>
             </constraint>

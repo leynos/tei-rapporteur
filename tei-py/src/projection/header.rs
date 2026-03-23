@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 use tei_core::{
-    AnnotationSystem, AnnotationSystemId, EncodingDesc, HeaderValidationError, LanguageTag,
-    ProfileDesc, RevisionChange, RevisionDesc, SpeakerName, TeiHeader,
+    AnnotationSystem, AnnotationSystemId, CiteData, CiteStructure, EncodingDesc,
+    HeaderValidationError, LanguageTag, ProfileDesc, RefsDecl, RevisionChange, RevisionDesc,
+    SpeakerName, TeiHeader,
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -31,6 +32,45 @@ pub(crate) struct PyEncodingDesc {
         default
     )]
     pub(crate) annotation_systems: Vec<PyAnnotationSystem>,
+    #[serde(rename = "refs_decl", skip_serializing_if = "Option::is_none", default)]
+    pub(crate) refs_decl: Option<PyRefsDecl>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyRefsDecl {
+    #[serde(
+        rename = "cite_structures",
+        skip_serializing_if = "Vec::is_empty",
+        default
+    )]
+    pub(crate) cite_structures: Vec<PyCiteStructure>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyCiteStructure {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub(crate) unit: Option<String>,
+    #[serde(rename = "match_expr")]
+    pub(crate) match_expr: String,
+    #[serde(rename = "use_expr", skip_serializing_if = "Option::is_none", default)]
+    pub(crate) use_expr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub(crate) delim: Option<String>,
+    #[serde(rename = "cite_data", skip_serializing_if = "Vec::is_empty", default)]
+    pub(crate) cite_data: Vec<PyCiteData>,
+    #[serde(
+        rename = "cite_structures",
+        skip_serializing_if = "Vec::is_empty",
+        default
+    )]
+    pub(crate) cite_structures: Vec<PyCiteStructure>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyCiteData {
+    pub(crate) property: String,
+    #[serde(rename = "use_expr", skip_serializing_if = "Option::is_none", default)]
+    pub(crate) use_expr: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -146,6 +186,7 @@ impl From<&EncodingDesc> for PyEncodingDesc {
                 .iter()
                 .map(PyAnnotationSystem::from)
                 .collect(),
+            refs_decl: value.refs_decl().map(PyRefsDecl::from),
         }
     }
 }
@@ -158,7 +199,88 @@ impl TryFrom<PyEncodingDesc> for EncodingDesc {
         for system in value.annotation_systems {
             encoding.add_annotation_system(AnnotationSystem::try_from(system)?);
         }
+        if let Some(refs_decl) = value.refs_decl {
+            encoding.set_refs_decl(RefsDecl::try_from(refs_decl)?);
+        }
         Ok(encoding)
+    }
+}
+
+impl From<&RefsDecl> for PyRefsDecl {
+    fn from(value: &RefsDecl) -> Self {
+        Self {
+            cite_structures: value
+                .cite_structures()
+                .iter()
+                .map(PyCiteStructure::from)
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<PyRefsDecl> for RefsDecl {
+    type Error = HeaderValidationError;
+
+    fn try_from(value: PyRefsDecl) -> Result<Self, Self::Error> {
+        let mut refs_decl = Self::new();
+        for cite_structure in value.cite_structures {
+            refs_decl.add_cite_structure(CiteStructure::from(cite_structure));
+        }
+        Ok(refs_decl)
+    }
+}
+
+impl From<&CiteStructure> for PyCiteStructure {
+    fn from(value: &CiteStructure) -> Self {
+        Self {
+            unit: value.unit().map(str::to_owned),
+            match_expr: value.match_expr().to_owned(),
+            use_expr: value.use_expr().map(str::to_owned),
+            delim: value.delim().map(str::to_owned),
+            cite_data: value.cite_data().iter().map(PyCiteData::from).collect(),
+            cite_structures: value.children().iter().map(Self::from).collect(),
+        }
+    }
+}
+
+impl From<PyCiteStructure> for CiteStructure {
+    fn from(value: PyCiteStructure) -> Self {
+        let mut cite_structure = Self::new(value.match_expr);
+        if let Some(unit) = value.unit {
+            cite_structure = cite_structure.with_unit(unit);
+        }
+        if let Some(use_expr) = value.use_expr {
+            cite_structure = cite_structure.with_use_expr(use_expr);
+        }
+        if let Some(delim) = value.delim {
+            cite_structure = cite_structure.with_delim(delim);
+        }
+        for cite_data in value.cite_data {
+            cite_structure.add_cite_data(CiteData::from(cite_data));
+        }
+        for child in value.cite_structures {
+            cite_structure.add_child(Self::from(child));
+        }
+        cite_structure
+    }
+}
+
+impl From<&CiteData> for PyCiteData {
+    fn from(value: &CiteData) -> Self {
+        Self {
+            property: value.property().to_owned(),
+            use_expr: value.use_expr().map(str::to_owned),
+        }
+    }
+}
+
+impl From<PyCiteData> for CiteData {
+    fn from(value: PyCiteData) -> Self {
+        let property = value.property;
+        value.use_expr.map_or_else(
+            || Self::new(property.clone()),
+            |use_expr| Self::new(property.clone()).with_use_expr(use_expr),
+        )
     }
 }
 

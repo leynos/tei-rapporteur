@@ -11,7 +11,10 @@ mod types;
 
 pub use body::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
 pub use inline::{Hi, Inline, Pause};
-pub use types::{IdentifierValidationError, Speaker, SpeakerValidationError, XmlId};
+pub use types::{
+    Certainty, CertaintyValidationError, IdentifierValidationError, Pointer, PointerList,
+    PointerListValidationError, PointerValidationError, Speaker, SpeakerValidationError, XmlId,
+};
 
 /// Body of a TEI document, including paragraphs and utterances.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

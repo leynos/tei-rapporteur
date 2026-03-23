@@ -16,7 +16,7 @@ use super::helpers::{
     build_pause, build_utterance, extract_attribute, extract_xml_id,
 };
 use super::parser::TeiPullParser;
-use super::state::ParserState;
+use super::state::{ParserState, RawUtteranceAttrs};
 
 /// Start element handlers.
 impl<R: BufRead> TeiPullParser<R> {
@@ -81,9 +81,16 @@ impl<R: BufRead> TeiPullParser<R> {
             let id = extract_xml_id(element)?;
             self.state = ParserState::in_paragraph(id);
         } else if name_bytes == b"u" {
-            let id = extract_xml_id(element)?;
-            let who = extract_attribute(element, b"who")?;
-            self.state = ParserState::in_utterance(id, who);
+            self.state = ParserState::in_utterance(RawUtteranceAttrs {
+                id: extract_xml_id(element)?,
+                n: extract_attribute(element, b"n")?,
+                who: extract_attribute(element, b"who")?,
+                source: extract_attribute(element, b"source")?,
+                resp: extract_attribute(element, b"resp")?,
+                cert: extract_attribute(element, b"cert")?,
+                corresp: extract_attribute(element, b"corresp")?,
+                ana: extract_attribute(element, b"ana")?,
+            });
         }
         Ok(None)
     }
@@ -134,9 +141,8 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing an utterance and emits a `BodyBlock` event.
     pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InUtterance { id, who, content } = &mut self.state {
-            let utterance =
-                build_utterance(id.take(), who.take().as_deref(), std::mem::take(content))?;
+        if let ParserState::InUtterance { attrs, content } = &mut self.state {
+            let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
             self.state = ParserState::InBody;
             return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
         }

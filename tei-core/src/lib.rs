@@ -7,19 +7,22 @@
 //! text module models the TEI body using paragraphs and utterances so tests can
 //! exercise real script fragments.
 
+mod annotation;
 mod header;
 mod text;
 mod title;
 mod validation;
 
+pub use annotation::{AnnotationValidationError, Span, SpanGroup, StandOff};
 pub use header::{
-    AnnotationSystem, AnnotationSystemId, EncodingDesc, FileDesc, HeaderValidationError,
-    LanguageTag, ProfileDesc, ResponsibleParty, RevisionChange, RevisionDesc, SpeakerName,
-    TeiHeader,
+    AnnotationSystem, AnnotationSystemId, CiteData, CiteStructure, EncodingDesc, FileDesc,
+    HeaderValidationError, LanguageTag, ProfileDesc, RefsDecl, ResponsibleParty, RevisionChange,
+    RevisionDesc, SpeakerName, TeiHeader,
 };
 pub use text::{
-    BodyBlock, BodyContentError, Hi, IdentifierValidationError, Inline, P, Pause, Speaker,
-    SpeakerValidationError, TeiBody, TeiText, Utterance, XmlId,
+    BodyBlock, BodyContentError, Certainty, CertaintyValidationError, Hi,
+    IdentifierValidationError, Inline, P, Pause, Pointer, PointerList, PointerListValidationError,
+    PointerValidationError, Speaker, SpeakerValidationError, TeiBody, TeiText, Utterance, XmlId,
 };
 pub use title::{DocumentTitle, DocumentTitleError};
 pub use validation::ValidationError;
@@ -43,6 +46,18 @@ pub enum TeiError {
     /// Wrapper around [`IdentifierValidationError`] values.
     #[error(transparent)]
     Identifier(#[from] IdentifierValidationError),
+    /// Wrapper around [`PointerValidationError`] values.
+    #[error(transparent)]
+    Pointer(#[from] PointerValidationError),
+    /// Wrapper around [`PointerListValidationError`] values.
+    #[error(transparent)]
+    PointerList(#[from] PointerListValidationError),
+    /// Wrapper around [`AnnotationValidationError`] values.
+    #[error(transparent)]
+    Annotation(#[from] AnnotationValidationError),
+    /// Wrapper around [`CertaintyValidationError`] values.
+    #[error(transparent)]
+    Certainty(#[from] CertaintyValidationError),
     /// Wrapper around [`SpeakerValidationError`] values.
     #[error(transparent)]
     Speaker(#[from] SpeakerValidationError),
@@ -98,6 +113,8 @@ impl TeiError {
 pub struct TeiDocument {
     #[serde(rename = "teiHeader")]
     header: TeiHeader,
+    #[serde(rename = "standOff", skip_serializing_if = "Option::is_none", default)]
+    stand_off: Option<StandOff>,
     #[serde(rename = "text")]
     text: TeiText,
 }
@@ -106,7 +123,11 @@ impl TeiDocument {
     /// Builds a document from fully formed components.
     #[must_use]
     pub const fn new(header: TeiHeader, text: TeiText) -> Self {
-        Self { header, text }
+        Self {
+            header,
+            stand_off: None,
+            text,
+        }
     }
 
     /// Validates an input title and constructs a skeletal document.
@@ -127,10 +148,32 @@ impl TeiDocument {
         &self.header
     }
 
+    /// Returns the stand-off annotation layer when present.
+    #[must_use]
+    pub const fn stand_off(&self) -> Option<&StandOff> {
+        self.stand_off.as_ref()
+    }
+
+    /// Returns the mutable stand-off annotation layer when present.
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "review requested a non-const mutable accessor to avoid a misleading API surface"
+    )]
+    pub fn stand_off_mut(&mut self) -> Option<&mut StandOff> {
+        self.stand_off.as_mut()
+    }
+
     /// Returns the textual component.
     #[must_use]
     pub const fn text(&self) -> &TeiText {
         &self.text
+    }
+
+    /// Attaches a stand-off annotation layer.
+    #[must_use]
+    pub fn with_stand_off(mut self, stand_off: StandOff) -> Self {
+        self.stand_off = Some(stand_off);
+        self
     }
 
     /// Returns the validated title.
@@ -143,8 +186,10 @@ impl TeiDocument {
     ///
     /// # Errors
     ///
-    /// Returns [`TeiError::Validation`] when duplicated identifiers or
-    /// unknown speaker references are detected.
+    /// Returns [`TeiError::Validation`] when duplicated identifiers, unresolved
+    /// internal pointers, invalid citation declarations, invalid stand-off
+    /// anchors or ranges such as `@to` without `@from`, or unknown speaker
+    /// references are detected.
     pub fn validate(&self) -> Result<(), TeiError> {
         Ok(validation::validate_document(self)?)
     }
@@ -198,6 +243,16 @@ mod tests {
         assert!(matches!(
             error,
             TeiError::Identifier(IdentifierValidationError::Empty)
+        ));
+    }
+
+    #[test]
+    fn converts_pointer_list_validation_error_into_tei_error() {
+        let error: TeiError = PointerListValidationError::Empty.into();
+
+        assert!(matches!(
+            error,
+            TeiError::PointerList(PointerListValidationError::Empty)
         ));
     }
 

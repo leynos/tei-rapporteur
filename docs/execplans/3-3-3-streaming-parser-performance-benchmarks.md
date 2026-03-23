@@ -6,8 +6,8 @@
 
 ## Objective
 
-Write performance benchmarks using criterion comparing the memory and time usage
-of the full-document parser (`parse_xml`) versus the streaming parser
+Write performance benchmarks using criterion comparing the memory and time
+usage of the full-document parser (`parse_xml`) versus the streaming parser
 (`TeiPullParser`) for large TEI files.
 
 ## Prerequisites
@@ -20,21 +20,21 @@ of the full-document parser (`parse_xml`) versus the streaming parser
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `/root/repo/Cargo.toml` | Add criterion to workspace dependencies |
-| `/root/repo/tei-xml/Cargo.toml` | Add bench target and criterion dev-dependency |
-| `/root/repo/tei-xml/src/fixtures/bench.rs` | Add benchmark fixture generator |
-| `/root/repo/Makefile` | Add `bench` target |
-| `/root/repo/docs/users-guide.md` | Add benchmarking section |
-| `/root/repo/docs/roadmap.md` | Mark task as complete |
+| File                                       | Change                                        |
+| ------------------------------------------ | --------------------------------------------- |
+| `/root/repo/Cargo.toml`                    | Add criterion to workspace dependencies       |
+| `/root/repo/tei-xml/Cargo.toml`            | Add bench target and criterion dev-dependency |
+| `/root/repo/tei-xml/src/fixtures/bench.rs` | Add benchmark fixture generator               |
+| `/root/repo/Makefile`                      | Add `bench` target                            |
+| `/root/repo/docs/users-guide.md`           | Add benchmarking section                      |
+| `/root/repo/docs/roadmap.md`               | Mark task as complete                         |
 
 ### Files Created
 
-| File | Purpose |
-|------|---------|
+| File                                              | Purpose                   |
+| ------------------------------------------------- | ------------------------- |
 | `/root/repo/tei-xml/benches/parser_comparison.rs` | Criterion benchmark suite |
-| `/root/repo/tei-xml/examples/bench_memory.rs` | Memory measurement helper |
+| `/root/repo/tei-xml/examples/bench_memory.rs`     | Memory measurement helper |
 
 Note: Behaviour-driven development (BDD) behavioural tests for the benchmark
 fixtures are provided in `tei-xml/tests/benchmark_fixtures_behaviour.rs`. Unit
@@ -247,11 +247,11 @@ large (10,000) utterance counts.
 
 ## Risks and Mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| Benchmark variance from system load | Run multiple iterations; criterion handles statistics |
-| Very large fixture generation overhead | Pre-generate fixtures before benchmark timing |
-| Clippy lint violations in benchmark code | Use `#[expect(...)]` with documented reasons |
+| Risk                                     | Mitigation                                            |
+| ---------------------------------------- | ----------------------------------------------------- |
+| Benchmark variance from system load      | Run multiple iterations; criterion handles statistics |
+| Very large fixture generation overhead   | Pre-generate fixtures before benchmark timing         |
+| Clippy lint violations in benchmark code | Use `#[expect(...)]` with documented reasons          |
 
 ## Acceptance Criteria
 

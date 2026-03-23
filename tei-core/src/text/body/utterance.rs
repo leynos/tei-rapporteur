@@ -5,16 +5,29 @@
 
 use crate::text::{
     Inline,
-    types::{Speaker, SpeakerValidationError, XmlId},
+    types::{Certainty, PointerList, Speaker, SpeakerValidationError, XmlId},
 };
 
 use super::{
     BodyContentError, ensure_container_content, normalise_optional_speaker, push_validated_inline,
     push_validated_text_segment, set_optional_identifier,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-/// Spoken utterance that may reference a speaker.
+fn normalise_number(number: impl Into<String>) -> Option<String> {
+    let trimmed = number.into().trim().to_owned();
+    (!trimmed.is_empty()).then_some(trimmed)
+}
+
+fn deserialize_optional_number<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let number = Option::<String>::deserialize(deserializer)?;
+    Ok(number.and_then(normalise_number))
+}
+
+/// Spoken utterance that may reference a speaker and carry local provenance.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename = "u", deny_unknown_fields)]
@@ -26,8 +39,29 @@ pub struct Utterance {
         default
     )]
     id: Option<XmlId>,
+    #[serde(
+        rename = "@n",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_optional_number"
+    )]
+    n: Option<String>,
     #[serde(rename = "@who", skip_serializing_if = "Option::is_none", default)]
     speaker: Option<Speaker>,
+    #[serde(rename = "@source", skip_serializing_if = "Option::is_none", default)]
+    #[cfg_attr(feature = "json-schema", schemars(with = "Option<String>"))]
+    source: Option<PointerList>,
+    #[serde(rename = "@resp", skip_serializing_if = "Option::is_none", default)]
+    #[cfg_attr(feature = "json-schema", schemars(with = "Option<String>"))]
+    resp: Option<PointerList>,
+    #[serde(rename = "@cert", skip_serializing_if = "Option::is_none", default)]
+    cert: Option<Certainty>,
+    #[serde(rename = "@corresp", skip_serializing_if = "Option::is_none", default)]
+    #[cfg_attr(feature = "json-schema", schemars(with = "Option<String>"))]
+    corresp: Option<PointerList>,
+    #[serde(rename = "@ana", skip_serializing_if = "Option::is_none", default)]
+    #[cfg_attr(feature = "json-schema", schemars(with = "Option<String>"))]
+    ana: Option<PointerList>,
     #[serde(rename = "$value", default)]
     content: Vec<Inline>,
 }
@@ -85,7 +119,13 @@ impl Utterance {
 
         Ok(Self {
             id: None,
+            n: None,
             speaker: normalised_speaker,
+            source: None,
+            resp: None,
+            cert: None,
+            corresp: None,
+            ana: None,
             content,
         })
     }
@@ -109,7 +149,13 @@ impl Utterance {
 
         Ok(Self {
             id: None,
+            n: None,
             speaker: normalised_speaker,
+            source: None,
+            resp: None,
+            cert: None,
+            corresp: None,
+            ana: None,
             content: collected,
         })
     }
@@ -141,6 +187,17 @@ impl Utterance {
         self.id.as_ref()
     }
 
+    /// Sets the optional free-form `@n` label.
+    pub fn set_number(&mut self, number: impl Into<String>) {
+        self.n = normalise_number(number);
+    }
+
+    /// Returns the optional free-form `@n` label.
+    #[must_use]
+    pub fn number(&self) -> Option<&str> {
+        self.n.as_deref()
+    }
+
     /// Assigns the speaker responsible for the utterance.
     ///
     /// # Errors
@@ -170,6 +227,61 @@ impl Utterance {
     )]
     pub fn speaker(&self) -> Option<&Speaker> {
         self.speaker.as_ref()
+    }
+
+    /// Sets the optional source pointer list.
+    pub fn set_source(&mut self, source: PointerList) {
+        self.source = Some(source);
+    }
+
+    /// Returns the source pointer list when present.
+    #[must_use]
+    pub const fn source(&self) -> Option<&PointerList> {
+        self.source.as_ref()
+    }
+
+    /// Sets the optional responsibility pointer list.
+    pub fn set_resp(&mut self, resp: PointerList) {
+        self.resp = Some(resp);
+    }
+
+    /// Returns the responsibility pointer list when present.
+    #[must_use]
+    pub const fn resp(&self) -> Option<&PointerList> {
+        self.resp.as_ref()
+    }
+
+    /// Sets the optional certainty token.
+    pub fn set_cert(&mut self, cert: Certainty) {
+        self.cert = Some(cert);
+    }
+
+    /// Returns the certainty token when present.
+    #[must_use]
+    pub const fn cert(&self) -> Option<&Certainty> {
+        self.cert.as_ref()
+    }
+
+    /// Sets the optional correspondence pointer list.
+    pub fn set_corresp(&mut self, corresp: PointerList) {
+        self.corresp = Some(corresp);
+    }
+
+    /// Returns the correspondence pointer list when present.
+    #[must_use]
+    pub const fn corresp(&self) -> Option<&PointerList> {
+        self.corresp.as_ref()
+    }
+
+    /// Sets the optional analysis pointer list.
+    pub fn set_ana(&mut self, ana: PointerList) {
+        self.ana = Some(ana);
+    }
+
+    /// Returns the analysis pointer list when present.
+    #[must_use]
+    pub const fn ana(&self) -> Option<&PointerList> {
+        self.ana.as_ref()
     }
 
     /// Returns the stored segments.
@@ -212,6 +324,7 @@ mod tests {
     //! Unit tests for utterance construction, validation, and content management.
 
     use super::*;
+    use tei_serde::json::from_str as from_json;
 
     #[test]
     fn rejects_empty_utterance_segments() {
@@ -234,5 +347,35 @@ mod tests {
             .unwrap_or_else(|error| panic!("valid utterance: {error}"));
 
         assert_eq!(utterance.content(), [Inline::text("Hello")]);
+    }
+
+    #[test]
+    fn records_local_provenance_metadata() {
+        let mut utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
+            .unwrap_or_else(|error| panic!("valid utterance: {error}"));
+        utterance.set_number("1a");
+        utterance.set_source(
+            PointerList::new(["#src1"])
+                .unwrap_or_else(|error| panic!("source pointers should validate: {error}")),
+        );
+        utterance.set_cert(
+            Certainty::new("high")
+                .unwrap_or_else(|error| panic!("certainty should validate: {error}")),
+        );
+
+        assert_eq!(utterance.number(), Some("1a"));
+        assert_eq!(
+            utterance.source().map(PointerList::to_strings),
+            Some(vec![String::from("#src1")])
+        );
+        assert_eq!(utterance.cert().map(Certainty::as_str), Some("high"));
+    }
+
+    #[test]
+    fn deserialization_normalises_blank_number_to_none() {
+        let utterance: Utterance = from_json(r#"{"@who":"host","@n":"   ","$value":["Hello"]}"#)
+            .unwrap_or_else(|error| panic!("utterance JSON: {error}"));
+
+        assert_eq!(utterance.number(), None);
     }
 }

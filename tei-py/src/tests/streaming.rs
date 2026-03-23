@@ -28,7 +28,9 @@ const UTTERANCE_TEI: &str = concat!(
     "<TEI>",
     "<teiHeader><fileDesc><title>Test</title></fileDesc></teiHeader>",
     "<text><body>",
-    "<u xml:id=\"u1\" who=\"host\">Welcome <pause dur=\"PT1S\"/>back</u>",
+    "<u xml:id=\"u1\" n=\"1\" who=\"host\" source=\"#src1\" resp=\"#ann1\" cert=\"high\" corresp=\"#sp1\" ana=\"#tag1\">",
+    "Welcome <pause dur=\"PT1S\"/>back",
+    "</u>",
     "</body></text>",
     "</TEI>"
 );
@@ -166,6 +168,49 @@ fn utterance_has_speaker(#[from(state)] state: &StreamingState, speaker: String)
         .filter_map(|item| item.get("type").and_then(Value::as_str))
         .collect();
     assert!(tags.contains(&"pause"), "pause inline missing: {tags:?}");
+}
+
+#[then("the utterance event exposes provenance metadata")]
+fn utterance_exposes_provenance_metadata(#[from(state)] state: &StreamingState) {
+    let utterance = state
+        .events
+        .iter()
+        .find(|ev| ev.get("type") == Some(&Value::String("utterance".into())))
+        .expect("utterance event missing");
+    assert_eq!(utterance.get("n").and_then(Value::as_str), Some("1"));
+    assert_eq!(
+        utterance
+            .get("source")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#src1")
+    );
+    assert_eq!(
+        utterance
+            .get("resp")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#ann1")
+    );
+    assert_eq!(utterance.get("cert").and_then(Value::as_str), Some("high"));
+    assert_eq!(
+        utterance
+            .get("corresp")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#sp1")
+    );
+    assert_eq!(
+        utterance
+            .get("ana")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str),
+        Some("#tag1")
+    );
 }
 
 #[then("the header event title equals \"{expected}\"")]

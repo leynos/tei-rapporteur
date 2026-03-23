@@ -60,6 +60,33 @@ const NAMESPACED_EXPECTED: &str = concat!(
     "</TEI>",
 );
 
+const ANNOTATED_SOURCE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Annotated</title>",
+    "</fileDesc>",
+    "<encodingDesc>",
+    "<refsDecl>",
+    "<citeStructure unit=\"utterance\" match=\"//u[@xml:id]\">",
+    "<citeData property=\"speaker\" use=\"@who\"/>",
+    "</citeStructure>",
+    "</refsDecl>",
+    "</encodingDesc>",
+    "</teiHeader>",
+    "<standOff>",
+    "<spanGrp xml:id=\"sg1\" type=\"citation\" resp=\"#ann1\">",
+    "<span xml:id=\"sp1\" target=\"#u1\" cert=\"high\"/>",
+    "</spanGrp>",
+    "</standOff>",
+    "<text>",
+    "<body>",
+    "<u xml:id=\"u1\" n=\"1\" who=\"host\" source=\"#src1\" resp=\"#ann1\" cert=\"high\" corresp=\"#sp1\" ana=\"#tag1\">Hello</u>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 #[test]
 fn normalises_insignificant_whitespace_during_round_trip() {
     let document = parse_xml(PRETTY_MINIMAL_TEI).expect("pretty XML should parse");
@@ -89,6 +116,14 @@ fn preserves_xml_id_namespace_attributes() {
     let emitted = emit_xml(&document).expect("namespaced TEI should emit");
 
     assert_eq!(emitted, NAMESPACED_EXPECTED);
+}
+
+#[test]
+fn round_trips_citation_and_stand_off_markup() {
+    let document = parse_xml(ANNOTATED_SOURCE).expect("annotated TEI should parse");
+    let emitted = emit_xml(&document).expect("annotated TEI should emit");
+
+    assert_eq!(emitted, ANNOTATED_SOURCE);
 }
 
 #[derive(Debug, Deserialize)]

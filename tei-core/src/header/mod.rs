@@ -10,11 +10,13 @@ use thiserror::Error;
 mod encoding;
 mod file;
 mod profile;
+mod referencing;
 mod revision;
 
 pub use encoding::{AnnotationSystem, AnnotationSystemId, EncodingDesc};
 pub use file::FileDesc;
 pub use profile::{LanguageTag, ProfileDesc, SpeakerName};
+pub use referencing::{CiteData, CiteStructure, RefsDecl};
 pub use revision::{ResponsibleParty, RevisionChange, RevisionDesc};
 
 /// Error raised when TEI header metadata fails validation.

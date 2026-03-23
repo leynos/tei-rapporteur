@@ -69,7 +69,7 @@ This step keeps the behaviour-driven suites aligned with the upstream tooling
 used to drive the TEI fixtures.
 
 - [x] Upgrade the workspace to `rstest-bdd` and `rstest-bdd-macros` version
-      `0.2.0`, ensuring scenarios run on the stable release line and benefit
+      `0.5.0`, ensuring scenarios run on the stable release line and benefit
       from the new diagnostics bundle.
 
 ## Phase 2: Python Integration
@@ -138,6 +138,8 @@ guarantee data correctness.
       internal checks (e.g., unique `xml:id`s, valid cross-references).
 - [x] Expose the `validate()` method as a function in the `tei-py` Python API,
       which raises a `ValueError` on failure.
+- [x] Expand the TEI profile to cover `refsDecl` citation declarations,
+      utterance provenance attributes, and root-level `standOff` overlays.
 - [x] Formalize the TEI Episodic Profile by creating an ODD (One Document Does
       it all) specification.
 - [x] Generate a Relax NG schema from the ODD.

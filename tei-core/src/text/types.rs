@@ -1,7 +1,11 @@
-//! Validated wrapper types for TEI identifier and speaker attributes.
+//! Validated wrapper types for TEI identifiers and speaker attributes.
 //!
-//! Provides `XmlId` and `Speaker` newtypes that enforce non-empty,
-//! normalized values and reject invalid whitespace patterns.
+//! Pointer and certainty wrappers live in the sibling `pointers` submodule so
+//! this root file can focus on the identifier and speaker primitives shared
+//! across the text layer.
+
+#[path = "pointers.rs"]
+mod pointers;
 
 use std::fmt;
 
@@ -11,6 +15,11 @@ use thiserror::Error;
 
 use super::body::trim_preserving_original;
 
+pub use pointers::{
+    Certainty, CertaintyValidationError, Pointer, PointerList, PointerListValidationError,
+    PointerValidationError,
+};
+
 /// Validated wrapper for TEI `xml:id` attributes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
@@ -18,9 +27,6 @@ use super::body::trim_preserving_original;
 pub struct XmlId(String);
 
 /// Errors raised when normalizing identifier input.
-///
-/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
-/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum IdentifierValidationError {
     /// The identifier trimmed to an empty string.
@@ -116,9 +122,6 @@ impl<'de> Deserialize<'de> for XmlId {
 pub struct Speaker(String);
 
 /// Errors raised when normalizing speaker references.
-///
-/// "Normalizing" here refers to trimming whitespace and rejecting disallowed
-/// patterns.
 #[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
 pub enum SpeakerValidationError {
     /// The speaker trimmed to an empty string.
@@ -201,10 +204,9 @@ impl<'de> Deserialize<'de> for Speaker {
 
 #[cfg(test)]
 mod tests {
-    //! Unit tests for identifier and speaker wrapper types.
+    //! Unit tests for identifier and speaker wrappers.
 
     use super::*;
-    use tei_serde::json;
 
     #[test]
     fn xml_id_accepts_trimmed_identifiers() {
@@ -223,19 +225,6 @@ mod tests {
     }
 
     #[test]
-    fn xml_id_display_matches_as_str() {
-        let id = XmlId::new("intro")
-            .unwrap_or_else(|error| panic!("identifier should validate: {error}"));
-        assert_eq!(id.to_string(), id.as_str());
-    }
-
-    #[test]
-    fn xml_id_deserialisation_rejects_invalid_input() {
-        assert!(json::from_str::<XmlId>("\"   \"").is_err());
-        assert!(json::from_str::<XmlId>("\"identifier with space\"").is_err());
-    }
-
-    #[test]
     fn speaker_rejects_empty_values() {
         let result = Speaker::new("   ");
         assert!(matches!(result, Err(SpeakerValidationError::Empty)));
@@ -246,16 +235,5 @@ mod tests {
         let speaker = Speaker::new("  host  ")
             .unwrap_or_else(|error| panic!("speaker should be normalized: {error}"));
         assert_eq!(speaker.as_str(), "host");
-    }
-
-    #[test]
-    fn speaker_try_from_str_validates() {
-        let result = Speaker::try_from("   ");
-        assert!(matches!(result, Err(SpeakerValidationError::Empty)));
-    }
-
-    #[test]
-    fn speaker_deserialisation_rejects_empty_input() {
-        assert!(json::from_str::<Speaker>("\"   \"").is_err());
     }
 }

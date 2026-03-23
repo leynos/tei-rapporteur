@@ -17,6 +17,7 @@ Feature: Python streaming parser
     And the utterance TEI fixture
     When I stream parse the events
     Then an utterance event is emitted with speaker "host"
+    And the utterance event exposes provenance metadata
 
   Scenario: Header event exposes the document title
     Given the tei_rapporteur Python module is initialised for streaming

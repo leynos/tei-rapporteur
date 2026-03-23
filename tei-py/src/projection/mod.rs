@@ -8,14 +8,18 @@
 //! these projection types so that Python callers receive and submit stable,
 //! unambiguous payloads.
 
+mod annotation;
 mod events;
 mod header;
 
+pub(crate) use annotation::{
+    PyStandOff, apply_optional_pointer_list, certainty_from_option, certainty_to_string,
+    pointer_list_to_vec,
+};
 use header::PyTeiHeader;
 use serde::{Deserialize, Serialize};
 use tei_core::{
-    BodyBlock, BodyContentError, Inline, P, Pause, TeiBody, TeiDocument, TeiError, TeiHeader,
-    TeiText, Utterance,
+    BodyBlock, Inline, P, Pause, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
 };
 use tei_serde::json::Value;
 
@@ -55,7 +59,19 @@ pub(crate) enum PyBodyBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         xml_id: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        n: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         speaker: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        source: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        resp: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cert: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        corresp: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        ana: Vec<String>,
         content: Vec<PyInline>,
     },
 }
@@ -77,6 +93,8 @@ pub(crate) struct PyTeiText {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PyTeiDocument {
     pub(crate) header: PyTeiHeader,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub(crate) stand_off: Option<PyStandOff>,
     pub(crate) text: PyTeiText,
 }
 
@@ -88,7 +106,7 @@ impl From<&TeiBody> for PyTeiBody {
 }
 
 impl TryFrom<PyTeiBody> for TeiBody {
-    type Error = BodyContentError;
+    type Error = TeiError;
 
     fn try_from(value: PyTeiBody) -> Result<Self, Self::Error> {
         let mut body = Self::default();
@@ -106,6 +124,7 @@ impl From<&TeiDocument> for PyTeiDocument {
     fn from(document: &TeiDocument) -> Self {
         Self {
             header: PyTeiHeader::from(document.header()),
+            stand_off: document.stand_off().map(PyStandOff::from),
             text: PyTeiText {
                 body: PyTeiBody::from(document.text().body()),
             },
@@ -118,8 +137,12 @@ impl TryFrom<PyTeiDocument> for TeiDocument {
 
     fn try_from(value: PyTeiDocument) -> Result<Self, Self::Error> {
         let header = TeiHeader::try_from(value.header)?;
-        let body = TeiBody::try_from(value.text.body).map_err(TeiError::from)?;
-        Ok(Self::new(header, TeiText::new(body)))
+        let body = TeiBody::try_from(value.text.body)?;
+        let document = Self::new(header, TeiText::new(body));
+        match value.stand_off {
+            Some(stand_off) => Ok(document.with_stand_off(stand_off.try_into()?)),
+            None => Ok(document),
+        }
     }
 }
 
@@ -139,11 +162,11 @@ impl From<Inline> for PyInline {
     }
 }
 
-fn inline_from_py(inline_value: PyInline) -> Result<Inline, BodyContentError> {
+fn inline_from_py(inline_value: PyInline) -> Result<Inline, TeiError> {
     match inline_value {
         PyInline::Text { value } => Ok(Inline::Text(value)),
         PyInline::Hi { rend, content } => {
-            let converted_values: Result<Vec<Inline>, BodyContentError> =
+            let converted_values: Result<Vec<Inline>, TeiError> =
                 content.into_iter().map(inline_from_py).collect();
             let converted_inlines = converted_values?;
             let hi = match rend {
@@ -173,13 +196,19 @@ fn py_body_block_from_core(block: &BodyBlock) -> PyBodyBlock {
         },
         BodyBlock::Utterance(u) => PyBodyBlock::Utterance {
             xml_id: u.id().map(|id| id.as_str().to_owned()),
+            n: u.number().map(str::to_owned),
             speaker: u.speaker().map(|s| s.as_str().to_owned()),
+            source: pointer_list_to_vec(u.source()),
+            resp: pointer_list_to_vec(u.resp()),
+            cert: certainty_to_string(u.cert()),
+            corresp: pointer_list_to_vec(u.corresp()),
+            ana: pointer_list_to_vec(u.ana()),
             content: u.content().iter().cloned().map(PyInline::from).collect(),
         },
     }
 }
 
-fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, BodyContentError> {
+fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
     match block {
         PyBodyBlock::Paragraph { xml_id, content } => {
             let mut paragraph = P::from_inline(
@@ -195,7 +224,13 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, BodyContentError>
         }
         PyBodyBlock::Utterance {
             xml_id,
+            n,
             speaker,
+            source,
+            resp,
+            cert,
+            corresp,
+            ana,
             content,
         } => {
             let mut utterance = Utterance::from_inline(
@@ -208,6 +243,16 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, BodyContentError>
             if let Some(id) = xml_id {
                 utterance.set_id(id)?;
             }
+            if let Some(number) = n {
+                utterance.set_number(number);
+            }
+            apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
+            apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
+            if let Some(certainty) = certainty_from_option(cert)? {
+                utterance.set_cert(certainty);
+            }
+            apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
+            apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
             Ok(BodyBlock::Utterance(utterance))
         }
     }
@@ -235,8 +280,8 @@ pub enum ProjectionError {
     /// JSON decoding failed.
     #[error("invalid TEI projection: {0}")]
     Serde(#[from] tei_serde::serde_json::Error),
-    /// TEI validation failed after successful decoding.
-    #[error("invalid TEI body: {0}")]
+    /// TEI conversion or validation failed after successful decoding.
+    #[error("invalid TEI document: {0}")]
     Tei(#[from] TeiError),
 }
 
