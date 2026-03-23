@@ -1,28 +1,38 @@
 //! Integration tests for pointer and certainty wrappers.
 
+use rstest::{fixture, rstest};
 use tei_core::{Certainty, CertaintyValidationError, Pointer, PointerList};
 use tei_serde::json;
 
-#[test]
-fn pointer_list_round_trips_as_attribute_text() {
-    let pointers = PointerList::new(["#u1", "https://example.test/source"])
-        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"));
-
-    let serialized = json::to_string(&pointers)
-        .unwrap_or_else(|error| panic!("failed to serialize PointerList to JSON: {error}"));
-    assert_eq!(serialized, "\"#u1 https://example.test/source\"");
-
-    let deserialized = json::from_str::<PointerList>(&serialized)
-        .unwrap_or_else(|error| panic!("pointer list should deserialize: {error}"));
-    assert_eq!(deserialized, pointers);
+#[fixture]
+fn pointer_list_attr() -> PointerList {
+    PointerList::new(["#u1", "https://example.test/source"])
+        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"))
 }
 
-#[test]
-fn borrowed_pointer_list_is_directly_iterable() {
-    let pointers = PointerList::new(["#u1", "#u2"])
-        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"));
+#[fixture]
+fn pointer_list_internal_refs() -> PointerList {
+    PointerList::new(["#u1", "#u2"])
+        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"))
+}
 
-    let collected: Vec<&str> = (&pointers).into_iter().map(Pointer::as_str).collect();
+#[rstest]
+fn pointer_list_round_trips_as_attribute_text(pointer_list_attr: PointerList) {
+    let serialized =
+        json::to_string(&pointer_list_attr).expect("failed to serialize PointerList to JSON");
+    assert_eq!(serialized, "\"#u1 https://example.test/source\"");
+
+    let deserialized =
+        json::from_str::<PointerList>(&serialized).expect("pointer list should deserialize");
+    assert_eq!(deserialized, pointer_list_attr);
+}
+
+#[rstest]
+fn borrowed_pointer_list_is_directly_iterable(pointer_list_internal_refs: PointerList) {
+    let collected: Vec<&str> = (&pointer_list_internal_refs)
+        .into_iter()
+        .map(Pointer::as_str)
+        .collect();
 
     assert_eq!(collected, vec!["#u1", "#u2"]);
 }
