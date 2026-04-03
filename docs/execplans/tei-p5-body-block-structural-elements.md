@@ -114,9 +114,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 ## Progress
 
-- [ ] Stage A: understand and propose (no code changes) — this document.
-- [ ] Stage B: prototype serde round-trip for `Div`/`List`/`Item`/`Label`.
-- [ ] Stage C: Rust core types in `tei-core`.
+- [x] Stage A: understand and propose (no code changes) — this document.
+- [x] Stage B: prototype serde round-trip for `Div`/`List`/`Item`/`Label`.
+- [x] Stage C: Rust core types in `tei-core`.
 - [ ] Stage D: XML streaming parser states and handlers.
 - [ ] Stage E: XML emitter validation (serde-based emission).
 - [ ] Stage F: ODD and Relax NG schema updates.
@@ -131,7 +131,11 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 ## Surprises & discoveries
 
-(None yet.)
+- Stage B confirmed that `Item` can hold both an optional `Label` field and a
+  `$value` `Vec<Inline>` content field without serde conflicts.
+- Stage C: `PointerList::new` requires an iterator; use `["#id"]` not `"#id"`.
+- Stage C: `Option::as_deref()` for `n()` can be made const by using a manual
+  match expression.
 
 ## Decision log
 

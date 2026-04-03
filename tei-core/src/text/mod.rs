@@ -9,7 +9,7 @@ mod body;
 mod inline;
 mod types;
 
-pub use body::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
+pub use body::{BodyBlock, BodyContentError, Div, DivContent, Item, Label, List, P, TeiBody, Utterance};
 pub use inline::{Hi, Inline, Pause};
 pub use types::{
     Certainty, CertaintyValidationError, IdentifierValidationError, Pointer, PointerList,

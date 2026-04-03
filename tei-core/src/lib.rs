@@ -20,9 +20,10 @@ pub use header::{
     RevisionDesc, SpeakerName, TeiHeader,
 };
 pub use text::{
-    BodyBlock, BodyContentError, Certainty, CertaintyValidationError, Hi,
-    IdentifierValidationError, Inline, P, Pause, Pointer, PointerList, PointerListValidationError,
-    PointerValidationError, Speaker, SpeakerValidationError, TeiBody, TeiText, Utterance, XmlId,
+    BodyBlock, BodyContentError, Certainty, CertaintyValidationError, Div, DivContent, Hi,
+    IdentifierValidationError, Inline, Item, Label, List, P, Pause, Pointer, PointerList,
+    PointerListValidationError, PointerValidationError, Speaker, SpeakerValidationError, TeiBody,
+    TeiText, Utterance, XmlId,
 };
 pub use title::{DocumentTitle, DocumentTitleError};
 pub use validation::ValidationError;

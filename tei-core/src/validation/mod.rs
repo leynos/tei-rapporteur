@@ -104,6 +104,59 @@ fn validate_body_blocks(
                 }
                 validate_speaker_reference(utterance, known_speakers)?;
             }
+            BodyBlock::Div(div) => {
+                validate_div(div, seen_ids, known_speakers)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_div(
+    div: &crate::Div,
+    seen_ids: &mut HashSet<String>,
+    known_speakers: Option<&HashSet<String>>,
+) -> Result<(), ValidationError> {
+    use crate::DivContent;
+
+    if let Some(identifier) = div.id() {
+        identifiers::record_id(identifier.as_str(), seen_ids)?;
+    }
+
+    for content in div.content() {
+        match content {
+            DivContent::Paragraph(paragraph) => {
+                if let Some(identifier) = paragraph.id() {
+                    identifiers::record_id(identifier.as_str(), seen_ids)?;
+                }
+            }
+            DivContent::Utterance(utterance) => {
+                if let Some(identifier) = utterance.id() {
+                    identifiers::record_id(identifier.as_str(), seen_ids)?;
+                }
+                validate_speaker_reference(utterance, known_speakers)?;
+            }
+            DivContent::List(list) => {
+                validate_list(list, seen_ids)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_list(
+    list: &crate::List,
+    seen_ids: &mut HashSet<String>,
+) -> Result<(), ValidationError> {
+    if let Some(identifier) = list.id() {
+        identifiers::record_id(identifier.as_str(), seen_ids)?;
+    }
+
+    for item in list.items() {
+        if let Some(identifier) = item.id() {
+            identifiers::record_id(identifier.as_str(), seen_ids)?;
         }
     }
 
