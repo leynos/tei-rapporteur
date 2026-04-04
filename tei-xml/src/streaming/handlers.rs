@@ -8,12 +8,13 @@ use std::io::BufRead;
 
 use quick_xml::events::{BytesEnd, BytesStart, BytesText};
 
-use tei_core::{BodyBlock, Inline, TeiError};
+use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
 use super::event::TeiEvent;
 use super::helpers::{
-    append_empty_element, append_end_element, append_start_element, build_hi, build_paragraph,
-    build_pause, build_utterance, extract_attribute, extract_xml_id,
+    append_empty_element, append_end_element, append_start_element, build_div, build_hi, build_item,
+    build_label, build_list, build_paragraph, build_pause, build_utterance, extract_attribute,
+    extract_xml_id,
 };
 use super::parser::TeiPullParser;
 use super::state::{ParserState, RawUtteranceAttrs};
@@ -71,7 +72,7 @@ impl<R: BufRead> TeiPullParser<R> {
         None
     }
 
-    /// Handles start elements for body content (paragraphs and utterances).
+    /// Handles start elements for body content (paragraphs, utterances, and divs).
     pub(super) fn handle_body_content_start(
         &mut self,
         name_bytes: &[u8],
@@ -91,6 +92,11 @@ impl<R: BufRead> TeiPullParser<R> {
                 corresp: extract_attribute(element, b"corresp")?,
                 ana: extract_attribute(element, b"ana")?,
             });
+        } else if name_bytes == b"div" {
+            let div_type = extract_attribute(element, b"type")?
+                .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?;
+            let id = extract_xml_id(element)?;
+            self.state = ParserState::in_div(div_type, id);
         }
         Ok(None)
     }
@@ -102,6 +108,70 @@ impl<R: BufRead> TeiPullParser<R> {
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         if name_bytes == b"hi" {
+            let rend = extract_attribute(element, b"rend")?;
+            self.state.transition_to_emphasis(rend);
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements within a `<div>` (paragraphs, utterances, lists).
+    pub(super) fn handle_div_content_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"p" {
+            let id = extract_xml_id(element)?;
+            let current_state = std::mem::take(&mut self.state);
+            self.state = ParserState::in_paragraph(id);
+            self.pending_div_state = Some(Box::new(current_state));
+        } else if name_bytes == b"u" {
+            let current_state = std::mem::take(&mut self.state);
+            self.state = ParserState::in_utterance(RawUtteranceAttrs {
+                id: extract_xml_id(element)?,
+                n: extract_attribute(element, b"n")?,
+                who: extract_attribute(element, b"who")?,
+                source: extract_attribute(element, b"source")?,
+                resp: extract_attribute(element, b"resp")?,
+                cert: extract_attribute(element, b"cert")?,
+                corresp: extract_attribute(element, b"corresp")?,
+                ana: extract_attribute(element, b"ana")?,
+            });
+            self.pending_div_state = Some(Box::new(current_state));
+        } else if name_bytes == b"list" {
+            let list_id = extract_xml_id(element)?;
+            let current_state = std::mem::take(&mut self.state);
+            self.state = ParserState::in_list(current_state, list_id);
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements within a `<list>` (items).
+    pub(super) fn handle_list_content_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"item" {
+            let item_id = extract_xml_id(element)?;
+            let item_n = extract_attribute(element, b"n")?;
+            let item_corresp = extract_attribute(element, b"corresp")?;
+            let current_state = std::mem::take(&mut self.state);
+            self.state = ParserState::in_item(current_state, item_id, item_n, item_corresp);
+        }
+        Ok(None)
+    }
+
+    /// Handles start elements within an `<item>` (label, inline content).
+    pub(super) fn handle_item_content_start(
+        &mut self,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes == b"label" {
+            let current_state = std::mem::take(&mut self.state);
+            self.state = ParserState::in_label(current_state);
+        } else if name_bytes == b"hi" {
             let rend = extract_attribute(element, b"rend")?;
             self.state.transition_to_emphasis(rend);
         }
@@ -129,20 +199,42 @@ impl<R: BufRead> TeiPullParser<R> {
         Ok(None)
     }
 
-    /// Finishes parsing a paragraph and emits a `BodyBlock` event.
+    /// Finishes parsing a paragraph and emits a `BodyBlock` event or pushes to div.
     pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InParagraph { id, content } = &mut self.state {
             let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
+
+            // Check if we're inside a div
+            if let Some(mut parent_div) = self.pending_div_state.take() {
+                if let ParserState::InDiv { content, .. } = parent_div.as_mut() {
+                    content.push(DivContent::Paragraph(paragraph));
+                    self.state = *parent_div;
+                    return Ok(None);
+                }
+            }
+
+            // Not in a div, emit as body block
             self.state = ParserState::InBody;
             return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
         }
         Ok(None)
     }
 
-    /// Finishes parsing an utterance and emits a `BodyBlock` event.
+    /// Finishes parsing an utterance and emits a `BodyBlock` event or pushes to div.
     pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InUtterance { attrs, content } = &mut self.state {
             let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
+
+            // Check if we're inside a div
+            if let Some(mut parent_div) = self.pending_div_state.take() {
+                if let ParserState::InDiv { content, .. } = parent_div.as_mut() {
+                    content.push(DivContent::Utterance(utterance));
+                    self.state = *parent_div;
+                    return Ok(None);
+                }
+            }
+
+            // Not in a div, emit as body block
             self.state = ParserState::InBody;
             return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
         }
@@ -163,6 +255,96 @@ impl<R: BufRead> TeiPullParser<R> {
             };
             self.state = *parent_state;
             self.state.push_inline(Inline::Hi(hi));
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing a label and stores it in the parent item.
+    pub(super) fn finish_label(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InLabel {
+            parent_item,
+            content,
+        } = &mut self.state
+        {
+            let label = build_label(std::mem::take(content))?;
+            let Some(mut parent_state) = parent_item.take() else {
+                return Err(TeiError::xml("internal error: InLabel parent was None"));
+            };
+            if let ParserState::InItem {
+                label: item_label, ..
+            } = parent_state.as_mut()
+            {
+                *item_label = Some(label);
+            }
+            self.state = *parent_state;
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing an item and pushes it to the parent list.
+    pub(super) fn finish_item(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InItem {
+            parent_list,
+            item_id,
+            item_n,
+            item_corresp,
+            label,
+            content,
+        } = &mut self.state
+        {
+            let item = build_item(
+                item_id.take(),
+                item_n.take(),
+                item_corresp.take(),
+                label.take(),
+                std::mem::take(content),
+            )?;
+            let Some(mut parent_state) = parent_list.take() else {
+                return Err(TeiError::xml("internal error: InItem parent was None"));
+            };
+            if let ParserState::InList { items, .. } = parent_state.as_mut() {
+                items.push(item);
+            }
+            self.state = *parent_state;
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing a list and pushes it to the parent div.
+    pub(super) fn finish_list(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InList {
+            parent_div,
+            list_id,
+            items,
+        } = &mut self.state
+        {
+            let list = build_list(list_id.take(), std::mem::take(items))?;
+            let Some(mut parent_state) = parent_div.take() else {
+                return Err(TeiError::xml("internal error: InList parent was None"));
+            };
+            if let ParserState::InDiv { content, .. } = parent_state.as_mut() {
+                content.push(DivContent::List(list));
+            }
+            self.state = *parent_state;
+        }
+        Ok(None)
+    }
+
+    /// Finishes parsing a div and emits a `BodyBlock` event.
+    pub(super) fn finish_div(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InDiv {
+            div_type,
+            id,
+            content,
+        } = &mut self.state
+        {
+            let div = build_div(
+                std::mem::take(div_type),
+                id.take(),
+                std::mem::take(content),
+            )?;
+            self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))));
         }
         Ok(None)
     }

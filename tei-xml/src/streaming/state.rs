@@ -4,7 +4,7 @@
 //! pull parser to handle nested elements correctly and yield events at
 //! appropriate boundaries.
 
-use tei_core::Inline;
+use tei_core::{DivContent, Inline, Item, Label};
 
 /// Raw TEI utterance attributes captured during streaming parsing.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -93,6 +93,50 @@ pub enum ParserState {
         content: Vec<Inline>,
     },
 
+    /// Inside a `<div>` element, accumulating block-level children.
+    InDiv {
+        /// Required `@type` attribute.
+        div_type: String,
+        /// Optional `xml:id` attribute.
+        id: Option<String>,
+        /// Accumulated content.
+        content: Vec<DivContent>,
+    },
+
+    /// Inside a `<list>` element within a `<div>`, accumulating items.
+    InList {
+        /// The parent div state to return to after closing `</list>`.
+        parent_div: Option<Box<ParserState>>,
+        /// Optional `xml:id` for the list.
+        list_id: Option<String>,
+        /// Accumulated items.
+        items: Vec<Item>,
+    },
+
+    /// Inside an `<item>` element, accumulating inline content.
+    InItem {
+        /// The parent list state to return to after closing `</item>`.
+        parent_list: Option<Box<ParserState>>,
+        /// Optional `xml:id`.
+        item_id: Option<String>,
+        /// Optional `@n` attribute.
+        item_n: Option<String>,
+        /// Optional `@corresp` attribute.
+        item_corresp: Option<String>,
+        /// Optional label child element.
+        label: Option<Label>,
+        /// Accumulated inline content.
+        content: Vec<Inline>,
+    },
+
+    /// Inside a `<label>` element within an `<item>`.
+    InLabel {
+        /// The parent item state to return to after closing `</label>`.
+        parent_item: Option<Box<ParserState>>,
+        /// Accumulated inline content.
+        content: Vec<Inline>,
+    },
+
     /// Document parsing completed successfully.
     DocumentComplete,
 
@@ -147,6 +191,53 @@ impl ParserState {
         *self = Self::in_emphasis(parent, rend);
     }
 
+    /// Creates a new `InDiv` state with the given type and optional id.
+    #[must_use]
+    pub const fn in_div(div_type: String, id: Option<String>) -> Self {
+        Self::InDiv {
+            div_type,
+            id,
+            content: Vec::new(),
+        }
+    }
+
+    /// Creates a new `InList` state with the given parent div and optional list id.
+    #[must_use]
+    pub fn in_list(parent_div: Self, list_id: Option<String>) -> Self {
+        Self::InList {
+            parent_div: Some(Box::new(parent_div)),
+            list_id,
+            items: Vec::new(),
+        }
+    }
+
+    /// Creates a new `InItem` state with the given parent list and attributes.
+    #[must_use]
+    pub fn in_item(
+        parent_list: Self,
+        item_id: Option<String>,
+        item_n: Option<String>,
+        item_corresp: Option<String>,
+    ) -> Self {
+        Self::InItem {
+            parent_list: Some(Box::new(parent_list)),
+            item_id,
+            item_n,
+            item_corresp,
+            label: None,
+            content: Vec::new(),
+        }
+    }
+
+    /// Creates a new `InLabel` state with the given parent item.
+    #[must_use]
+    pub fn in_label(parent_item: Self) -> Self {
+        Self::InLabel {
+            parent_item: Some(Box::new(parent_item)),
+            content: Vec::new(),
+        }
+    }
+
     /// Returns a mutable reference to the inline content of the current block state, if any.
     #[expect(
         clippy::missing_const_for_fn,
@@ -156,7 +247,9 @@ impl ParserState {
         match self {
             Self::InParagraph { content, .. }
             | Self::InUtterance { content, .. }
-            | Self::InEmphasis { content, .. } => Some(content),
+            | Self::InEmphasis { content, .. }
+            | Self::InItem { content, .. }
+            | Self::InLabel { content, .. } => Some(content),
             _ => None,
         }
     }
@@ -203,7 +296,11 @@ mod tests {
         fn is_in_block(&self) -> bool {
             matches!(
                 self,
-                Self::InParagraph { .. } | Self::InUtterance { .. } | Self::InEmphasis { .. }
+                Self::InParagraph { .. }
+                    | Self::InUtterance { .. }
+                    | Self::InEmphasis { .. }
+                    | Self::InItem { .. }
+                    | Self::InLabel { .. }
             )
         }
         fn take_content(&mut self) -> Vec<Inline> {

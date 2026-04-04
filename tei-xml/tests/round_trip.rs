@@ -112,6 +112,7 @@ fn preserves_xml_id_namespace_attributes() {
             );
         }
         BodyBlock::Paragraph(_) => panic!("expected utterance block, found paragraph"),
+        BodyBlock::Div(_) => panic!("expected utterance block, found div"),
     }
     let emitted = emit_xml(&document).expect("namespaced TEI should emit");
 

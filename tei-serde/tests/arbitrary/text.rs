@@ -160,6 +160,7 @@ mod tests {
             body.blocks().iter().all(|block| match block {
                 BodyBlock::Paragraph(p) => has_visible_content_slice(p.content()),
                 BodyBlock::Utterance(u) => has_visible_content_slice(u.content()),
+                BodyBlock::Div(_) => true, // Divs don't need content validation here
             })
         });
     }

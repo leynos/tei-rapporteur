@@ -6,7 +6,8 @@
 use quick_xml::events::{BytesEnd, BytesStart};
 
 use tei_core::{
-    BodyContentError, Certainty, Hi, Inline, P, Pause, PointerList, TeiError, Utterance,
+    BodyContentError, Certainty, Div, DivContent, Hi, Inline, Item, Label, List, P, Pause,
+    PointerList, TeiError, Utterance,
 };
 
 use super::state::RawUtteranceAttrs;
@@ -199,4 +200,73 @@ pub fn build_pause(dur: Option<String>, pause_type: Option<String>) -> Pause {
         pause.set_kind(t);
     }
     pause
+}
+
+/// Builds a Div from type, optional ID, and content.
+pub fn build_div(
+    div_type: String,
+    id: Option<String>,
+    content: Vec<DivContent>,
+) -> Result<Div, TeiError> {
+    let mut div = Div::new(div_type).map_err(|e| TeiError::xml(e.to_string()))?;
+    apply_id(&mut div, id, Div::set_id)?;
+    for item in content {
+        match item {
+            DivContent::Paragraph(p) => div.push_paragraph(p),
+            DivContent::Utterance(u) => div.push_utterance(u),
+            DivContent::List(l) => div.push_list(l),
+        }
+    }
+    Ok(div)
+}
+
+/// Builds a List from optional ID and items.
+pub fn build_list(id: Option<String>, items: Vec<Item>) -> Result<List, TeiError> {
+    let mut list = List::new(items);
+    apply_id(&mut list, id, List::set_id)?;
+    Ok(list)
+}
+
+/// Builds an Item from attributes, optional label, and inline content.
+pub fn build_item(
+    id: Option<String>,
+    n: Option<String>,
+    corresp: Option<String>,
+    label: Option<Label>,
+    content: Vec<Inline>,
+) -> Result<Item, TeiError> {
+    let item = if content.is_empty() {
+        Item::from_text_segments([""])
+    } else {
+        Item::new(content)
+    }
+    .map_err(|e| TeiError::xml(e.to_string()))?;
+
+    let mut item = item;
+    apply_id(&mut item, id, Item::set_id)?;
+
+    if let Some(number) = n {
+        item.set_n(number).map_err(|e| TeiError::xml(e.to_string()))?;
+    }
+
+    if let Some(corresp_str) = corresp {
+        item.set_corresp(
+            PointerList::parse_attribute(corresp_str).map_err(TeiError::from)?,
+        );
+    }
+
+    if let Some(lbl) = label {
+        item.set_label(lbl);
+    }
+
+    Ok(item)
+}
+
+/// Builds a Label from inline content.
+pub fn build_label(content: Vec<Inline>) -> Result<Label, TeiError> {
+    if content.is_empty() {
+        Label::from_text("").map_err(|e| TeiError::xml(e.to_string()))
+    } else {
+        Label::new(content).map_err(|e| TeiError::xml(e.to_string()))
+    }
 }

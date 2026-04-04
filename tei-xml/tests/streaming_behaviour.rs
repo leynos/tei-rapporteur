@@ -379,6 +379,7 @@ fn each_body_block_is_an_utterance_with_speaker(
                     utterance_count += 1;
                 }
                 BodyBlock::Paragraph(_) => bail!("expected Utterance, found Paragraph"),
+                BodyBlock::Div(_) => bail!("expected Utterance, found Div"),
             }
         }
     }

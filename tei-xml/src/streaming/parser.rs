@@ -57,6 +57,7 @@ pub struct TeiPullParser<R: BufRead> {
     pub(super) reader: Reader<R>,
     pub(super) state: ParserState,
     pub(super) header: Option<TeiHeader>,
+    pub(super) pending_div_state: Option<Box<ParserState>>,
 }
 
 impl<R: BufRead> TeiPullParser<R> {
@@ -69,6 +70,7 @@ impl<R: BufRead> TeiPullParser<R> {
             reader: xml_reader,
             state: ParserState::Initial,
             header: None,
+            pending_div_state: None,
         }
     }
 
@@ -148,6 +150,11 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::AwaitingText => Ok(self.handle_awaiting_text_start(name_bytes)),
             ParserState::AwaitingBody => Ok(self.handle_awaiting_body_start(name_bytes)),
             ParserState::InBody => self.handle_body_content_start(name_bytes, element),
+            ParserState::InDiv { .. } => self.handle_div_content_start(name_bytes, element),
+            ParserState::InList { .. } => self.handle_list_content_start(name_bytes, element),
+            ParserState::InItem { .. } | ParserState::InLabel { .. } => {
+                self.handle_item_content_start(name_bytes, element)
+            }
             ParserState::InParagraph { .. }
             | ParserState::InUtterance { .. }
             | ParserState::InEmphasis { .. } => {
@@ -170,6 +177,10 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::InParagraph { .. } if name_bytes == b"p" => self.finish_paragraph(),
             ParserState::InUtterance { .. } if name_bytes == b"u" => self.finish_utterance(),
             ParserState::InEmphasis { .. } if name_bytes == b"hi" => self.finish_emphasis(),
+            ParserState::InDiv { .. } if name_bytes == b"div" => self.finish_div(),
+            ParserState::InList { .. } if name_bytes == b"list" => self.finish_list(),
+            ParserState::InItem { .. } if name_bytes == b"item" => self.finish_item(),
+            ParserState::InLabel { .. } if name_bytes == b"label" => self.finish_label(),
             ParserState::InBody => Ok(self.handle_body_end(name_bytes)),
             ParserState::AfterBody => Ok(self.handle_after_body_end(name_bytes)),
             _ => Ok(None),
