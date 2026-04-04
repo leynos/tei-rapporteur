@@ -19,7 +19,8 @@ pub(crate) use annotation::{
 use header::PyTeiHeader;
 use serde::{Deserialize, Serialize};
 use tei_core::{
-    BodyBlock, Inline, P, Pause, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
+    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, Pause, PointerList, TeiBody,
+    TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
 };
 use tei_serde::json::Value;
 
@@ -44,7 +45,7 @@ pub(crate) enum PyInline {
     },
 }
 
-/// Tagged body block union (paragraph or utterance) for Python.
+/// Tagged body block union (paragraph, utterance, or division) for Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub(crate) enum PyBodyBlock {
@@ -74,6 +75,61 @@ pub(crate) enum PyBodyBlock {
         ana: Vec<String>,
         content: Vec<PyInline>,
     },
+    #[serde(rename = "div")]
+    Div {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        div_type: String,
+        content: Vec<PyDivContent>,
+    },
+}
+
+/// Tagged content within a division for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "type")]
+pub(crate) enum PyDivContent {
+    #[serde(rename = "paragraph")]
+    Paragraph {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        content: Vec<PyInline>,
+    },
+    #[serde(rename = "utterance")]
+    Utterance {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        n: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        speaker: Option<String>,
+        content: Vec<PyInline>,
+    },
+    #[serde(rename = "list")]
+    List {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        items: Vec<PyItem>,
+    },
+}
+
+/// A list item projected for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xml_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    n: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    corresp: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    label: Option<PyLabel>,
+    content: Vec<PyInline>,
+}
+
+/// A label prefix projected for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyLabel {
+    content: Vec<PyInline>,
 }
 
 /// Python projection of the TEI body.
@@ -114,6 +170,7 @@ impl TryFrom<PyTeiBody> for TeiBody {
             match core_block_from_py(block)? {
                 BodyBlock::Paragraph(paragraph) => body.push_paragraph(paragraph),
                 BodyBlock::Utterance(utterance) => body.push_utterance(utterance),
+                BodyBlock::Div(div) => body.push_div(div),
             }
         }
         Ok(body)
@@ -194,17 +251,61 @@ fn py_body_block_from_core(block: &BodyBlock) -> PyBodyBlock {
             xml_id: p.id().map(|id| id.as_str().to_owned()),
             content: p.content().iter().cloned().map(PyInline::from).collect(),
         },
-        BodyBlock::Utterance(u) => PyBodyBlock::Utterance {
+        BodyBlock::Utterance(u) => py_utterance_body_block(u),
+        BodyBlock::Div(div) => PyBodyBlock::Div {
+            xml_id: div.id().map(|id| id.as_str().to_owned()),
+            div_type: div.div_type().to_owned(),
+            content: div.content().iter().map(py_div_content_from_core).collect(),
+        },
+    }
+}
+
+fn py_utterance_body_block(u: &Utterance) -> PyBodyBlock {
+    PyBodyBlock::Utterance {
+        xml_id: u.id().map(|id| id.as_str().to_owned()),
+        n: u.number().map(str::to_owned),
+        speaker: u.speaker().map(|s| s.as_str().to_owned()),
+        source: pointer_list_to_vec(u.source()),
+        resp: pointer_list_to_vec(u.resp()),
+        cert: certainty_to_string(u.cert()),
+        corresp: pointer_list_to_vec(u.corresp()),
+        ana: pointer_list_to_vec(u.ana()),
+        content: u.content().iter().cloned().map(PyInline::from).collect(),
+    }
+}
+
+fn py_div_content_from_core(content: &DivContent) -> PyDivContent {
+    match content {
+        DivContent::Paragraph(p) => PyDivContent::Paragraph {
+            xml_id: p.id().map(|id| id.as_str().to_owned()),
+            content: p.content().iter().cloned().map(PyInline::from).collect(),
+        },
+        DivContent::Utterance(u) => PyDivContent::Utterance {
             xml_id: u.id().map(|id| id.as_str().to_owned()),
             n: u.number().map(str::to_owned),
             speaker: u.speaker().map(|s| s.as_str().to_owned()),
-            source: pointer_list_to_vec(u.source()),
-            resp: pointer_list_to_vec(u.resp()),
-            cert: certainty_to_string(u.cert()),
-            corresp: pointer_list_to_vec(u.corresp()),
-            ana: pointer_list_to_vec(u.ana()),
             content: u.content().iter().cloned().map(PyInline::from).collect(),
         },
+        DivContent::List(list) => PyDivContent::List {
+            xml_id: list.id().map(|id| id.as_str().to_owned()),
+            items: list.items().iter().map(py_item_from_core).collect(),
+        },
+    }
+}
+
+fn py_item_from_core(item: &Item) -> PyItem {
+    PyItem {
+        xml_id: item.id().map(|id| id.as_str().to_owned()),
+        n: item.n().map(str::to_owned),
+        corresp: pointer_list_to_vec(item.corresp()),
+        label: item.label().map(py_label_from_core),
+        content: item.content().iter().cloned().map(PyInline::from).collect(),
+    }
+}
+
+fn py_label_from_core(label: &Label) -> PyLabel {
+    PyLabel {
+        content: label.content().iter().cloned().map(PyInline::from).collect(),
     }
 }
 
@@ -255,7 +356,101 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
             apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
             Ok(BodyBlock::Utterance(utterance))
         }
+        PyBodyBlock::Div {
+            xml_id,
+            div_type,
+            content,
+        } => {
+            let mut div = Div::new(div_type)?;
+            if let Some(id) = xml_id {
+                div.set_id(id)?;
+            }
+            for py_content in content {
+                match core_div_content_from_py(py_content)? {
+                    DivContent::Paragraph(p) => div.push_paragraph(p),
+                    DivContent::Utterance(u) => div.push_utterance(u),
+                    DivContent::List(l) => div.push_list(l),
+                }
+            }
+            Ok(BodyBlock::Div(div))
+        }
     }
+}
+
+fn core_div_content_from_py(content: PyDivContent) -> Result<DivContent, TeiError> {
+    match content {
+        PyDivContent::Paragraph { xml_id, content } => {
+            let mut paragraph = P::from_inline(
+                content
+                    .into_iter()
+                    .map(inline_from_py)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )?;
+            if let Some(id) = xml_id {
+                paragraph.set_id(id)?;
+            }
+            Ok(DivContent::Paragraph(paragraph))
+        }
+        PyDivContent::Utterance {
+            xml_id,
+            n,
+            speaker,
+            content,
+        } => {
+            let mut utterance = Utterance::from_inline(
+                speaker.as_deref(),
+                content
+                    .into_iter()
+                    .map(inline_from_py)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )?;
+            if let Some(id) = xml_id {
+                utterance.set_id(id)?;
+            }
+            if let Some(number) = n {
+                utterance.set_number(number);
+            }
+            Ok(DivContent::Utterance(utterance))
+        }
+        PyDivContent::List { xml_id, items } => {
+            let core_items: Vec<Item> = items
+                .into_iter()
+                .map(core_item_from_py)
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut list = List::new(core_items);
+            if let Some(id) = xml_id {
+                list.set_id(id)?;
+            }
+            Ok(DivContent::List(list))
+        }
+    }
+}
+
+fn core_item_from_py(item: PyItem) -> Result<Item, TeiError> {
+    let inlines: Vec<Inline> = item
+        .content
+        .into_iter()
+        .map(inline_from_py)
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut core_item = Item::new(inlines)?;
+    if let Some(id) = item.xml_id {
+        core_item.set_id(id)?;
+    }
+    if let Some(n_value) = item.n {
+        core_item.set_n(n_value)?;
+    }
+    if !item.corresp.is_empty() {
+        core_item.set_corresp(PointerList::parse_attribute(item.corresp.join(" "))?);
+    }
+    if let Some(py_label) = item.label {
+        let label_inlines: Vec<Inline> = py_label
+            .content
+            .into_iter()
+            .map(inline_from_py)
+            .collect::<Result<Vec<_>, _>>()?;
+        core_item.set_label(Label::new(label_inlines)?);
+    }
+    Ok(core_item)
 }
 
 /// Converts a core TEI document into a projection `Value` for Python exchange.

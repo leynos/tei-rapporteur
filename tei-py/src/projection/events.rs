@@ -3,7 +3,10 @@
 use serde::{Deserialize, Serialize};
 use tei_core::BodyBlock;
 
-use super::{PyInline, PyTeiHeader, certainty_to_string, pointer_list_to_vec};
+use super::{
+    PyDivContent, PyInline, PyTeiHeader, certainty_to_string, pointer_list_to_vec,
+    py_div_content_from_core,
+};
 
 /// Tagged streaming event union surfaced to Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -57,6 +60,17 @@ pub(crate) enum PyEvent {
         /// Inline content contained in the utterance.
         content: Vec<PyInline>,
     },
+    /// Delivers a division body block.
+    #[serde(rename = "div")]
+    Div {
+        /// Optional TEI `xml:id` identifier.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        /// Required `@type` attribute.
+        div_type: String,
+        /// Content of the division.
+        content: Vec<PyDivContent>,
+    },
     /// Signals the end of the document stream.
     #[serde(rename = "document_end")]
     DocumentEnd,
@@ -84,6 +98,15 @@ pub fn py_event_from_core(event: tei_xml::streaming::TeiEvent) -> PyEvent {
                 corresp: pointer_list_to_vec(u.corresp()),
                 ana: pointer_list_to_vec(u.ana()),
                 content: u.content().iter().cloned().map(PyInline::from).collect(),
+            },
+            BodyBlock::Div(div) => PyEvent::Div {
+                xml_id: div.id().map(|id| id.as_str().to_owned()),
+                div_type: div.div_type().to_owned(),
+                content: div
+                    .content()
+                    .iter()
+                    .map(py_div_content_from_core)
+                    .collect(),
             },
         },
         tei_xml::streaming::TeiEvent::DocumentEnd => PyEvent::DocumentEnd,

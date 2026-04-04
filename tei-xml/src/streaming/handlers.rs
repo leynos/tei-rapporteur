@@ -389,7 +389,7 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
             | ParserState::InEmphasis { content, .. } => {
-                let unescaped = text.unescape().map_err(|e| TeiError::xml(e.to_string()))?;
+                let unescaped = text.decode().map_err(|e| TeiError::xml(e.to_string()))?;
                 if !unescaped.is_empty() {
                     content.push(Inline::Text(unescaped.into_owned()));
                 }
