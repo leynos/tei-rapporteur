@@ -138,11 +138,11 @@ These are hard invariants. Violation requires escalation, not workarounds.
   match expression.
 - Stage E: `quick_xml` v0.39+ rejects `se::to_string` for `Vec<Inline>`
   because `Inline::Text(String)` is an untagged primitive — "consequent
-  primitives would be serialized without delimiter". The plan's assumption
-  that serde-based emission "just works" was wrong. A custom hybrid emitter
-  (`tei-xml/src/emitter.rs`) was written: header and stand-off are emitted
-  via serde (no `Vec<Inline>` fields), while the body is hand-written using
-  direct string construction with XML-escaped text.
+  primitives would be serialized without delimiter". The plan's assumption that
+  serde-based emission "just works" was wrong. A custom hybrid emitter
+  (`tei-xml/src/emitter.rs`) was written: header and stand-off are emitted via
+  serde (no `Vec<Inline>` fields), while the body is hand-written using direct
+  string construction with XML-escaped text.
 
 ## Decision log
 
@@ -154,10 +154,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 - **Decision:** `DivContent` enum has variants
   `{Paragraph, Utterance, List}` — not `Div` (nesting deferred to 2.3.2).
-  Rationale: the task specifies `<div>` nesting as forward-looking for
-  2.3.2. Keeping `DivContent` flat simplifies the parser state machine and
-  avoids recursive type complications in serde.
-  Date: 2026-04-03 (plan authoring).
+  Rationale: the task specifies `<div>` nesting as forward-looking for 2.3.2.
+  Keeping `DivContent` flat simplifies the parser state machine and avoids
+  recursive type complications in serde. Date: 2026-04-03 (plan authoring).
 
 - **Decision:** `BodyBlock` gains a single `Div(Div)` variant. Bare
   `<list>` at body level is not supported; lists appear only inside `<div>`.
@@ -175,14 +174,14 @@ These are hard invariants. Violation requires escalation, not workarounds.
   short list). Date: 2026-04-03 (plan authoring).
 
 - **Decision:** Replace serde-based XML emission with a custom hybrid
-  emitter (`tei-xml/src/emitter.rs`). Rationale: `quick_xml` v0.39+
-  correctly rejects serialization of `Vec<Inline>` because `Inline` is
-  `#[serde(untagged)]` with a `Text(String)` variant — consecutive text
-  nodes would merge without delimiters. The hybrid approach delegates header
-  and stand-off to serde (which handles those subtrees without issue) and
-  hand-writes body emission using `escape_xml_text`. This preserves
-  correctness for all element types including those containing inline
-  content. Date: 2026-04-05 (implementation).
+  emitter (`tei-xml/src/emitter.rs`). Rationale: `quick_xml` v0.39+ correctly
+  rejects serialization of `Vec<Inline>` because `Inline` is
+  `#[serde(untagged)]` with a `Text(String)` variant — consecutive text nodes
+  would merge without delimiters. The hybrid approach delegates header and
+  stand-off to serde (which handles those subtrees without issue) and
+  hand-writes body emission using `escape_xml_text`. This preserves correctness
+  for all element types including those containing inline content. Date:
+  2026-04-05 (implementation).
 
 ## Outcomes & retrospective
 

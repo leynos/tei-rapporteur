@@ -15,22 +15,34 @@ pub(super) fn validate_internal_pointers(
     Ok(())
 }
 
+/// Iterates `items`, calling `dispatch` for each one.
+/// Centralises the for-loop-plus-early-return pattern shared by the body and
+/// div pointer validators.
+#[inline]
+fn validate_block_iter<T>(
+    items: impl IntoIterator<Item = T>,
+    known_ids: &HashSet<String>,
+    mut dispatch: impl FnMut(T, &HashSet<String>) -> Result<(), ValidationError>,
+) -> Result<(), ValidationError> {
+    for item in items {
+        dispatch(item, known_ids)?;
+    }
+    Ok(())
+}
+
 fn validate_body_utterance_pointers(
     document: &TeiDocument,
     known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
-    for block in document.text().body().blocks() {
-        match block {
-            BodyBlock::Utterance(utterance) => {
-                validate_utterance_pointers(utterance, known_ids)?;
-            }
-            BodyBlock::Div(div) => {
-                validate_div_pointers(div, known_ids)?;
-            }
-            BodyBlock::Paragraph(_) => {}
-        }
-    }
-    Ok(())
+    validate_block_iter(
+        document.text().body().blocks(),
+        known_ids,
+        |block, ids| match block {
+            BodyBlock::Utterance(utterance) => validate_utterance_pointers(utterance, ids),
+            BodyBlock::Div(div) => validate_div_pointers(div, ids),
+            BodyBlock::Paragraph(_) => Ok(()),
+        },
+    )
 }
 
 fn validate_div_pointers(
@@ -38,19 +50,11 @@ fn validate_div_pointers(
     known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
     use crate::DivContent;
-
-    for content in div.content() {
-        match content {
-            DivContent::Utterance(utterance) => {
-                validate_utterance_pointers(utterance, known_ids)?;
-            }
-            DivContent::List(list) => {
-                validate_list_pointers(list, known_ids)?;
-            }
-            DivContent::Paragraph(_) => {}
-        }
-    }
-    Ok(())
+    validate_block_iter(div.content(), known_ids, |content, ids| match content {
+        DivContent::Utterance(utterance) => validate_utterance_pointers(utterance, ids),
+        DivContent::List(list) => validate_list_pointers(list, ids),
+        DivContent::Paragraph(_) => Ok(()),
+    })
 }
 
 fn validate_list_pointers(

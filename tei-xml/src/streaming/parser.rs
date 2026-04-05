@@ -178,15 +178,42 @@ impl<R: BufRead> TeiPullParser<R> {
 
         match &self.state {
             ParserState::InHeader { .. } => self.handle_header_end(element),
-            ParserState::InParagraph { .. } if name_bytes == b"p" => self.finish_paragraph(),
-            ParserState::InUtterance { .. } if name_bytes == b"u" => self.finish_utterance(),
-            ParserState::InEmphasis { .. } if name_bytes == b"hi" => self.finish_emphasis(),
-            ParserState::InDiv { .. } if name_bytes == b"div" => self.finish_div(),
-            ParserState::InList { .. } if name_bytes == b"list" => self.finish_list(),
-            ParserState::InItem { .. } if name_bytes == b"item" => self.finish_item(),
-            ParserState::InLabel { .. } if name_bytes == b"label" => self.finish_label(),
             ParserState::InBody => Ok(self.handle_body_end(name_bytes)),
             ParserState::AfterBody => Ok(self.handle_after_body_end(name_bytes)),
+            ParserState::InParagraph { .. }
+            | ParserState::InUtterance { .. }
+            | ParserState::InEmphasis { .. }
+            | ParserState::InDiv { .. }
+            | ParserState::InList { .. }
+            | ParserState::InItem { .. }
+            | ParserState::InLabel { .. } => self.handle_body_content_end(name_bytes),
+            _ => Ok(None),
+        }
+    }
+
+    /// Dispatches an end-element event for states that represent body content
+    /// (`<p>`, `<u>`, `<hi>`, `<div>`, `<list>`, `<item>`, `<label>`).
+    ///
+    /// Called only when `self.state` is already one of the `InParagraph`,
+    /// `InUtterance`, `InEmphasis`, `InDiv`, `InList`, `InItem`, or `InLabel`
+    /// variants; unrecognised tag names are silently ignored.
+    #[expect(
+        clippy::cognitive_complexity,
+        reason = "Delegates to state-specific finish methods; lower complexity than inline expansion"
+    )]
+    fn handle_body_content_end(&mut self, name_bytes: &[u8]) -> Result<Option<TeiEvent>, TeiError> {
+        match name_bytes {
+            b"p" if matches!(self.state, ParserState::InParagraph { .. }) => {
+                self.finish_paragraph()
+            }
+            b"u" if matches!(self.state, ParserState::InUtterance { .. }) => {
+                self.finish_utterance()
+            }
+            b"hi" if matches!(self.state, ParserState::InEmphasis { .. }) => self.finish_emphasis(),
+            b"div" if matches!(self.state, ParserState::InDiv { .. }) => self.finish_div(),
+            b"list" if matches!(self.state, ParserState::InList { .. }) => self.finish_list(),
+            b"item" if matches!(self.state, ParserState::InItem { .. }) => self.finish_item(),
+            b"label" if matches!(self.state, ParserState::InLabel { .. }) => self.finish_label(),
             _ => Ok(None),
         }
     }

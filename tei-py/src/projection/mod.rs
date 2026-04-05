@@ -314,20 +314,86 @@ fn py_label_from_core(label: &Label) -> PyLabel {
     }
 }
 
+fn paragraph_block_from_py(
+    xml_id: Option<String>,
+    content: Vec<PyInline>,
+) -> Result<BodyBlock, TeiError> {
+    let mut paragraph = P::from_inline(
+        content
+            .into_iter()
+            .map(inline_from_py)
+            .collect::<Result<Vec<_>, _>>()?,
+    )?;
+    if let Some(id) = xml_id {
+        paragraph.set_id(id)?;
+    }
+    Ok(BodyBlock::Paragraph(paragraph))
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Extracted from match arm; parameter count matches PyBodyBlock::Utterance fields"
+)]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Signature matches PyBodyBlock::Utterance destructuring pattern"
+)]
+fn utterance_block_from_py(
+    xml_id: Option<String>,
+    n: Option<String>,
+    speaker: Option<String>,
+    source: Vec<String>,
+    resp: Vec<String>,
+    cert: Option<String>,
+    corresp: Vec<String>,
+    ana: Vec<String>,
+    content: Vec<PyInline>,
+) -> Result<BodyBlock, TeiError> {
+    let mut utterance = Utterance::from_inline(
+        speaker.as_deref(),
+        content
+            .into_iter()
+            .map(inline_from_py)
+            .collect::<Result<Vec<_>, _>>()?,
+    )?;
+    if let Some(id) = xml_id {
+        utterance.set_id(id)?;
+    }
+    if let Some(number) = n {
+        utterance.set_number(number);
+    }
+    apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
+    apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
+    if let Some(certainty) = certainty_from_option(cert)? {
+        utterance.set_cert(certainty);
+    }
+    apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
+    apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
+    Ok(BodyBlock::Utterance(utterance))
+}
+
+fn div_block_from_py(
+    xml_id: Option<String>,
+    div_type: String,
+    content: Vec<PyDivContent>,
+) -> Result<BodyBlock, TeiError> {
+    let mut div = Div::new(div_type)?;
+    if let Some(id) = xml_id {
+        div.set_id(id)?;
+    }
+    for py_content in content {
+        match core_div_content_from_py(py_content)? {
+            DivContent::Paragraph(p) => div.push_paragraph(p),
+            DivContent::Utterance(u) => div.push_utterance(u),
+            DivContent::List(l) => div.push_list(l),
+        }
+    }
+    Ok(BodyBlock::Div(div))
+}
+
 fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
     match block {
-        PyBodyBlock::Paragraph { xml_id, content } => {
-            let mut paragraph = P::from_inline(
-                content
-                    .into_iter()
-                    .map(inline_from_py)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )?;
-            if let Some(id) = xml_id {
-                paragraph.set_id(id)?;
-            }
-            Ok(BodyBlock::Paragraph(paragraph))
-        }
+        PyBodyBlock::Paragraph { xml_id, content } => paragraph_block_from_py(xml_id, content),
         PyBodyBlock::Utterance {
             xml_id,
             n,
@@ -338,47 +404,14 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
             corresp,
             ana,
             content,
-        } => {
-            let mut utterance = Utterance::from_inline(
-                speaker.as_deref(),
-                content
-                    .into_iter()
-                    .map(inline_from_py)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )?;
-            if let Some(id) = xml_id {
-                utterance.set_id(id)?;
-            }
-            if let Some(number) = n {
-                utterance.set_number(number);
-            }
-            apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
-            apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
-            if let Some(certainty) = certainty_from_option(cert)? {
-                utterance.set_cert(certainty);
-            }
-            apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
-            apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
-            Ok(BodyBlock::Utterance(utterance))
-        }
+        } => utterance_block_from_py(
+            xml_id, n, speaker, source, resp, cert, corresp, ana, content,
+        ),
         PyBodyBlock::Div {
             xml_id,
             div_type,
             content,
-        } => {
-            let mut div = Div::new(div_type)?;
-            if let Some(id) = xml_id {
-                div.set_id(id)?;
-            }
-            for py_content in content {
-                match core_div_content_from_py(py_content)? {
-                    DivContent::Paragraph(p) => div.push_paragraph(p),
-                    DivContent::Utterance(u) => div.push_utterance(u),
-                    DivContent::List(l) => div.push_list(l),
-                }
-            }
-            Ok(BodyBlock::Div(div))
-        }
+        } => div_block_from_py(xml_id, div_type, content),
     }
 }
 
