@@ -79,17 +79,34 @@ fn emit_body_block(output: &mut String, block: &BodyBlock) {
     }
 }
 
+/// Closes an already-opened element tag, optionally writing a body.
+///
+/// Assumes the caller has already pushed `"<tagname"` and all attributes.
+/// If `is_empty` is true, writes `"/>"`. Otherwise writes `">"`, calls
+/// `emit_body`, then writes `"</tag>"`.
+#[inline]
+fn emit_element_body<F>(output: &mut String, tag: &str, is_empty: bool, emit_body: F)
+where
+    F: FnOnce(&mut String),
+{
+    if is_empty {
+        output.push_str("/>");
+    } else {
+        output.push('>');
+        emit_body(output);
+        output.push_str("</");
+        output.push_str(tag);
+        output.push('>');
+    }
+}
+
 /// Writes `<p xml:id="...">inline content</p>`.
 fn emit_paragraph(output: &mut String, paragraph: &P) {
     output.push_str("<p");
     emit_optional_xml_id(output, paragraph.id());
-    if paragraph.content().is_empty() {
-        output.push_str("/>");
-    } else {
-        output.push('>');
-        emit_inline_sequence(output, paragraph.content());
-        output.push_str("</p>");
-    }
+    emit_element_body(output, "p", paragraph.content().is_empty(), |out| {
+        emit_inline_sequence(out, paragraph.content());
+    });
 }
 
 /// Writes `<u who="..." xml:id="..." ...>inline content</u>`.
@@ -125,15 +142,11 @@ fn emit_div(output: &mut String, div: &Div) {
     output.push_str("<div");
     emit_attr(output, "type", div.div_type());
     emit_optional_xml_id(output, div.id());
-    if div.is_empty() {
-        output.push_str("/>");
-    } else {
-        output.push('>');
+    emit_element_body(output, "div", div.is_empty(), |out| {
         for child in div.content() {
-            emit_div_content(output, child);
+            emit_div_content(out, child);
         }
-        output.push_str("</div>");
-    }
+    });
 }
 
 /// Dispatches a single div-level block.
@@ -149,15 +162,11 @@ fn emit_div_content(output: &mut String, content: &DivContent) {
 fn emit_list(output: &mut String, list: &List) {
     output.push_str("<list");
     emit_optional_xml_id(output, list.id());
-    if list.is_empty() {
-        output.push_str("/>");
-    } else {
-        output.push('>');
+    emit_element_body(output, "list", list.is_empty(), |out| {
         for item in list.items() {
-            emit_item(output, item);
+            emit_item(out, item);
         }
-        output.push_str("</list>");
-    }
+    });
 }
 
 /// Writes `<item n="..." xml:id="..." corresp="..."><label>...</label>inline</item>`.
@@ -196,13 +205,9 @@ fn emit_inline_sequence(output: &mut String, inlines: &[Inline]) {
 fn emit_hi(output: &mut String, hi: &Hi) {
     output.push_str("<hi");
     emit_optional_attr(output, "rend", hi.rend());
-    if hi.content().is_empty() {
-        output.push_str("/>");
-    } else {
-        output.push('>');
-        emit_inline_sequence(output, hi.content());
-        output.push_str("</hi>");
-    }
+    emit_element_body(output, "hi", hi.content().is_empty(), |out| {
+        emit_inline_sequence(out, hi.content());
+    });
 }
 
 /// Writes `<pause dur="..." type="..."/>`.
