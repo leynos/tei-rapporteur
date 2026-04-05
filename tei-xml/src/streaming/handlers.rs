@@ -12,9 +12,9 @@ use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
 use super::event::TeiEvent;
 use super::helpers::{
-    append_empty_element, append_end_element, append_start_element, build_div, build_hi, build_item,
-    build_label, build_list, build_paragraph, build_pause, build_utterance, extract_attribute,
-    extract_xml_id,
+    RawItemAttrs, append_empty_element, append_end_element, append_start_element, build_div,
+    build_hi, build_item, build_label, build_list, build_paragraph, build_pause, build_utterance,
+    extract_attribute, extract_xml_id,
 };
 use super::parser::TeiPullParser;
 use super::state::{ParserState, RawUtteranceAttrs};
@@ -203,19 +203,11 @@ impl<R: BufRead> TeiPullParser<R> {
     pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InParagraph { id, content } = &mut self.state {
             let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
-
-            // Check if we're inside a div
-            if let Some(mut parent_div) = self.pending_div_state.take() {
-                if let ParserState::InDiv { content, .. } = parent_div.as_mut() {
-                    content.push(DivContent::Paragraph(paragraph));
-                    self.state = *parent_div;
-                    return Ok(None);
-                }
-            }
-
-            // Not in a div, emit as body block
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
+            return Ok(self.emit_or_push_to_div(
+                DivContent::Paragraph,
+                BodyBlock::Paragraph,
+                paragraph,
+            ));
         }
         Ok(None)
     }
@@ -224,21 +216,34 @@ impl<R: BufRead> TeiPullParser<R> {
     pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InUtterance { attrs, content } = &mut self.state {
             let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
-
-            // Check if we're inside a div
-            if let Some(mut parent_div) = self.pending_div_state.take() {
-                if let ParserState::InDiv { content, .. } = parent_div.as_mut() {
-                    content.push(DivContent::Utterance(utterance));
-                    self.state = *parent_div;
-                    return Ok(None);
-                }
-            }
-
-            // Not in a div, emit as body block
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
+            return Ok(self.emit_or_push_to_div(
+                DivContent::Utterance,
+                BodyBlock::Utterance,
+                utterance,
+            ));
         }
         Ok(None)
+    }
+
+    /// Pushes a completed block into the parent div or emits it as a body block.
+    fn emit_or_push_to_div<T>(
+        &mut self,
+        wrap_div: fn(T) -> DivContent,
+        wrap_body: fn(T) -> BodyBlock,
+        value: T,
+    ) -> Option<TeiEvent> {
+        if let Some(mut parent_div) = self.pending_div_state.take()
+            && let ParserState::InDiv {
+                content: div_children,
+                ..
+            } = parent_div.as_mut()
+        {
+            div_children.push(wrap_div(value));
+            self.state = *parent_div;
+            return None;
+        }
+        self.state = ParserState::InBody;
+        Some(TeiEvent::BodyBlock(wrap_body(value)))
     }
 
     /// Finishes parsing emphasis and pushes it to the parent state.
@@ -293,10 +298,12 @@ impl<R: BufRead> TeiPullParser<R> {
         } = &mut self.state
         {
             let item = build_item(
-                item_id.take(),
-                item_n.take(),
-                item_corresp.take(),
-                label.take(),
+                RawItemAttrs {
+                    id: item_id.take(),
+                    n: item_n.take(),
+                    corresp: item_corresp.take(),
+                    label: label.take(),
+                },
                 std::mem::take(content),
             )?;
             let Some(mut parent_state) = parent_list.take() else {
@@ -338,11 +345,7 @@ impl<R: BufRead> TeiPullParser<R> {
             content,
         } = &mut self.state
         {
-            let div = build_div(
-                std::mem::take(div_type),
-                id.take(),
-                std::mem::take(content),
-            )?;
+            let div = build_div(std::mem::take(div_type), id.take(), std::mem::take(content))?;
             self.state = ParserState::InBody;
             return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))));
         }

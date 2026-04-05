@@ -305,7 +305,12 @@ fn py_item_from_core(item: &Item) -> PyItem {
 
 fn py_label_from_core(label: &Label) -> PyLabel {
     PyLabel {
-        content: label.content().iter().cloned().map(PyInline::from).collect(),
+        content: label
+            .content()
+            .iter()
+            .cloned()
+            .map(PyInline::from)
+            .collect(),
     }
 }
 
@@ -377,8 +382,8 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
     }
 }
 
-fn core_div_content_from_py(content: PyDivContent) -> Result<DivContent, TeiError> {
-    match content {
+fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiError> {
+    match py_content {
         PyDivContent::Paragraph { xml_id, content } => {
             let mut paragraph = P::from_inline(
                 content

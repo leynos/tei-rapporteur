@@ -117,8 +117,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] Stage A: understand and propose (no code changes) — this document.
 - [x] Stage B: prototype serde round-trip for `Div`/`List`/`Item`/`Label`.
 - [x] Stage C: Rust core types in `tei-core`.
-- [ ] Stage D: XML streaming parser states and handlers.
-- [ ] Stage E: XML emitter validation (serde-based emission).
+- [x] Stage D: XML streaming parser states and handlers.
+- [x] Stage E: XML emitter (custom hybrid emitter bypassing serde for body).
 - [ ] Stage F: ODD and Relax NG schema updates.
 - [ ] Stage G: Python `msgspec` structs, projection layer, and type stubs.
 - [ ] Stage H: JSON schema regeneration and profile constraints.
@@ -136,6 +136,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - Stage C: `PointerList::new` requires an iterator; use `["#id"]` not `"#id"`.
 - Stage C: `Option::as_deref()` for `n()` can be made const by using a manual
   match expression.
+- Stage E: `quick_xml` v0.39+ rejects `se::to_string` for `Vec<Inline>`
+  because `Inline::Text(String)` is an untagged primitive — "consequent
+  primitives would be serialized without delimiter". The plan's assumption
+  that serde-based emission "just works" was wrong. A custom hybrid emitter
+  (`tei-xml/src/emitter.rs`) was written: header and stand-off are emitted
+  via serde (no `Vec<Inline>` fields), while the body is hand-written using
+  direct string construction with XML-escaped text.
 
 ## Decision log
 
@@ -166,6 +173,16 @@ These are hard invariants. Violation requires escalation, not workarounds.
   and break the Python projection. Buffering the `Div` contents is acceptable
   because `Div` elements in show notes are small (typically a heading and a
   short list). Date: 2026-04-03 (plan authoring).
+
+- **Decision:** Replace serde-based XML emission with a custom hybrid
+  emitter (`tei-xml/src/emitter.rs`). Rationale: `quick_xml` v0.39+
+  correctly rejects serialization of `Vec<Inline>` because `Inline` is
+  `#[serde(untagged)]` with a `Text(String)` variant — consecutive text
+  nodes would merge without delimiters. The hybrid approach delegates header
+  and stand-off to serde (which handles those subtrees without issue) and
+  hand-writes body emission using `escape_xml_text`. This preserves
+  correctness for all element types including those containing inline
+  content. Date: 2026-04-05 (implementation).
 
 ## Outcomes & retrospective
 

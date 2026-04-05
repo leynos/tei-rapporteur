@@ -227,35 +227,39 @@ pub fn build_list(id: Option<String>, items: Vec<Item>) -> Result<List, TeiError
     Ok(list)
 }
 
-/// Builds an Item from attributes, optional label, and inline content.
-pub fn build_item(
-    id: Option<String>,
-    n: Option<String>,
-    corresp: Option<String>,
-    label: Option<Label>,
-    content: Vec<Inline>,
-) -> Result<Item, TeiError> {
-    let item = if content.is_empty() {
+/// Raw attributes collected for an `<item>` element during parsing.
+pub struct RawItemAttrs {
+    /// Optional `xml:id` attribute.
+    pub id: Option<String>,
+    /// Optional `n` attribute.
+    pub n: Option<String>,
+    /// Optional `corresp` attribute (unparsed pointer list).
+    pub corresp: Option<String>,
+    /// Optional `<label>` child element.
+    pub label: Option<Label>,
+}
+
+/// Builds an `Item` from raw attributes and inline content.
+pub fn build_item(attrs: RawItemAttrs, content: Vec<Inline>) -> Result<Item, TeiError> {
+    let mut item = if content.is_empty() {
         Item::from_text_segments([""])
     } else {
         Item::new(content)
     }
     .map_err(|e| TeiError::xml(e.to_string()))?;
 
-    let mut item = item;
-    apply_id(&mut item, id, Item::set_id)?;
+    apply_id(&mut item, attrs.id, Item::set_id)?;
 
-    if let Some(number) = n {
-        item.set_n(number).map_err(|e| TeiError::xml(e.to_string()))?;
+    if let Some(number) = attrs.n {
+        item.set_n(number)
+            .map_err(|e| TeiError::xml(e.to_string()))?;
     }
 
-    if let Some(corresp_str) = corresp {
-        item.set_corresp(
-            PointerList::parse_attribute(corresp_str).map_err(TeiError::from)?,
-        );
+    if let Some(corresp_str) = attrs.corresp {
+        item.set_corresp(PointerList::parse_attribute(corresp_str).map_err(TeiError::from)?);
     }
 
-    if let Some(lbl) = label {
+    if let Some(lbl) = attrs.label {
         item.set_label(lbl);
     }
 

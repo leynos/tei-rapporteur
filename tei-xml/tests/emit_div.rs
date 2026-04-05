@@ -89,55 +89,77 @@ fn emits_item_with_label() {
     assert!(xml.contains("Item content"));
 }
 
-#[test]
-fn round_trips_div_with_complex_content() {
-    const COMPLEX_DIV: &str = concat!(
-        "<TEI>",
-        "<teiHeader>",
-        "<fileDesc><title>Test</title></fileDesc>",
-        "</teiHeader>",
-        "<text>",
-        "<body>",
-        "<div type=\"complex\">",
-        "<p>Intro paragraph</p>",
-        "<list>",
-        "<item n=\"1\"><label>1.</label>First</item>",
-        "<item>Second</item>",
-        "</list>",
-        "</div>",
-        "</body>",
-        "</text>",
-        "</TEI>",
-    );
+const COMPLEX_DIV: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc><title>Test</title></fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"complex\">",
+    "<p>Intro paragraph</p>",
+    "<list>",
+    "<item n=\"1\"><label>1.</label>First</item>",
+    "<item>Second</item>",
+    "</list>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
 
+#[test]
+fn round_trips_div_structure() {
     let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
     let xml = emit_xml(&document).expect("document should emit");
-
-    // Parse it back
     let parsed = parse_xml(&xml).expect("emitted XML should parse");
 
-    // Verify structure
     assert_eq!(parsed.text().body().divs().count(), 1);
-    let parsed_div = parsed.text().body().divs().next().unwrap();
+    let parsed_div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a div");
     assert_eq!(parsed_div.div_type(), "complex");
+    assert_eq!(parsed_div.content().len(), 2);
+}
 
-    // Verify content
-    let content = parsed_div.content();
-    assert_eq!(content.len(), 2); // Paragraph + List
+#[test]
+fn round_trips_div_paragraph_content() {
+    let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+    let parsed = parse_xml(&xml).expect("emitted XML should parse");
 
-    match &content[0] {
-        DivContent::Paragraph(p) => {
-            assert_eq!(p.content(), &[Inline::Text("Intro paragraph".into())]);
-        }
-        _ => panic!("expected paragraph"),
-    }
+    let parsed_div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a div");
+    let Some(DivContent::Paragraph(p)) = parsed_div.content().first() else {
+        panic!("expected paragraph as first div child");
+    };
+    assert_eq!(p.content(), &[Inline::Text("Intro paragraph".into())]);
+}
 
-    match &content[1] {
-        DivContent::List(list) => {
-            assert_eq!(list.items().len(), 2);
-            assert_eq!(list.items()[0].n(), Some("1"));
-            assert!(list.items()[0].label().is_some());
-        }
-        _ => panic!("expected list"),
-    }
+#[test]
+fn round_trips_div_list_content() {
+    let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+    let parsed = parse_xml(&xml).expect("emitted XML should parse");
+
+    let parsed_div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a div");
+    let Some(DivContent::List(list)) = parsed_div.content().get(1) else {
+        panic!("expected list as second div child");
+    };
+    assert_eq!(list.items().len(), 2);
+    let first_item = list.items().first().expect("list should have items");
+    assert_eq!(first_item.n(), Some("1"));
+    assert!(first_item.label().is_some());
 }

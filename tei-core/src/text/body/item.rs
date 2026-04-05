@@ -3,11 +3,14 @@
 //! Defines TEI `<item>` and `<label>` elements with inline content, identifiers,
 //! and cross-reference attributes.
 
-use crate::text::{Inline, types::{PointerList, XmlId}};
+use crate::text::{
+    Inline,
+    types::{PointerList, XmlId},
+};
 
 use super::{
-    BodyContentError, ensure_container_content, push_validated_inline,
-    push_validated_text_segment, set_optional_identifier,
+    BodyContentError, ensure_container_content, push_validated_inline, push_validated_text_segment,
+    set_optional_identifier,
 };
 use serde::{Deserialize, Serialize};
 
@@ -31,9 +34,7 @@ impl Label {
         let collected: Vec<Inline> = content.into_iter().collect();
         ensure_container_content(&collected, "label")?;
 
-        Ok(Self {
-            content: collected,
-        })
+        Ok(Self { content: collected })
     }
 
     /// Builds a label from plain text.
@@ -163,9 +164,7 @@ impl Item {
     pub fn set_n(&mut self, n: impl Into<String>) -> Result<(), BodyContentError> {
         let value = n.into();
         if value.trim().is_empty() {
-            return Err(BodyContentError::EmptySegment {
-                container: "item",
-            });
+            return Err(BodyContentError::EmptySegment { container: "item" });
         }
         self.n = Some(value);
         Ok(())
@@ -264,8 +263,8 @@ mod tests {
 
     #[test]
     fn label_from_text_constructs_inline() {
-        let label = Label::from_text("Link:")
-            .unwrap_or_else(|error| panic!("valid label: {error}"));
+        let label =
+            Label::from_text("Link:").unwrap_or_else(|error| panic!("valid label: {error}"));
         assert_eq!(label.content(), [Inline::text("Link:")]);
     }
 
@@ -312,8 +311,8 @@ mod tests {
     fn item_set_label() {
         let mut item = Item::from_text_segments(["Visit our website"])
             .unwrap_or_else(|error| panic!("valid item: {error}"));
-        let label = Label::from_text("Link:")
-            .unwrap_or_else(|error| panic!("valid label: {error}"));
+        let label =
+            Label::from_text("Link:").unwrap_or_else(|error| panic!("valid label: {error}"));
         item.set_label(label.clone());
         assert_eq!(item.label(), Some(&label));
         item.clear_label();

@@ -77,12 +77,69 @@
           "required": [
             "u"
           ]
+        },
+        {
+          "description": "A thematic division grouping related content.",
+          "type": "object",
+          "properties": {
+            "div": {
+              "$ref": "#/$defs/div"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "div"
+          ]
         }
       ]
     },
     "Certainty": {
       "description": "Validated wrapper for TEI certainty values.",
       "type": "string"
+    },
+    "DivContent": {
+      "description": "Content permitted inside a `<div>` element.",
+      "oneOf": [
+        {
+          "description": "Paragraph block.",
+          "type": "object",
+          "properties": {
+            "p": {
+              "$ref": "#/$defs/p"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "p"
+          ]
+        },
+        {
+          "description": "Utterance block.",
+          "type": "object",
+          "properties": {
+            "u": {
+              "$ref": "#/$defs/u"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "u"
+          ]
+        },
+        {
+          "description": "List block.",
+          "type": "object",
+          "properties": {
+            "list": {
+              "$ref": "#/$defs/list"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "list"
+          ]
+        }
+      ]
     },
     "DocumentTitle": {
       "description": "Title metadata carried by a [`crate::TeiDocument`].\n\nTitles are trimmed and must not be empty, ensuring downstream consumers can\nalways serialize a non-empty `<title>` element.\n\n# Examples\n\n```\nuse tei_core::{DocumentTitle, DocumentTitleError};\n\nlet title = DocumentTitle::new(\"Voynich Manuscript\")?;\nassert_eq!(title.as_str(), \"Voynich Manuscript\");\n# Ok::<(), DocumentTitleError>(())\n```",
@@ -227,6 +284,35 @@
         "@match"
       ]
     },
+    "div": {
+      "description": "Thematic or structural division of body content.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DivContent"
+          }
+        },
+        "@type": {
+          "type": "string"
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "@type"
+      ]
+    },
     "encodingDesc": {
       "description": "Aggregates encoding metadata such as annotation systems.",
       "type": "object",
@@ -292,6 +378,88 @@
         }
       },
       "additionalProperties": false
+    },
+    "item": {
+      "description": "Single list item, optionally prefixed by a label.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        },
+        "@corresp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@n": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/label"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "label": {
+      "description": "Label prefix for a list item, containing inline content.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        }
+      }
+    },
+    "list": {
+      "description": "Ordered or unordered list of items.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "@xml:id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "p": {
       "description": "Paragraph element containing linear text segments.",

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 703f62c14806a44a4065bcf9346930df7c5ecf7f00938670b3f56f03b9c2acc8 # shrinks to doc = TeiDocument { header: TeiHeader { file: FileDesc { title: DocumentTitle("a"), series: None, synopsis: None }, profile: None, encoding: None, revision: None }, stand_off: None, text: TeiText { body: TeiBody { blocks: [Paragraph(P { id: None, content: [Text("a")] })] } } }

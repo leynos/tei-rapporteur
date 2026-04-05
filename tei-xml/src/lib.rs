@@ -3,9 +3,10 @@
 //! The module currently focuses on a title serialization shim that exercises the
 //! crate graph created during workspace scaffolding.
 
-use quick_xml::{de, se};
+use quick_xml::de;
 use tei_core::{TeiDocument, TeiError};
 
+mod emitter;
 pub mod fixtures;
 mod namespace;
 mod schema;
@@ -140,11 +141,10 @@ pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
 
 /// Serializes a [`TeiDocument`] into TEI XML markup.
 ///
-/// This helper keeps XML-specific logic scoped to the `tei-xml` crate while
-/// surfacing any serializer failures through [`TeiError::Xml`]. It produces a
-/// canonicalized string using `quick_xml::se::to_string`, ensuring downstream
-/// consumers receive stable output regardless of how the document was
-/// constructed.
+/// Header and stand-off annotations are serialized via `quick_xml`'s serde
+/// integration. The body is emitted using a custom writer to work around the
+/// `quick_xml` v0.39+ limitation that rejects consecutive untagged primitives
+/// in `$value` fields (which affects `Vec<Inline>` containing `Text(String)`).
 ///
 /// # Errors
 ///
@@ -163,7 +163,7 @@ pub fn parse_xml(xml: &str) -> Result<TeiDocument, TeiError> {
 /// # Ok::<(), tei_core::TeiError>(())
 /// ```
 pub fn emit_xml(document: &TeiDocument) -> Result<String, TeiError> {
-    let xml = se::to_string(document).map_err(|error| TeiError::xml(error.to_string()))?;
+    let xml = emitter::emit_document(document)?;
 
     if let Some(character) = first_forbidden_xml_char(xml.as_str()) {
         let codepoint = u32::from(character);

@@ -102,11 +102,7 @@ pub fn py_event_from_core(event: tei_xml::streaming::TeiEvent) -> PyEvent {
             BodyBlock::Div(div) => PyEvent::Div {
                 xml_id: div.id().map(|id| id.as_str().to_owned()),
                 div_type: div.div_type().to_owned(),
-                content: div
-                    .content()
-                    .iter()
-                    .map(py_div_content_from_core)
-                    .collect(),
+                content: div.content().iter().map(py_div_content_from_core).collect(),
             },
         },
         tei_xml::streaming::TeiEvent::DocumentEnd => PyEvent::DocumentEnd,

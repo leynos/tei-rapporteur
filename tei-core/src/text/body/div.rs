@@ -50,9 +50,7 @@ impl Div {
     pub fn new(div_type: impl Into<String>) -> Result<Self, BodyContentError> {
         let value = div_type.into();
         if value.trim().is_empty() {
-            return Err(BodyContentError::EmptySegment {
-                container: "div",
-            });
+            return Err(BodyContentError::EmptySegment { container: "div" });
         }
 
         Ok(Self {
@@ -160,16 +158,14 @@ mod tests {
 
     #[test]
     fn div_new_accepts_valid_type() {
-        let div = Div::new("show-notes")
-            .unwrap_or_else(|error| panic!("valid div: {error}"));
+        let div = Div::new("show-notes").unwrap_or_else(|error| panic!("valid div: {error}"));
         assert_eq!(div.div_type(), "show-notes");
         assert!(div.is_empty());
     }
 
     #[test]
     fn div_set_id_round_trips() {
-        let mut div = Div::new("chapter")
-            .unwrap_or_else(|error| panic!("valid div: {error}"));
+        let mut div = Div::new("chapter").unwrap_or_else(|error| panic!("valid div: {error}"));
         div.set_id("div1")
             .unwrap_or_else(|error| panic!("valid id: {error}"));
         assert_eq!(div.id().map(XmlId::as_str), Some("div1"));
@@ -179,8 +175,7 @@ mod tests {
 
     #[test]
     fn div_push_content() {
-        let mut div = Div::new("show-notes")
-            .unwrap_or_else(|error| panic!("valid div: {error}"));
+        let mut div = Div::new("show-notes").unwrap_or_else(|error| panic!("valid div: {error}"));
 
         let paragraph = P::from_text_segments(["Intro text"])
             .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
@@ -197,8 +192,14 @@ mod tests {
 
         assert_eq!(div.content().len(), 3);
         assert!(!div.is_empty());
-        assert!(matches!(div.content()[0], DivContent::Paragraph(_)));
-        assert!(matches!(div.content()[1], DivContent::Utterance(_)));
-        assert!(matches!(div.content()[2], DivContent::List(_)));
+        assert!(matches!(
+            div.content().first(),
+            Some(DivContent::Paragraph(_))
+        ));
+        assert!(matches!(
+            div.content().get(1),
+            Some(DivContent::Utterance(_))
+        ));
+        assert!(matches!(div.content().get(2), Some(DivContent::List(_))));
     }
 }
