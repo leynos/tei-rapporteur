@@ -16,6 +16,7 @@ use tei_core::{
 };
 
 use crate::escape_xml_text;
+use crate::namespace::TEI_NAMESPACE;
 
 /// Emits a [`TeiDocument`] as TEI XML markup.
 ///
@@ -29,7 +30,9 @@ use crate::escape_xml_text;
 /// well-formed XML.
 pub fn emit_document(document: &TeiDocument) -> Result<String, TeiError> {
     let mut output = String::with_capacity(512);
-    output.push_str("<TEI>");
+    output.push_str("<TEI xmlns=\"");
+    output.push_str(TEI_NAMESPACE);
+    output.push_str("\">");
 
     emit_header(&mut output, document)?;
     emit_stand_off(&mut output, document)?;

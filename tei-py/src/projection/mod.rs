@@ -102,6 +102,16 @@ pub(crate) enum PyDivContent {
         n: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         speaker: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        source: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        resp: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cert: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        corresp: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        ana: Vec<String>,
         content: Vec<PyInline>,
     },
     #[serde(rename = "list")]
@@ -284,6 +294,11 @@ fn py_div_content_from_core(content: &DivContent) -> PyDivContent {
             xml_id: u.id().map(|id| id.as_str().to_owned()),
             n: u.number().map(str::to_owned),
             speaker: u.speaker().map(|s| s.as_str().to_owned()),
+            source: pointer_list_to_vec(u.source()),
+            resp: pointer_list_to_vec(u.resp()),
+            cert: certainty_to_string(u.cert()),
+            corresp: pointer_list_to_vec(u.corresp()),
+            ana: pointer_list_to_vec(u.ana()),
             content: u.content().iter().cloned().map(PyInline::from).collect(),
         },
         DivContent::List(list) => PyDivContent::List {
@@ -448,6 +463,11 @@ fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiE
             xml_id,
             n,
             speaker,
+            source,
+            resp,
+            cert,
+            corresp,
+            ana,
             content,
         } => {
             let mut utterance = Utterance::from_inline(
@@ -463,6 +483,13 @@ fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiE
             if let Some(number) = n {
                 utterance.set_number(number);
             }
+            apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
+            apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
+            if let Some(certainty) = certainty_from_option(cert)? {
+                utterance.set_cert(certainty);
+            }
+            apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
+            apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
             Ok(DivContent::Utterance(utterance))
         }
         PyDivContent::List { xml_id, items } => {

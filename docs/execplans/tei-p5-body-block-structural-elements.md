@@ -9,13 +9,13 @@ Status: DRAFT
 
 ## Purpose / big picture
 
-The TEI Episodic Profile currently models the `<body>` element as a flat
-sequence of `<p>` (paragraph) and `<u>` (utterance) elements. Podcast show
-notes, however, require hierarchical structure: sections (intro, interview,
-sponsors), bulleted lists of links, guest credits, and timestamped chapter
-markers. Without `<div>`, `<list>`, `<item>`, and `<label>`, producers must
-flatten this structure into paragraphs, losing semantics that downstream tools
-need.
+The Text Encoding Initiative (TEI) Episodic Profile currently models the
+`<body>` element as a flat sequence of `<p>` (paragraph) and `<u>` (utterance)
+elements. Podcast show notes, however, require hierarchical structure: sections
+(intro, interview, sponsors), bulleted lists of links, guest credits, and
+timestamped chapter markers. Without `<div>`, `<list>`, `<item>`, and
+`<label>`, producers must flatten this structure into paragraphs, losing
+semantics that downstream tools need.
 
 After this change a user can:
 
@@ -35,10 +35,10 @@ After this change a user can:
    dictionary payloads.
 
 Observable success: running `make check-fmt && make lint && make test` passes,
-the new BDD scenarios exercise parsing, emission, round-trip, streaming, and
-validation for the new elements, and `make validate-xml` validates fixtures
-containing `<div>`, `<list>`, `<item>`, and `<label>` against the updated Relax
-NG schema.
+the new behaviour-driven development (BDD) scenarios exercise parsing,
+emission, round-trip, streaming, and validation for the new elements, and
+`make validate-xml` validates fixtures containing `<div>`, `<list>`, `<item>`,
+and `<label>` against the updated Relax NG schema.
 
 ## Constraints
 
@@ -97,7 +97,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
   with boxed parent) may need to be generalised for `InDiv > InList > InItem`
   nesting. Severity: medium. Likelihood: high. Mitigation: introduce separate
   `InDiv`, `InList`, `InItem` parser states that return to their parent state
-  on close, following the same ownership- transfer pattern used by `InEmphasis`.
+  on close, following the same ownership-transfer pattern used by `InEmphasis`.
 
 - **Risk:** Adding `Div` to `BodyBlock` changes the `match` exhaustiveness
   for all existing code that matches on `BodyBlock` variants. This will cause
@@ -215,7 +215,7 @@ The workspace lives at the repository root and contains these crates:
   `PyEvent` in `tei-py/src/projection/mod.rs` and
   `tei-py/src/projection/events.rs`) that map core types to
   `msgspec`-compatible shapes.
-- **ODD**: the TEI customization file at
+- **ODD**: the TEI customisation file at
   `schemas/tei-episodic-profile.odd`. Module includes are on lines 74-81;
   `<body>` content model is at line 352.
 - **Relax NG**: `schemas/tei-episodic-profile.rng`. The `<body>` define is

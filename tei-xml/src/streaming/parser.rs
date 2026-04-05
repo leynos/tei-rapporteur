@@ -127,11 +127,8 @@ impl<R: BufRead> TeiPullParser<R> {
             Event::Text(e) => self.handle_text(e),
             Event::Empty(e) => self.handle_empty_element(e),
             Event::Eof => self.handle_eof(),
-            Event::Decl(_)
-            | Event::PI(_)
-            | Event::Comment(_)
-            | Event::DocType(_)
-            | Event::GeneralRef(_) => Ok(None),
+            Event::GeneralRef(e) => self.handle_general_ref(e),
+            Event::Decl(_) | Event::PI(_) | Event::Comment(_) | Event::DocType(_) => Ok(None),
             Event::CData(e) => self.handle_cdata(e),
         }
     }

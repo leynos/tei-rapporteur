@@ -3,7 +3,7 @@
 //! These functions handle XML element construction, attribute extraction,
 //! and building of TEI domain objects from parsed content.
 
-use quick_xml::events::{BytesEnd, BytesStart};
+use quick_xml::events::{BytesEnd, BytesRef, BytesStart};
 
 use tei_core::{
     BodyContentError, Certainty, Div, DivContent, Hi, Inline, Item, Label, List, P, Pause,
@@ -272,5 +272,31 @@ pub fn build_label(content: Vec<Inline>) -> Result<Label, TeiError> {
         Label::from_text("").map_err(|e| TeiError::xml(e.to_string()))
     } else {
         Label::new(content).map_err(|e| TeiError::xml(e.to_string()))
+    }
+}
+
+/// Resolves a `BytesRef` entity reference to its text representation.
+///
+/// Handles the five predefined XML entities (`lt`, `gt`, `amp`, `quot`,
+/// `apos`) and numeric character references (`&#...;`, `&#x...;`).
+/// Returns an error for unrecognised named entities.
+pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> {
+    let name = reference
+        .decode()
+        .map_err(|e| TeiError::xml(e.to_string()))?;
+
+    match name.as_ref() {
+        "lt" => Ok("<".to_owned()),
+        "gt" => Ok(">".to_owned()),
+        "amp" => Ok("&".to_owned()),
+        "quot" => Ok("\"".to_owned()),
+        "apos" => Ok("'".to_owned()),
+        _ => match reference.resolve_char_ref() {
+            Ok(Some(ch)) => Ok(ch.to_string()),
+            Ok(None) => Err(TeiError::xml(format!(
+                "unrecognised entity reference: &{name};"
+            ))),
+            Err(e) => Err(TeiError::xml(e.to_string())),
+        },
     }
 }

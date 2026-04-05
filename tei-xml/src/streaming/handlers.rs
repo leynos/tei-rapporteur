@@ -6,7 +6,7 @@
 
 use std::io::BufRead;
 
-use quick_xml::events::{BytesEnd, BytesStart, BytesText};
+use quick_xml::events::{BytesEnd, BytesRef, BytesStart, BytesText};
 
 use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
@@ -14,10 +14,31 @@ use super::event::TeiEvent;
 use super::helpers::{
     RawItemAttrs, append_empty_element, append_end_element, append_start_element, build_div,
     build_hi, build_item, build_label, build_list, build_paragraph, build_pause, build_utterance,
-    extract_attribute, extract_xml_id,
+    extract_attribute, extract_xml_id, resolve_entity_ref,
 };
 use super::parser::TeiPullParser;
 use super::state::{ParserState, RawUtteranceAttrs};
+
+/// Classifies a tag name encountered inside a `<div>`.
+enum DivChildKind {
+    Paragraph,
+    Utterance,
+    List,
+    NestedDiv,
+    Other,
+}
+
+impl DivChildKind {
+    const fn from_tag(name_bytes: &[u8]) -> Self {
+        match name_bytes {
+            b"p" => Self::Paragraph,
+            b"u" => Self::Utterance,
+            b"list" => Self::List,
+            b"div" => Self::NestedDiv,
+            _ => Self::Other,
+        }
+    }
+}
 
 /// Start element handlers.
 impl<R: BufRead> TeiPullParser<R> {
@@ -120,28 +141,36 @@ impl<R: BufRead> TeiPullParser<R> {
         name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes == b"p" {
-            let id = extract_xml_id(element)?;
-            let current_state = std::mem::take(&mut self.state);
-            self.state = ParserState::in_paragraph(id);
-            self.pending_div_state = Some(Box::new(current_state));
-        } else if name_bytes == b"u" {
-            let current_state = std::mem::take(&mut self.state);
-            self.state = ParserState::in_utterance(RawUtteranceAttrs {
-                id: extract_xml_id(element)?,
-                n: extract_attribute(element, b"n")?,
-                who: extract_attribute(element, b"who")?,
-                source: extract_attribute(element, b"source")?,
-                resp: extract_attribute(element, b"resp")?,
-                cert: extract_attribute(element, b"cert")?,
-                corresp: extract_attribute(element, b"corresp")?,
-                ana: extract_attribute(element, b"ana")?,
-            });
-            self.pending_div_state = Some(Box::new(current_state));
-        } else if name_bytes == b"list" {
-            let list_id = extract_xml_id(element)?;
-            let current_state = std::mem::take(&mut self.state);
-            self.state = ParserState::in_list(current_state, list_id);
+        match DivChildKind::from_tag(name_bytes) {
+            DivChildKind::Paragraph => {
+                let id = extract_xml_id(element)?;
+                let current_state = std::mem::take(&mut self.state);
+                self.state = ParserState::in_paragraph(id);
+                self.pending_div_state = Some(Box::new(current_state));
+            }
+            DivChildKind::Utterance => {
+                let current_state = std::mem::take(&mut self.state);
+                self.state = ParserState::in_utterance(RawUtteranceAttrs {
+                    id: extract_xml_id(element)?,
+                    n: extract_attribute(element, b"n")?,
+                    who: extract_attribute(element, b"who")?,
+                    source: extract_attribute(element, b"source")?,
+                    resp: extract_attribute(element, b"resp")?,
+                    cert: extract_attribute(element, b"cert")?,
+                    corresp: extract_attribute(element, b"corresp")?,
+                    ana: extract_attribute(element, b"ana")?,
+                });
+                self.pending_div_state = Some(Box::new(current_state));
+            }
+            DivChildKind::List => {
+                let list_id = extract_xml_id(element)?;
+                let current_state = std::mem::take(&mut self.state);
+                self.state = ParserState::in_list(current_state, list_id);
+            }
+            DivChildKind::NestedDiv => {
+                return Err(TeiError::xml("nested <div> elements are not supported"));
+            }
+            DivChildKind::Other => {}
         }
         Ok(None)
     }
@@ -201,88 +230,40 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a paragraph and emits a `BodyBlock` event or pushes to div.
     pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        self.finish_emittable_block(
-            |state| {
-                if let ParserState::InParagraph { id, content } = state {
-                    Some(build_paragraph(id.take(), std::mem::take(content)))
-                } else {
-                    None
-                }
-            },
-            DivContent::Paragraph,
-            BodyBlock::Paragraph,
-        )
-    }
-
-    /// Finishes parsing an utterance and emits a `BodyBlock` event or pushes to div.
-    pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        self.finish_emittable_block(
-            |state| {
-                if let ParserState::InUtterance { attrs, content } = state {
-                    Some(build_utterance(
-                        std::mem::take(attrs),
-                        std::mem::take(content),
-                    ))
-                } else {
-                    None
-                }
-            },
-            DivContent::Utterance,
-            BodyBlock::Utterance,
-        )
-    }
-
-    /// Pushes a completed block into the parent div or emits it as a body block.
-    fn emit_or_push_to_div<T>(
-        &mut self,
-        wrap_div: fn(T) -> DivContent,
-        wrap_body: fn(T) -> BodyBlock,
-        value: T,
-    ) -> Option<TeiEvent> {
-        if let Some(mut parent_div) = self.pending_div_state.take()
-            && let ParserState::InDiv {
-                content: div_children,
-                ..
-            } = parent_div.as_mut()
-        {
-            div_children.push(wrap_div(value));
-            self.state = *parent_div;
-            return None;
-        }
-        self.state = ParserState::InBody;
-        Some(TeiEvent::BodyBlock(wrap_body(value)))
-    }
-
-    /// Helper for finishing blocks that can be emitted or pushed to a div.
-    fn finish_emittable_block<T>(
-        &mut self,
-        extract: impl FnOnce(&mut ParserState) -> Option<Result<T, TeiError>>,
-        wrap_div: fn(T) -> DivContent,
-        wrap_body: fn(T) -> BodyBlock,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if let Some(result) = extract(&mut self.state) {
-            let value = result?;
-            return Ok(self.emit_or_push_to_div(wrap_div, wrap_body, value));
+        if let ParserState::InParagraph { id, content } = &mut self.state {
+            let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
+            if let Some(mut parent_div) = self.pending_div_state.take()
+                && let ParserState::InDiv {
+                    content: div_children,
+                    ..
+                } = parent_div.as_mut()
+            {
+                div_children.push(DivContent::Paragraph(paragraph));
+                self.state = *parent_div;
+                return Ok(None);
+            }
+            self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
         }
         Ok(None)
     }
 
-    /// Helper for finishing nested blocks that must push to a parent state.
-    fn finish_nested_block<T>(
-        &mut self,
-        extract: impl FnOnce(
-            &mut ParserState,
-        ) -> Option<(Result<T, TeiError>, Option<Box<ParserState>>)>,
-        push: impl FnOnce(&mut ParserState, T),
-        err_msg: &'static str,
-    ) -> Result<Option<TeiEvent>, TeiError> {
-        if let Some((value_result, parent_opt)) = extract(&mut self.state) {
-            let value = value_result?;
-            let Some(mut parent_state) = parent_opt else {
-                return Err(TeiError::xml(err_msg));
-            };
-            push(parent_state.as_mut(), value);
-            self.state = *parent_state;
+    /// Finishes parsing an utterance and emits a `BodyBlock` event or pushes to div.
+    pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InUtterance { attrs, content } = &mut self.state {
+            let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
+            if let Some(mut parent_div) = self.pending_div_state.take()
+                && let ParserState::InDiv {
+                    content: div_children,
+                    ..
+                } = parent_div.as_mut()
+            {
+                div_children.push(DivContent::Utterance(utterance));
+                self.state = *parent_div;
+                return Ok(None);
+            }
+            self.state = ParserState::InBody;
+            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
         }
         Ok(None)
     }
@@ -307,28 +288,24 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a label and stores it in the parent item.
     pub(super) fn finish_label(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        self.finish_nested_block(
-            |state| {
-                if let ParserState::InLabel {
-                    parent_item,
-                    content,
-                } = state
-                {
-                    Some((build_label(std::mem::take(content)), parent_item.take()))
-                } else {
-                    None
-                }
-            },
-            |parent_state, label| {
-                if let ParserState::InItem {
-                    label: item_label, ..
-                } = parent_state
-                {
-                    *item_label = Some(label);
-                }
-            },
-            "internal error: InLabel parent was None",
-        )
+        if let ParserState::InLabel {
+            parent_item,
+            content,
+        } = &mut self.state
+        {
+            let label = build_label(std::mem::take(content))?;
+            let Some(mut parent_state) = parent_item.take() else {
+                return Err(TeiError::xml("internal error: InLabel parent was None"));
+            };
+            if let ParserState::InItem {
+                label: item_label, ..
+            } = parent_state.as_mut()
+            {
+                *item_label = Some(label);
+            }
+            self.state = *parent_state;
+        }
+        Ok(None)
     }
 
     /// Finishes parsing an item and pushes it to the parent list.
@@ -364,29 +341,22 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a list and pushes it to the parent div.
     pub(super) fn finish_list(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        self.finish_nested_block(
-            |state| {
-                if let ParserState::InList {
-                    parent_div,
-                    list_id,
-                    items,
-                } = state
-                {
-                    Some((
-                        build_list(list_id.take(), std::mem::take(items)),
-                        parent_div.take(),
-                    ))
-                } else {
-                    None
-                }
-            },
-            |parent_state, list| {
-                if let ParserState::InDiv { content, .. } = parent_state {
-                    content.push(DivContent::List(list));
-                }
-            },
-            "internal error: InList parent was None",
-        )
+        if let ParserState::InList {
+            parent_div,
+            list_id,
+            items,
+        } = &mut self.state
+        {
+            let list = build_list(list_id.take(), std::mem::take(items))?;
+            let Some(mut parent_state) = parent_div.take() else {
+                return Err(TeiError::xml("internal error: InList parent was None"));
+            };
+            if let ParserState::InDiv { content, .. } = parent_state.as_mut() {
+                content.push(DivContent::List(list));
+            }
+            self.state = *parent_state;
+        }
+        Ok(None)
     }
 
     /// Finishes parsing a div and emits a `BodyBlock` event.
@@ -443,11 +413,44 @@ impl<R: BufRead> TeiPullParser<R> {
             }
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. } => {
+            | ParserState::InEmphasis { content, .. }
+            | ParserState::InItem { content, .. }
+            | ParserState::InLabel { content, .. } => {
                 let unescaped = text.decode().map_err(|e| TeiError::xml(e.to_string()))?;
                 if !unescaped.is_empty() {
                     content.push(Inline::Text(unescaped.into_owned()));
                 }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Handles a general entity reference (`&name;` or `&#...;`).
+    ///
+    /// In `quick_xml` 0.39+ entity references are emitted as separate
+    /// `GeneralRef` events rather than being folded into `Text` events.
+    /// This handler resolves them and appends the decoded character(s) to
+    /// the active text-collecting state.
+    pub(super) fn handle_general_ref(
+        &mut self,
+        reference: &BytesRef<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        match &mut self.state {
+            ParserState::InHeader { buffer, .. } => {
+                // Reconstruct the entity reference for later reparsing by quick_xml::de
+                buffer.push(b'&');
+                buffer.extend_from_slice(reference.as_ref());
+                buffer.push(b';');
+                Ok(None)
+            }
+            ParserState::InParagraph { content, .. }
+            | ParserState::InUtterance { content, .. }
+            | ParserState::InEmphasis { content, .. }
+            | ParserState::InItem { content, .. }
+            | ParserState::InLabel { content, .. } => {
+                let resolved = resolve_entity_ref(reference)?;
+                content.push(Inline::Text(resolved));
                 Ok(None)
             }
             _ => Ok(None),
@@ -470,6 +473,8 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
             | ParserState::InEmphasis { content, .. }
+            | ParserState::InItem { content, .. }
+            | ParserState::InLabel { content, .. }
                 if name_bytes == b"pause" =>
             {
                 let dur = extract_attribute(element, b"dur")?;
@@ -502,7 +507,9 @@ impl<R: BufRead> TeiPullParser<R> {
             }
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. } => {
+            | ParserState::InEmphasis { content, .. }
+            | ParserState::InItem { content, .. }
+            | ParserState::InLabel { content, .. } => {
                 // CDATA content is already unescaped, convert to string with strict UTF-8
                 let text = std::str::from_utf8(cdata.as_ref())
                     .map_err(|e| TeiError::xml(format!("invalid UTF-8 in CDATA: {e}")))?;

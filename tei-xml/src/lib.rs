@@ -227,7 +227,7 @@ mod tests {
     use tei_test_helpers::expect_markup;
 
     const MINIMAL_TEI: &str = concat!(
-        "<TEI>",
+        "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
         "<teiHeader>",
         "<fileDesc>",
         "<title>Wolf 359</title>",

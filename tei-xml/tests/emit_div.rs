@@ -82,11 +82,21 @@ fn emits_div_with_list_and_items() {
 fn emits_item_with_label() {
     let document = parse_xml(ITEM_WITH_LABEL).expect("test fixture should parse");
     let xml = emit_xml(&document).expect("document should emit");
+    let parsed = parse_xml(&xml).expect("emitted XML should parse");
 
-    // Check that the XML contains the label
-    assert!(xml.contains("<label>Label:</label>"));
-    assert!(xml.contains("<item>"));
-    assert!(xml.contains("Item content"));
+    let div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a div");
+    let Some(DivContent::List(list)) = div.content().first() else {
+        panic!("expected list as first div child");
+    };
+    let item = list.items().first().expect("list should have an item");
+    let label = item.label().expect("item should have a label");
+    assert_eq!(label.content(), &[Inline::Text("Label:".into())]);
+    assert_eq!(item.content(), &[Inline::Text("Item content".into())]);
 }
 
 const COMPLEX_DIV: &str = concat!(
@@ -161,5 +171,11 @@ fn round_trips_div_list_content() {
     assert_eq!(list.items().len(), 2);
     let first_item = list.items().first().expect("list should have items");
     assert_eq!(first_item.n(), Some("1"));
-    assert!(first_item.label().is_some());
+    let label = first_item.label().expect("first item should have a label");
+    assert_eq!(label.content(), &[Inline::Text("1.".into())]);
+    assert_eq!(first_item.content(), &[Inline::Text("First".into())]);
+    let second_item = list.items().get(1).expect("list should have a second item");
+    assert_eq!(second_item.n(), None);
+    assert!(second_item.label().is_none());
+    assert_eq!(second_item.content(), &[Inline::Text("Second".into())]);
 }

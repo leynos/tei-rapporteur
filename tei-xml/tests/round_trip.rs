@@ -18,7 +18,7 @@ const PRETTY_MINIMAL_TEI: &str = concat!(
 );
 
 const CANONICAL_MINIMAL_TEI: &str = concat!(
-    "<TEI>",
+    "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
     "<teiHeader>",
     "<fileDesc>",
     "<title>Wolf 359</title>",
@@ -46,7 +46,7 @@ const NAMESPACED_SOURCE: &str = concat!(
 );
 
 const NAMESPACED_EXPECTED: &str = concat!(
-    "<TEI>",
+    "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
     "<teiHeader>",
     "<fileDesc>",
     "<title>Wolf 359</title>",
@@ -61,7 +61,7 @@ const NAMESPACED_EXPECTED: &str = concat!(
 );
 
 const ANNOTATED_SOURCE: &str = concat!(
-    "<TEI>",
+    "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
     "<teiHeader>",
     "<fileDesc>",
     "<title>Annotated</title>",
