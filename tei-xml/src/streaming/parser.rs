@@ -197,24 +197,19 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Called only when `self.state` is already one of the `InParagraph`,
     /// `InUtterance`, `InEmphasis`, `InDiv`, `InList`, `InItem`, or `InLabel`
     /// variants; unrecognised tag names are silently ignored.
-    #[expect(
-        clippy::cognitive_complexity,
-        reason = "Delegates to state-specific finish methods; lower complexity than inline expansion"
-    )]
-    fn handle_body_content_end(&mut self, name_bytes: &[u8]) -> Result<Option<TeiEvent>, TeiError> {
+    fn handle_body_content_end(
+        &mut self,
+        name_bytes: &[u8],
+    ) -> Result<Option<TeiEvent>, TeiError> {
         match name_bytes {
-            b"p" if matches!(self.state, ParserState::InParagraph { .. }) => {
-                self.finish_paragraph()
-            }
-            b"u" if matches!(self.state, ParserState::InUtterance { .. }) => {
-                self.finish_utterance()
-            }
-            b"hi" if matches!(self.state, ParserState::InEmphasis { .. }) => self.finish_emphasis(),
-            b"div" if matches!(self.state, ParserState::InDiv { .. }) => self.finish_div(),
-            b"list" if matches!(self.state, ParserState::InList { .. }) => self.finish_list(),
-            b"item" if matches!(self.state, ParserState::InItem { .. }) => self.finish_item(),
-            b"label" if matches!(self.state, ParserState::InLabel { .. }) => self.finish_label(),
-            _ => Ok(None),
+            b"p"     => self.finish_paragraph(),
+            b"u"     => self.finish_utterance(),
+            b"hi"    => self.finish_emphasis(),
+            b"div"   => self.finish_div(),
+            b"list"  => self.finish_list(),
+            b"item"  => self.finish_item(),
+            b"label" => self.finish_label(),
+            _        => Ok(None),
         }
     }
 

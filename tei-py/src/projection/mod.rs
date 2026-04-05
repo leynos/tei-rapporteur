@@ -330,25 +330,22 @@ fn paragraph_block_from_py(
     Ok(BodyBlock::Paragraph(paragraph))
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Extracted from match arm; parameter count matches PyBodyBlock::Utterance fields"
-)]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Signature matches PyBodyBlock::Utterance destructuring pattern"
-)]
-fn utterance_block_from_py(
-    xml_id: Option<String>,
-    n: Option<String>,
+/// All attributes and content of a Python-side utterance block, bundled to
+/// avoid an excess-arguments signature on [`utterance_block_from_py`].
+struct UtteranceArgs {
+    xml_id:  Option<String>,
+    n:       Option<String>,
     speaker: Option<String>,
-    source: Vec<String>,
-    resp: Vec<String>,
-    cert: Option<String>,
+    source:  Vec<String>,
+    resp:    Vec<String>,
+    cert:    Option<String>,
     corresp: Vec<String>,
-    ana: Vec<String>,
+    ana:     Vec<String>,
     content: Vec<PyInline>,
-) -> Result<BodyBlock, TeiError> {
+}
+
+fn utterance_block_from_py(args: UtteranceArgs) -> Result<BodyBlock, TeiError> {
+    let UtteranceArgs { xml_id, n, speaker, source, resp, cert, corresp, ana, content } = args;
     let mut utterance = Utterance::from_inline(
         speaker.as_deref(),
         content
@@ -404,9 +401,9 @@ fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
             corresp,
             ana,
             content,
-        } => utterance_block_from_py(
+        } => utterance_block_from_py(UtteranceArgs {
             xml_id, n, speaker, source, resp, cert, corresp, ana, content,
-        ),
+        }),
         PyBodyBlock::Div {
             xml_id,
             div_type,
