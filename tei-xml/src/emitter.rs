@@ -60,6 +60,11 @@ fn emit_stand_off(output: &mut String, document: &TeiDocument) -> Result<(), Tei
 }
 
 /// Writes the `<text><body>...</body></text>` portion by hand.
+///
+/// **Note:** `TeiText` and `TeiBody` currently carry no attributes, so the
+/// wrapper elements are emitted bare. If either struct gains attributes in
+/// future (e.g. `xml:lang` on `<text>`), this function must be updated to
+/// emit them—mirroring how the header delegates attribute writing to serde.
 fn emit_text(output: &mut String, document: &TeiDocument) {
     let body = document.text().body();
     if body.is_empty() {

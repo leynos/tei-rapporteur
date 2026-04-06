@@ -215,7 +215,7 @@ The workspace lives at the repository root and contains these crates:
   `PyEvent` in `tei-py/src/projection/mod.rs` and
   `tei-py/src/projection/events.rs`) that map core types to
   `msgspec`-compatible shapes.
-- **ODD**: the TEI customisation file at
+- **ODD**: the TEI customization file at
   `schemas/tei-episodic-profile.odd`. Module includes are on lines 74-81;
   `<body>` content model is at line 352.
 - **Relax NG**: `schemas/tei-episodic-profile.rng`. The `<body>` define is

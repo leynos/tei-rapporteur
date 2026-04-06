@@ -228,22 +228,37 @@ impl<R: BufRead> TeiPullParser<R> {
         Ok(None)
     }
 
+    /// Routes a completed body-content value to either the enclosing `<div>`
+    /// (if one is pending) or emits it as a top-level `BodyBlock` event.
+    fn push_to_div_or_emit<V>(
+        &mut self,
+        value: V,
+        wrap_div: fn(V) -> DivContent,
+        wrap_body: fn(V) -> BodyBlock,
+    ) -> Option<TeiEvent> {
+        if let Some(mut parent_div) = self.pending_div_state.take()
+            && let ParserState::InDiv {
+                content: div_children,
+                ..
+            } = parent_div.as_mut()
+        {
+            div_children.push(wrap_div(value));
+            self.state = *parent_div;
+            return None;
+        }
+        self.state = ParserState::InBody;
+        Some(TeiEvent::BodyBlock(wrap_body(value)))
+    }
+
     /// Finishes parsing a paragraph and emits a `BodyBlock` event or pushes to div.
     pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InParagraph { id, content } = &mut self.state {
             let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
-            if let Some(mut parent_div) = self.pending_div_state.take()
-                && let ParserState::InDiv {
-                    content: div_children,
-                    ..
-                } = parent_div.as_mut()
-            {
-                div_children.push(DivContent::Paragraph(paragraph));
-                self.state = *parent_div;
-                return Ok(None);
-            }
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Paragraph(paragraph))));
+            return Ok(self.push_to_div_or_emit(
+                paragraph,
+                DivContent::Paragraph,
+                BodyBlock::Paragraph,
+            ));
         }
         Ok(None)
     }
@@ -252,18 +267,11 @@ impl<R: BufRead> TeiPullParser<R> {
     pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InUtterance { attrs, content } = &mut self.state {
             let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
-            if let Some(mut parent_div) = self.pending_div_state.take()
-                && let ParserState::InDiv {
-                    content: div_children,
-                    ..
-                } = parent_div.as_mut()
-            {
-                div_children.push(DivContent::Utterance(utterance));
-                self.state = *parent_div;
-                return Ok(None);
-            }
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Utterance(utterance))));
+            return Ok(self.push_to_div_or_emit(
+                utterance,
+                DivContent::Utterance,
+                BodyBlock::Utterance,
+            ));
         }
         Ok(None)
     }
