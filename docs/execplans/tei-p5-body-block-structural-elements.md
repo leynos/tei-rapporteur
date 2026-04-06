@@ -94,10 +94,10 @@ These are hard invariants. Violation requires escalation, not workarounds.
   rather than relying on serde's untagged dispatch.
 
 - **Risk:** The streaming parser's emphasis-nesting mechanism (`InEmphasis`
-  with boxed parent) may need to be generalised for `InDiv > InList > InItem`
+  with boxed parent) may need to be generalized for `InDiv > InList > InItem`
   nesting. Severity: medium. Likelihood: high. Mitigation: introduce separate
   `InDiv`, `InList`, `InItem` parser states that return to their parent state
-  on close, following the same ownership-transfer pattern used by `InEmphasis`.
+  on close, following the same ownership transfer pattern used by `InEmphasis`.
 
 - **Risk:** Adding `Div` to `BodyBlock` changes the `match` exhaustiveness
   for all existing code that matches on `BodyBlock` variants. This will cause
@@ -119,15 +119,15 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] Stage C: Rust core types in `tei-core`.
 - [x] Stage D: XML streaming parser states and handlers.
 - [x] Stage E: XML emitter (custom hybrid emitter bypassing serde for body).
-- [ ] Stage F: ODD and Relax NG schema updates.
-- [ ] Stage G: Python `msgspec` structs, projection layer, and type stubs.
-- [ ] Stage H: JSON schema regeneration and profile constraints.
-- [ ] Stage I: validation updates (`xml:id` uniqueness and pointer
+- [x] Stage F: ODD and Relax NG schema updates.
+- [x] Stage G: Python `msgspec` structs, projection layer, and type stubs.
+- [x] Stage H: JSON schema regeneration and profile constraints.
+- [x] Stage I: validation updates (`xml:id` uniqueness and pointer
   resolution across `Div`, `List`, and `Item`).
-- [ ] Stage J: BDD behavioural tests and unit tests.
-- [ ] Stage K: documentation updates (user's guide, design document,
+- [x] Stage J: BDD behavioural tests and unit tests.
+- [x] Stage K: documentation updates (user's guide, design document,
   roadmap).
-- [ ] Stage L: final validation and commit gating.
+- [x] Stage L: final validation and commit gating.
 
 ## Surprises & discoveries
 
@@ -141,7 +141,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
   primitives would be serialized without delimiter". The plan's assumption that
   serde-based emission "just works" was wrong. A custom hybrid emitter
   (`tei-xml/src/emitter.rs`) was written: header and stand-off are emitted via
-  serde (no `Vec<Inline>` fields), while the body is hand-written using direct
+  serde (no `Vec<Inline>` fields), while the body is handwritten using direct
   string construction with XML-escaped text.
 
 ## Decision log
@@ -251,7 +251,7 @@ Inline content nesting: `InParagraph`/`InUtterance` can transition to
 
 ## Plan of work
 
-The plan is organised into twelve stages (A through L). Each stage ends with a
+The plan is organized into twelve stages (A through L). Each stage ends with a
 verification step. Do not proceed to the next stage if verification fails.
 
 ### Stage A: understand and propose
@@ -512,14 +512,14 @@ Add constructor helpers following the existing pattern:
 
 #### D.2: Handler methods (`handlers.rs`)
 
-Extend `handle_body_content_start` to recognise `b"div"`:
+Extend `handle_body_content_start` to recognize `b"div"`:
 
 - Extract `@type` (required) and `@xml:id` (optional).
 - Transition to `ParserState::InDiv`.
 
 Add `handle_div_content_start` for elements inside `<div>`:
 
-- Recognise `b"p"`, `b"u"`, `b"list"`.
+- Recognize `b"p"`, `b"u"`, `b"list"`.
 - For `<p>` and `<u>`: transition to `InParagraph`/`InUtterance` but
   record that the parent is a `Div` (store the div state in a parent mechanism,
   or use explicit `InDiv` restoration on close).

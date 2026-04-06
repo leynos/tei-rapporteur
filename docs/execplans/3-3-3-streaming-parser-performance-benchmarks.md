@@ -1,7 +1,6 @@
 # ExecPlan: Streaming Parser Performance Benchmarks
 
-**Roadmap Reference:** Phase 3, Step 3.3 (Streaming Parser), Task 3 **Status:**
-Complete **Branch:** `terragon/streaming-parser-benchmarks-aqvdaf`
+**Roadmap Reference:** Phase 3, Step 3.3 (Streaming Parser), Task 3 **Status:** Complete **Branch:** `terragon/streaming-parser-benchmarks-aqvdaf`
 
 ## Objective
 
