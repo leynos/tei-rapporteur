@@ -19,8 +19,9 @@ pub use body::{
 };
 pub use inline::{Hi, Inline, Pause};
 pub use types::{
-    Certainty, CertaintyValidationError, IdentifierValidationError, Pointer, PointerList,
-    PointerListValidationError, PointerValidationError, Speaker, SpeakerValidationError, XmlId,
+    Certainty, CertaintyValidationError, DivType, DivTypeValidationError,
+    IdentifierValidationError, Pointer, PointerList, PointerListValidationError,
+    PointerValidationError, Speaker, SpeakerValidationError, XmlId,
 };
 
 /// Body of a TEI document, including paragraphs and utterances.

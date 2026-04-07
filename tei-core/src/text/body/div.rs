@@ -3,7 +3,7 @@
 //! Defines TEI `<div>` elements that organize paragraphs, utterances, and lists
 //! into thematic sections identified by `@type` and optional `@xml:id`.
 
-use crate::text::types::XmlId;
+use crate::text::types::{DivType, XmlId};
 
 use super::{BodyContentError, List, P, Utterance, set_optional_identifier};
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct Div {
     #[serde(rename = "@type")]
-    div_type: String,
+    div_type: DivType,
     #[serde(
         rename = "@xml:id",
         alias = "@id",
@@ -48,13 +48,11 @@ impl Div {
     /// assert_eq!(div.div_type(), "show-notes");
     /// ```
     pub fn new(div_type: impl Into<String>) -> Result<Self, BodyContentError> {
-        let value = div_type.into();
-        if value.trim().is_empty() {
-            return Err(BodyContentError::EmptySegment { container: "div" });
-        }
+        let validated = DivType::new(div_type)
+            .map_err(|_| BodyContentError::EmptySegment { container: "div" })?;
 
         Ok(Self {
-            div_type: value,
+            div_type: validated,
             id: None,
             content: Vec::new(),
         })
@@ -89,10 +87,6 @@ impl Div {
 
     /// Returns the division type.
     #[must_use]
-    #[expect(
-        clippy::missing_const_for_fn,
-        reason = "String::as_str is not const-stable on current MSRV."
-    )]
     pub fn div_type(&self) -> &str {
         self.div_type.as_str()
     }
@@ -157,10 +151,45 @@ mod tests {
     }
 
     #[test]
+    fn div_new_rejects_whitespace_only_type() {
+        let result = Div::new("   ");
+        assert!(matches!(
+            result,
+            Err(BodyContentError::EmptySegment { container }) if container == "div"
+        ));
+    }
+
+    #[test]
+    fn div_new_trims_type() {
+        let div = Div::new("  chapter  ").unwrap_or_else(|error| panic!("valid div: {error}"));
+        assert_eq!(div.div_type(), "chapter");
+    }
+
+    #[test]
     fn div_new_accepts_valid_type() {
         let div = Div::new("show-notes").unwrap_or_else(|error| panic!("valid div: {error}"));
         assert_eq!(div.div_type(), "show-notes");
         assert!(div.is_empty());
+    }
+
+    #[test]
+    fn div_deserialization_rejects_empty_type() {
+        let json = r#"{"@type":"","$value":[]}"#;
+        let result: Result<Div, _> = tei_serde::serde_json::from_str(json);
+        assert!(
+            result.is_err(),
+            "empty @type must be rejected at deserialization"
+        );
+    }
+
+    #[test]
+    fn div_deserialization_rejects_whitespace_type() {
+        let json = r#"{"@type":"   ","$value":[]}"#;
+        let result: Result<Div, _> = tei_serde::serde_json::from_str(json);
+        assert!(
+            result.is_err(),
+            "whitespace-only @type must be rejected at deserialization"
+        );
     }
 
     #[test]
