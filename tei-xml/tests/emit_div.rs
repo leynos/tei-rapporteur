@@ -1,6 +1,6 @@
 //! Tests for div, list, and item XML emission.
 
-use tei_core::{DivContent, Inline};
+use tei_core::{DivContent, Inline, PointerList};
 use tei_xml::{emit_xml, parse_xml};
 
 const DIV_WITH_PARAGRAPH: &str = concat!(
@@ -106,10 +106,10 @@ const COMPLEX_DIV: &str = concat!(
     "</teiHeader>",
     "<text>",
     "<body>",
-    "<div type=\"complex\">",
+    "<div type=\"complex\" xml:id=\"div1\">",
     "<p>Intro paragraph</p>",
-    "<list>",
-    "<item n=\"1\"><label>1.</label>First</item>",
+    "<list xml:id=\"list1\">",
+    "<item xml:id=\"item1\" n=\"1\" corresp=\"#ref1 #ref2\"><label>1.</label>First</item>",
     "<item>Second</item>",
     "</list>",
     "</div>",
@@ -132,6 +132,7 @@ fn round_trips_div_structure() {
         .next()
         .expect("should have a div");
     assert_eq!(parsed_div.div_type(), "complex");
+    assert_eq!(parsed_div.id().map(tei_core::XmlId::as_str), Some("div1"));
     assert_eq!(parsed_div.content().len(), 2);
 }
 
@@ -154,6 +155,10 @@ fn round_trips_div_paragraph_content() {
 }
 
 #[test]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "integration test validates complete round-trip behavior"
+)]
 fn round_trips_div_list_content() {
     let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
     let xml = emit_xml(&document).expect("document should emit");
@@ -168,14 +173,21 @@ fn round_trips_div_list_content() {
     let Some(DivContent::List(list)) = parsed_div.content().get(1) else {
         panic!("expected list as second div child");
     };
+    assert_eq!(list.id().map(tei_core::XmlId::as_str), Some("list1"));
     assert_eq!(list.items().len(), 2);
     let first_item = list.items().first().expect("list should have items");
+    assert_eq!(first_item.id().map(tei_core::XmlId::as_str), Some("item1"));
     assert_eq!(first_item.n(), Some("1"));
+    let expected_corresp =
+        PointerList::parse_attribute("#ref1 #ref2").expect("test fixture should be valid");
+    assert_eq!(first_item.corresp(), Some(&expected_corresp));
     let label = first_item.label().expect("first item should have a label");
     assert_eq!(label.content(), &[Inline::Text("1.".into())]);
     assert_eq!(first_item.content(), &[Inline::Text("First".into())]);
     let second_item = list.items().get(1).expect("list should have a second item");
+    assert_eq!(second_item.id(), None);
     assert_eq!(second_item.n(), None);
+    assert_eq!(second_item.corresp(), None);
     assert!(second_item.label().is_none());
     assert_eq!(second_item.content(), &[Inline::Text("Second".into())]);
 }

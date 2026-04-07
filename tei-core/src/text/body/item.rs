@@ -251,6 +251,12 @@ mod tests {
 
     use super::*;
     use crate::text::types::PointerList;
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    fn sample_item() -> Item {
+        Item::from_text_segments(["Sample item content"]).expect("item should be valid")
+    }
 
     #[test]
     fn label_rejects_empty_content() {
@@ -263,8 +269,7 @@ mod tests {
 
     #[test]
     fn label_from_text_constructs_inline() {
-        let label =
-            Label::from_text("Link:").unwrap_or_else(|error| panic!("valid label: {error}"));
+        let label = Label::from_text("Link:").expect("label should be valid");
         assert_eq!(label.content(), [Inline::text("Link:")]);
     }
 
@@ -277,45 +282,34 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn item_set_id_round_trips() {
-        let mut item = Item::from_text_segments(["Visit our website"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        item.set_id("item1")
-            .unwrap_or_else(|error| panic!("valid id: {error}"));
-        assert_eq!(item.id().map(XmlId::as_str), Some("item1"));
-        item.clear_id();
-        assert!(item.id().is_none());
+    #[rstest]
+    fn item_set_id_round_trips(mut sample_item: Item) {
+        sample_item.set_id("item1").expect("id should be valid");
+        assert_eq!(sample_item.id().map(XmlId::as_str), Some("item1"));
+        sample_item.clear_id();
+        assert!(sample_item.id().is_none());
     }
 
-    #[test]
-    fn item_set_n_attribute() {
-        let mut item = Item::from_text_segments(["First item"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        item.set_n("1")
-            .unwrap_or_else(|error| panic!("valid n: {error}"));
-        assert_eq!(item.n(), Some("1"));
+    #[rstest]
+    fn item_set_n_attribute(mut sample_item: Item) {
+        sample_item.set_n("1").expect("n should be valid");
+        assert_eq!(sample_item.n(), Some("1"));
     }
 
-    #[test]
-    fn item_set_corresp_attribute() {
-        let mut item = Item::from_text_segments(["Bio summary"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        let corresp = PointerList::new(["#guest1", "#guest2"])
-            .unwrap_or_else(|error| panic!("valid pointer list: {error}"));
-        item.set_corresp(corresp.clone());
-        assert_eq!(item.corresp(), Some(&corresp));
+    #[rstest]
+    fn item_set_corresp_attribute(mut sample_item: Item) {
+        let corresp =
+            PointerList::new(["#guest1", "#guest2"]).expect("pointer list should be valid");
+        sample_item.set_corresp(corresp.clone());
+        assert_eq!(sample_item.corresp(), Some(&corresp));
     }
 
-    #[test]
-    fn item_set_label() {
-        let mut item = Item::from_text_segments(["Visit our website"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        let label =
-            Label::from_text("Link:").unwrap_or_else(|error| panic!("valid label: {error}"));
-        item.set_label(label.clone());
-        assert_eq!(item.label(), Some(&label));
-        item.clear_label();
-        assert!(item.label().is_none());
+    #[rstest]
+    fn item_set_label(mut sample_item: Item) {
+        let label = Label::from_text("Link:").expect("label should be valid");
+        sample_item.set_label(label.clone());
+        assert_eq!(sample_item.label(), Some(&label));
+        sample_item.clear_label();
+        assert!(sample_item.label().is_none());
     }
 }

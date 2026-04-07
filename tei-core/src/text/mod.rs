@@ -1,7 +1,12 @@
 //! Models the textual body stored alongside the TEI header metadata.
 //!
 //! The text model now records structured body content. A `TeiText` owns a
-//! `TeiBody`, which in turn stores ordered blocks of paragraphs and utterances.
+//! `TeiBody`, which in turn stores ordered blocks including:
+//!
+//! - [`Paragraph`](P) and [`Utterance`] — flat blocks of inline content
+//! - [`Div`], [`List`], [`Item`], and [`Label`] — hierarchical structural elements
+//! - [`DivContent`] — union type for content permitted inside `<div>` elements
+//!
 //! Each element validates that visible text is present so downstream tooling can
 //! rely on non-empty content.
 

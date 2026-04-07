@@ -336,6 +336,17 @@ mod tests {
         let emphasis = ParserState::in_emphasis(ParserState::InBody, Some("italic".into()));
         assert!(emphasis.is_in_block());
 
+        let item = ParserState::in_item(
+            ParserState::in_list(ParserState::in_div("section".into(), None), None),
+            Some("item1".into()),
+            None,
+            None,
+        );
+        assert!(item.is_in_block());
+
+        let label = ParserState::in_label(item);
+        assert!(label.is_in_block());
+
         assert!(!ParserState::InBody.is_in_block());
     }
 
@@ -347,6 +358,32 @@ mod tests {
 
         let content = state.take_content();
         assert_eq!(content.len(), 2);
+    }
+
+    #[test]
+    fn push_inline_in_item_state() {
+        let parent = ParserState::in_list(ParserState::in_div("section".into(), None), None);
+        let mut item_state =
+            ParserState::in_item(parent, Some("i1".into()), Some("1".into()), None);
+        item_state.push_inline(Inline::Text("Item content".into()));
+
+        let content = item_state.take_content();
+        assert_eq!(content, vec![Inline::Text("Item content".into())]);
+    }
+
+    #[test]
+    fn push_inline_in_label_state() {
+        let parent_item = ParserState::in_item(
+            ParserState::in_list(ParserState::in_div("section".into(), None), None),
+            None,
+            None,
+            None,
+        );
+        let mut label_state = ParserState::in_label(parent_item);
+        label_state.push_inline(Inline::Text("Label:".into()));
+
+        let content = label_state.take_content();
+        assert_eq!(content, vec![Inline::Text("Label:".into())]);
     }
 
     #[test]

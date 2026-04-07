@@ -198,6 +198,7 @@ impl<R: BufRead> TeiPullParser<R> {
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         if name_bytes == b"label" {
+            self.validate_label_placement()?;
             let current_state = std::mem::take(&mut self.state);
             self.state = ParserState::in_label(current_state);
         } else if name_bytes == b"hi" {
@@ -205,6 +206,23 @@ impl<R: BufRead> TeiPullParser<R> {
             self.state.transition_to_emphasis(rend);
         }
         Ok(None)
+    }
+
+    /// Validates that a label appears at most once and before any item content.
+    fn validate_label_placement(&self) -> Result<(), TeiError> {
+        let ParserState::InItem { label, content, .. } = &self.state else {
+            return Ok(());
+        };
+        if label.is_some() {
+            return Err(TeiError::xml("item may only contain one label"));
+        }
+        if content
+            .iter()
+            .any(|inline| !matches!(inline, Inline::Text(text) if text.trim().is_empty()))
+        {
+            return Err(TeiError::xml("label must appear before item content"));
+        }
+        Ok(())
     }
 }
 

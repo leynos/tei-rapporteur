@@ -124,7 +124,7 @@ pub fn generate_benchmark_document(config: &BenchFixtureConfig) -> Result<TeiDoc
 /// use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
 ///
 /// let xml = generate_benchmark_xml(&BenchFixtureConfig::SMALL)?;
-/// assert!(xml.contains("<TEI"));
+/// assert!(xml.contains(r#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#));
 /// # Ok::<(), tei_core::TeiError>(())
 /// ```
 pub fn generate_benchmark_xml(config: &BenchFixtureConfig) -> Result<String, TeiError> {

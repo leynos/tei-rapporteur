@@ -160,7 +160,14 @@ mod tests {
             body.blocks().iter().all(|block| match block {
                 BodyBlock::Paragraph(p) => has_visible_content_slice(p.content()),
                 BodyBlock::Utterance(u) => has_visible_content_slice(u.content()),
-                BodyBlock::Div(_) => true, // Divs don't need content validation here
+                BodyBlock::Div(_) => {
+                    // Div generation is not yet implemented in body_block_strategy()
+                    debug_assert!(
+                        false,
+                        "body_block_strategy() does not generate Div variants"
+                    );
+                    false
+                }
             })
         });
     }
