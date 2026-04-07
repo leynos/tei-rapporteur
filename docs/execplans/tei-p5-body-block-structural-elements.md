@@ -574,15 +574,18 @@ div/list/item parsing.
 
 ### Stage E: XML emitter validation
 
-The emitter uses `quick_xml::se::to_string(document)` (in
-`tei-xml/src/lib.rs:165`). Because serde drives emission, no changes to the
-emitter code are needed — the new types' serde derives handle serialization
-automatically. However, the `emit_xml` forbidden-character check applies to the
-entire output, which will naturally cover `Div` content.
+The emitter uses a custom hybrid emitter for body content (implemented in
+`tei-xml/src/lib.rs`) that handles `Div` and `List` elements through explicit
+serialization. Because the hybrid emitter drives emission for body blocks, no
+changes to the emitter code are needed beyond the existing `Div` and `List`
+handling — the new types integrate with the existing serialization paths.
+Forbidden-character checks now apply at the hybrid-emitter stage and naturally
+cover `Div` content.
 
 **Verification:** write a unit test in `tei-xml` that constructs a
-`TeiDocument` with a `Div` containing a `List`, emits it via `emit_xml`, and
-verifies the output contains the expected XML structure. Run
+`TeiDocument` with a `Div` containing a `List`, emits it via the crate's
+exported emitter function (`emit_xml`), and verifies the output contains the
+expected XML structure and forbidden-character handling. Run
 `cargo test -p tei-xml`.
 
 ### Stage F: ODD and Relax NG schema updates
