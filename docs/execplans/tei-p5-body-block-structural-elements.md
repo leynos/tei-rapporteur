@@ -119,15 +119,15 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] Stage C: Rust core types in `tei-core`.
 - [x] Stage D: XML streaming parser states and handlers.
 - [x] Stage E: XML emitter (custom hybrid emitter bypassing serde for body).
-- [x] Stage F: ODD and Relax NG schema updates.
-- [x] Stage G: Python `msgspec` structs, projection layer, and type stubs.
-- [x] Stage H: JSON schema regeneration and profile constraints.
-- [x] Stage I: validation updates (`xml:id` uniqueness and pointer
+- [ ] Stage F: ODD and Relax NG schema updates.
+- [ ] Stage G: Python `msgspec` structs, projection layer, and type stubs.
+- [ ] Stage H: JSON schema regeneration and profile constraints.
+- [ ] Stage I: validation updates (`xml:id` uniqueness and pointer
   resolution across `Div`, `List`, and `Item`).
-- [x] Stage J: BDD behavioural tests and unit tests.
-- [x] Stage K: documentation updates (user's guide, design document,
+- [ ] Stage J: BDD behavioural tests and unit tests.
+- [ ] Stage K: documentation updates (user's guide, design document,
   roadmap).
-- [x] Stage L: final validation and commit gating.
+- [ ] Stage L: final validation and commit gating.
 
 ## Surprises & discoveries
 
