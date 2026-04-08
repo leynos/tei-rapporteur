@@ -575,12 +575,12 @@ div/list/item parsing.
 ### Stage E: XML emitter validation
 
 The emitter uses a custom hybrid emitter for body content (implemented in
-`tei-xml/src/lib.rs`) that handles `Div` and `List` elements through explicit
-serialization. Because the hybrid emitter drives emission for body blocks, no
-changes to the emitter code are needed beyond the existing `Div` and `List`
-handling — the new types integrate with the existing serialization paths.
-Forbidden-character checks now apply at the hybrid-emitter stage and naturally
-cover `Div` content.
+`tei-xml/src/emitter.rs`) that handles `Div` and `List` elements through
+explicit serialization. Because the hybrid emitter drives emission for body
+blocks, no changes to the emitter code are needed beyond the existing `Div` and
+`List` handling — the new types integrate with the existing serialization
+paths. Forbidden-character checks now apply at the hybrid-emitter stage and
+naturally cover `Div` content.
 
 **Verification:** write a unit test in `tei-xml` that constructs a
 `TeiDocument` with a `Div` containing a `List`, emits it via the crate's
@@ -1105,6 +1105,8 @@ make test      2>&1 | tee /tmp/test.log
 make json-schema
 make validate-xml 2>&1 | tee /tmp/validate-xml.log
 make markdownlint 2>&1 | tee /tmp/markdownlint.log
+make fmt 2>&1 | tee /tmp/fmt.log
+make nixie 2>&1 | tee /tmp/nixie.log
 ```
 
 All commands must exit 0. If any fail, fix the issue and re-run the failing
