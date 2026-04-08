@@ -5,8 +5,7 @@
 //! `Utterance`) appears in both [`BodyBlock`] and [`DivContent`] contexts.
 
 use tei_core::{
-    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, PointerList,
-    PointerValidationError, TeiError, Utterance,
+    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, PointerList, TeiError, Utterance,
 };
 
 use super::{
@@ -295,17 +294,7 @@ fn core_item_from_py(item: PyItem) -> Result<Item, TeiError> {
         core_item.set_n(n_value)?;
     }
     if !item.corresp.is_empty() {
-        // Validate and parse each token individually to reject empty/whitespace tokens
-        let mut merged_pointers = Vec::new();
-        for token in &item.corresp {
-            let trimmed = token.trim();
-            if trimmed.is_empty() {
-                return Err(PointerValidationError::Empty.into());
-            }
-            let pointer_list = PointerList::parse_attribute(trimmed)?;
-            merged_pointers.extend(pointer_list.iter().map(|p| p.as_str().to_owned()));
-        }
-        core_item.set_corresp(PointerList::new(merged_pointers)?);
+        core_item.set_corresp(PointerList::new(item.corresp)?);
     }
     if let Some(py_label) = item.label {
         core_item.set_label(Label::new(inlines_from_py(py_label.content)?)?);

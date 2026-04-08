@@ -17,7 +17,7 @@ timestamped chapter markers. Without `<div>`, `<list>`, `<item>`, and
 `<label>`, producers must flatten this structure into paragraphs, losing
 semantics that downstream tools need.
 
-After this change a user can:
+After this change, a user can:
 
 1. Parse TEI documents containing `<div>` elements that group paragraphs,
    utterances, and lists into logical sections, each identified by `@type` and
@@ -1059,7 +1059,7 @@ file):
 #### J.5: Round-trip scenarios
 
 Add scenarios to `tei-serde` or `tei-xml` that parse a fixture containing
-div/list/item, emit it, re-parse, and assert equality.
+div/list/item, emit it, reparse, and assert equality.
 
 **Verification:** `make test` passes with all new scenarios green.
 
