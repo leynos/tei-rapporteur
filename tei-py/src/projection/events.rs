@@ -3,7 +3,8 @@
 use serde::{Deserialize, Serialize};
 use tei_core::BodyBlock;
 
-use super::{PyInline, PyTeiHeader, certainty_to_string, pointer_list_to_vec};
+use super::body::py_body_block_from_core;
+use super::{PyDivContent, PyInline, PyTeiHeader};
 
 /// Tagged streaming event union surfaced to Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -57,6 +58,17 @@ pub(crate) enum PyEvent {
         /// Inline content contained in the utterance.
         content: Vec<PyInline>,
     },
+    /// Delivers a division body block.
+    #[serde(rename = "div")]
+    Div {
+        /// Optional TEI `xml:id` identifier.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        /// Required `@type` attribute.
+        div_type: String,
+        /// Content of the division.
+        content: Vec<PyDivContent>,
+    },
     /// Signals the end of the document stream.
     #[serde(rename = "document_end")]
     DocumentEnd,
@@ -69,23 +81,50 @@ pub fn py_event_from_core(event: tei_xml::streaming::TeiEvent) -> PyEvent {
         tei_xml::streaming::TeiEvent::Header(header) => PyEvent::Header {
             header: PyTeiHeader::from(&header),
         },
-        tei_xml::streaming::TeiEvent::BodyBlock(block) => match block {
-            BodyBlock::Paragraph(p) => PyEvent::Paragraph {
-                xml_id: p.id().map(|id| id.as_str().to_owned()),
-                content: p.content().iter().cloned().map(PyInline::from).collect(),
-            },
-            BodyBlock::Utterance(u) => PyEvent::Utterance {
-                xml_id: u.id().map(|id| id.as_str().to_owned()),
-                n: u.number().map(str::to_owned),
-                speaker: u.speaker().map(|s| s.as_str().to_owned()),
-                source: pointer_list_to_vec(u.source()),
-                resp: pointer_list_to_vec(u.resp()),
-                cert: certainty_to_string(u.cert()),
-                corresp: pointer_list_to_vec(u.corresp()),
-                ana: pointer_list_to_vec(u.ana()),
-                content: u.content().iter().cloned().map(PyInline::from).collect(),
-            },
-        },
+        tei_xml::streaming::TeiEvent::BodyBlock(block) => py_event_from_body_block(&block),
         tei_xml::streaming::TeiEvent::DocumentEnd => PyEvent::DocumentEnd,
+    }
+}
+
+/// Converts a body block into the matching [`PyEvent`] variant.
+///
+/// Paragraph and utterance projection is delegated to the shared body helpers
+/// via [`py_body_block_from_core`], then mapped to the corresponding event
+/// variant. This eliminates the third copy of the projection logic.
+fn py_event_from_body_block(block: &BodyBlock) -> PyEvent {
+    use super::PyBodyBlock;
+
+    match py_body_block_from_core(block) {
+        PyBodyBlock::Paragraph { xml_id, content } => PyEvent::Paragraph { xml_id, content },
+        PyBodyBlock::Utterance {
+            xml_id,
+            n,
+            speaker,
+            source,
+            resp,
+            cert,
+            corresp,
+            ana,
+            content,
+        } => PyEvent::Utterance {
+            xml_id,
+            n,
+            speaker,
+            source,
+            resp,
+            cert,
+            corresp,
+            ana,
+            content,
+        },
+        PyBodyBlock::Div {
+            xml_id,
+            div_type,
+            content,
+        } => PyEvent::Div {
+            xml_id,
+            div_type,
+            content,
+        },
     }
 }

@@ -11,7 +11,7 @@ use tei_xml::emit_xml;
 const _: &str = include_str!("features/emit_xml.feature");
 
 const MINIMAL_FIXTURE: &str = concat!(
-    "<TEI>",
+    "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
     "<teiHeader>",
     "<fileDesc>",
     "<title>Wolf 359</title>",

@@ -115,6 +115,106 @@ impl<'de> Deserialize<'de> for XmlId {
     }
 }
 
+/// Validated wrapper for division `@type` attributes.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[serde(transparent)]
+pub struct DivType(String);
+
+/// Errors raised when normalizing division type input.
+#[derive(Clone, Debug, Deserialize, Error, Eq, PartialEq, Serialize)]
+pub enum DivTypeValidationError {
+    /// The division type trimmed to an empty string.
+    #[error("division type must not be empty")]
+    Empty,
+}
+
+impl DivType {
+    /// Builds a division type from user input.
+    ///
+    /// Leading and trailing whitespace is stripped. The value must contain at
+    /// least one visible character after trimming.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DivTypeValidationError::Empty`] when the trimmed value is
+    /// empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tei_core::DivType;
+    ///
+    /// let dt = DivType::new("show-notes")
+    ///     .unwrap_or_else(|error| panic!("valid type: {error}"));
+    /// assert_eq!(dt.as_str(), "show-notes");
+    /// ```
+    pub fn new(value: impl Into<String>) -> Result<Self, DivTypeValidationError> {
+        let trimmed = trim_preserving_original(value.into());
+
+        if trimmed.is_empty() {
+            return Err(DivTypeValidationError::Empty);
+        }
+
+        Ok(Self(trimmed))
+    }
+
+    /// Returns the division type as a string slice.
+    #[must_use]
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "String::as_str is not const-stable on current MSRV."
+    )]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Consumes the wrapper and returns the owned string.
+    #[must_use]
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl AsRef<str> for DivType {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for DivType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl TryFrom<String> for DivType {
+    type Error = DivTypeValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for DivType {
+    type Error = DivTypeValidationError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'de> Deserialize<'de> for DivType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        Self::new(value).map_err(DeError::custom)
+    }
+}
+
 /// Validated wrapper for utterance speaker references.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
@@ -222,6 +322,26 @@ mod tests {
             result,
             Err(IdentifierValidationError::ContainsWhitespace)
         ));
+    }
+
+    #[test]
+    fn div_type_accepts_trimmed_values() {
+        let dt = DivType::new("  show-notes  ")
+            .unwrap_or_else(|error| panic!("type should be normalized: {error}"));
+        assert_eq!(dt.as_str(), "show-notes");
+    }
+
+    #[test]
+    fn div_type_rejects_empty_values() {
+        let result = DivType::new("   ");
+        assert!(matches!(result, Err(DivTypeValidationError::Empty)));
+    }
+
+    #[test]
+    fn div_type_display_shows_inner_value() {
+        let dt =
+            DivType::new("chapter").unwrap_or_else(|error| panic!("type should be valid: {error}"));
+        assert_eq!(format!("{dt}"), "chapter");
     }
 
     #[test]

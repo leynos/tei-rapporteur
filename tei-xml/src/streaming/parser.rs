@@ -57,6 +57,7 @@ pub struct TeiPullParser<R: BufRead> {
     pub(super) reader: Reader<R>,
     pub(super) state: ParserState,
     pub(super) header: Option<TeiHeader>,
+    pub(super) pending_div_state: Option<Box<ParserState>>,
 }
 
 impl<R: BufRead> TeiPullParser<R> {
@@ -69,6 +70,7 @@ impl<R: BufRead> TeiPullParser<R> {
             reader: xml_reader,
             state: ParserState::Initial,
             header: None,
+            pending_div_state: None,
         }
     }
 
@@ -125,6 +127,7 @@ impl<R: BufRead> TeiPullParser<R> {
             Event::Text(e) => self.handle_text(e),
             Event::Empty(e) => self.handle_empty_element(e),
             Event::Eof => self.handle_eof(),
+            Event::GeneralRef(e) => self.handle_general_ref(e),
             Event::Decl(_) | Event::PI(_) | Event::Comment(_) | Event::DocType(_) => Ok(None),
             Event::CData(e) => self.handle_cdata(e),
         }
@@ -148,6 +151,11 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::AwaitingText => Ok(self.handle_awaiting_text_start(name_bytes)),
             ParserState::AwaitingBody => Ok(self.handle_awaiting_body_start(name_bytes)),
             ParserState::InBody => self.handle_body_content_start(name_bytes, element),
+            ParserState::InDiv { .. } => self.handle_div_content_start(name_bytes, element),
+            ParserState::InList { .. } => self.handle_list_content_start(name_bytes, element),
+            ParserState::InItem { .. } | ParserState::InLabel { .. } => {
+                self.handle_item_content_start(name_bytes, element)
+            }
             ParserState::InParagraph { .. }
             | ParserState::InUtterance { .. }
             | ParserState::InEmphasis { .. } => {
@@ -167,11 +175,34 @@ impl<R: BufRead> TeiPullParser<R> {
 
         match &self.state {
             ParserState::InHeader { .. } => self.handle_header_end(element),
-            ParserState::InParagraph { .. } if name_bytes == b"p" => self.finish_paragraph(),
-            ParserState::InUtterance { .. } if name_bytes == b"u" => self.finish_utterance(),
-            ParserState::InEmphasis { .. } if name_bytes == b"hi" => self.finish_emphasis(),
             ParserState::InBody => Ok(self.handle_body_end(name_bytes)),
             ParserState::AfterBody => Ok(self.handle_after_body_end(name_bytes)),
+            ParserState::InParagraph { .. }
+            | ParserState::InUtterance { .. }
+            | ParserState::InEmphasis { .. }
+            | ParserState::InDiv { .. }
+            | ParserState::InList { .. }
+            | ParserState::InItem { .. }
+            | ParserState::InLabel { .. } => self.handle_body_content_end(name_bytes),
+            _ => Ok(None),
+        }
+    }
+
+    /// Dispatches an end-element event for states that represent body content
+    /// (`<p>`, `<u>`, `<hi>`, `<div>`, `<list>`, `<item>`, `<label>`).
+    ///
+    /// Called only when `self.state` is already one of the `InParagraph`,
+    /// `InUtterance`, `InEmphasis`, `InDiv`, `InList`, `InItem`, or `InLabel`
+    /// variants; unrecognised tag names are silently ignored.
+    fn handle_body_content_end(&mut self, name_bytes: &[u8]) -> Result<Option<TeiEvent>, TeiError> {
+        match name_bytes {
+            b"p" => self.finish_paragraph(),
+            b"u" => self.finish_utterance(),
+            b"hi" => self.finish_emphasis(),
+            b"div" => self.finish_div(),
+            b"list" => self.finish_list(),
+            b"item" => self.finish_item(),
+            b"label" => self.finish_label(),
             _ => Ok(None),
         }
     }

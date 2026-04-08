@@ -1,7 +1,16 @@
 //! Models the textual body stored alongside the TEI header metadata.
 //!
-//! The text model now records structured body content. A `TeiText` owns a
-//! `TeiBody`, which in turn stores ordered blocks of paragraphs and utterances.
+//! The text model records structured body content with explicit nesting
+//! boundaries. A `TeiText` owns a `TeiBody`, which stores ordered top-level
+//! blocks:
+//!
+//! - [`Paragraph`](P) and [`Utterance`] — flat blocks of inline content
+//! - [`Div`] — hierarchical container for nested structural elements
+//!
+//! Only [`Paragraph`](P), [`Utterance`], and [`Div`] may appear directly in
+//! [`TeiBody`]. Hierarchical elements [`List`], [`Item`], and [`Label`] are
+//! part of [`DivContent`] and appear only inside [`Div`] elements.
+//!
 //! Each element validates that visible text is present so downstream tooling can
 //! rely on non-empty content.
 
@@ -9,11 +18,14 @@ mod body;
 mod inline;
 mod types;
 
-pub use body::{BodyBlock, BodyContentError, P, TeiBody, Utterance};
+pub use body::{
+    BodyBlock, BodyContentError, Div, DivContent, Item, Label, List, P, TeiBody, Utterance,
+};
 pub use inline::{Hi, Inline, Pause};
 pub use types::{
-    Certainty, CertaintyValidationError, IdentifierValidationError, Pointer, PointerList,
-    PointerListValidationError, PointerValidationError, Speaker, SpeakerValidationError, XmlId,
+    Certainty, CertaintyValidationError, DivType, DivTypeValidationError,
+    IdentifierValidationError, Pointer, PointerList, PointerListValidationError,
+    PointerValidationError, Speaker, SpeakerValidationError, XmlId,
 };
 
 /// Body of a TEI document, including paragraphs and utterances.

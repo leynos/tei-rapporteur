@@ -1,14 +1,20 @@
 //! TEI body model: ordered sequence of block-level elements.
 //!
-//! Serializes as `<body>` containing `<p>` and `<u>` elements via serde with
-//! blocks stored in the `$value` field.
+//! Serializes as `<body>` containing `<p>`, `<u>`, and `<div>` elements via
+//! serde with blocks stored in the `$value` field.
 
+mod div;
 mod error;
+mod item;
+mod list;
 mod paragraph;
 mod utterance;
 mod validation;
 
+pub use div::{Div, DivContent};
 pub use error::BodyContentError;
+pub use item::{Item, Label};
+pub use list::List;
 pub use paragraph::P;
 pub use utterance::Utterance;
 
@@ -60,6 +66,11 @@ impl TeiBody {
         self.blocks.push(BodyBlock::Utterance(utterance));
     }
 
+    /// Appends a division block to the body.
+    pub fn push_div(&mut self, div: Div) {
+        self.blocks.push(BodyBlock::Div(div));
+    }
+
     /// Extends the body with additional blocks.
     pub fn extend(&mut self, blocks: impl IntoIterator<Item = BodyBlock>) {
         self.blocks.extend(blocks);
@@ -95,6 +106,18 @@ impl TeiBody {
         })
     }
 
+    /// Returns an iterator over recorded divisions.
+    #[must_use = "Iterators are lazy; iterate or collect to inspect divisions."]
+    pub fn divs(&self) -> impl Iterator<Item = &Div> {
+        self.blocks.iter().filter_map(|block| {
+            if let BodyBlock::Div(div) = block {
+                Some(div)
+            } else {
+                None
+            }
+        })
+    }
+
     /// Reports whether the body contains any blocks.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
@@ -112,6 +135,9 @@ pub enum BodyBlock {
     /// A spoken utterance.
     #[serde(rename = "u")]
     Utterance(Utterance),
+    /// A thematic division grouping related content.
+    #[serde(rename = "div")]
+    Div(Div),
 }
 
 #[cfg(test)]
@@ -133,5 +159,13 @@ mod tests {
 
         assert_eq!(body.paragraphs().collect::<Vec<_>>(), vec![&paragraph]);
         assert_eq!(body.utterances().collect::<Vec<_>>(), vec![&utterance]);
+    }
+
+    #[test]
+    fn body_div_iterator() {
+        let div = Div::new("chapter").unwrap_or_else(|error| panic!("valid div: {error}"));
+        let mut body = TeiBody::default();
+        body.push_div(div.clone());
+        assert_eq!(body.divs().collect::<Vec<_>>(), vec![&div]);
     }
 }

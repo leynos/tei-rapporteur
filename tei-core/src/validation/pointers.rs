@@ -20,9 +20,45 @@ fn validate_body_utterance_pointers(
     known_ids: &HashSet<String>,
 ) -> Result<(), ValidationError> {
     for block in document.text().body().blocks() {
-        if let BodyBlock::Utterance(utterance) = block {
-            validate_utterance_pointers(utterance, known_ids)?;
+        match block {
+            BodyBlock::Utterance(utterance) => {
+                validate_utterance_pointers(utterance, known_ids)?;
+            }
+            BodyBlock::Div(div) => {
+                validate_div_pointers(div, known_ids)?;
+            }
+            BodyBlock::Paragraph(_) => {}
         }
+    }
+    Ok(())
+}
+
+fn validate_div_pointers(
+    div: &crate::Div,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    use crate::DivContent;
+
+    for content in div.content() {
+        match content {
+            DivContent::Utterance(utterance) => {
+                validate_utterance_pointers(utterance, known_ids)?;
+            }
+            DivContent::List(list) => {
+                validate_list_pointers(list, known_ids)?;
+            }
+            DivContent::Paragraph(_) => {}
+        }
+    }
+    Ok(())
+}
+
+fn validate_list_pointers(
+    list: &crate::List,
+    known_ids: &HashSet<String>,
+) -> Result<(), ValidationError> {
+    for item in list.items() {
+        validate_pointer_list("@corresp", item.corresp(), known_ids)?;
     }
     Ok(())
 }

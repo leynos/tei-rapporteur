@@ -9,6 +9,7 @@
 //! unambiguous payloads.
 
 mod annotation;
+mod body;
 mod events;
 mod header;
 
@@ -16,11 +17,10 @@ pub(crate) use annotation::{
     PyStandOff, apply_optional_pointer_list, certainty_from_option, certainty_to_string,
     pointer_list_to_vec,
 };
+use body::{core_block_from_py, py_body_block_from_core};
 use header::PyTeiHeader;
 use serde::{Deserialize, Serialize};
-use tei_core::{
-    BodyBlock, Inline, P, Pause, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
-};
+use tei_core::{BodyBlock, Inline, Pause, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText};
 use tei_serde::json::Value;
 
 /// Tagged inline content for Python consumption.
@@ -44,7 +44,7 @@ pub(crate) enum PyInline {
     },
 }
 
-/// Tagged body block union (paragraph or utterance) for Python.
+/// Tagged body block union (paragraph, utterance, or division) for Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub(crate) enum PyBodyBlock {
@@ -74,6 +74,71 @@ pub(crate) enum PyBodyBlock {
         ana: Vec<String>,
         content: Vec<PyInline>,
     },
+    #[serde(rename = "div")]
+    Div {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        div_type: String,
+        content: Vec<PyDivContent>,
+    },
+}
+
+/// Tagged content within a division for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "type")]
+pub(crate) enum PyDivContent {
+    #[serde(rename = "paragraph")]
+    Paragraph {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        content: Vec<PyInline>,
+    },
+    #[serde(rename = "utterance")]
+    Utterance {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        n: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        speaker: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        source: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        resp: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cert: Option<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        corresp: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        ana: Vec<String>,
+        content: Vec<PyInline>,
+    },
+    #[serde(rename = "list")]
+    List {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        items: Vec<PyItem>,
+    },
+}
+
+/// A list item projected for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xml_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    n: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    corresp: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    label: Option<PyLabel>,
+    content: Vec<PyInline>,
+}
+
+/// A label prefix projected for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyLabel {
+    content: Vec<PyInline>,
 }
 
 /// Python projection of the TEI body.
@@ -114,6 +179,7 @@ impl TryFrom<PyTeiBody> for TeiBody {
             match core_block_from_py(block)? {
                 BodyBlock::Paragraph(paragraph) => body.push_paragraph(paragraph),
                 BodyBlock::Utterance(utterance) => body.push_utterance(utterance),
+                BodyBlock::Div(div) => body.push_div(div),
             }
         }
         Ok(body)
@@ -184,76 +250,6 @@ fn inline_from_py(inline_value: PyInline) -> Result<Inline, TeiError> {
                 pause.set_kind(classification);
             }
             Ok(Inline::Pause(pause))
-        }
-    }
-}
-
-fn py_body_block_from_core(block: &BodyBlock) -> PyBodyBlock {
-    match block {
-        BodyBlock::Paragraph(p) => PyBodyBlock::Paragraph {
-            xml_id: p.id().map(|id| id.as_str().to_owned()),
-            content: p.content().iter().cloned().map(PyInline::from).collect(),
-        },
-        BodyBlock::Utterance(u) => PyBodyBlock::Utterance {
-            xml_id: u.id().map(|id| id.as_str().to_owned()),
-            n: u.number().map(str::to_owned),
-            speaker: u.speaker().map(|s| s.as_str().to_owned()),
-            source: pointer_list_to_vec(u.source()),
-            resp: pointer_list_to_vec(u.resp()),
-            cert: certainty_to_string(u.cert()),
-            corresp: pointer_list_to_vec(u.corresp()),
-            ana: pointer_list_to_vec(u.ana()),
-            content: u.content().iter().cloned().map(PyInline::from).collect(),
-        },
-    }
-}
-
-fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiError> {
-    match block {
-        PyBodyBlock::Paragraph { xml_id, content } => {
-            let mut paragraph = P::from_inline(
-                content
-                    .into_iter()
-                    .map(inline_from_py)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )?;
-            if let Some(id) = xml_id {
-                paragraph.set_id(id)?;
-            }
-            Ok(BodyBlock::Paragraph(paragraph))
-        }
-        PyBodyBlock::Utterance {
-            xml_id,
-            n,
-            speaker,
-            source,
-            resp,
-            cert,
-            corresp,
-            ana,
-            content,
-        } => {
-            let mut utterance = Utterance::from_inline(
-                speaker.as_deref(),
-                content
-                    .into_iter()
-                    .map(inline_from_py)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )?;
-            if let Some(id) = xml_id {
-                utterance.set_id(id)?;
-            }
-            if let Some(number) = n {
-                utterance.set_number(number);
-            }
-            apply_optional_pointer_list(&mut utterance, source, Utterance::set_source)?;
-            apply_optional_pointer_list(&mut utterance, resp, Utterance::set_resp)?;
-            if let Some(certainty) = certainty_from_option(cert)? {
-                utterance.set_cert(certainty);
-            }
-            apply_optional_pointer_list(&mut utterance, corresp, Utterance::set_corresp)?;
-            apply_optional_pointer_list(&mut utterance, ana, Utterance::set_ana)?;
-            Ok(BodyBlock::Utterance(utterance))
         }
     }
 }
