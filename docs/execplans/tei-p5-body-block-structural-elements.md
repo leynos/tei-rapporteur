@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -119,15 +119,15 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] Stage C: Rust core types in `tei-core`.
 - [x] Stage D: XML streaming parser states and handlers.
 - [x] Stage E: XML emitter (custom hybrid emitter bypassing serde for body).
-- [ ] Stage F: ODD and Relax NG schema updates.
-- [ ] Stage G: Python `msgspec` structs, projection layer, and type stubs.
-- [ ] Stage H: JSON schema regeneration and profile constraints.
-- [ ] Stage I: validation updates (`xml:id` uniqueness and pointer
+- [x] Stage F: ODD and Relax NG schema updates.
+- [x] Stage G: Python `msgspec` structs, projection layer, and type stubs.
+- [x] Stage H: JSON schema regeneration and profile constraints.
+- [x] Stage I: validation updates (`xml:id` uniqueness and pointer
   resolution across `Div`, `List`, and `Item`).
-- [ ] Stage J: BDD behavioural tests and unit tests.
-- [ ] Stage K: documentation updates (user's guide, design document,
+- [x] Stage J: BDD behavioural tests and unit tests.
+- [x] Stage K: documentation updates (user's guide, design document,
   roadmap).
-- [ ] Stage L: final validation and commit gating.
+- [x] Stage L: final validation and commit gating.
 
 ## Surprises & discoveries
 
@@ -143,6 +143,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
   (`tei-xml/src/emitter.rs`) was written: header and stand-off are emitted via
   serde (no `Vec<Inline>` fields), while the body is handwritten using direct
   string construction with XML-escaped text.
+- Stage F: the externally published Relax NG snapshot lives in two places:
+  `schemas/tei-episodic-profile.rng` and the embedded copy at
+  `tei-xml/resources/tei-episodic-profile.rng`. Both must be updated together
+  or `write_relax_ng_schema()` drifts from the checked-in schema.
+- Stage L: XML property tests need text-only `Label` generation for the same
+  reason text-only paragraph and utterance strategies exist — adjacent XML text
+  nodes merge on round-trip.
 
 ## Decision log
 
@@ -185,7 +192,22 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 ## Outcomes & retrospective
 
-(To be completed after implementation.)
+- Structural body elements now round-trip end-to-end across the Rust core
+  model, XML parser/emitter, Relax NG schema, JSON Schema, Python projection,
+  and Python `msgspec.Struct` surface.
+- Validation now traverses `Div`, `List`, and `Item` content for duplicate
+  `xml:id` detection and internal pointer resolution, including `Item`
+  `@corresp`.
+- XML fixtures now include a `div-list` example validated with `jing` against
+  the updated Relax NG schema.
+- Python callers can now decode and encode `DivBlock`, `ListBlock`, `Item`,
+  `Label`, and `DivEvent` values through `tei_rapporteur.structs`.
+- Property-based tests now generate `Div` variants, which caught two important
+  XML-specific constraints during implementation: XML-forbidden characters in
+  generated `@type` values and adjacent text-node merging inside `Label`.
+- Final validation completed successfully with:
+  `make fmt`, `make json-schema`, `make check-fmt`, `make lint`, `make test`,
+  `make validate-xml`, `make markdownlint`, and `make nixie`.
 
 ## Context and orientation
 

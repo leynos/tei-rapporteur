@@ -11,6 +11,7 @@ use tei_serde::serde_json::json;
 
 mod bindings_tests;
 mod dict;
+mod div_structs;
 mod projection_tests;
 mod streaming;
 mod structs_tests;

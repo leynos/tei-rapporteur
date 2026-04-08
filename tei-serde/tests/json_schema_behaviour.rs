@@ -4,7 +4,10 @@ use anyhow::{Context, Result, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{BodyBlock, Hi, Inline, P, TeiBody, TeiDocument, TeiHeader, TeiText};
+use tei_core::{
+    BodyBlock, Div, DivContent, Hi, Inline, Item, Label, List, P, TeiBody, TeiDocument, TeiHeader,
+    TeiText,
+};
 use tei_test_helpers::expect_validated_state;
 
 fn compile_validator(schema: &serde_json::Value) -> Result<jsonschema::Validator> {
@@ -333,4 +336,113 @@ pub fn rejects_hi_nodes_with_unknown_properties(
     #[from(validated_state_result)] result: Result<JsonSchemaState>,
 ) {
     expect_validated_state(result, "json schema");
+}
+
+fn structural_document() -> TeiDocument {
+    let mut item = Item::from_text_segments(["Reference"])
+        .unwrap_or_else(|error| panic!("item should validate: {error}"));
+    item.set_label(
+        Label::from_text("1.").unwrap_or_else(|error| panic!("label should validate: {error}")),
+    );
+    let list = List::new([item]);
+    let mut div =
+        Div::new("show-notes").unwrap_or_else(|error| panic!("div should validate: {error}"));
+    div.push_paragraph(
+        P::from_text_segments(["Intro"])
+            .unwrap_or_else(|error| panic!("paragraph should validate: {error}")),
+    );
+    div.push_list(list);
+
+    TeiDocument::new(
+        TeiHeader::new(
+            tei_core::FileDesc::from_title_str("fixture")
+                .unwrap_or_else(|error| panic!("title should validate: {error}")),
+        ),
+        TeiText::new(TeiBody::new([BodyBlock::Div(div)])),
+    )
+}
+
+fn schema_has_variant(
+    schema: &serde_json::Value,
+    variant_path: &str,
+    expected_property_path: &str,
+) -> bool {
+    schema
+        .pointer(variant_path)
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|variants| {
+            variants.iter().any(|variant| {
+                variant
+                    .pointer(expected_property_path)
+                    .and_then(serde_json::Value::as_str)
+                    .is_some()
+            })
+        })
+}
+
+fn assert_schema_definitions(schema: &serde_json::Value) -> Result<()> {
+    for definition in ["/$defs/div", "/$defs/list", "/$defs/item", "/$defs/label"] {
+        ensure!(
+            schema.pointer(definition).is_some(),
+            "schema should define {definition}"
+        );
+    }
+    Ok(())
+}
+
+fn assert_schema_variants(schema: &serde_json::Value) -> Result<()> {
+    ensure!(
+        schema_has_variant(schema, "/$defs/BodyBlock/oneOf", "/properties/div/$ref"),
+        "BodyBlock schema should include the `div` variant"
+    );
+    ensure!(
+        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/list/$ref"),
+        "DivContent schema should include the `list` variant"
+    );
+    Ok(())
+}
+
+fn assert_document_shape(document: &TeiDocument) -> Result<()> {
+    ensure!(
+        matches!(
+            document.text().body().blocks().first(),
+            Some(BodyBlock::Div(Div { .. }))
+        ),
+        "fixture document should contain a `Div` body block"
+    );
+    ensure!(
+        matches!(
+            document
+                .text()
+                .body()
+                .blocks()
+                .first()
+                .and_then(|block| match block {
+                    BodyBlock::Div(division) => division.content().get(1),
+                    _ => None,
+                }),
+            Some(DivContent::List(_))
+        ),
+        "fixture division should contain a list"
+    );
+    Ok(())
+}
+
+#[test]
+fn schema_includes_structural_body_definitions() -> Result<()> {
+    let document = structural_document();
+    let schema = tei_serde::schema::tei_document_schema().to_value();
+    let validator = compile_validator(&schema)?;
+    let instance =
+        tei_serde::json::to_value(&document).context("document should serialize to JSON")?;
+    let errors = collect_validation_errors(validator.iter_errors(&instance));
+
+    ensure!(
+        errors.is_empty(),
+        "document should satisfy schema: {errors:?}"
+    );
+    assert_schema_definitions(&schema)?;
+    assert_schema_variants(&schema)?;
+    assert_document_shape(&document)?;
+    Ok(())
 }

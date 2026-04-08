@@ -292,8 +292,72 @@
         <choice>
           <ref name="p"/>
           <ref name="u"/>
+          <ref name="div"/>
         </choice>
       </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="div">
+    <element name="div" ns="http://www.tei-c.org/ns/1.0">
+      <optional>
+        <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
+          <text/>
+        </attribute>
+      </optional>
+      <attribute name="type">
+        <text/>
+      </attribute>
+      <zeroOrMore>
+        <choice>
+          <ref name="p"/>
+          <ref name="u"/>
+          <ref name="list"/>
+        </choice>
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="list">
+    <element name="list" ns="http://www.tei-c.org/ns/1.0">
+      <optional>
+        <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
+          <text/>
+        </attribute>
+      </optional>
+      <zeroOrMore>
+        <ref name="item"/>
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="item">
+    <element name="item" ns="http://www.tei-c.org/ns/1.0">
+      <optional>
+        <attribute name="xml:id" ns="http://www.w3.org/XML/1998/namespace">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="n">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="corresp">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <ref name="label"/>
+      </optional>
+      <ref name="inlineContent"/>
+    </element>
+  </define>
+
+  <define name="label">
+    <element name="label" ns="http://www.tei-c.org/ns/1.0">
+      <ref name="inlineContent"/>
     </element>
   </define>
 

@@ -74,3 +74,16 @@ Feature: TEI document validation
     And I add an anchorless stand-off span "sp1" in group "sg1"
     And I validate the document
     Then validation fails with "span must define @target or @from"
+
+  Scenario: Rejecting duplicate xml:id values inside divisions
+    Given a TEI document titled "Night Vale"
+    When I add a paragraph "Intro" with id "dup"
+    And I add a division "show-notes" containing an item with id "dup"
+    And I validate the document
+    Then validation fails with "duplicate xml:id 'dup'"
+
+  Scenario: Rejecting unresolved item corresp pointers inside divisions
+    Given a TEI document titled "Night Vale"
+    When I add a division "show-notes" containing an item with corresp "#missing"
+    And I validate the document
+    Then validation fails with "internal pointer '#missing' in @corresp does not resolve"

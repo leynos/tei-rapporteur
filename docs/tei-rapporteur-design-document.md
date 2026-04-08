@@ -48,9 +48,11 @@ output, and the semantic content remains consistent across round-trips.
   fully typed structures without resorting to `Any`. Inline content is a tagged
   union on the `type` field (`text`, `hi`, `pause`) with pause metadata renamed
   to `dur` and `kind` to avoid discriminator collisions.
-- Body blocks are likewise tagged (`paragraph`, `utterance`) and unwrapped
-  (fields live alongside the discriminator), enabling streaming events to share
-  the same shapes.
+- Body blocks are likewise tagged (`paragraph`, `utterance`, `div`) and
+  unwrapped (fields live alongside the discriminator), enabling streaming
+  events to share the same shapes. Divisions carry nested `DivContent`
+  projections, including `list` blocks composed of `item` and optional `label`
+  structures.
 - A dedicated projection layer in `tei-py` translates between the canonical
   Rust TEI model and the tagged Python representation, isolating the breaking
   change to the FFI boundary while keeping the XML/serde shapes unchanged.
@@ -64,6 +66,20 @@ architectural overview and a comparison of serialization pathways between Rust
 and Python. Throughout, the design focuses on writing clear, maintainable code
 – **Rust remains idiomatic and free of Python-specific cruft, and Python APIs
 feel natural to Python users**.
+
+## Structural body elements (April 2026)
+
+- The body model now treats `BodyBlock` as a three-variant enum:
+  `Paragraph`, `Utterance`, and `Div`.
+- `Div` is intentionally shallow for now. It groups `Paragraph`,
+  `Utterance`, and `List` children, but nested `Div` elements remain deferred.
+- `List` holds ordered `Item` values, and each `Item` may expose a dedicated
+  `Label` node plus inline content and an optional `@corresp` pointer list.
+- The streaming parser buffers an entire `Div` before yielding a single
+  `BodyBlock::Div` event. This preserves the existing event model instead of
+  introducing enter/exit events for structural containers.
+- XML emission uses the hybrid body emitter for these structures rather than
+  relying on `quick_xml` serde output for `Vec<Inline>` fields.
 
 ## Workspace scaffolding decisions
 

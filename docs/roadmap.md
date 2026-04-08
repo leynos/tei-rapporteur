@@ -171,3 +171,18 @@ for handling very large documents.
       dictionaries.
 - [x] Write performance benchmarks comparing the memory and time usage of the
       full-document parser versus the streaming parser for large TEI files.
+
+### Step 3.4: Structural body elements
+
+This step extends the episodic profile beyond a flat body so show notes and
+chaptered material can retain their structure across Rust, XML, schema, and
+Python layers.
+
+- [x] Add `Div`, `List`, `Item`, and `Label` to the core body model and XML
+      parser/emitter.
+- [x] Extend document validation to cover `xml:id` uniqueness and pointer
+      resolution across divisions and list items.
+- [x] Publish the updated ODD, Relax NG schema, and JSON Schema snapshots for
+      the new structural body elements.
+- [x] Expose structural body content through Python `msgspec.Struct` classes
+      and streaming event unions.

@@ -57,6 +57,41 @@ class Utterance(
 
 BodyBlock: TypeAlias = Paragraph | Utterance
 
+class Label(msgspec.Struct, omit_defaults=True):
+    """Label prefix attached to a list item."""
+
+    content: list[Inline] = ...  # type: ignore[assignment]
+
+class Item(msgspec.Struct, omit_defaults=True):
+    """Structured list item contained within a division list."""
+
+    content: list[Inline] = ...  # type: ignore[assignment]
+    xml_id: str | None = None
+    n: str | None = None
+    corresp: list[str] = ...  # type: ignore[assignment]
+    label: Label | None = None
+
+class ListBlock(
+    msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
+):
+    """List block nested inside a division."""
+
+    items: list[Item] = ...  # type: ignore[assignment]
+    xml_id: str | None = None
+
+DivContent: TypeAlias = Paragraph | Utterance | ListBlock
+
+class DivBlock(
+    msgspec.Struct, tag="div", tag_field="type", omit_defaults=True
+):
+    """Structural division within the TEI body."""
+
+    div_type: str
+    content: list[DivContent] = ...  # type: ignore[assignment]
+    xml_id: str | None = None
+
+BodyBlock: TypeAlias = Paragraph | Utterance | DivBlock
+
 class TeiBody(msgspec.Struct):
     """Ordered TEI body content."""
 
@@ -234,7 +269,16 @@ class UtteranceEvent(
     corresp: list[str] = ...  # type: ignore[assignment]
     ana: list[str] = ...  # type: ignore[assignment]
 
+class DivEvent(
+    msgspec.Struct, tag="div", tag_field="type", omit_defaults=True
+):
+    """Streaming event carrying an assembled division body block."""
+
+    div_type: str
+    content: list[DivContent] = ...  # type: ignore[assignment]
+    xml_id: str | None = None
+
 Event: TypeAlias = (
-    DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent
+    DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DivEvent
     | DocumentEnd
 )

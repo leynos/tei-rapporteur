@@ -19,9 +19,9 @@ mod bench;
 pub use bench::{BenchFixtureConfig, generate_benchmark_document, generate_benchmark_xml};
 
 use tei_core::{
-    AnnotationSystem, BodyBlock, CiteData, CiteStructure, EncodingDesc, FileDesc, P, PointerList,
-    ProfileDesc, RefsDecl, RevisionChange, RevisionDesc, Span, SpanGroup, StandOff, TeiBody,
-    TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
+    AnnotationSystem, BodyBlock, CiteData, CiteStructure, Div, EncodingDesc, FileDesc, Item, Label,
+    List, P, PointerList, ProfileDesc, RefsDecl, RevisionChange, RevisionDesc, Span, SpanGroup,
+    StandOff, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
 };
 
 /// A function that builds a TEI document fixture.
@@ -166,6 +166,47 @@ pub fn comprehensive_document() -> Result<TeiDocument, TeiError> {
     Ok(TeiDocument::new(header, text).with_stand_off(stand_off))
 }
 
+/// Returns a document whose body contains a structural division with a list.
+///
+/// # Errors
+///
+/// Returns [`TeiError`] when any component of the document cannot be
+/// constructed.
+pub fn document_with_div_and_list() -> Result<TeiDocument, TeiError> {
+    let file_desc = FileDesc::from_title_str("Division Fixture")?;
+    let header = TeiHeader::new(file_desc);
+
+    let mut intro = P::from_text_segments(["Show notes follow below."])?;
+    intro.set_id("p-div-intro")?;
+
+    let mut utterance =
+        Utterance::from_text_segments(Some("host"), ["These links are in the notes."])?;
+    utterance.set_id("u-div-1")?;
+
+    let label = Label::from_text("1.")?;
+    let mut first_item = Item::from_text_segments(["Primary reference"])?;
+    first_item.set_id("item-1")?;
+    first_item.set_n("1")?;
+    first_item.set_corresp(PointerList::new(["#u-div-1"])?);
+    first_item.set_label(label);
+
+    let mut second_item = Item::from_text_segments(["Secondary reference"])?;
+    second_item.set_id("item-2")?;
+
+    let mut list = List::new([first_item, second_item]);
+    list.set_id("list-1")?;
+
+    let mut div = Div::new("show-notes")?;
+    div.set_id("div-1")?;
+    div.push_paragraph(intro);
+    div.push_utterance(utterance);
+    div.push_list(list);
+
+    let body = TeiBody::new([BodyBlock::Div(div)]);
+    let text = TeiText::new(body);
+    Ok(TeiDocument::new(header, text))
+}
+
 /// Returns an iterator over all fixture builders with their names.
 ///
 /// This is used by the `generate-fixtures` binary to produce XML files.
@@ -176,6 +217,7 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
         ("paragraphs", document_with_paragraphs),
         ("utterances", document_with_utterances),
         ("comprehensive", comprehensive_document),
+        ("div-list", document_with_div_and_list),
     ]
 }
 
@@ -210,6 +252,12 @@ mod tests {
         assert!(doc.header().revision_desc().is_some());
         assert!(doc.stand_off().is_some());
         assert_eq!(doc.text().body().blocks().len(), 4);
+    }
+
+    #[test]
+    fn document_with_div_and_list_builds_successfully() {
+        let doc = document_with_div_and_list().expect("division fixture should build");
+        assert_eq!(doc.text().body().blocks().len(), 1);
     }
 
     #[test]
