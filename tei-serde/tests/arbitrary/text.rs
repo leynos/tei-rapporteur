@@ -203,32 +203,24 @@ where
         })
 }
 
-fn div_strategy() -> impl Strategy<Value = Div> {
-    let paragraph_content = paragraph_strategy().prop_map(DivContent::Paragraph);
-    let utterance_content = utterance_strategy().prop_map(DivContent::Utterance);
-    let list_content = list_with_item_strategy(item_with_content_strategy(
-        prop::collection::vec(inline_strategy(), 1..=5)
-            .prop_filter("item must have visible content", |v| has_visible_content(v)),
-        prop::collection::vec(inline_strategy(), 1..=3)
-            .prop_filter("label must have visible content", |v| {
-                has_visible_content(v)
-            }),
-    ))
-    .prop_map(DivContent::List);
+fn div_type_strategy() -> impl Strategy<Value = String> {
+    prop::sample::select(vec![
+        String::from("chapter"),
+        String::from("intro"),
+        String::from("show-notes"),
+        String::from("links"),
+        String::from("sponsors"),
+    ])
+}
 
+fn div_with_content_strategy<S>(content_strategy: S) -> impl Strategy<Value = Div>
+where
+    S: Strategy<Value = Vec<DivContent>>,
+{
     (
         proptest::option::of(xml_id_strategy()),
-        prop::sample::select(vec![
-            String::from("chapter"),
-            String::from("intro"),
-            String::from("show-notes"),
-            String::from("links"),
-            String::from("sponsors"),
-        ]),
-        prop::collection::vec(
-            prop_oneof![paragraph_content, utterance_content, list_content],
-            0..=4,
-        ),
+        div_type_strategy(),
+        content_strategy,
     )
         .prop_map(|(id, div_type, content)| {
             let mut div = Div::new(div_type)
@@ -248,6 +240,25 @@ fn div_strategy() -> impl Strategy<Value = Div> {
         })
 }
 
+fn div_strategy() -> impl Strategy<Value = Div> {
+    let paragraph_content = paragraph_strategy().prop_map(DivContent::Paragraph);
+    let utterance_content = utterance_strategy().prop_map(DivContent::Utterance);
+    let list_content = list_with_item_strategy(item_with_content_strategy(
+        prop::collection::vec(inline_strategy(), 1..=5)
+            .prop_filter("item must have visible content", |v| has_visible_content(v)),
+        prop::collection::vec(inline_strategy(), 1..=3)
+            .prop_filter("label must have visible content", |v| {
+                has_visible_content(v)
+            }),
+    ))
+    .prop_map(DivContent::List);
+
+    div_with_content_strategy(prop::collection::vec(
+        prop_oneof![paragraph_content, utterance_content, list_content],
+        0..=4,
+    ))
+}
+
 fn text_only_div_strategy() -> impl Strategy<Value = Div> {
     let paragraph_content = text_only_paragraph_strategy().prop_map(DivContent::Paragraph);
     let utterance_content = text_only_utterance_strategy().prop_map(DivContent::Utterance);
@@ -257,36 +268,10 @@ fn text_only_div_strategy() -> impl Strategy<Value = Div> {
     ))
     .prop_map(DivContent::List);
 
-    (
-        proptest::option::of(xml_id_strategy()),
-        prop::sample::select(vec![
-            String::from("chapter"),
-            String::from("intro"),
-            String::from("show-notes"),
-            String::from("links"),
-            String::from("sponsors"),
-        ]),
-        prop::collection::vec(
-            prop_oneof![paragraph_content, utterance_content, list_content],
-            0..=4,
-        ),
-    )
-        .prop_map(|(id, div_type, content)| {
-            let mut div = Div::new(div_type)
-                .unwrap_or_else(|error| panic!("generated div type should be valid: {error}"));
-            if let Some(id_value) = id {
-                div.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
-            }
-            for child in content {
-                match child {
-                    DivContent::Paragraph(paragraph_block) => div.push_paragraph(paragraph_block),
-                    DivContent::Utterance(utterance_block) => div.push_utterance(utterance_block),
-                    DivContent::List(list_block) => div.push_list(list_block),
-                }
-            }
-            div
-        })
+    div_with_content_strategy(prop::collection::vec(
+        prop_oneof![paragraph_content, utterance_content, list_content],
+        0..=4,
+    ))
 }
 
 #[cfg(test)]

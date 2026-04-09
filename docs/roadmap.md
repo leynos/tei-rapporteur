@@ -174,8 +174,8 @@ for handling very large documents.
 
 ### Step 3.4: Structural body elements
 
-This step extends the episodic profile beyond a flat body so show notes and
-chaptered material can retain their structure across Rust, XML, schema, and
+This step extends the episodic profile beyond a flat body so that show notes
+and chaptered material can retain their structure across Rust, XML, schema, and
 Python layers.
 
 - [x] Add `Div`, `List`, `Item`, and `Label` to the core body model and XML

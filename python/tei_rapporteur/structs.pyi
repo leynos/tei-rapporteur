@@ -55,7 +55,7 @@ class Utterance(
     corresp: list[str] = ...  # type: ignore[assignment]
     ana: list[str] = ...  # type: ignore[assignment]
 
-BodyBlock: TypeAlias = Paragraph | Utterance
+TextBlock: TypeAlias = Paragraph | Utterance
 
 class Label(msgspec.Struct, omit_defaults=True):
     """Label prefix attached to a list item."""
@@ -79,7 +79,7 @@ class ListBlock(
     items: list[Item] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 
-DivContent: TypeAlias = Paragraph | Utterance | ListBlock
+DivContent: TypeAlias = TextBlock | ListBlock
 
 class DivBlock(
     msgspec.Struct, tag="div", tag_field="type", omit_defaults=True
@@ -90,7 +90,7 @@ class DivBlock(
     content: list[DivContent] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 
-BodyBlock: TypeAlias = Paragraph | Utterance | DivBlock
+BodyBlock: TypeAlias = TextBlock | DivBlock
 
 class TeiBody(msgspec.Struct):
     """Ordered TEI body content."""

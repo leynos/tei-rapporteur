@@ -87,7 +87,7 @@ class Utterance(
     ana: list[str] = msgspec.field(default_factory=list)
 
 
-BodyBlock: TypeAlias = Paragraph | Utterance
+TextBlock: TypeAlias = Paragraph | Utterance
 
 
 class Label(msgspec.Struct, omit_defaults=True):
@@ -110,7 +110,7 @@ class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
     xml_id: str | None = None
 
 
-DivContent: TypeAlias = Paragraph | Utterance | ListBlock
+DivContent: TypeAlias = TextBlock | ListBlock
 
 
 class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
@@ -120,7 +120,7 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     xml_id: str | None = None
 
 
-BodyBlock: TypeAlias = Paragraph | Utterance | DivBlock
+BodyBlock: TypeAlias = TextBlock | DivBlock
 
 
 class TeiBody(msgspec.Struct):

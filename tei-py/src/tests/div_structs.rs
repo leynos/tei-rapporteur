@@ -65,6 +65,14 @@ fn episode_struct_decodes_div_blocks() {
             .getattr("blocks")
             .expect("TeiBody should expose blocks");
         let first = blocks.get_item(0).expect("division block should exist");
+        let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");
+        let is_div_block = first
+            .is_instance(&div_block_type)
+            .expect("DivBlock isinstance check should succeed");
+        assert!(
+            is_div_block,
+            "first block should be a structs.DivBlock instance"
+        );
 
         let div_type: String = first
             .getattr("div_type")

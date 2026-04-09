@@ -396,6 +396,14 @@ fn assert_schema_variants(schema: &serde_json::Value) -> Result<()> {
         "BodyBlock schema should include the `div` variant"
     );
     ensure!(
+        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/p/$ref"),
+        "DivContent schema should include the `p` variant"
+    );
+    ensure!(
+        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/u/$ref"),
+        "DivContent schema should include the `u` variant"
+    );
+    ensure!(
         schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/list/$ref"),
         "DivContent schema should include the `list` variant"
     );
