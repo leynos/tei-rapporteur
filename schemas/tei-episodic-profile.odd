@@ -400,7 +400,7 @@
           <elementSpec ident="list" mode="change">
             <desc>A list of structured body items.</desc>
             <content>
-              <elementRef key="item" minOccurs="0" maxOccurs="unbounded"/>
+              <elementRef key="item" minOccurs="1" maxOccurs="unbounded"/>
             </content>
             <attList>
               <attDef ident="xml:id" mode="change" usage="opt">

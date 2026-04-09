@@ -205,7 +205,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - Property-based tests now generate `Div` variants, which caught two important
   XML-specific constraints during implementation: XML-forbidden characters in
   generated `@type` values and adjacent text-node merging inside `Label`.
-- Final validation completed successfully with:
+- Final validation completed successfully. The following commands passed:
   `make fmt`, `make json-schema`, `make check-fmt`, `make lint`, `make test`,
   `make validate-xml`, `make markdownlint`, and `make nixie`.
 

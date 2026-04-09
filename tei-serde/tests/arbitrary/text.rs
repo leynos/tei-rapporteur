@@ -191,7 +191,7 @@ where
 {
     (
         proptest::option::of(xml_id_strategy()),
-        prop::collection::vec(item_strategy, 0..=4),
+        prop::collection::vec(item_strategy, 1..=4),
     )
         .prop_map(|(id, items)| {
             let mut list = List::new(items);

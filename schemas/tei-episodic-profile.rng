@@ -325,9 +325,9 @@
           <text/>
         </attribute>
       </optional>
-      <zeroOrMore>
+      <oneOrMore>
         <ref name="item"/>
-      </zeroOrMore>
+      </oneOrMore>
     </element>
   </define>
 
