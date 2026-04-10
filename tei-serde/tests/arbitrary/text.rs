@@ -19,7 +19,7 @@
 
 use proptest::prelude::*;
 use tei_core::{
-    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, PointerList, TeiBody, TeiText,
+    BodyBlock, Div, DivContent, Head, Inline, Item, Label, List, P, PointerList, TeiBody, TeiText,
     Utterance,
 };
 
@@ -225,27 +225,60 @@ fn div_type_strategy() -> impl Strategy<Value = String> {
     ])
 }
 
-fn div_with_content_strategy<S>(content_strategy: S) -> impl Strategy<Value = Div>
+fn div_subtype_strategy() -> impl Strategy<Value = String> {
+    prop::sample::select(vec![
+        String::from("chapter-marker"),
+        String::from("guest-bio"),
+        String::from("sponsor-read"),
+        String::from("segment"),
+    ])
+}
+
+fn head_with_content_strategy<S>(content_strategy: S) -> impl Strategy<Value = Head>
+where
+    S: Strategy<Value = Vec<Inline>>,
+{
+    content_strategy.prop_map(|content| {
+        Head::new(content)
+            .unwrap_or_else(|error| panic!("generated head content should be valid: {error}"))
+    })
+}
+
+fn div_with_content_strategy<S, H>(
+    content_strategy: S,
+    head_strategy: H,
+) -> impl Strategy<Value = Div>
 where
     S: Strategy<Value = Vec<DivContent>>,
+    H: Strategy<Value = Head>,
 {
     (
         proptest::option::of(xml_id_strategy()),
         div_type_strategy(),
+        proptest::option::of(div_subtype_strategy()),
+        proptest::option::of(head_strategy),
         content_strategy,
     )
-        .prop_map(|(id, div_type, content)| {
+        .prop_map(|(id, div_type, subtype, head, content)| {
             let mut div = Div::new(div_type)
                 .unwrap_or_else(|error| panic!("generated div type should be valid: {error}"));
             if let Some(id_value) = id {
                 div.set_id(id_value)
                     .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
             }
+            if let Some(subtype_value) = subtype {
+                div.set_subtype(subtype_value)
+                    .unwrap_or_else(|error| panic!("generated subtype should be valid: {error}"));
+            }
+            if let Some(head_value) = head {
+                div.set_head(head_value);
+            }
             for child in content {
                 match child {
                     DivContent::Paragraph(paragraph_block) => div.push_paragraph(paragraph_block),
                     DivContent::Utterance(utterance_block) => div.push_utterance(utterance_block),
                     DivContent::List(list_block) => div.push_list(list_block),
+                    DivContent::Div(nested_div) => div.push_div(nested_div),
                 }
             }
             div
@@ -253,37 +286,64 @@ where
 }
 
 fn div_strategy() -> impl Strategy<Value = Div> {
-    let paragraph_content = paragraph_strategy().prop_map(DivContent::Paragraph);
-    let utterance_content = utterance_strategy().prop_map(DivContent::Utterance);
-    let list_content = list_with_item_strategy(item_with_content_strategy(
-        prop::collection::vec(inline_strategy(), 1..=5)
-            .prop_filter("item must have visible content", |v| has_visible_content(v)),
+    let head_strategy = head_with_content_strategy(
         prop::collection::vec(inline_strategy(), 1..=3)
-            .prop_filter("label must have visible content", |v| {
-                has_visible_content(v)
-            }),
-    ))
-    .prop_map(DivContent::List);
+            .prop_filter("head must have visible content", |v| has_visible_content(v)),
+    );
+    let leaf_content = prop_oneof![
+        paragraph_strategy().prop_map(DivContent::Paragraph),
+        utterance_strategy().prop_map(DivContent::Utterance),
+        list_with_item_strategy(item_with_content_strategy(
+            prop::collection::vec(inline_strategy(), 1..=5)
+                .prop_filter("item must have visible content", |v| has_visible_content(v)),
+            prop::collection::vec(inline_strategy(), 1..=3)
+                .prop_filter("label must have visible content", |v| has_visible_content(
+                    v
+                )),
+        ))
+        .prop_map(DivContent::List),
+    ];
+    let recursive_content = leaf_content.prop_recursive(3, 32, 4, |inner| {
+        div_with_content_strategy(
+            prop::collection::vec(inner, 0..=3),
+            head_with_content_strategy(
+                prop::collection::vec(inline_strategy(), 1..=3)
+                    .prop_filter("head must have visible content", |v| has_visible_content(v)),
+            ),
+        )
+        .prop_map(DivContent::Div)
+    });
 
-    div_with_content_strategy(prop::collection::vec(
-        prop_oneof![paragraph_content, utterance_content, list_content],
-        0..=4,
-    ))
+    div_with_content_strategy(
+        prop::collection::vec(recursive_content, 0..=4),
+        head_strategy,
+    )
 }
 
 fn text_only_div_strategy() -> impl Strategy<Value = Div> {
-    let paragraph_content = text_only_paragraph_strategy().prop_map(DivContent::Paragraph);
-    let utterance_content = text_only_utterance_strategy().prop_map(DivContent::Utterance);
-    let list_content = list_with_item_strategy(item_with_content_strategy(
-        text_only_inline_strategy().prop_map(|inline| vec![inline]),
-        text_only_inline_strategy().prop_map(|inline| vec![inline]),
-    ))
-    .prop_map(DivContent::List);
+    let head_strategy =
+        head_with_content_strategy(text_only_inline_strategy().prop_map(|inline| vec![inline]));
+    let leaf_content = prop_oneof![
+        text_only_paragraph_strategy().prop_map(DivContent::Paragraph),
+        text_only_utterance_strategy().prop_map(DivContent::Utterance),
+        list_with_item_strategy(item_with_content_strategy(
+            text_only_inline_strategy().prop_map(|inline| vec![inline]),
+            text_only_inline_strategy().prop_map(|inline| vec![inline]),
+        ))
+        .prop_map(DivContent::List),
+    ];
+    let recursive_content = leaf_content.prop_recursive(2, 24, 4, |inner| {
+        div_with_content_strategy(
+            prop::collection::vec(inner, 0..=3),
+            head_with_content_strategy(text_only_inline_strategy().prop_map(|inline| vec![inline])),
+        )
+        .prop_map(DivContent::Div)
+    });
 
-    div_with_content_strategy(prop::collection::vec(
-        prop_oneof![paragraph_content, utterance_content, list_content],
-        0..=4,
-    ))
+    div_with_content_strategy(
+        prop::collection::vec(recursive_content, 0..=4),
+        head_strategy,
+    )
 }
 
 #[cfg(test)]
@@ -293,6 +353,10 @@ mod tests {
 
     fn label_is_valid(label: &Label) -> bool {
         has_visible_content_slice(label.content())
+    }
+
+    fn head_is_valid(head: &Head) -> bool {
+        has_visible_content_slice(head.content())
     }
 
     fn item_is_valid(item: &Item) -> bool {
@@ -305,10 +369,15 @@ mod tests {
 
     fn div_is_valid(div: &Div) -> bool {
         !div.div_type().trim().is_empty()
+            && div
+                .subtype()
+                .is_none_or(|subtype| !subtype.trim().is_empty())
+            && div.head().is_none_or(head_is_valid)
             && div.content().iter().all(|content| match content {
                 DivContent::Paragraph(paragraph) => has_visible_content_slice(paragraph.content()),
                 DivContent::Utterance(utterance) => has_visible_content_slice(utterance.content()),
                 DivContent::List(list) => list_is_valid(list),
+                DivContent::Div(nested_div) => div_is_valid(nested_div),
             })
     }
 

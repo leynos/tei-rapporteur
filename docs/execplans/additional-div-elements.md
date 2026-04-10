@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -120,14 +120,27 @@ that should be a separate, explicit extension.
 
 - [x] 2026-04-10: Reviewed project guidance, existing structural-body work, and
   official TEI P5 references; drafted this ExecPlan.
-- [ ] Add failing unit and behavioural tests covering nested divisions,
-  `@subtype`, and `<head>`.
-- [ ] Extend the Rust core model and validation.
-- [ ] Extend the XML parser, emitter, fixtures, and schema validation.
-- [ ] Extend JSON Schema generation and property-based generators.
-- [ ] Extend Python projections, struct definitions, and streaming projections.
-- [ ] Update user-facing documentation and the design document.
-- [ ] Run the full repository quality gates and capture outcomes here.
+- [x] 2026-04-10 15:50 UTC: Added and updated unit, integration, BDD, schema,
+  fixture, and Python projection coverage for nested divisions, `@subtype`,
+  and optional `<head>`.
+- [x] 2026-04-10 15:50 UTC: Extended the Rust core model with `Head`,
+  `DivSubtype`, recursive `DivContent::Div`, and recursive validation for IDs
+  and pointers.
+- [x] 2026-04-10 15:50 UTC: Extended the XML parser, emitter, fixtures, and
+  Relax NG profile to support nested divisions, headings, and subtypes while
+  preserving the assembled `BodyBlock::Div` streaming contract.
+- [x] 2026-04-10 15:50 UTC: Extended JSON Schema generation, schema assertions,
+  and bounded arbitrary-data generators for recursive divisions.
+- [x] 2026-04-10 15:50 UTC: Extended Python projections, `msgspec.Struct`
+  definitions, and streaming payloads with recursive divisions plus optional
+  `head` and `subtype`.
+- [x] 2026-04-10 15:50 UTC: Updated `docs/users-guide.md` and
+  `docs/tei-rapporteur-design-document.md` to describe the recursive division
+  model and the single-head profile rule.
+- [x] 2026-04-10 16:05 UTC: Ran `make fmt`, `make json-schema`,
+  `make check-fmt`, `make lint`, `make test`, `make markdownlint`, and
+  `make nixie`. `make validate-xml` could not run to completion in this
+  environment because `jing` is not installed.
 
 ## Surprises & Discoveries
 
@@ -143,6 +156,13 @@ that should be a separate, explicit extension.
   the design document still says nested divisions are intentionally deferred,
   while the user’s guide already presents `Div` as a standard part of the
   supported body model. Both must be reconciled during implementation.
+- Splitting `tei-xml/src/streaming/handlers.rs` and
+  `tei-core/src/text/types.rs` became necessary during implementation because
+  the new recursive/division-heading logic would otherwise leave touched files
+  above the repository's 400-line ceiling.
+- `make validate-xml` is wired correctly but depends on an external `jing`
+  binary that is not installed in this environment, so XML-schema validation
+  must be rerun on a machine with `jing` available.
 
 ## Decision Log
 
@@ -166,16 +186,38 @@ that should be a separate, explicit extension.
 - Decision: retain the assembled-division streaming contract. Rationale:
   Python streaming consumers and existing tests already assume that each body
   event is a complete semantic block. Date: 2026-04-10.
+- Decision: split the streaming handler implementation into dedicated
+  start-element, finish-element, and content-handler modules during delivery.
+  Rationale: the recursive division work would otherwise leave the touched
+  handler file far above the repository’s 400-line limit. Date: 2026-04-10.
+- Decision: extract `DivType` and `DivSubtype` into
+  `tei-core/src/text/div_types.rs`. Rationale: the additional subtype support
+  would otherwise push `tei-core/src/text/types.rs` above the file-size limit
+  while mixing division-specific wrappers with unrelated identifier types.
+  Date: 2026-04-10.
 
 ## Outcomes & Retrospective
 
-This section is intentionally provisional because no implementation work has
-started yet. When the plan is executed, replace this paragraph with:
+Nested `<div>` elements, optional `@subtype`, and a single optional leading
+`<head>` now work end-to-end across the Rust core model, XML parsing/emission,
+JSON Schema publication, Python projections, and user-facing documentation.
+The canonical nested-division fixture parses, emits, validates inside Rust,
+serializes to JSON/MessagePack, projects to Python `msgspec.Struct` types, and
+round-trips through the updated tests.
 
-- the behaviour that now works end-to-end,
-- the commands that passed,
-- any deviations from the draft plan,
-- and the lessons learned that should guide future TEI subset work.
+The repository gates that completed successfully were:
+
+- `make fmt`
+- `make json-schema`
+- `make check-fmt`
+- `make lint`
+- `make test`
+- `make markdownlint`
+- `make nixie`
+
+The only incomplete gate is `make validate-xml`, which failed because `jing`
+is not installed in this environment. No code-level blocker remains for that
+step; it should pass once rerun where `jing` is available.
 
 ## Context and orientation
 

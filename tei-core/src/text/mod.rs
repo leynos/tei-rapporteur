@@ -19,13 +19,13 @@ mod inline;
 mod types;
 
 pub use body::{
-    BodyBlock, BodyContentError, Div, DivContent, Item, Label, List, P, TeiBody, Utterance,
+    BodyBlock, BodyContentError, Div, DivContent, Head, Item, Label, List, P, TeiBody, Utterance,
 };
 pub use inline::{Hi, Inline, Pause};
 pub use types::{
-    Certainty, CertaintyValidationError, DivType, DivTypeValidationError,
-    IdentifierValidationError, Pointer, PointerList, PointerListValidationError,
-    PointerValidationError, Speaker, SpeakerValidationError, XmlId,
+    Certainty, CertaintyValidationError, DivSubtype, DivSubtypeValidationError, DivType,
+    DivTypeValidationError, IdentifierValidationError, Pointer, PointerList,
+    PointerListValidationError, PointerValidationError, Speaker, SpeakerValidationError, XmlId,
 };
 
 /// Body of a TEI document, including paragraphs and utterances.

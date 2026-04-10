@@ -71,8 +71,9 @@ feel natural to Python users**.
 
 - The body model now treats `BodyBlock` as a three-variant enum:
   `Paragraph`, `Utterance`, and `Div`.
-- `Div` is intentionally shallow for now. It groups `Paragraph`,
-  `Utterance`, and `List` children, but nested `Div` elements remain deferred.
+- `Div` is now recursive. It groups `Paragraph`, `Utterance`, `List`, and
+  nested `Div` children, and also carries required `@type`, optional
+  `@subtype`, and a single optional leading `Head` wrapper for `<head>`.
 - `List` holds ordered `Item` values, and each `Item` may expose a dedicated
   `Label` node plus inline content and an optional `@corresp` pointer list.
 - The streaming parser buffers an entire `Div` before yielding a single
@@ -83,28 +84,28 @@ feel natural to Python users**.
 
 This design keeps the structural extension narrow enough to preserve the
 original ergonomics of the flat body model while still representing chaptered
-material, show notes, and itemized references. The core distinction is between
-top-level body blocks (`BodyBlock`) and content that is only valid inside a
-division (`DivContent`). `List`, `Item`, and `Label` remain nested-only types,
-which keeps the XML profile, JSON schema, and Python `msgspec.Struct` surface
-aligned around the same containment rules.
+material, nested show-note sections, and itemized references. The core
+distinction is between top-level body blocks (`BodyBlock`) and content that is
+only valid inside a division (`DivContent`). `List`, `Item`, `Label`, and
+`Head` remain nested-only types, which keeps the XML profile, JSON schema, and
+Python `msgspec.Struct` surface aligned around the same containment rules.
 
 The hybrid emitter is a deliberate compatibility choice. `quick_xml` remains
 responsible for header and stand-off serialization, where serde-derived output
 works well, but the body is emitted manually once structural blocks are
 present. This avoids the serialization failure mode around inline vectors while
-still preserving a single authoritative Rust model for `Div`, `List`, `Item`,
-and `Label`. The emitter therefore acts as a thin projection layer over
+still preserving a single authoritative Rust model for `Div`, `Head`, `List`,
+`Item`, and `Label`. The emitter therefore acts as a thin projection layer over
 validated domain objects rather than a second source of truth for document
 structure.
 
 The streaming parser follows the same boundary. Paragraphs and utterances can
 still be emitted as soon as their closing tags arrive, but a `Div` event is not
-yielded until the parser has accumulated all nested paragraphs, utterances,
-lists, items, and labels inside that division. This buffering keeps the event
-surface simple for consumers and avoids introducing paired container-open and
-container-close events that would complicate both Python decoding and behaviour
-tests.
+yielded until the parser has accumulated nested paragraphs, utterances, lists,
+headings, and child divisions inside that division. This buffering keeps the
+event surface simple for consumers and avoids introducing paired container-open
+and container-close events that would complicate both Python decoding and
+behaviour tests.
 
 Future structural variants should extend the system feature-first rather than
 layer-first. Adding a new nested body element requires coordinated updates to:
@@ -117,11 +118,11 @@ layer-first. Adding a new nested body element requires coordinated updates to:
 - the Python structs, projection layer, stubs, and streaming event unions
 - behavioural tests, fixtures, and user/developer documentation
 
-Nested `Div` remains intentionally deferred until a concrete use case requires
-it. Supporting recursive divisions would change the Rust enums, the Python type
-aliases, the streaming parser buffering strategy, and the published schemas, so
-it should arrive as an explicit model revision rather than an incidental
-follow-on.
+The Episodic profile intentionally narrows TEI here: a division may carry zero
+or one leading `<head>` rather than the full TEI allowance of multiple heads.
+That keeps the Rust enums, the Python type aliases, the streaming parser
+buffering strategy, and the published schemas aligned with the current roadmap
+without claiming to model the full text-structure chapter.
 
 ## Workspace scaffolding decisions
 

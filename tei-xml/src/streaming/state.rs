@@ -4,7 +4,7 @@
 //! pull parser to handle nested elements correctly and yield events at
 //! appropriate boundaries.
 
-use tei_core::{DivContent, Inline, Item, Label};
+use tei_core::{DivContent, Head, Inline, Item, Label};
 
 /// Raw TEI utterance attributes captured during streaming parsing.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -97,10 +97,24 @@ pub enum ParserState {
     InDiv {
         /// Required `@type` attribute.
         div_type: String,
+        /// Optional `@subtype` attribute.
+        subtype: Option<String>,
         /// Optional `xml:id` attribute.
         id: Option<String>,
+        /// Optional heading captured before any child content.
+        head: Option<Head>,
+        /// Optional parent div state for nested divisions.
+        parent_div: Option<Box<ParserState>>,
         /// Accumulated content.
         content: Vec<DivContent>,
+    },
+
+    /// Inside a `<head>` element within a `<div>`.
+    InHead {
+        /// The parent div state to return to after closing `</head>`.
+        parent_div: Option<Box<ParserState>>,
+        /// Accumulated inline content.
+        content: Vec<Inline>,
     },
 
     /// Inside a `<list>` element within a `<div>`, accumulating items.
@@ -193,10 +207,31 @@ impl ParserState {
 
     /// Creates a new `InDiv` state with the given type and optional id.
     #[must_use]
-    pub const fn in_div(div_type: String, id: Option<String>) -> Self {
+    pub const fn in_div(div_type: String, subtype: Option<String>, id: Option<String>) -> Self {
         Self::InDiv {
             div_type,
+            subtype,
             id,
+            head: None,
+            parent_div: None,
+            content: Vec::new(),
+        }
+    }
+
+    /// Creates a new nested `InDiv` state with the given parent division.
+    #[must_use]
+    pub fn nested_div(
+        parent_div: Self,
+        div_type: String,
+        subtype: Option<String>,
+        id: Option<String>,
+    ) -> Self {
+        Self::InDiv {
+            div_type,
+            subtype,
+            id,
+            head: None,
+            parent_div: Some(Box::new(parent_div)),
             content: Vec::new(),
         }
     }
@@ -238,6 +273,15 @@ impl ParserState {
         }
     }
 
+    /// Creates a new `InHead` state with the given parent division.
+    #[must_use]
+    pub fn in_head(parent_div: Self) -> Self {
+        Self::InHead {
+            parent_div: Some(Box::new(parent_div)),
+            content: Vec::new(),
+        }
+    }
+
     /// Returns a mutable reference to the inline content of the current block state, if any.
     #[expect(
         clippy::missing_const_for_fn,
@@ -249,6 +293,7 @@ impl ParserState {
             | Self::InUtterance { content, .. }
             | Self::InEmphasis { content, .. }
             | Self::InItem { content, .. }
+            | Self::InHead { content, .. }
             | Self::InLabel { content, .. } => Some(content),
             _ => None,
         }
@@ -299,6 +344,7 @@ mod tests {
                 Self::InParagraph { .. }
                     | Self::InUtterance { .. }
                     | Self::InEmphasis { .. }
+                    | Self::InHead { .. }
                     | Self::InItem { .. }
                     | Self::InLabel { .. }
             )
@@ -337,7 +383,7 @@ mod tests {
         assert!(emphasis.is_in_block());
 
         let item = ParserState::in_item(
-            ParserState::in_list(ParserState::in_div("section".into(), None), None),
+            ParserState::in_list(ParserState::in_div("section".into(), None, None), None),
             Some("item1".into()),
             None,
             None,
@@ -362,7 +408,7 @@ mod tests {
 
     #[test]
     fn push_inline_in_item_state() {
-        let parent = ParserState::in_list(ParserState::in_div("section".into(), None), None);
+        let parent = ParserState::in_list(ParserState::in_div("section".into(), None, None), None);
         let mut item_state =
             ParserState::in_item(parent, Some("i1".into()), Some("1".into()), None);
         item_state.push_inline(Inline::Text("Item content".into()));
@@ -374,7 +420,7 @@ mod tests {
     #[test]
     fn push_inline_in_label_state() {
         let parent_item = ParserState::in_item(
-            ParserState::in_list(ParserState::in_div("section".into(), None), None),
+            ParserState::in_list(ParserState::in_div("section".into(), None, None), None),
             None,
             None,
             None,
@@ -384,6 +430,16 @@ mod tests {
 
         let content = label_state.take_content();
         assert_eq!(content, vec![Inline::Text("Label:".into())]);
+    }
+
+    #[test]
+    fn push_inline_in_head_state() {
+        let parent_div = ParserState::in_div("section".into(), None, None);
+        let mut head_state = ParserState::in_head(parent_div);
+        head_state.push_inline(Inline::Text("Heading".into()));
+
+        let content = head_state.take_content();
+        assert_eq!(content, vec![Inline::Text("Heading".into())]);
     }
 
     #[test]

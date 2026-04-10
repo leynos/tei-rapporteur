@@ -308,11 +308,20 @@
       <attribute name="type">
         <text/>
       </attribute>
+      <optional>
+        <attribute name="subtype">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <ref name="head"/>
+      </optional>
       <zeroOrMore>
         <choice>
           <ref name="p"/>
           <ref name="u"/>
           <ref name="list"/>
+          <ref name="div"/>
         </choice>
       </zeroOrMore>
     </element>

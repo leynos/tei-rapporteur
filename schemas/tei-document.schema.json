@@ -138,8 +138,27 @@
           "required": [
             "list"
           ]
+        },
+        {
+          "description": "Nested division block.",
+          "type": "object",
+          "properties": {
+            "div": {
+              "$ref": "#/$defs/div"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "div"
+          ]
         }
       ]
+    },
+    "DivSubtype": {
+      "description": "Validated wrapper for division `@subtype` attributes.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     },
     "DivType": {
       "description": "Validated wrapper for division `@type` attributes.",
@@ -301,6 +320,16 @@
             "$ref": "#/$defs/DivContent"
           }
         },
+        "@subtype": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DivSubtype"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "@type": {
           "$ref": "#/$defs/DivType"
         },
@@ -308,6 +337,16 @@
           "anyOf": [
             {
               "$ref": "#/$defs/XmlId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "head": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/head"
             },
             {
               "type": "null"
@@ -364,6 +403,19 @@
       "required": [
         "title"
       ]
+    },
+    "head": {
+      "description": "Heading prefix for a structural division, containing inline content.",
+      "type": "object",
+      "properties": {
+        "$value": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Inline"
+          }
+        }
+      }
     },
     "hi": {
       "description": "Emphasised inline element corresponding to `<hi>`.",

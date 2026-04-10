@@ -5,6 +5,7 @@
 
 mod div;
 mod error;
+mod head;
 mod item;
 mod list;
 mod paragraph;
@@ -13,6 +14,7 @@ mod validation;
 
 pub use div::{Div, DivContent};
 pub use error::BodyContentError;
+pub use head::Head;
 pub use item::{Item, Label};
 pub use list::List;
 pub use paragraph::P;

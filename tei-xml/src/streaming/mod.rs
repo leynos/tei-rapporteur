@@ -38,7 +38,9 @@
 //! }
 //! ```
 
+mod content_handlers;
 mod event;
+mod finish_handlers;
 mod handlers;
 mod helpers;
 mod parser;

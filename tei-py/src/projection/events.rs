@@ -66,6 +66,12 @@ pub(crate) enum PyEvent {
         xml_id: Option<String>,
         /// Required `@type` attribute.
         div_type: String,
+        /// Optional `@subtype` attribute.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subtype: Option<String>,
+        /// Optional heading content.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        head: Option<super::PyHead>,
         /// Content of the division.
         content: Vec<PyDivContent>,
     },
@@ -120,10 +126,14 @@ fn py_event_from_body_block(block: &BodyBlock) -> PyEvent {
         PyBodyBlock::Div {
             xml_id,
             div_type,
+            subtype,
+            head,
             content,
         } => PyEvent::Div {
             xml_id,
             div_type,
+            subtype,
+            head,
             content,
         },
     }

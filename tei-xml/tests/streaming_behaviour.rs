@@ -607,6 +607,27 @@ const DIV_WITH_LIST_FIXTURE: &str = concat!(
     "</TEI>",
 );
 
+const NESTED_DIV_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Test</title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">",
+    "<head>Chapter markers</head>",
+    "<div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">",
+    "<head>Cold open</head>",
+    "<u who=\"host\">Welcome back.</u>",
+    "</div>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 #[test]
 fn streams_div_with_paragraphs_and_list_items() -> anyhow::Result<()> {
     use tei_core::{Div, DivContent};
@@ -679,6 +700,62 @@ fn streams_div_with_paragraphs_and_list_items() -> anyhow::Result<()> {
             .iter()
             .any(|i| matches!(i, Inline::Text(t) if t == "Second item")),
         "second item should contain 'Second item'"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn streams_nested_divs_with_headings_and_subtypes() -> anyhow::Result<()> {
+    use tei_core::DivContent;
+
+    let parser = TeiPullParser::from_str(NESTED_DIV_FIXTURE);
+
+    let mut divs = Vec::new();
+    for event in parser {
+        if let TeiEvent::BodyBlock(BodyBlock::Div(div)) = event? {
+            divs.push(div);
+        }
+    }
+
+    ensure!(
+        divs.len() == 1,
+        "expected exactly one top-level Div body block"
+    );
+    let div = divs.first().expect("should have a top-level div");
+    ensure!(div.div_type() == "segment", "expected top-level div type");
+    ensure!(
+        div.subtype() == Some("chapter-markers"),
+        "expected top-level div subtype"
+    );
+    ensure!(
+        div.head().is_some_and(|head| {
+            head.content()
+                .iter()
+                .any(|inline| matches!(inline, Inline::Text(text) if text == "Chapter markers"))
+        }),
+        "expected top-level heading text"
+    );
+
+    let Some(DivContent::Div(child)) = div.content().first() else {
+        bail!("expected nested div as first child");
+    };
+    ensure!(child.div_type() == "segment", "expected nested div type");
+    ensure!(
+        child.subtype() == Some("chapter-marker"),
+        "expected nested div subtype"
+    );
+    ensure!(
+        child.head().is_some_and(|head| {
+            head.content()
+                .iter()
+                .any(|inline| matches!(inline, Inline::Text(text) if text == "Cold open"))
+        }),
+        "expected nested heading text"
+    );
+    ensure!(
+        matches!(child.content().first(), Some(DivContent::Utterance(_))),
+        "expected nested utterance content"
     );
 
     Ok(())

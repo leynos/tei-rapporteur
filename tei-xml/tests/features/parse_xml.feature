@@ -26,3 +26,9 @@ Feature: Parse TEI XML
     When I parse the TEI input
     Then parsing succeeds
     And the parsed document includes stand-off annotations and citation declarations
+
+  Scenario: Parse TEI with nested divisions, headings, and subtypes
+    Given the TEI fixture "nested-div"
+    When I parse the TEI input
+    Then parsing succeeds
+    And the parsed document includes nested divisions with headings and subtypes

@@ -79,6 +79,10 @@ pub(crate) enum PyBodyBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         xml_id: Option<String>,
         div_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subtype: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        head: Option<PyHead>,
         content: Vec<PyDivContent>,
     },
 }
@@ -119,6 +123,17 @@ pub(crate) enum PyDivContent {
         xml_id: Option<String>,
         items: Vec<PyItem>,
     },
+    #[serde(rename = "div")]
+    Div {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xml_id: Option<String>,
+        div_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subtype: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        head: Option<PyHead>,
+        content: Vec<PyDivContent>,
+    },
 }
 
 /// A list item projected for Python.
@@ -138,6 +153,12 @@ pub(crate) struct PyItem {
 /// A label prefix projected for Python.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub(crate) struct PyLabel {
+    content: Vec<PyInline>,
+}
+
+/// A division heading projected for Python.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) struct PyHead {
     content: Vec<PyInline>,
 }
 

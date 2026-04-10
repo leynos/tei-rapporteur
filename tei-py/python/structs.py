@@ -19,6 +19,7 @@ __all__ = [
     "Episode",
     "Event",
     "FileDesc",
+    "Head",
     "HeaderEvent",
     "Inline",
     "InlineHi",
@@ -164,7 +165,10 @@ class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
             raise ValueError("ListBlock must contain at least one Item")
 
 
-DivContent: TypeAlias = TextBlock | ListBlock
+class Head(msgspec.Struct, omit_defaults=True):
+    """Division heading attached to the start of a structural division."""
+
+    content: list[Inline] = msgspec.field(default_factory=list)
 
 
 class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
@@ -176,6 +180,10 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     ----------
     div_type : str
         Required TEI ``@type`` value describing the division's role.
+    subtype : str | None
+        Optional TEI ``@subtype`` value refining ``div_type``.
+    head : Head | None
+        Optional heading emitted before the division's child blocks.
     content : list[DivContent]
         Ordered child blocks within the division.
     xml_id : str | None
@@ -187,12 +195,17 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     such as chaptered material or show notes.
     """
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = msgspec.field(default_factory=list)
     xml_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.div_type.strip():
             raise ValueError("DivBlock.div_type must contain non-whitespace text")
+
+
+DivContent: TypeAlias = TextBlock | ListBlock | DivBlock
 
 
 BodyBlock: TypeAlias = TextBlock | DivBlock

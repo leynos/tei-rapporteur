@@ -5,7 +5,7 @@ use anyhow::{Context, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{TeiDocument, TeiError};
+use tei_core::{BodyBlock, DivContent, TeiDocument, TeiError};
 use tei_test_helpers::expect_validated_state;
 use tei_xml::parse_xml;
 
@@ -76,6 +76,27 @@ const ANNOTATED_FIXTURE: &str = concat!(
     "</TEI>",
 );
 
+const NESTED_DIV_FIXTURE: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Nested</title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">",
+    "<head>Chapter markers</head>",
+    "<div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">",
+    "<head>Cold open</head>",
+    "<u who=\"host\">Welcome back.</u>",
+    "</div>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 type DocumentResult = std::result::Result<TeiDocument, TeiError>;
 
 #[derive(Default)]
@@ -117,6 +138,7 @@ fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
         "unterminated" => Ok(UNTERMINATED_FIXTURE),
         "blank-title" => Ok(BLANK_TITLE_FIXTURE),
         "annotated" => Ok(ANNOTATED_FIXTURE),
+        "nested-div" => Ok(NESTED_DIV_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
@@ -234,6 +256,38 @@ fn parsed_document_includes_richer_tei(
     Ok(())
 }
 
+#[then("the parsed document includes nested divisions with headings and subtypes")]
+fn parsed_document_includes_nested_divisions(
+    #[from(validated_state)] state: &ParseState,
+) -> anyhow::Result<()> {
+    let document = state
+        .result()?
+        .context("expected successful parse before asserting nested divisions")?;
+    let Some(BodyBlock::Div(div)) = document.text().body().blocks().first() else {
+        bail!("expected a top-level div body block");
+    };
+    ensure!(
+        div.subtype() == Some("chapter-markers"),
+        "expected top-level div subtype to be chapter-markers"
+    );
+    ensure!(
+        div.head().is_some_and(|head| head.content().len() == 1),
+        "expected top-level div head content"
+    );
+    let Some(DivContent::Div(child)) = div.content().first() else {
+        bail!("expected nested div as first child");
+    };
+    ensure!(
+        child.subtype() == Some("chapter-marker"),
+        "expected nested div subtype to be chapter-marker"
+    );
+    ensure!(
+        child.head().is_some_and(|head| head.content().len() == 1),
+        "expected nested div head content"
+    );
+    Ok(())
+}
+
 #[scenario(path = "tests/features/parse_xml.feature", index = 0)]
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
@@ -252,6 +306,14 @@ fn reports_missing_headers(
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 2)]
 fn reports_malformed_xml(
+    #[from(validated_state)] _: ParseState,
+    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
+) {
+    expect_validated_state(result, "parse");
+}
+
+#[scenario(path = "tests/features/parse_xml.feature", index = 5)]
+fn parses_nested_divisions(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
 ) {

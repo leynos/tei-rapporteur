@@ -40,6 +40,7 @@ fn apply_profile_constraints(schema: &mut Map<String, Value>) {
     apply_citation_constraints(definitions);
     apply_stand_off_constraints(definitions);
     apply_div_type_constraints(definitions);
+    apply_div_subtype_constraints(definitions);
 }
 
 fn apply_refs_decl_constraints(definitions: &mut Map<String, Value>) {
@@ -138,15 +139,20 @@ fn apply_stand_off_constraints(definitions: &mut Map<String, Value>) {
 }
 
 fn apply_div_type_constraints(definitions: &mut Map<String, Value>) {
-    let Some(div_type) = definitions
-        .get_mut("DivType")
-        .and_then(Value::as_object_mut)
-    else {
+    apply_non_empty_string_definition(definitions, "DivType");
+}
+
+fn apply_div_subtype_constraints(definitions: &mut Map<String, Value>) {
+    apply_non_empty_string_definition(definitions, "DivSubtype");
+}
+
+fn apply_non_empty_string_definition(definitions: &mut Map<String, Value>, name: &str) {
+    let Some(schema) = definitions.get_mut(name).and_then(Value::as_object_mut) else {
         return;
     };
-    // Enforce non-empty, non-whitespace validation matching the Rust newtype
-    div_type.insert("minLength".to_owned(), Value::from(1));
-    div_type.insert("pattern".to_owned(), Value::String("\\S".to_owned()));
+    // Enforce non-empty, non-whitespace validation matching the Rust newtypes.
+    schema.insert("minLength".to_owned(), Value::from(1));
+    schema.insert("pattern".to_owned(), Value::String("\\S".to_owned()));
 }
 
 fn set_min_length(properties: &mut Map<String, Value>, name: &str, min_length: u64) {

@@ -87,3 +87,16 @@ Feature: TEI document validation
     When I add a division "show-notes" containing an item with corresp "#missing"
     And I validate the document
     Then validation fails with "internal pointer '#missing' in @corresp does not resolve"
+
+  Scenario: Rejecting duplicate xml:id values inside nested divisions
+    Given a TEI document titled "Night Vale"
+    When I add a nested division "segments" containing a child item with id "dup"
+    And I add a paragraph "Intro" with id "dup"
+    And I validate the document
+    Then validation fails with "duplicate xml:id 'dup'"
+
+  Scenario: Rejecting unresolved item corresp pointers inside nested divisions
+    Given a TEI document titled "Night Vale"
+    When I add a nested division "segments" containing a child item with corresp "#missing"
+    And I validate the document
+    Then validation fails with "internal pointer '#missing' in @corresp does not resolve"

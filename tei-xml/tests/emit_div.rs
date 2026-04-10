@@ -118,6 +118,25 @@ const COMPLEX_DIV: &str = concat!(
     "</TEI>",
 );
 
+const NESTED_DIV_WITH_HEAD: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc><title>Test</title></fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">",
+    "<head>Chapter markers</head>",
+    "<div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">",
+    "<head>Cold open</head>",
+    "<u who=\"host\">Welcome back.</u>",
+    "</div>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 #[test]
 fn round_trips_div_structure() {
     let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
@@ -190,4 +209,35 @@ fn round_trips_div_list_content() {
     assert_eq!(second_item.corresp(), None);
     assert!(second_item.label().is_none());
     assert_eq!(second_item.content(), &[Inline::Text("Second".into())]);
+}
+
+#[test]
+fn emits_nested_div_with_head_and_subtype_before_children() {
+    let document = parse_xml(NESTED_DIV_WITH_HEAD).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+
+    assert!(xml.contains("<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">"));
+    assert!(xml.contains("<head>Chapter markers</head><div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">"));
+    assert!(xml.contains("<head>Cold open</head><u who=\"host\">Welcome back.</u>"));
+}
+
+#[test]
+fn round_trips_nested_div_with_head_and_subtype() {
+    let document = parse_xml(NESTED_DIV_WITH_HEAD).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+    let parsed = parse_xml(&xml).expect("emitted XML should parse");
+
+    let parsed_div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a top-level div");
+    assert_eq!(parsed_div.subtype(), Some("chapter-markers"));
+    assert!(parsed_div.head().is_some());
+    let Some(DivContent::Div(child)) = parsed_div.content().first() else {
+        panic!("expected nested div as first child");
+    };
+    assert_eq!(child.subtype(), Some("chapter-marker"));
+    assert!(child.head().is_some());
 }

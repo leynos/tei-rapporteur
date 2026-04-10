@@ -6,7 +6,7 @@
 use quick_xml::events::{BytesEnd, BytesRef, BytesStart};
 
 use tei_core::{
-    BodyContentError, Certainty, Div, DivContent, Hi, Inline, Item, Label, List, P, Pause,
+    BodyContentError, Certainty, Div, DivContent, Head, Hi, Inline, Item, Label, List, P, Pause,
     PointerList, TeiError, Utterance,
 };
 
@@ -202,19 +202,35 @@ pub fn build_pause(dur: Option<String>, pause_type: Option<String>) -> Pause {
     pause
 }
 
-/// Builds a Div from type, optional ID, and content.
-pub fn build_div(
-    div_type: String,
-    id: Option<String>,
-    content: Vec<DivContent>,
-) -> Result<Div, TeiError> {
-    let mut div = Div::new(div_type).map_err(|e| TeiError::xml(e.to_string()))?;
-    apply_id(&mut div, id, Div::set_id)?;
+/// Raw attributes collected for a `<div>` element during parsing.
+pub struct RawDivAttrs {
+    /// Required `@type` attribute.
+    pub div_type: String,
+    /// Optional `@subtype` attribute.
+    pub subtype: Option<String>,
+    /// Optional `xml:id` attribute.
+    pub id: Option<String>,
+    /// Optional `<head>` child element.
+    pub head: Option<Head>,
+}
+
+/// Builds a Div from raw attributes and child content.
+pub fn build_div(attrs: RawDivAttrs, content: Vec<DivContent>) -> Result<Div, TeiError> {
+    let mut div = Div::new(attrs.div_type).map_err(|e| TeiError::xml(e.to_string()))?;
+    if let Some(subtype_value) = attrs.subtype {
+        div.set_subtype(subtype_value)
+            .map_err(|e| TeiError::xml(e.to_string()))?;
+    }
+    apply_id(&mut div, attrs.id, Div::set_id)?;
+    if let Some(heading) = attrs.head {
+        div.set_head(heading);
+    }
     for item in content {
         match item {
             DivContent::Paragraph(p) => div.push_paragraph(p),
             DivContent::Utterance(u) => div.push_utterance(u),
             DivContent::List(l) => div.push_list(l),
+            DivContent::Div(nested_div) => div.push_div(nested_div),
         }
     }
     Ok(div)
@@ -272,6 +288,15 @@ pub fn build_label(content: Vec<Inline>) -> Result<Label, TeiError> {
         Label::from_text("").map_err(|e| TeiError::xml(e.to_string()))
     } else {
         Label::new(content).map_err(|e| TeiError::xml(e.to_string()))
+    }
+}
+
+/// Builds a Head from inline content.
+pub fn build_head(content: Vec<Inline>) -> Result<Head, TeiError> {
+    if content.is_empty() {
+        Head::from_text("").map_err(|e| TeiError::xml(e.to_string()))
+    } else {
+        Head::new(content).map_err(|e| TeiError::xml(e.to_string()))
     }
 }
 

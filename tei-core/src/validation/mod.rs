@@ -137,9 +137,8 @@ fn validate_div(
                 }
                 validate_speaker_reference(utterance, known_speakers)?;
             }
-            DivContent::List(list) => {
-                validate_list(list, seen_ids)?;
-            }
+            DivContent::List(list) => validate_list(list, seen_ids)?,
+            DivContent::Div(nested_div) => validate_div(nested_div, seen_ids, known_speakers)?,
         }
     }
 

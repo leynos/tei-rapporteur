@@ -47,6 +47,9 @@ fn validate_div_pointers(
             DivContent::List(list) => {
                 validate_list_pointers(list, known_ids)?;
             }
+            DivContent::Div(nested_div) => {
+                validate_div_pointers(nested_div, known_ids)?;
+            }
             DivContent::Paragraph(_) => {}
         }
     }
