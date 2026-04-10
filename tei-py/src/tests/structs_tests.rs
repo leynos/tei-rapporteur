@@ -4,7 +4,7 @@ use super::*;
 use crate::test_support::ensure_msgspec_installed;
 use pyo3::{
     Py, Python,
-    exceptions::PyAttributeError,
+    exceptions::{PyAttributeError, PyValueError},
     types::{PyAnyMethods, PyDict, PyModule},
 };
 use rstest::{fixture, rstest};
@@ -168,5 +168,57 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Opt
             document_from_msgpack(updated_payload.as_slice()).expect("payload should decode");
 
         assert_eq!(round_tripped.title().as_str(), "Bridgewater Remix");
+    });
+}
+
+#[rstest]
+fn list_block_rejects_empty_items(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    Python::with_gil(|py| {
+        let bound_module = registered_module.bind(py);
+        let structs = bound_module.getattr("structs").expect("structs module");
+        let list_block_type = structs.getattr("ListBlock").expect("ListBlock class");
+
+        let error = list_block_type
+            .call0()
+            .expect_err("ListBlock should reject empty items");
+        assert!(
+            error.is_instance_of::<PyValueError>(py),
+            "empty ListBlock should raise ValueError"
+        );
+        assert!(
+            error
+                .to_string()
+                .contains("ListBlock must contain at least one Item"),
+            "error should explain the ListBlock invariant"
+        );
+    });
+}
+
+#[rstest]
+fn div_block_rejects_blank_type(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    Python::with_gil(|py| {
+        let bound_module = registered_module.bind(py);
+        let structs = bound_module.getattr("structs").expect("structs module");
+        let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");
+
+        let error = div_block_type
+            .call1(("   ",))
+            .expect_err("DivBlock should reject blank div_type values");
+        assert!(
+            error.is_instance_of::<PyValueError>(py),
+            "blank DivBlock div_type should raise ValueError"
+        );
+        assert!(
+            error
+                .to_string()
+                .contains("DivBlock.div_type must contain non-whitespace text"),
+            "error should explain the DivBlock invariant"
+        );
     });
 }

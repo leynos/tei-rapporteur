@@ -467,6 +467,17 @@
                 <elementRef key="pause"/>
               </alternate>
             </content>
+            <constraintSpec ident="label-non-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:label">
+                  <sch:assert
+                    test="string-length(normalize-space(.)) &gt; 0 or .//tei:pause"
+                  >
+                    Labels must contain non-whitespace text or a pause element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
           </elementSpec>
 
           <elementSpec ident="standOff" mode="change">

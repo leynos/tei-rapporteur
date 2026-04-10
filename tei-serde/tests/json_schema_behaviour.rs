@@ -366,6 +366,7 @@ fn schema_has_variant(
     schema: &serde_json::Value,
     variant_path: &str,
     expected_property_path: &str,
+    expected_ref_suffix: &str,
 ) -> bool {
     schema
         .pointer(variant_path)
@@ -375,7 +376,7 @@ fn schema_has_variant(
                 variant
                     .pointer(expected_property_path)
                     .and_then(serde_json::Value::as_str)
-                    .is_some()
+                    .is_some_and(|reference| reference.ends_with(expected_ref_suffix))
             })
         })
 }
@@ -392,19 +393,39 @@ fn assert_schema_definitions(schema: &serde_json::Value) -> Result<()> {
 
 fn assert_schema_variants(schema: &serde_json::Value) -> Result<()> {
     ensure!(
-        schema_has_variant(schema, "/$defs/BodyBlock/oneOf", "/properties/div/$ref"),
+        schema_has_variant(
+            schema,
+            "/$defs/BodyBlock/oneOf",
+            "/properties/div/$ref",
+            "#/$defs/div",
+        ),
         "BodyBlock schema should include the `div` variant"
     );
     ensure!(
-        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/p/$ref"),
+        schema_has_variant(
+            schema,
+            "/$defs/DivContent/oneOf",
+            "/properties/p/$ref",
+            "#/$defs/p",
+        ),
         "DivContent schema should include the `p` variant"
     );
     ensure!(
-        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/u/$ref"),
+        schema_has_variant(
+            schema,
+            "/$defs/DivContent/oneOf",
+            "/properties/u/$ref",
+            "#/$defs/u",
+        ),
         "DivContent schema should include the `u` variant"
     );
     ensure!(
-        schema_has_variant(schema, "/$defs/DivContent/oneOf", "/properties/list/$ref"),
+        schema_has_variant(
+            schema,
+            "/$defs/DivContent/oneOf",
+            "/properties/list/$ref",
+            "#/$defs/list",
+        ),
         "DivContent schema should include the `list` variant"
     );
     Ok(())
@@ -436,6 +457,16 @@ fn assert_document_shape(document: &TeiDocument) -> Result<()> {
     Ok(())
 }
 
+fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/$value/1/list/$value/0/label")
+            .is_some_and(|label| !label.is_null()),
+        "serialized document should include the list item label"
+    );
+    Ok(())
+}
+
 #[test]
 fn schema_includes_structural_body_definitions() -> Result<()> {
     let document = structural_document();
@@ -452,5 +483,6 @@ fn schema_includes_structural_body_definitions() -> Result<()> {
     assert_schema_definitions(&schema)?;
     assert_schema_variants(&schema)?;
     assert_document_shape(&document)?;
+    assert_instance_shape(&instance)?;
     Ok(())
 }

@@ -10,6 +10,9 @@ __all__ = [
     "BodyBlock",
     "CiteData",
     "CiteStructure",
+    "DivBlock",
+    "DivContent",
+    "DivEvent",
     "DocumentEnd",
     "DocumentStart",
     "EncodingDesc",
@@ -17,13 +20,13 @@ __all__ = [
     "Event",
     "FileDesc",
     "HeaderEvent",
-    "Item",
     "Inline",
     "InlineHi",
-    "Label",
-    "ListBlock",
     "InlinePause",
     "InlineText",
+    "Item",
+    "Label",
+    "ListBlock",
     "Paragraph",
     "ParagraphEvent",
     "ProfileDesc",
@@ -37,9 +40,6 @@ __all__ = [
     "TeiHeader",
     "TeiText",
     "Utterance",
-    "DivBlock",
-    "DivContent",
-    "DivEvent",
     "UtteranceEvent",
 ]
 
@@ -159,6 +159,10 @@ class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
     items: list[Item] = msgspec.field(default_factory=list)
     xml_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if not self.items:
+            raise ValueError("ListBlock must contain at least one Item")
+
 
 DivContent: TypeAlias = TextBlock | ListBlock
 
@@ -185,6 +189,10 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     div_type: str
     content: list[DivContent] = msgspec.field(default_factory=list)
     xml_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.div_type.strip():
+            raise ValueError("DivBlock.div_type must contain non-whitespace text")
 
 
 BodyBlock: TypeAlias = TextBlock | DivBlock

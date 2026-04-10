@@ -19,7 +19,8 @@
 
 use proptest::prelude::*;
 use tei_core::{
-    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, TeiBody, TeiText, Utterance,
+    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, PointerList, TeiBody, TeiText,
+    Utterance,
 };
 
 use super::inline::{
@@ -164,10 +165,11 @@ where
             String::from("intro"),
             String::from("link"),
         ])),
+        proptest::option::of(prop::collection::vec(xml_id_strategy(), 1..=3)),
         proptest::option::of(label_with_content_strategy(label_content_strategy)),
         content_strategy,
     )
-        .prop_map(|(id, n, label, content)| {
+        .prop_map(|(id, n, corresp_ids, label, content)| {
             let mut item = Item::new(content)
                 .unwrap_or_else(|error| panic!("generated item content should be valid: {error}"));
             if let Some(id_value) = id {
@@ -177,6 +179,15 @@ where
             if let Some(n_value) = n {
                 item.set_n(n_value)
                     .unwrap_or_else(|error| panic!("generated @n should be valid: {error}"));
+            }
+            if let Some(corresp_values) = corresp_ids {
+                let corresp = PointerList::new(
+                    corresp_values
+                        .into_iter()
+                        .map(|pointer_id| format!("#{pointer_id}")),
+                )
+                .unwrap_or_else(|error| panic!("generated @corresp should be valid: {error}"));
+                item.set_corresp(corresp);
             }
             if let Some(label_value) = label {
                 item.set_label(label_value);
@@ -279,6 +290,27 @@ mod tests {
     use super::*;
     use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
+    fn label_is_valid(label: &Label) -> bool {
+        has_visible_content_slice(label.content())
+    }
+
+    fn item_is_valid(item: &Item) -> bool {
+        has_visible_content_slice(item.content()) && item.label().is_none_or(label_is_valid)
+    }
+
+    fn list_is_valid(list: &List) -> bool {
+        !list.items().is_empty() && list.items().iter().all(item_is_valid)
+    }
+
+    fn div_is_valid(div: &Div) -> bool {
+        !div.div_type().trim().is_empty()
+            && div.content().iter().all(|content| match content {
+                DivContent::Paragraph(paragraph) => has_visible_content_slice(paragraph.content()),
+                DivContent::Utterance(utterance) => has_visible_content_slice(utterance.content()),
+                DivContent::List(list) => list_is_valid(list),
+            })
+    }
+
     #[test]
     fn paragraph_strategy_produces_valid_paragraphs() {
         assert_strategy_produces_valid_values(paragraph_strategy(), |paragraph| {
@@ -300,7 +332,7 @@ mod tests {
             body.blocks().iter().all(|block| match block {
                 BodyBlock::Paragraph(p) => has_visible_content_slice(p.content()),
                 BodyBlock::Utterance(u) => has_visible_content_slice(u.content()),
-                BodyBlock::Div(div) => !div.div_type().trim().is_empty(),
+                BodyBlock::Div(div) => div_is_valid(div),
             })
         });
     }
