@@ -14,6 +14,15 @@ use super::helpers::{
 use super::parser::TeiPullParser;
 use super::state::ParserState;
 
+fn combine_result_with_parent<V>(
+    built: Result<V, TeiError>,
+    parent: Option<Box<ParserState>>,
+    context: &'static str,
+) -> Option<Result<(V, Box<ParserState>), TeiError>> {
+    let parent_result = parent.ok_or_else(|| TeiError::xml(context));
+    Some(built.and_then(|v| parent_result.map(|p| (v, p))))
+}
+
 /// End element handlers.
 impl<R: BufRead> TeiPullParser<R> {
     /// Handles closing of header elements and emits Header event when complete.
@@ -141,13 +150,10 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                let built_label = build_label(std::mem::take(content));
-                let parent_state = parent_item
-                    .take()
-                    .ok_or_else(|| TeiError::xml("internal error: InLabel parent was None"));
-                Some(
-                    built_label
-                        .and_then(|label_value| parent_state.map(|parent| (label_value, parent))),
+                combine_result_with_parent(
+                    build_label(std::mem::take(content)),
+                    parent_item.take(),
+                    "internal error: InLabel parent was None",
                 )
             },
             |label, parent_state| {
@@ -172,13 +178,10 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                let built_head = build_head(std::mem::take(content));
-                let parent_state = parent_div
-                    .take()
-                    .ok_or_else(|| TeiError::xml("internal error: InHead parent was None"));
-                Some(
-                    built_head
-                        .and_then(|head_value| parent_state.map(|parent| (head_value, parent))),
+                combine_result_with_parent(
+                    build_head(std::mem::take(content)),
+                    parent_div.take(),
+                    "internal error: InHead parent was None",
                 )
             },
             |head, parent_state| {
@@ -204,21 +207,18 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                let built_item = build_item(
-                    RawItemAttrs {
-                        id: item_id.take(),
-                        n: item_n.take(),
-                        corresp: item_corresp.take(),
-                        label: label.take(),
-                    },
-                    std::mem::take(content),
-                );
-                let parent_state = parent_list
-                    .take()
-                    .ok_or_else(|| TeiError::xml("internal error: InItem parent was None"));
-                Some(
-                    built_item
-                        .and_then(|item_value| parent_state.map(|parent| (item_value, parent))),
+                combine_result_with_parent(
+                    build_item(
+                        RawItemAttrs {
+                            id: item_id.take(),
+                            n: item_n.take(),
+                            corresp: item_corresp.take(),
+                            label: label.take(),
+                        },
+                        std::mem::take(content),
+                    ),
+                    parent_list.take(),
+                    "internal error: InItem parent was None",
                 )
             },
             |item, parent_state| {
@@ -241,13 +241,10 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                let built_list = build_list(list_id.take(), std::mem::take(items));
-                let parent_state = parent_div
-                    .take()
-                    .ok_or_else(|| TeiError::xml("internal error: InList parent was None"));
-                Some(
-                    built_list
-                        .and_then(|list_value| parent_state.map(|parent| (list_value, parent))),
+                combine_result_with_parent(
+                    build_list(list_id.take(), std::mem::take(items)),
+                    parent_div.take(),
+                    "internal error: InList parent was None",
                 )
             },
             |list, parent_state| {
