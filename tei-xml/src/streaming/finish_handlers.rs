@@ -18,9 +18,9 @@ fn combine_result_with_parent<V>(
     built: Result<V, TeiError>,
     parent: Option<Box<ParserState>>,
     context: &'static str,
-) -> Option<Result<(V, Box<ParserState>), TeiError>> {
+) -> Result<(V, Box<ParserState>), TeiError> {
     let parent_result = parent.ok_or_else(|| TeiError::xml(context));
-    Some(built.and_then(|v| parent_result.map(|p| (v, p))))
+    built.and_then(|v| parent_result.map(|p| (v, p)))
 }
 
 /// End element handlers.
@@ -150,11 +150,11 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                combine_result_with_parent(
+                Some(combine_result_with_parent(
                     build_label(std::mem::take(content)),
                     parent_item.take(),
                     "internal error: InLabel parent was None",
-                )
+                ))
             },
             |label, parent_state| {
                 if let ParserState::InItem {
@@ -178,11 +178,11 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                combine_result_with_parent(
+                Some(combine_result_with_parent(
                     build_head(std::mem::take(content)),
                     parent_div.take(),
                     "internal error: InHead parent was None",
-                )
+                ))
             },
             |head, parent_state| {
                 if let ParserState::InDiv { head: div_head, .. } = parent_state {
@@ -207,7 +207,7 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                combine_result_with_parent(
+                Some(combine_result_with_parent(
                     build_item(
                         RawItemAttrs {
                             id: item_id.take(),
@@ -219,7 +219,7 @@ impl<R: BufRead> TeiPullParser<R> {
                     ),
                     parent_list.take(),
                     "internal error: InItem parent was None",
-                )
+                ))
             },
             |item, parent_state| {
                 if let ParserState::InList { items, .. } = parent_state {
@@ -241,11 +241,11 @@ impl<R: BufRead> TeiPullParser<R> {
                 else {
                     return None;
                 };
-                combine_result_with_parent(
+                Some(combine_result_with_parent(
                     build_list(list_id.take(), std::mem::take(items)),
                     parent_div.take(),
                     "internal error: InList parent was None",
-                )
+                ))
             },
             |list, parent_state| {
                 if let ParserState::InDiv { content, .. } = parent_state {
