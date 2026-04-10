@@ -276,7 +276,7 @@ fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiE
                 .into_iter()
                 .map(core_item_from_py)
                 .collect::<Result<Vec<_>, _>>()?;
-            let mut list = List::new(core_items);
+            let mut list = List::new(core_items)?;
             if let Some(id) = xml_id {
                 list.set_id(id)?;
             }

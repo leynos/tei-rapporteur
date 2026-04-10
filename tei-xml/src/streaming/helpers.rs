@@ -222,7 +222,7 @@ pub fn build_div(
 
 /// Builds a List from optional ID and items.
 pub fn build_list(id: Option<String>, items: Vec<Item>) -> Result<List, TeiError> {
-    let mut list = List::new(items);
+    let mut list = List::new(items)?;
     apply_id(&mut list, id, List::set_id)?;
     Ok(list)
 }

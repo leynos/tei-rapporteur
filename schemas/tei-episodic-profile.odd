@@ -72,10 +72,10 @@
           <!-- ============================================================ -->
 
 	          <moduleRef key="tei"/>
-	          <moduleRef key="core" include="p hi title desc"/>
+	          <moduleRef key="core" include="p hi title desc list item label"/>
 	          <moduleRef key="header"
 	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem refsDecl citeStructure citeData series synopsis speaker lang resp"/>
-	          <moduleRef key="textstructure" include="TEI text body"/>
+	          <moduleRef key="textstructure" include="TEI text body div"/>
 	          <moduleRef key="spoken" include="u pause"/>
 	          <moduleRef key="linking" include="standOff"/>
 	          <moduleRef key="analysis" include="spanGrp span"/>
@@ -351,13 +351,133 @@
 
           <elementSpec ident="body" mode="change">
             <desc>Contains the main content of the episode as a sequence of
-            paragraphs and utterances.</desc>
+            paragraphs, utterances, and structural divisions.</desc>
             <content>
               <alternate minOccurs="0" maxOccurs="unbounded">
                 <elementRef key="p"/>
                 <elementRef key="u"/>
+                <elementRef key="div"/>
               </alternate>
             </content>
+          </elementSpec>
+
+          <elementSpec ident="div" mode="change">
+            <desc>A structural body division grouping related narrative,
+            utterance, and list content.</desc>
+            <content>
+              <alternate minOccurs="0" maxOccurs="unbounded">
+                <elementRef key="p"/>
+                <elementRef key="u"/>
+                <elementRef key="list"/>
+              </alternate>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the division.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+              <attDef ident="type" mode="change" usage="req">
+                <desc>Classification of the division.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="div-type-not-empty" scheme="schematron">
+              <constraint>
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:div[@type]">
+                  <sch:assert test="normalize-space(@type) != ''">
+                    Division @type values must not be empty or whitespace only.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="list" mode="change">
+            <desc>A list of structured body items.</desc>
+            <content>
+              <elementRef key="item" minOccurs="1" maxOccurs="unbounded"/>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the list.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+            </attList>
+          </elementSpec>
+
+          <elementSpec ident="item" mode="change">
+            <desc>A single list entry with optional labelling and
+            correspondence pointers.</desc>
+            <content>
+              <sequence>
+                <elementRef key="label" minOccurs="0" maxOccurs="1"/>
+                <alternate minOccurs="1" maxOccurs="unbounded">
+                  <textNode/>
+                  <elementRef key="hi"/>
+                  <elementRef key="pause"/>
+                </alternate>
+              </sequence>
+            </content>
+            <attList>
+              <attDef ident="xml:id" mode="change" usage="opt">
+                <desc>Unique identifier for the item.</desc>
+                <datatype>
+                  <dataRef key="teidata.xmlName"/>
+                </datatype>
+              </attDef>
+              <attDef ident="n" mode="change" usage="opt">
+                <desc>Optional item number or short label.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+              <attDef ident="corresp" mode="change" usage="opt">
+                <desc>Optional pointer list linking the item to related
+                structures elsewhere in the document.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
+            </attList>
+            <constraintSpec ident="item-not-empty" scheme="schematron">
+              <constraint>
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:item">
+                  <sch:assert test="normalize-space(.) != '' or .//tei:pause">
+                    Items must contain non-whitespace text or a pause element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+          </elementSpec>
+
+          <elementSpec ident="label" mode="change">
+            <desc>A label prefix attached to a list item.</desc>
+            <content>
+              <alternate minOccurs="1" maxOccurs="unbounded">
+                <textNode/>
+                <elementRef key="hi"/>
+                <elementRef key="pause"/>
+              </alternate>
+            </content>
+            <constraintSpec ident="label-non-empty" scheme="schematron">
+              <constraint>
+                <sch:rule context="tei:label">
+                  <sch:assert
+                    test="string-length(normalize-space(.)) &gt; 0 or .//tei:pause"
+                  >
+                    Labels must contain non-whitespace text or a pause element.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
           </elementSpec>
 
           <elementSpec ident="standOff" mode="change">
@@ -707,7 +827,7 @@
             `xml:id` in the document.</desc>
             <constraint>
               <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
-              <sch:rule context="tei:u[@source or @resp or @corresp or @ana] | tei:spanGrp[@resp or @corresp or @ana] | tei:span[@target or @from or @to or @source or @resp or @corresp or @ana]">
+              <sch:rule context="tei:u[@source or @resp or @corresp or @ana] | tei:item[@corresp] | tei:spanGrp[@resp or @corresp or @ana] | tei:span[@target or @from or @to or @source or @resp or @corresp or @ana]">
                 <sch:assert test="every $token in tokenize(string-join((@target, @from, @to, @source, @resp, @corresp, @ana), ' '), '\s+') satisfies (not(starts-with($token, '#')) or exists(//tei:*[@xml:id = substring-after($token, '#')]))">
                   All internal `#id` pointer tokens must resolve to an existing
                   xml:id in the document.

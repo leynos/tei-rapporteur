@@ -10,6 +10,9 @@ __all__ = [
     "BodyBlock",
     "CiteData",
     "CiteStructure",
+    "DivBlock",
+    "DivContent",
+    "DivEvent",
     "DocumentEnd",
     "DocumentStart",
     "EncodingDesc",
@@ -21,6 +24,9 @@ __all__ = [
     "InlineHi",
     "InlinePause",
     "InlineText",
+    "Item",
+    "Label",
+    "ListBlock",
     "Paragraph",
     "ParagraphEvent",
     "ProfileDesc",
@@ -81,7 +87,115 @@ class Utterance(
     ana: list[str] = msgspec.field(default_factory=list)
 
 
-BodyBlock: TypeAlias = Paragraph | Utterance
+TextBlock: TypeAlias = Paragraph | Utterance
+
+
+class Label(msgspec.Struct, omit_defaults=True):
+    """Summary
+    -------
+    Label prefix attached to a structured list item.
+
+    Attributes
+    ----------
+    content : list[Inline]
+        Inline nodes rendered before the item's main content.
+
+    Notes
+    -----
+    ``Label`` values typically hold numbering or short lead-in text and attach
+    to :class:`Item` via ``Item.label``.
+    """
+    content: list[Inline] = msgspec.field(default_factory=list)
+
+
+class Item(msgspec.Struct, omit_defaults=True):
+    """Summary
+    -------
+    Structured list item contained within a division list.
+
+    Attributes
+    ----------
+    content : list[Inline]
+        Inline body content for the list item.
+    xml_id : str | None
+        Optional XML identifier for pointer resolution and linking.
+    n : str | None
+        Optional display number or ordinal marker.
+    corresp : list[str]
+        TEI pointer targets associated with the item.
+    label : Label | None
+        Optional prefix rendered before ``content``.
+
+    Notes
+    -----
+    ``Item`` values belong inside :class:`ListBlock.items`. Use ``label`` for
+    visible prefixes such as numbered bullets while keeping the main text in
+    ``content``.
+    """
+    content: list[Inline] = msgspec.field(default_factory=list)
+    xml_id: str | None = None
+    n: str | None = None
+    corresp: list[str] = msgspec.field(default_factory=list)
+    label: Label | None = None
+
+
+class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True):
+    """Summary
+    -------
+    List block nested inside a structural division.
+
+    Attributes
+    ----------
+    items : list[Item]
+        Ordered structured items contained by the list.
+    xml_id : str | None
+        Optional XML identifier for the list element.
+
+    Notes
+    -----
+    ``ListBlock`` values appear inside :class:`DivBlock.content` and group one
+    or more :class:`Item` values under a shared list container.
+    """
+    items: list[Item] = msgspec.field(default_factory=list)
+    xml_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.items:
+            raise ValueError("ListBlock must contain at least one Item")
+
+
+DivContent: TypeAlias = TextBlock | ListBlock
+
+
+class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
+    """Summary
+    -------
+    Structural division within the TEI body.
+
+    Attributes
+    ----------
+    div_type : str
+        Required TEI ``@type`` value describing the division's role.
+    content : list[DivContent]
+        Ordered child blocks within the division.
+    xml_id : str | None
+        Optional XML identifier for the division.
+
+    Notes
+    -----
+    ``DivBlock`` groups paragraphs, utterances, and lists into a named section
+    such as chaptered material or show notes.
+    """
+    div_type: str
+    content: list[DivContent] = msgspec.field(default_factory=list)
+    xml_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.div_type.strip():
+            raise ValueError("DivBlock.div_type must contain non-whitespace text")
+
+
+BodyBlock: TypeAlias = TextBlock | DivBlock
 
 
 class TeiBody(msgspec.Struct):
@@ -298,6 +412,30 @@ class UtteranceEvent(
     ana: list[str] = msgspec.field(default_factory=list)
 
 
+class DivEvent(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
+    """Summary
+    -------
+    Streaming event carrying an assembled division body block.
+
+    Attributes
+    ----------
+    div_type : str
+        Required TEI ``@type`` value describing the emitted division.
+    content : list[DivContent]
+        Division children collected before the event is yielded.
+    xml_id : str | None
+        Optional XML identifier preserved from the source document.
+
+    Notes
+    -----
+    ``DivEvent`` is emitted by streaming parses whenever a complete division is
+    assembled, mirroring :class:`DivBlock` in the event union.
+    """
+    div_type: str
+    content: list[DivContent] = msgspec.field(default_factory=list)
+    xml_id: str | None = None
+
+
 Event: TypeAlias = (
-    DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DocumentEnd
+    DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DivEvent | DocumentEnd
 )

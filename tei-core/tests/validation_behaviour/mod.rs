@@ -4,7 +4,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{P, ProfileDesc, TeiDocument, TeiError, Utterance};
+use tei_core::{Div, Item, List, P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
 
 mod stand_off;
@@ -127,6 +127,44 @@ fn i_add_an_utterance(
             .set_id(identifier.as_str())
             .context("identifier should validate")?;
         Ok(add_utterance_to_document(document, utterance))
+    })
+}
+
+#[when("I add a division \"{div_type}\" containing an item with id \"{identifier}\"")]
+fn i_add_a_division_containing_an_item_with_id(
+    #[from(validated_state)] state: &ValidationState,
+    div_type: String,
+    identifier: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        let mut item = Item::from_text_segments(["Linked resource"]).context("item should be valid")?;
+        item.set_id(identifier.as_str())
+            .context("identifier should validate")?;
+        let list = List::new([item]).context("list should be valid")?;
+        let mut div = Div::new(div_type.as_str()).context("division should be valid")?;
+        div.push_list(list);
+        let mut text = document.text().clone();
+        text.body_mut().push_div(div);
+        Ok(TeiDocument::new(document.header().clone(), text))
+    })
+}
+
+#[when("I add a division \"{div_type}\" containing an item with corresp \"{corresp}\"")]
+fn i_add_a_division_containing_an_item_with_corresp(
+    #[from(validated_state)] state: &ValidationState,
+    div_type: String,
+    corresp: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        let mut item =
+            Item::from_text_segments(["External reference"]).context("item should be valid")?;
+        item.set_corresp(tei_core::PointerList::new([corresp.as_str()])?);
+        let list = List::new([item]).context("list should be valid")?;
+        let mut div = Div::new(div_type.as_str()).context("division should be valid")?;
+        div.push_list(list);
+        let mut text = document.text().clone();
+        text.body_mut().push_div(div);
+        Ok(TeiDocument::new(document.header().clone(), text))
     })
 }
 
@@ -276,6 +314,22 @@ fn allows_speakers_without_cast(
     expect_validated_state(validated_state, "validation");
 }
 
+#[scenario(path = "tests/features/validation.feature", index = 10)]
+fn rejects_duplicate_identifiers_inside_divisions(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
+#[scenario(path = "tests/features/validation.feature", index = 11)]
+fn rejects_unresolved_item_corresp_pointers_inside_divisions(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
 #[test]
 fn validation_feature_scenario_order_matches_expectations() {
     use gherkin::Feature;
@@ -302,6 +356,8 @@ fn validation_feature_scenario_order_matches_expectations() {
         "Accepting stand-off spans that target existing utterances",
         "Rejecting stand-off spans that target missing ids",
         "Rejecting stand-off spans without anchors",
+        "Rejecting duplicate xml:id values inside divisions",
+        "Rejecting unresolved item corresp pointers inside divisions",
     ];
 
     assert_eq!(
