@@ -159,6 +159,22 @@ pub enum ParserState {
 }
 
 impl ParserState {
+    fn make_in_div(
+        div_type: String,
+        subtype: Option<String>,
+        id: Option<String>,
+        parent_div: Option<Box<Self>>,
+    ) -> Self {
+        Self::InDiv {
+            div_type,
+            subtype,
+            id,
+            head: None,
+            parent_div,
+            content: Vec::new(),
+        }
+    }
+
     /// Creates a new `InHeader` state with the given initial depth.
     #[must_use]
     pub const fn in_header(depth: usize) -> Self {
@@ -207,15 +223,8 @@ impl ParserState {
 
     /// Creates a new `InDiv` state with the given type and optional id.
     #[must_use]
-    pub const fn in_div(div_type: String, subtype: Option<String>, id: Option<String>) -> Self {
-        Self::InDiv {
-            div_type,
-            subtype,
-            id,
-            head: None,
-            parent_div: None,
-            content: Vec::new(),
-        }
+    pub fn in_div(div_type: String, subtype: Option<String>, id: Option<String>) -> Self {
+        Self::make_in_div(div_type, subtype, id, None)
     }
 
     /// Creates a new nested `InDiv` state with the given parent division.
@@ -226,14 +235,7 @@ impl ParserState {
         subtype: Option<String>,
         id: Option<String>,
     ) -> Self {
-        Self::InDiv {
-            div_type,
-            subtype,
-            id,
-            head: None,
-            parent_div: Some(Box::new(parent_div)),
-            content: Vec::new(),
-        }
+        Self::make_in_div(div_type, subtype, id, Some(Box::new(parent_div)))
     }
 
     /// Creates a new `InList` state with the given parent div and optional list id.

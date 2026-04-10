@@ -56,30 +56,60 @@ impl<R: BufRead> TeiPullParser<R> {
         Some(TeiEvent::BodyBlock(wrap_body(value)))
     }
 
-    /// Finishes parsing a paragraph and emits a `BodyBlock` event or pushes to div.
-    pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InParagraph { id, content } = &mut self.state {
-            let paragraph = build_paragraph(id.take(), std::mem::take(content))?;
-            return Ok(self.push_to_div_or_emit(
-                paragraph,
-                DivContent::Paragraph,
-                BodyBlock::Paragraph,
-            ));
+    fn finish_div_or_body_block<V>(
+        &mut self,
+        extract: impl FnOnce(&mut ParserState) -> Option<Result<V, TeiError>>,
+        wrap_div: fn(V) -> DivContent,
+        wrap_body: fn(V) -> BodyBlock,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if let Some(result) = extract(&mut self.state) {
+            return Ok(self.push_to_div_or_emit(result?, wrap_div, wrap_body));
         }
         Ok(None)
     }
 
-    /// Finishes parsing an utterance and emits a `BodyBlock` event or pushes to div.
-    pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InUtterance { attrs, content } = &mut self.state {
-            let utterance = build_utterance(std::mem::take(attrs), std::mem::take(content))?;
-            return Ok(self.push_to_div_or_emit(
-                utterance,
-                DivContent::Utterance,
-                BodyBlock::Utterance,
-            ));
+    fn finish_with_parent_restore<V>(
+        &mut self,
+        extract: impl FnOnce(&mut ParserState) -> Option<Result<(V, Box<ParserState>), TeiError>>,
+        apply: impl FnOnce(V, &mut ParserState),
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if let Some(result) = extract(&mut self.state) {
+            let (value, mut parent_state) = result?;
+            apply(value, parent_state.as_mut());
+            self.state = *parent_state;
         }
         Ok(None)
+    }
+
+    /// Finishes parsing a paragraph and emits a `BodyBlock` event or pushes to div.
+    pub(super) fn finish_paragraph(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        self.finish_div_or_body_block(
+            |state| {
+                let ParserState::InParagraph { id, content } = state else {
+                    return None;
+                };
+                Some(build_paragraph(id.take(), std::mem::take(content)))
+            },
+            DivContent::Paragraph,
+            BodyBlock::Paragraph,
+        )
+    }
+
+    /// Finishes parsing an utterance and emits a `BodyBlock` event or pushes to div.
+    pub(super) fn finish_utterance(&mut self) -> Result<Option<TeiEvent>, TeiError> {
+        self.finish_div_or_body_block(
+            |state| {
+                let ParserState::InUtterance { attrs, content } = state else {
+                    return None;
+                };
+                Some(build_utterance(
+                    std::mem::take(attrs),
+                    std::mem::take(content),
+                ))
+            },
+            DivContent::Utterance,
+            BodyBlock::Utterance,
+        )
     }
 
     /// Finishes parsing emphasis and pushes it to the parent state.
@@ -102,94 +132,130 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a label and stores it in the parent item.
     pub(super) fn finish_label(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InLabel {
-            parent_item,
-            content,
-        } = &mut self.state
-        {
-            let label = build_label(std::mem::take(content))?;
-            let Some(mut parent_state) = parent_item.take() else {
-                return Err(TeiError::xml("internal error: InLabel parent was None"));
-            };
-            if let ParserState::InItem {
-                label: item_label, ..
-            } = parent_state.as_mut()
-            {
-                *item_label = Some(label);
-            }
-            self.state = *parent_state;
-        }
-        Ok(None)
+        self.finish_with_parent_restore(
+            |state| {
+                let ParserState::InLabel {
+                    parent_item,
+                    content,
+                } = state
+                else {
+                    return None;
+                };
+                let built_label = build_label(std::mem::take(content));
+                let parent_state = parent_item
+                    .take()
+                    .ok_or_else(|| TeiError::xml("internal error: InLabel parent was None"));
+                Some(
+                    built_label
+                        .and_then(|label_value| parent_state.map(|parent| (label_value, parent))),
+                )
+            },
+            |label, parent_state| {
+                if let ParserState::InItem {
+                    label: item_label, ..
+                } = parent_state
+                {
+                    *item_label = Some(label);
+                }
+            },
+        )
     }
 
     /// Finishes parsing a head and stores it in the parent div.
     pub(super) fn finish_head(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InHead {
-            parent_div,
-            content,
-        } = &mut self.state
-        {
-            let head = build_head(std::mem::take(content))?;
-            let Some(mut parent_state) = parent_div.take() else {
-                return Err(TeiError::xml("internal error: InHead parent was None"));
-            };
-            if let ParserState::InDiv { head: div_head, .. } = parent_state.as_mut() {
-                *div_head = Some(head);
-            }
-            self.state = *parent_state;
-        }
-        Ok(None)
+        self.finish_with_parent_restore(
+            |state| {
+                let ParserState::InHead {
+                    parent_div,
+                    content,
+                } = state
+                else {
+                    return None;
+                };
+                let built_head = build_head(std::mem::take(content));
+                let parent_state = parent_div
+                    .take()
+                    .ok_or_else(|| TeiError::xml("internal error: InHead parent was None"));
+                Some(
+                    built_head
+                        .and_then(|head_value| parent_state.map(|parent| (head_value, parent))),
+                )
+            },
+            |head, parent_state| {
+                if let ParserState::InDiv { head: div_head, .. } = parent_state {
+                    *div_head = Some(head);
+                }
+            },
+        )
     }
 
     /// Finishes parsing an item and pushes it to the parent list.
     pub(super) fn finish_item(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InItem {
-            parent_list,
-            item_id,
-            item_n,
-            item_corresp,
-            label,
-            content,
-        } = &mut self.state
-        {
-            let item = build_item(
-                RawItemAttrs {
-                    id: item_id.take(),
-                    n: item_n.take(),
-                    corresp: item_corresp.take(),
-                    label: label.take(),
-                },
-                std::mem::take(content),
-            )?;
-            let Some(mut parent_state) = parent_list.take() else {
-                return Err(TeiError::xml("internal error: InItem parent was None"));
-            };
-            if let ParserState::InList { items, .. } = parent_state.as_mut() {
-                items.push(item);
-            }
-            self.state = *parent_state;
-        }
-        Ok(None)
+        self.finish_with_parent_restore(
+            |state| {
+                let ParserState::InItem {
+                    parent_list,
+                    item_id,
+                    item_n,
+                    item_corresp,
+                    label,
+                    content,
+                } = state
+                else {
+                    return None;
+                };
+                let built_item = build_item(
+                    RawItemAttrs {
+                        id: item_id.take(),
+                        n: item_n.take(),
+                        corresp: item_corresp.take(),
+                        label: label.take(),
+                    },
+                    std::mem::take(content),
+                );
+                let parent_state = parent_list
+                    .take()
+                    .ok_or_else(|| TeiError::xml("internal error: InItem parent was None"));
+                Some(
+                    built_item
+                        .and_then(|item_value| parent_state.map(|parent| (item_value, parent))),
+                )
+            },
+            |item, parent_state| {
+                if let ParserState::InList { items, .. } = parent_state {
+                    items.push(item);
+                }
+            },
+        )
     }
 
     /// Finishes parsing a list and pushes it to the parent div.
     pub(super) fn finish_list(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InList {
-            parent_div,
-            list_id,
-            items,
-        } = &mut self.state
-        {
-            let list = build_list(list_id.take(), std::mem::take(items))?;
-            let Some(mut parent_state) = parent_div.take() else {
-                return Err(TeiError::xml("internal error: InList parent was None"));
-            };
-            if let ParserState::InDiv { content, .. } = parent_state.as_mut() {
-                content.push(DivContent::List(list));
-            }
-            self.state = *parent_state;
-        }
-        Ok(None)
+        self.finish_with_parent_restore(
+            |state| {
+                let ParserState::InList {
+                    parent_div,
+                    list_id,
+                    items,
+                } = state
+                else {
+                    return None;
+                };
+                let built_list = build_list(list_id.take(), std::mem::take(items));
+                let parent_state = parent_div
+                    .take()
+                    .ok_or_else(|| TeiError::xml("internal error: InList parent was None"));
+                Some(
+                    built_list
+                        .and_then(|list_value| parent_state.map(|parent| (list_value, parent))),
+                )
+            },
+            |list, parent_state| {
+                if let ParserState::InDiv { content, .. } = parent_state {
+                    content.push(DivContent::List(list));
+                }
+            },
+        )
     }
 
     /// Finishes parsing a div and emits a `BodyBlock` event.
@@ -255,7 +321,9 @@ fn push_nested_div(
         ..
     } = state.as_mut()
     else {
-        return Err(TeiError::xml("internal error: nested div parent was not InDiv"));
+        return Err(TeiError::xml(
+            "internal error: nested div parent was not InDiv",
+        ));
     };
     parent_content.push(DivContent::Div(div));
     Ok(*state)

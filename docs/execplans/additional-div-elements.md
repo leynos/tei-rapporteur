@@ -121,8 +121,8 @@ that should be a separate, explicit extension.
 - [x] 2026-04-10: Reviewed project guidance, existing structural-body work, and
   official TEI P5 references; drafted this ExecPlan.
 - [x] 2026-04-10 15:50 UTC: Added and updated unit, integration, BDD, schema,
-  fixture, and Python projection coverage for nested divisions, `@subtype`,
-  and optional `<head>`.
+  fixture, and Python projection coverage for nested divisions, `@subtype`, and
+  optional `<head>`.
 - [x] 2026-04-10 15:50 UTC: Extended the Rust core model with `Head`,
   `DivSubtype`, recursive `DivContent::Div`, and recursive validation for IDs
   and pointers.
@@ -200,8 +200,8 @@ that should be a separate, explicit extension.
 
 Nested `<div>` elements, optional `@subtype`, and a single optional leading
 `<head>` now work end-to-end across the Rust core model, XML parsing/emission,
-JSON Schema publication, Python projections, and user-facing documentation.
-The canonical nested-division fixture parses, emits, validates inside Rust,
+JSON Schema publication, Python projections, and user-facing documentation. The
+canonical nested-division fixture parses, emits, validates inside Rust,
 serializes to JSON/MessagePack, projects to Python `msgspec.Struct` types, and
 round-trips through the updated tests.
 
@@ -215,9 +215,9 @@ The repository gates that completed successfully were:
 - `make markdownlint`
 - `make nixie`
 
-The only incomplete gate is `make validate-xml`, which failed because `jing`
-is not installed in this environment. No code-level blocker remains for that
-step; it should pass once rerun where `jing` is available.
+The only incomplete gate is `make validate-xml`, which failed because `jing` is
+not installed in this environment. No code-level blocker remains for that step;
+it should pass once rerun where `jing` is available.
 
 ## Context and orientation
 
