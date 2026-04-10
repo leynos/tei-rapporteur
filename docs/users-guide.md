@@ -429,13 +429,14 @@ let parser = TeiPullParser::from_str(xml_string);
 
 ### Event types
 
-The parser yields four high-level event types:
+The parser yields the following high-level event types:
 
 - **`DocumentStart`**: Emitted once at the beginning of parsing
 - **`Header(TeiHeader)`**: The complete header metadata, emitted once after the
   header section is fully parsed
-- **`BodyBlock(BodyBlock)`**: A paragraph or utterance from the body, emitted
-  one at a time as each block is parsed
+- **`BodyBlock(BodyBlock)`**: A paragraph, utterance, or structural division
+  (`DivBlock`) from the body, emitted one at a time as each block is parsed. An
+  entire `Div` is buffered before the event is emitted
 - **`DocumentEnd`**: Emitted once after all content has been successfully parsed
 
 The streaming parser currently streams the header and body only. Root-level
@@ -481,6 +482,8 @@ Events use internal tagging (`type`), covering:
 - `header` (with a structured `header` field)
 - `paragraph` / `utterance` (unwrapped, carrying inline `content` as tagged
   `Inline` values)
+- `div` (carries `div_type`, `content: list[DivContent]`, and optional
+  `xml_id`; decodes into `DivEvent`)
 - `document_end`
 
 Inline content is also tagged (`text`, `hi`, `pause`), so Python callers can

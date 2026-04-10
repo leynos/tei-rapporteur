@@ -344,7 +344,7 @@ fn structural_document() -> TeiDocument {
     item.set_label(
         Label::from_text("1.").unwrap_or_else(|error| panic!("label should validate: {error}")),
     );
-    let list = List::new([item]);
+    let list = List::new([item]).unwrap_or_else(|error| panic!("list should validate: {error}"));
     let mut div =
         Div::new("show-notes").unwrap_or_else(|error| panic!("div should validate: {error}"));
     div.push_paragraph(

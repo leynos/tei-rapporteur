@@ -216,7 +216,7 @@ mod tests {
 
         let item = Item::from_text_segments(["List item"])
             .unwrap_or_else(|error| panic!("valid item: {error}"));
-        let list = super::List::new([item]);
+        let list = super::List::new([item]).unwrap_or_else(|error| panic!("valid list: {error}"));
         div.push_list(list.clone());
 
         assert_eq!(div.content().len(), 3);

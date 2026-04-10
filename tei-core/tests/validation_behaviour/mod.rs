@@ -140,7 +140,7 @@ fn i_add_a_division_containing_an_item_with_id(
         let mut item = Item::from_text_segments(["Linked resource"]).context("item should be valid")?;
         item.set_id(identifier.as_str())
             .context("identifier should validate")?;
-        let list = List::new([item]);
+        let list = List::new([item]).context("list should be valid")?;
         let mut div = Div::new(div_type.as_str()).context("division should be valid")?;
         div.push_list(list);
         let mut text = document.text().clone();
@@ -159,7 +159,7 @@ fn i_add_a_division_containing_an_item_with_corresp(
         let mut item =
             Item::from_text_segments(["External reference"]).context("item should be valid")?;
         item.set_corresp(tei_core::PointerList::new([corresp.as_str()])?);
-        let list = List::new([item]);
+        let list = List::new([item]).context("list should be valid")?;
         let mut div = Div::new(div_type.as_str()).context("division should be valid")?;
         div.push_list(list);
         let mut text = document.text().clone();

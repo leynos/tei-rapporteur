@@ -27,6 +27,10 @@ pub struct List {
 impl List {
     /// Builds a list from the provided items.
     ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptyContent`] when the list has no items.
+    ///
     /// # Examples
     ///
     /// ```
@@ -37,15 +41,20 @@ impl List {
     /// let item2 = Item::from_text_segments(["Second item"])
     ///     .unwrap_or_else(|error| panic!("valid item: {error}"));
     ///
-    /// let list = List::new([item1, item2]);
+    /// let list = List::new([item1, item2])
+    ///     .unwrap_or_else(|error| panic!("valid list: {error}"));
     /// assert_eq!(list.items().len(), 2);
     /// ```
-    #[must_use]
-    pub fn new(items: impl IntoIterator<Item = Item>) -> Self {
-        Self {
-            id: None,
-            items: items.into_iter().collect(),
+    pub fn new(items: impl IntoIterator<Item = Item>) -> Result<Self, BodyContentError> {
+        let collected: Vec<Item> = items.into_iter().collect();
+        if collected.is_empty() {
+            return Err(BodyContentError::EmptyContent { container: "list" });
         }
+
+        Ok(Self {
+            id: None,
+            items: collected,
+        })
     }
 
     /// Sets an `xml:id` attribute on the list.
@@ -106,14 +115,26 @@ mod tests {
         let item2 = Item::from_text_segments(["Second"])
             .unwrap_or_else(|error| panic!("valid item: {error}"));
 
-        let list = List::new([item1.clone(), item2.clone()]);
+        let list = List::new([item1.clone(), item2.clone()])
+            .unwrap_or_else(|error| panic!("valid list: {error}"));
         assert_eq!(list.items(), [item1, item2]);
         assert!(!list.is_empty());
     }
 
     #[test]
+    fn list_new_rejects_empty_items() {
+        let result = List::new(Vec::<Item>::new());
+        assert!(matches!(
+            result,
+            Err(BodyContentError::EmptyContent { container }) if container == "list"
+        ));
+    }
+
+    #[test]
     fn list_set_id_round_trips() {
-        let list_instance = List::new(Vec::<Item>::new());
+        let item = Item::from_text_segments(["Only"])
+            .unwrap_or_else(|error| panic!("valid item: {error}"));
+        let list_instance = List::new([item]).unwrap_or_else(|error| panic!("valid list: {error}"));
         let mut list = list_instance;
         list.set_id("list1")
             .unwrap_or_else(|error| panic!("valid id: {error}"));
@@ -124,10 +145,13 @@ mod tests {
 
     #[test]
     fn list_push_item() {
-        let mut list = List::new(Vec::<Item>::new());
+        let first = Item::from_text_segments(["First item"])
+            .unwrap_or_else(|error| panic!("valid item: {error}"));
+        let mut list =
+            List::new([first.clone()]).unwrap_or_else(|error| panic!("valid list: {error}"));
         let item = Item::from_text_segments(["New item"])
             .unwrap_or_else(|error| panic!("valid item: {error}"));
         list.push_item(item.clone());
-        assert_eq!(list.items(), [item]);
+        assert_eq!(list.items(), [first, item]);
     }
 }

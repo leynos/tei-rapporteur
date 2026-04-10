@@ -205,7 +205,8 @@ where
         prop::collection::vec(item_strategy, 1..=4),
     )
         .prop_map(|(id, items)| {
-            let mut list = List::new(items);
+            let mut list = List::new(items)
+                .unwrap_or_else(|error| panic!("generated list items should be valid: {error}"));
             if let Some(id_value) = id {
                 list.set_id(id_value)
                     .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));

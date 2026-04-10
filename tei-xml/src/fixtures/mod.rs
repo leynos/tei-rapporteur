@@ -193,7 +193,7 @@ pub fn document_with_div_and_list() -> Result<TeiDocument, TeiError> {
     let mut second_item = Item::from_text_segments(["Secondary reference"])?;
     second_item.set_id("item-2")?;
 
-    let mut list = List::new([first_item, second_item]);
+    let mut list = List::new([first_item, second_item])?;
     list.set_id("list-1")?;
 
     let mut div = Div::new("show-notes")?;

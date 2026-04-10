@@ -22,7 +22,7 @@ fn division_fixture() -> TeiDocument {
 
     let mut item = Item::from_text_segments(["Transcript"]).expect("item should validate");
     item.set_label(Label::from_text("1.").expect("label should validate"));
-    let list = List::new([item]);
+    let list = List::new([item]).expect("list should validate");
     div.push_list(list);
 
     let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
