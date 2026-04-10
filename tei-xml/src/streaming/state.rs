@@ -159,7 +159,7 @@ pub enum ParserState {
 }
 
 impl ParserState {
-    fn make_in_div(
+    const fn make_in_div(
         div_type: String,
         subtype: Option<String>,
         id: Option<String>,
@@ -223,7 +223,7 @@ impl ParserState {
 
     /// Creates a new `InDiv` state with the given type and optional id.
     #[must_use]
-    pub fn in_div(div_type: String, subtype: Option<String>, id: Option<String>) -> Self {
+    pub const fn in_div(div_type: String, subtype: Option<String>, id: Option<String>) -> Self {
         Self::make_in_div(div_type, subtype, id, None)
     }
 
