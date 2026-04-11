@@ -745,7 +745,7 @@ classDiagram
     class TeiDocument {
       +TeiHeader header
       +TeiText text
-      +validate() TeiResult
+      +validate() Result~Unit,TeiError~
     }
 
     class TeiHeader {
@@ -774,8 +774,6 @@ classDiagram
       +Paragraph
       +Utterance
       +Div
-      +List
-      +Item
     }
 
     class Paragraph {
@@ -838,11 +836,6 @@ classDiagram
       +validated_div_types
     }
 
-    class TeiResult {
-      +Ok
-      +Err(TeiError)
-    }
-
     class TeiError {
       <<enum>>
       +Validation
@@ -850,16 +843,9 @@ classDiagram
       +Other
     }
 
-    class ValidationRules {
-      +check_unique_xml_id()
-      +check_speakers_in_profile_cast()
-      +check_div_type_valid()
-    }
-
     TeiDocument --> TeiHeader : has
     TeiDocument --> TeiText : has
-    TeiDocument --> TeiResult : validate
-    TeiDocument ..> ValidationRules : uses
+    TeiDocument --> TeiError : validate_returns
 
     TeiHeader --> AnnotationSystem : has_many
     TeiHeader --> ProfileCast : optional
@@ -887,11 +873,6 @@ classDiagram
     BodyBlock --> Paragraph
     BodyBlock --> Utterance
     BodyBlock --> Div
-    BodyBlock --> List
-    BodyBlock --> Item
-
-    TeiResult --> TeiError
-    TeiError --> ValidationRules : Validation
 ```
 
 One important design consideration is that the JSON output should be
