@@ -733,191 +733,194 @@ when they only need Serde, the `schemars` dependency and derives are gated
 behind the `tei-core` Cargo feature `json-schema`. `tei-serde` enables this
 feature when generating the published schema snapshots.
 
-Figure: Class diagram of the core `tei-core` data model and the
-`tei-serde::schema` entry points used to generate the published JSON Schema
-snapshots.
+Figure: Class diagram of the core `tei-core` data model, illustrating
+structural body elements (paragraphs, utterances, thematic divisions, lists,
+and items), header components (annotation systems and profile cast), stand-off
+annotations (span groups and spans), document-wide validation rules enforced by
+`TeiDocument::validate()` (unique identifiers, speaker references, internal
+pointers), and the relationships between document entities. Individual value
+types such as `DivType` perform their own validation (e.g., non-empty division
+type strings).
 
 ```mermaid
 classDiagram
-    %% Core document structure
+
     class TeiDocument {
-        +TeiHeader tei_header
-        +TeiText text
-        +JsonSchema
+      +TeiHeader header
+      +StandOff? stand_off
+      +TeiText text
+      +validate() Result~(),TeiError~
     }
 
     class TeiHeader {
-        +FileDesc file_desc
-        +EncodingDesc encoding_desc
-        +ProfileDesc profile_desc
-        +RevisionDesc revision_desc
-        +JsonSchema
-    }
-
-    class TeiText {
-        +TeiBody body
-        +JsonSchema
-    }
-
-    class TeiBody {
-        +BodyBlock[] content
-        +JsonSchema
-    }
-
-    class BodyBlock {
-        <<enum>>
-        +P p
-        +Utterance utterance
-        +JsonSchema
-    }
-
-    class P {
-        +Inline[] content
-        +JsonSchema
-    }
-
-    class Utterance {
-        +XmlId xml_id
-        +Speaker speaker
-        +Inline[] content
-        +JsonSchema
-    }
-
-    class Inline {
-        <<enum>>
-        +String text
-        +Hi hi
-        +Pause pause
-        +JsonSchema
-    }
-
-    class Hi {
-        +String rend
-        +Inline[] content
-        +JsonSchema
-    }
-
-    class Pause {
-        +String dur
-        +JsonSchema
-    }
-
-    class XmlId {
-        +String value
-        +JsonSchema
-    }
-
-    class Speaker {
-        +String value
-        +JsonSchema
-    }
-
-    class DocumentTitle {
-        +String value
-        +JsonSchema
-    }
-
-    %% Header subcomponents
-    class FileDesc {
-        +DocumentTitle title
-        +JsonSchema
-    }
-
-    class EncodingDesc {
-        +AnnotationSystem[] annotation_systems
-        +JsonSchema
+      +Vec~AnnotationSystem~ annotation_systems
+      +ProfileCast? profile_cast
     }
 
     class AnnotationSystem {
-        +AnnotationSystemId identifier
-        +String description
-        +JsonSchema
+      +String xml_id
     }
 
-    class AnnotationSystemId {
-        +String value
-        +JsonSchema
+    class ProfileCast {
+      +Vec~Speaker~ speakers
     }
 
-    class ProfileDesc {
-        +SpeakerName[] speakers
-        +LanguageTag[] languages
-        +JsonSchema
+    class Speaker {
+      +String xml_id
     }
 
-    class SpeakerName {
-        +String value
-        +JsonSchema
+    class TeiText {
+      +TeiBody body
     }
 
-    class LanguageTag {
-        +String value
-        +JsonSchema
+    class TeiBody {
+      +Vec~BodyBlock~ blocks
     }
 
-    class RevisionDesc {
-        +RevisionChange[] changes
-        +JsonSchema
+    class BodyBlock {
+      <<enum>>
+      +Paragraph
+      +Utterance
+      +Div
     }
 
-    class RevisionChange {
-        +String description
-        +ResponsibleParty who
-        +JsonSchema
+    class Paragraph {
+      +String? xml_id
+      +Vec~Inline~ content
     }
 
-    class ResponsibleParty {
-        +String value
-        +JsonSchema
+    class Utterance {
+      +String? xml_id
+      +String? who
+      +String? n
+      +String? source
+      +String? resp
+      +String? cert
+      +String? corresp
+      +String? ana
+      +Vec~Inline~ content
     }
 
-    %% tei-serde schema module
-    class TeiSerdeSchemaModule {
-        +String tei_document_schema_id()
-        +Schema tei_document_schema()
-        +Result~String, Error~ tei_document_schema_json_pretty()
+    class Div {
+      +DivType div_type
+      +String? xml_id
+      +Vec~DivContent~ children
     }
 
-    class Schema {
+    class DivContent {
+      <<enum>>
+      +Paragraph
+      +Utterance
+      +List
     }
 
-    %% Relationships within tei-core
-    TeiDocument --> TeiHeader
-    TeiDocument --> TeiText
+    class List {
+      +String? xml_id
+      +Vec~Item~ items
+    }
 
-    TeiText --> TeiBody
-    TeiBody --> BodyBlock
+    class Item {
+      +String? xml_id
+      +String? n
+      +String? corresp
+      +Label? label
+      +Vec~Inline~ content
+    }
 
-    BodyBlock --> P
+    class Label {
+      +Vec~Inline~ content
+    }
+
+    class Inline {
+      <<enum>>
+      +Text
+      +Hi
+      +Pause
+      +Other
+    }
+
+    class DivType {
+      <<validated newtype>>
+      +String value
+      +validate() Result~(),DivTypeValidationError~
+    }
+
+    class TeiError {
+      <<enum>>
+      +DocumentTitle
+      +Header
+      +Body
+      +Identifier
+      +Pointer
+      +PointerList
+      +Annotation
+      +Certainty
+      +Speaker
+      +Validation
+      +Xml
+      +Io
+    }
+
+    class StandOff {
+      +Vec~SpanGroup~ span_groups
+    }
+
+    class SpanGroup {
+      +String? xml_id
+      +String kind
+      +PointerList? resp
+      +PointerList? corresp
+      +PointerList? ana
+      +Vec~Span~ spans
+    }
+
+    class Span {
+      +String? xml_id
+      +PointerList? target
+      +Pointer? from
+      +Pointer? to
+      +PointerList? source
+      +PointerList? resp
+      +Certainty? cert
+      +PointerList? corresp
+      +PointerList? ana
+    }
+
+    TeiDocument --> TeiHeader : has
+    TeiDocument --> StandOff : optional
+    TeiDocument --> TeiText : has
+    TeiDocument --> TeiError : validate_returns
+
+    StandOff --> SpanGroup : has_many
+    SpanGroup --> Span : has_many
+
+    TeiHeader --> AnnotationSystem : has_many
+    TeiHeader --> ProfileCast : optional
+
+    ProfileCast --> Speaker : has_many
+
+    TeiText --> TeiBody : has
+    TeiBody --> BodyBlock : has_many
+
+    Div --> DivContent : has_many
+    Div --> DivType : uses
+
+    DivContent --> Paragraph
+    DivContent --> Utterance
+    DivContent --> List
+
+    List --> Item : ordered_items
+
+    Item --> Label : optional
+    Paragraph --> Inline : has_many
+    Utterance --> Inline : has_many
+    Label --> Inline : has_many
+
+    Utterance ..> ProfileCast : who_references_speaker
+
+    BodyBlock --> Paragraph
     BodyBlock --> Utterance
-
-    P --> Inline
-    Utterance --> XmlId
-    Utterance --> Speaker
-    Utterance --> Inline
-
-    Inline --> Hi
-    Inline --> Pause
-
-    FileDesc --> DocumentTitle
-
-    TeiHeader --> FileDesc
-    TeiHeader --> EncodingDesc
-    TeiHeader --> ProfileDesc
-    TeiHeader --> RevisionDesc
-
-    EncodingDesc --> AnnotationSystem
-    AnnotationSystem --> AnnotationSystemId
-
-    ProfileDesc --> SpeakerName
-    ProfileDesc --> LanguageTag
-
-    RevisionDesc --> RevisionChange
-    RevisionChange --> ResponsibleParty
-
-    %% Schema generation coupling
-    TeiSerdeSchemaModule ..> TeiDocument : JsonSchema for
-    TeiSerdeSchemaModule ..> Schema : returns
+    BodyBlock --> Div
 ```
 
 One important design consideration is that the JSON output should be
