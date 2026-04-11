@@ -434,6 +434,10 @@ class DivEvent(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     ----------
     div_type : str
         Required TEI ``@type`` value describing the emitted division.
+    subtype : str | None
+        Optional TEI ``@subtype`` value refining ``div_type``.
+    head : Head | None
+        Optional heading emitted before the division's child blocks.
     content : list[DivContent]
         Division children collected before the event is yielded.
     xml_id : str | None
@@ -445,6 +449,8 @@ class DivEvent(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     assembled, mirroring :class:`DivBlock` in the event union.
     """
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = msgspec.field(default_factory=list)
     xml_id: str | None = None
 

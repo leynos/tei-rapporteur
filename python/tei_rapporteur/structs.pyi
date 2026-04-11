@@ -275,6 +275,8 @@ class DivEvent(
     """Streaming event carrying an assembled division body block."""
 
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 
