@@ -744,8 +744,9 @@ classDiagram
 
     class TeiDocument {
       +TeiHeader header
+      +StandOff? stand_off
       +TeiText text
-      +validate() Result~Unit,TeiError~
+      +validate() Result~(),TeiError~
     }
 
     class TeiHeader {
@@ -838,7 +839,7 @@ classDiagram
     class DivType {
       <<validated newtype>>
       +String value
-      +validate() Result~Unit,DivTypeValidationError~
+      +validate() Result~(),DivTypeValidationError~
     }
 
     class TeiError {
@@ -857,9 +858,38 @@ classDiagram
       +Io
     }
 
+    class StandOff {
+      +Vec~SpanGroup~ span_groups
+    }
+
+    class SpanGroup {
+      +String? xml_id
+      +String kind
+      +PointerList? resp
+      +PointerList? corresp
+      +PointerList? ana
+      +Vec~Span~ spans
+    }
+
+    class Span {
+      +String? xml_id
+      +PointerList? target
+      +Pointer? from
+      +Pointer? to
+      +PointerList? source
+      +PointerList? resp
+      +Certainty? cert
+      +PointerList? corresp
+      +PointerList? ana
+    }
+
     TeiDocument --> TeiHeader : has
+    TeiDocument --> StandOff : optional
     TeiDocument --> TeiText : has
     TeiDocument --> TeiError : validate_returns
+
+    StandOff --> SpanGroup : has_many
+    SpanGroup --> Span : has_many
 
     TeiHeader --> AnnotationSystem : has_many
     TeiHeader --> ProfileCast : optional
