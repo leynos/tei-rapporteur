@@ -14,8 +14,9 @@ available today and how to exercise it.
   emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain
   strings flow through `P::from_text_segments`,
   `Utterance::from_text_segments`, `Item::from_text_segments`, and
-  `Label::from_text`; the older `new` constructors remain as deprecated shims
-  for existing callers. The `Div` type models `<div>` elements with a validated
+  `Label::from_text`; the older `P::new` and `Utterance::new` constructors
+  remain as deprecated shims for existing callers. The `Div` type models
+  `<div>` elements with a validated
   `@type` attribute (`DivType`), optional `@xml:id`, and a `Vec<DivContent>` of
   children. `DivContent` permits `Paragraph`, `Utterance`, and `List` children
   inside a division. `List` holds an ordered `Vec<Item>`, and each `Item`
@@ -32,7 +33,7 @@ available today and how to exercise it.
   surface as `TeiError::Validation`. Utterances now also carry local provenance
   and citation attributes (`@n`, `@source`, `@resp`, `@cert`, `@corresp`,
   `@ana`), and XML deserialization remains strict for `<u>` and `<item>`:
-  misspelled or unsupported attributes are rejected instead of being silently
+  misspelt or unsupported attributes are rejected instead of being silently
   discarded.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
