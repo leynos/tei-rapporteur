@@ -735,9 +735,12 @@ feature when generating the published schema snapshots.
 
 Figure: Class diagram of the core `tei-core` data model, illustrating
 structural body elements (paragraphs, utterances, thematic divisions, lists,
-and items), header components (annotation systems and profile cast), validation
-rules (unique identifiers, speaker references, division types), and the
-relationships between document entities.
+and items), header components (annotation systems and profile cast), stand-off
+annotations (span groups and spans), document-wide validation rules enforced by
+`TeiDocument::validate()` (unique identifiers, speaker references, internal
+pointers), and the relationships between document entities. Individual value
+types such as `DivType` perform their own validation (e.g., non-empty division
+type strings).
 
 ```mermaid
 classDiagram
