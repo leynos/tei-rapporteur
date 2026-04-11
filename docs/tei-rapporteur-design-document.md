@@ -766,7 +766,11 @@ classDiagram
     }
 
     class TeiText {
-      +Vec~BodyBlock~ body_blocks
+      +TeiBody body
+    }
+
+    class TeiBody {
+      +Vec~BodyBlock~ blocks
     }
 
     class BodyBlock {
@@ -832,15 +836,25 @@ classDiagram
     }
 
     class DivType {
-      <<enum>>
-      +validated_div_types
+      <<validated newtype>>
+      +String value
+      +validate() Result~Unit,DivTypeValidationError~
     }
 
     class TeiError {
       <<enum>>
+      +DocumentTitle
+      +Header
+      +Body
+      +Identifier
+      +Pointer
+      +PointerList
+      +Annotation
+      +Certainty
+      +Speaker
       +Validation
       +Xml
-      +Other
+      +Io
     }
 
     TeiDocument --> TeiHeader : has
@@ -852,7 +866,8 @@ classDiagram
 
     ProfileCast --> Speaker : has_many
 
-    TeiText --> BodyBlock : has_many
+    TeiText --> TeiBody : has
+    TeiBody --> BodyBlock : has_many
 
     Div --> DivContent : has_many
     Div --> DivType : uses
