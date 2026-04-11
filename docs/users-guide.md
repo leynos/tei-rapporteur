@@ -9,7 +9,8 @@ available today and how to exercise it.
 - `tei-core` now models the top-level `TeiDocument` together with its
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
   paragraphs (`P`), utterances with optional speaker references, and thematic
-  divisions (`Div`) that group structured content such as lists. Each block
+  divisions (`Div`) that group paragraphs, utterances, and lists as
+  `DivContent` children. Each block
   stores a sequence of `Inline` nodes, allowing clients to mix plain text with
   emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain
   strings flow through `P::from_text_segments`,
@@ -501,9 +502,10 @@ Events use internal tagging (`type`), covering:
 
 - `document_start`
 - `header` (with a structured `header` field)
-- `paragraph` / `utterance` / `div` (unwrapped, carrying inline `content` as
-  tagged `Inline` values; `div` events include `div_type` and nested `content`
-  with `DivContent` children)
+- `paragraph` / `utterance` – carrying `content: list[Inline]` as tagged
+  `Inline` values (`text`, `hi`, `pause`)
+- `div` – carrying `div_type: str` and `content: list[DivContent]` (each
+  `DivContent` child is itself a `paragraph`, `utterance`, or `list_block`)
 - `document_end`
 
 Inline content is also tagged (`text`, `hi`, `pause`), so Python callers can
