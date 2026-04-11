@@ -370,6 +370,12 @@
     </element>
   </define>
 
+  <define name="head">
+    <element name="head" ns="http://www.tei-c.org/ns/1.0">
+      <ref name="inlineContent"/>
+    </element>
+  </define>
+
   <define name="p">
     <element name="p" ns="http://www.tei-c.org/ns/1.0">
       <optional>
