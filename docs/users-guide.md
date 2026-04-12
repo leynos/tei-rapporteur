@@ -19,22 +19,23 @@ available today and how to exercise it.
   callers. The `Div` type models `<div>` elements with a validated `@type`
   attribute (`DivType`), optional `@xml:id`, and a `Vec<DivContent>` of
   children. `DivContent` permits `Paragraph`, `Utterance`, and `List` children
-  inside a division. `List` holds an ordered `Vec<Item>`, and each `Item`
-  carries optional `@n` (numbering or timestamp), `@corresp` (pointer list),
-  `@xml:id`, an optional `Label` prefix, and inline content. `Label` wraps
-  `Vec<Inline>` content. `TeiDocument` now exposes `validate()` to enforce
-  document-wide rules: it rejects duplicate `xml:id` values across annotation
-  systems, paragraphs, utterances, divisions, lists, and items, and ensures
-  utterance speakers appear in the profile cast when it exists. An empty cast
-  still counts as declared—every `who` fails until the speakers are
-  populated—whereas the absence of a cast allows speaker references, so drafts
-  can be validated incrementally. Identifier checks span the header as well,
-  catching clashes between annotation systems and body blocks. Violations
-  surface as `TeiError::Validation`. Utterances now also carry local provenance
-  and citation attributes (`@n`, `@source`, `@resp`, `@cert`, `@corresp`,
-  `@ana`), and XML deserialization remains strict for `<u>` and `<item>`:
-  misspelt or unsupported attributes are rejected instead of being silently
-  discarded.
+  inside a division; see "Text Encoding Initiative (TEI) Episodic Profile
+  schema" below for the formal body content model. `List` holds an ordered
+  `Vec<Item>`, and each `Item` carries optional `@n` (numbering or timestamp),
+  `@corresp` (pointer list), `@xml:id`, an optional `Label` prefix, and inline
+  content. `Label` wraps `Vec<Inline>` content. `TeiDocument` now exposes
+  `validate()` to enforce document-wide rules: it rejects duplicate `xml:id`
+  values across annotation systems, paragraphs, utterances, divisions, lists,
+  and items, and ensures utterance speakers appear in the profile cast when it
+  exists. An empty cast still counts as declared—every `who` fails until the
+  speakers are populated—whereas the absence of a cast allows speaker
+  references, so drafts can be validated incrementally. Identifier checks span
+  the header as well, catching clashes between annotation systems and body
+  blocks. Violations surface as `TeiError::Validation`. Utterances now also
+  carry local provenance and citation attributes (`@n`, `@source`, `@resp`,
+  `@cert`, `@corresp`, `@ana`), and XML deserialization remains strict for
+  `<u>` and `<item>`: misspelt or unsupported attributes are rejected instead
+  of being silently discarded.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
@@ -320,8 +321,8 @@ The profile supports:
   (`<item>`) that carry optional `@n` (numbering or timestamp metadata),
   `@corresp` (pointer list for cross-references), and `@xml:id`. Each item may
   include an optional label prefix (`<label>`) followed by inline content.
-  Lists are permitted within `<div>` elements only; `<body>` admits top-level
-  `<p>`, `<u>`, and `<div>` children, not bare `<list>` elements.
+  Lists are permitted within `<div>` elements only; `<list>` cannot appear
+  directly as a child of `<body>` and must instead be wrapped in a `<div>`.
 - **Stand-off overlays**: root-level `<standOff>` containers with
   `<spanGrp>`/`<span>` layers for many-to-many citation and analytical markup
 - **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause
