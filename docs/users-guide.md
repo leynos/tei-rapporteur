@@ -10,15 +10,14 @@ available today and how to exercise it.
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
   paragraphs (`P`), utterances with optional speaker references, and thematic
   divisions (`Div`) that group paragraphs, utterances, and lists as
-  `DivContent` children. Each block
-  stores a sequence of `Inline` nodes, allowing clients to mix plain text with
-  emphasised `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain
-  strings flow through `P::from_text_segments`,
-  `Utterance::from_text_segments`, `Item::from_text_segments`, and
-  `Label::from_text`; the older `P::new` and `Utterance::new` constructors
-  remain as deprecated shims for existing callers. The `Div` type models
-  `<div>` elements with a validated
-  `@type` attribute (`DivType`), optional `@xml:id`, and a `Vec<DivContent>` of
+  `DivContent` children. Each block stores a sequence of `Inline` nodes,
+  allowing clients to mix plain text with emphasised `<hi>` spans and
+  `<pause/>` cues without hand-rolling XML. Plain strings flow through
+  `P::from_text_segments`, `Utterance::from_text_segments`,
+  `Item::from_text_segments`, and `Label::from_text`; the older `P::new` and
+  `Utterance::new` constructors remain as deprecated shims for existing
+  callers. The `Div` type models `<div>` elements with a validated `@type`
+  attribute (`DivType`), optional `@xml:id`, and a `Vec<DivContent>` of
   children. `DivContent` permits `Paragraph`, `Utterance`, and `List` children
   inside a division. `List` holds an ordered `Vec<Item>`, and each `Item`
   carries optional `@n` (numbering or timestamp), `@corresp` (pointer list),
@@ -320,7 +319,9 @@ The profile supports:
   paragraphs, utterances, and lists (`<list>`). Lists hold ordered items
   (`<item>`) that carry optional `@n` (numbering or timestamp metadata),
   `@corresp` (pointer list for cross-references), and `@xml:id`. Each item may
-  include an optional label prefix (`<label>`) followed by inline content
+  include an optional label prefix (`<label>`) followed by inline content.
+  Lists are permitted within `<div>` elements only; `<body>` admits top-level
+  `<p>`, `<u>`, and `<div>` children, not bare `<list>` elements.
 - **Stand-off overlays**: root-level `<standOff>` containers with
   `<spanGrp>`/`<span>` layers for many-to-many citation and analytical markup
 - **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause
