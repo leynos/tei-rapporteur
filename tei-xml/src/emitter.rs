@@ -151,7 +151,8 @@ fn emit_div(output: &mut String, div: &Div) {
     emit_attr(output, "type", div.div_type());
     emit_optional_attr(output, "subtype", div.subtype());
     emit_optional_xml_id(output, div.id());
-    emit_element_body(output, "div", div.is_empty(), |out| {
+    let is_empty = div.head().is_none() && div.content().is_empty();
+    emit_element_body(output, "div", is_empty, |out| {
         if let Some(head) = div.head() {
             emit_head(out, head);
         }

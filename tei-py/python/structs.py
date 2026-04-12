@@ -203,6 +203,8 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     def __post_init__(self) -> None:
         if not self.div_type.strip():
             raise ValueError("DivBlock.div_type must contain non-whitespace text")
+        if self.subtype is not None and not self.subtype.strip():
+            raise ValueError("DivBlock.subtype must contain non-whitespace text")
 
 
 DivContent: TypeAlias = TextBlock | ListBlock | DivBlock

@@ -542,8 +542,8 @@ fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
     ensure!(
         instance
             .pointer("/text/body/$value/0/div/@subtype")
-            .is_some_and(|subtype| !subtype.is_null()),
-        "serialized document should include the division subtype"
+            .is_some_and(|subtype| subtype == "chapter-markers"),
+        "serialized document should include the expected division subtype"
     );
     ensure!(
         instance
@@ -554,8 +554,8 @@ fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
     ensure!(
         instance
             .pointer("/text/body/$value/0/div/$value/1/div/@subtype")
-            .is_some_and(|subtype| !subtype.is_null()),
-        "serialized document should include the nested division subtype"
+            .is_some_and(|subtype| subtype == "guest-bio"),
+        "serialized document should include the expected nested division subtype"
     );
     ensure!(
         instance

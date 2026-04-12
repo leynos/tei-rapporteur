@@ -1,8 +1,10 @@
-//! Validated wrapper types for TEI identifiers and speaker attributes.
+//! Validated wrapper types for TEI text-layer attributes and identifiers.
 //!
-//! Pointer and certainty wrappers live in the sibling `pointers` submodule so
-//! this root file can focus on the identifier and speaker primitives shared
-//! across the text layer.
+//! This module collects the normalized wrappers that are reused across the TEI
+//! text model, including `XmlId` identifiers, speaker values, division
+//! classifiers such as `DivType` and `DivSubtype`, pointer and certainty
+//! wrappers re-exported from the sibling `pointers` submodule, and trimming
+//! helpers such as `trim_preserving_original`.
 
 #[path = "div_types.rs"]
 mod div_types;

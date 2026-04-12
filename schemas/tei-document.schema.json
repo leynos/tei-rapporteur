@@ -413,9 +413,13 @@
           "default": [],
           "items": {
             "$ref": "#/$defs/Inline"
-          }
+          },
+          "minItems": 1
         }
-      }
+      },
+      "required": [
+        "$value"
+      ]
     },
     "hi": {
       "description": "Emphasised inline element corresponding to `<hi>`.",

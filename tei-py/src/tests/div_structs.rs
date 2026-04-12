@@ -171,5 +171,9 @@ fn streaming_div_events_decode_into_python_union() {
             .extract()
             .expect("subtype should be a string");
         assert_eq!(subtype, "chapter-markers");
+        let head = decoded_event
+            .getattr("head")
+            .expect("DivEvent should expose head");
+        assert_eq!(first_text_content(&head), "Chapter markers");
     });
 }

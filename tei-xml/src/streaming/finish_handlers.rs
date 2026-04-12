@@ -77,13 +77,13 @@ impl<R: BufRead> TeiPullParser<R> {
     fn finish_with_parent_restore<V>(
         &mut self,
         extract: impl FnOnce(&mut ParserState) -> Result<Option<(V, Box<ParserState>)>, TeiError>,
-        apply: impl FnOnce(V, &mut ParserState),
+        apply: impl FnOnce(V, &mut ParserState) -> Result<(), TeiError>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         let Some((value, mut parent_state)) = extract(&mut self.state)? else {
             return Ok(None);
         };
 
-        apply(value, parent_state.as_mut());
+        apply(value, parent_state.as_mut())?;
         self.state = *parent_state;
         Ok(None)
     }
@@ -161,7 +161,11 @@ impl<R: BufRead> TeiPullParser<R> {
                 } = parent_state
                 {
                     *item_label = Some(label);
+                    return Ok(());
                 }
+                Err(TeiError::xml(
+                    "internal error: InLabel parent was not InItem",
+                ))
             },
         )
     }
@@ -187,7 +191,9 @@ impl<R: BufRead> TeiPullParser<R> {
             |head, parent_state| {
                 if let ParserState::InDiv { head: div_head, .. } = parent_state {
                     *div_head = Some(head);
+                    return Ok(());
                 }
+                Err(TeiError::xml("internal error: InHead parent was not InDiv"))
             },
         )
     }
@@ -225,7 +231,11 @@ impl<R: BufRead> TeiPullParser<R> {
             |item, parent_state| {
                 if let ParserState::InList { items, .. } = parent_state {
                     items.push(item);
+                    return Ok(());
                 }
+                Err(TeiError::xml(
+                    "internal error: InItem parent was not InList",
+                ))
             },
         )
     }
@@ -252,7 +262,9 @@ impl<R: BufRead> TeiPullParser<R> {
             |list, parent_state| {
                 if let ParserState::InDiv { content, .. } = parent_state {
                     content.push(DivContent::List(list));
+                    return Ok(());
                 }
+                Err(TeiError::xml("internal error: InList parent was not InDiv"))
             },
         )
     }

@@ -316,13 +316,20 @@ The profile supports:
 - **Body structure**: paragraphs (`<p>`), utterances (`<u>`) with optional
   speaker attribution via `@who` plus local provenance attributes (`@n`,
   `@source`, `@resp`, `@cert`, `@corresp`, `@ana`), and thematic divisions
-  (`<div>`) with a required `@type` attribute. Divisions can contain
-  paragraphs, utterances, and lists (`<list>`). Lists hold ordered items
-  (`<item>`) that carry optional `@n` (numbering or timestamp metadata),
-  `@corresp` (pointer list for cross-references), and `@xml:id`. Each item may
-  include an optional label prefix (`<label>`) followed by inline content.
-  Lists are permitted within `<div>` elements only; `<list>` cannot appear
-  directly as a child of `<body>` and must instead be wrapped in a `<div>`.
+  (`<div>`) with a required validated `@type` (`DivType`), optional `@subtype`,
+  optional `@xml:id`, and an optional `Head` wrapper for a single leading
+  `<head>` element. Divisions can contain paragraphs, utterances, lists
+  (`<list>`), and nested divisions. Lists hold ordered items (`<item>`) that
+  carry optional `@n` (numbering or timestamp metadata), `@corresp` (pointer
+  list for cross-references), and `@xml:id`. Each item may include an optional
+  label prefix (`<label>`) followed by inline content. Paragraphs, utterances,
+  items, labels, and heads all store ordered `Inline` nodes; plain strings can
+  be constructed via `P::from_text_segments`, `Utterance::from_text_segments`,
+  `Item::from_text_segments`, `Label::from_text`, and `Head::from_text`. Lists
+  are permitted within `<div>` elements only; `<list>` cannot appear directly
+  as a child of `<body>` and must instead be wrapped in a `<div>`. Document
+  validation also rejects duplicate `xml:id` values across nested division
+  content and enforces declared-speaker checks when a profile cast is present.
 - **Stand-off overlays**: root-level `<standOff>` containers with
   `<spanGrp>`/`<span>` layers for many-to-many citation and analytical markup
 - **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause

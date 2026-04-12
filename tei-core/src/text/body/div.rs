@@ -114,11 +114,7 @@ impl Div {
 
     /// Returns the division identifier when present.
     #[must_use]
-    #[expect(
-        clippy::missing_const_for_fn,
-        reason = "Option::as_ref is not const-stable on current MSRV."
-    )]
-    pub fn id(&self) -> Option<&XmlId> {
+    pub const fn id(&self) -> Option<&XmlId> {
         self.id.as_ref()
     }
 

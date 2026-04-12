@@ -95,9 +95,26 @@ impl<R: BufRead> TeiPullParser<R> {
                 content.push(Inline::Pause(pause));
                 Ok(None)
             }
+            ParserState::InParagraph { .. } => {
+                Err(unexpected_empty_element_error(name_bytes, "InParagraph"))
+            }
+            ParserState::InUtterance { .. } => {
+                Err(unexpected_empty_element_error(name_bytes, "InUtterance"))
+            }
+            ParserState::InEmphasis { .. } => {
+                Err(unexpected_empty_element_error(name_bytes, "InEmphasis"))
+            }
+            ParserState::InItem { .. } => Err(unexpected_empty_element_error(name_bytes, "InItem")),
+            ParserState::InHead { .. } => Err(unexpected_empty_element_error(name_bytes, "InHead")),
+            ParserState::InLabel { .. } => {
+                Err(unexpected_empty_element_error(name_bytes, "InLabel"))
+            }
             ParserState::AwaitingBody if name_bytes == b"body" => {
                 self.state = ParserState::DocumentComplete;
                 Ok(Some(TeiEvent::DocumentEnd))
+            }
+            ParserState::AwaitingBody => {
+                Err(unexpected_empty_element_error(name_bytes, "AwaitingBody"))
             }
             ParserState::InBody if name_bytes == b"div" => {
                 let div = Self::build_empty_div(element)?;
@@ -108,6 +125,8 @@ impl<R: BufRead> TeiPullParser<R> {
                 content.push(DivContent::Div(div));
                 Ok(None)
             }
+            ParserState::InBody => Err(unexpected_empty_element_error(name_bytes, "InBody")),
+            ParserState::InDiv { .. } => Err(unexpected_empty_element_error(name_bytes, "InDiv")),
             _ => Ok(None),
         }
     }
@@ -172,4 +191,11 @@ impl<R: BufRead> TeiPullParser<R> {
             Vec::new(),
         )
     }
+}
+
+fn unexpected_empty_element_error(name_bytes: &[u8], state_name: &str) -> TeiError {
+    let name = String::from_utf8_lossy(name_bytes);
+    TeiError::xml(format!(
+        "unexpected empty element <{name}/> while parsing state {state_name}"
+    ))
 }

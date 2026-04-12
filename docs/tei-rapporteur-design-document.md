@@ -422,10 +422,10 @@ The text module now models the `<text><body>` hierarchy instead of relying on
 placeholder segments:
 
 - `TeiText` owns a `TeiBody`, and `TeiBody` keeps a `Vec<BodyBlock>` so the
-  order of paragraphs and utterances remains faithful to the source script.
-- `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
-  variants. This provides a single ordered surface today while leaving room for
-  future variants such as divisions.
+  order of top-level body blocks remains faithful to the source script.
+- `BodyBlock` is an enum with `Paragraph(P)`, `Utterance(Utterance)`, and
+  `Div(Div)` variants so top-level thematic divisions preserve source order
+  without flattening the hierarchy.
 - `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasized spans, and
   pauses share a single ordered sequence. Both structs expose helper methods
   for attaching optional `xml:id` values. `Utterance` now also models TEI's
@@ -804,7 +804,9 @@ classDiagram
 
     class Div {
       +DivType div_type
+      +String? subtype
       +String? xml_id
+      +Head? head
       +Vec~DivContent~ children
     }
 
@@ -813,6 +815,7 @@ classDiagram
       +Paragraph
       +Utterance
       +List
+      +Div
     }
 
     class List {
@@ -909,6 +912,7 @@ classDiagram
     DivContent --> Paragraph
     DivContent --> Utterance
     DivContent --> List
+    DivContent --> Div
 
     List --> Item : ordered_items
 
@@ -916,6 +920,7 @@ classDiagram
     Paragraph --> Inline : has_many
     Utterance --> Inline : has_many
     Label --> Inline : has_many
+    Head --> Inline : has_many
 
     Utterance ..> ProfileCast : who_references_speaker
 

@@ -41,6 +41,7 @@ fn apply_profile_constraints(schema: &mut Map<String, Value>) {
     apply_stand_off_constraints(definitions);
     apply_div_type_constraints(definitions);
     apply_div_subtype_constraints(definitions);
+    apply_head_constraints(definitions);
 }
 
 fn apply_refs_decl_constraints(definitions: &mut Map<String, Value>) {
@@ -144,6 +145,21 @@ fn apply_div_type_constraints(definitions: &mut Map<String, Value>) {
 
 fn apply_div_subtype_constraints(definitions: &mut Map<String, Value>) {
     apply_non_empty_string_definition(definitions, "DivSubtype");
+}
+
+fn apply_head_constraints(definitions: &mut Map<String, Value>) {
+    let Some(head) = definitions.get_mut("head").and_then(Value::as_object_mut) else {
+        return;
+    };
+    head.insert(
+        "required".to_owned(),
+        Value::Array(vec![Value::String("$value".to_owned())]),
+    );
+
+    let Some(properties) = head.get_mut("properties").and_then(Value::as_object_mut) else {
+        return;
+    };
+    set_min_items(properties, "$value", 1);
 }
 
 fn apply_non_empty_string_definition(definitions: &mut Map<String, Value>, name: &str) {
