@@ -23,6 +23,8 @@ use refs_decl::validate_refs_decl;
 use speakers::{extract_known_speakers, validate_speaker_reference};
 use stand_off::validate_stand_off_structure;
 
+pub(super) const MAX_DIV_DEPTH: usize = 128;
+
 /// Errors raised when validating a [`TeiDocument`].
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum ValidationError {
@@ -63,6 +65,15 @@ pub enum ValidationError {
     /// A stand-off span declared `@to` without `@from`.
     #[error("span @to requires @from")]
     SpanToWithoutFrom,
+
+    /// A nested structural container exceeded the supported recursion limit.
+    #[error("{container} nesting exceeds maximum supported depth of {max_depth}")]
+    TooDeep {
+        /// Name of the container whose nesting exceeded the limit.
+        container: &'static str,
+        /// Maximum supported nesting depth.
+        max_depth: usize,
+    },
 }
 
 /// Validates document-wide invariants for a [`TeiDocument`].
@@ -105,7 +116,7 @@ fn validate_body_blocks(
                 validate_speaker_reference(utterance, known_speakers)?;
             }
             BodyBlock::Div(div) => {
-                validate_div(div, seen_ids, known_speakers)?;
+                validate_div(div, seen_ids, known_speakers, 0)?;
             }
         }
     }
@@ -117,8 +128,11 @@ fn validate_div(
     div: &crate::Div,
     seen_ids: &mut HashSet<String>,
     known_speakers: Option<&HashSet<String>>,
+    current_depth: usize,
 ) -> Result<(), ValidationError> {
     use crate::DivContent;
+
+    ensure_within_max_depth("div", current_depth)?;
 
     if let Some(identifier) = div.id() {
         identifiers::record_id(identifier.as_str(), seen_ids)?;
@@ -137,8 +151,10 @@ fn validate_div(
                 }
                 validate_speaker_reference(utterance, known_speakers)?;
             }
-            DivContent::List(list) => validate_list(list, seen_ids)?,
-            DivContent::Div(nested_div) => validate_div(nested_div, seen_ids, known_speakers)?,
+            DivContent::List(list) => validate_list(list, seen_ids, current_depth + 1)?,
+            DivContent::Div(nested_div) => {
+                validate_div(nested_div, seen_ids, known_speakers, current_depth + 1)?;
+            }
         }
     }
 
@@ -148,7 +164,10 @@ fn validate_div(
 fn validate_list(
     list: &crate::List,
     seen_ids: &mut HashSet<String>,
+    current_depth: usize,
 ) -> Result<(), ValidationError> {
+    ensure_within_max_depth("list", current_depth)?;
+
     if let Some(identifier) = list.id() {
         identifiers::record_id(identifier.as_str(), seen_ids)?;
     }
@@ -162,6 +181,20 @@ fn validate_list(
     Ok(())
 }
 
+const fn ensure_within_max_depth(
+    container: &'static str,
+    current_depth: usize,
+) -> Result<(), ValidationError> {
+    if current_depth >= MAX_DIV_DEPTH {
+        return Err(ValidationError::TooDeep {
+            container,
+            max_depth: MAX_DIV_DEPTH,
+        });
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     //! Unit tests for document-wide validation invariants.
@@ -170,8 +203,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        Certainty, CiteData, CiteStructure, EncodingDesc, FileDesc, Pointer, PointerList, RefsDecl,
-        Span, SpanGroup, StandOff, TeiBody, TeiHeader, TeiText, Utterance,
+        Certainty, CiteData, CiteStructure, Div, EncodingDesc, FileDesc, Pointer, PointerList,
+        RefsDecl, Span, SpanGroup, StandOff, TeiBody, TeiHeader, TeiText, Utterance,
     };
 
     #[fixture]
@@ -215,6 +248,34 @@ mod tests {
     fn accepts_resolved_stand_off_pointers(document_with_stand_off: TeiDocument) {
         let document = document_with_stand_off;
         assert!(validate_document(&document).is_ok());
+    }
+
+    #[test]
+    fn rejects_divisions_that_exceed_maximum_depth() {
+        let header = TeiHeader::new(
+            FileDesc::from_title_str("Too deep").unwrap_or_else(|error| panic!("title: {error}")),
+        );
+        let mut root_div = Div::new("section").unwrap_or_else(|error| panic!("root div: {error}"));
+
+        for _ in 0..MAX_DIV_DEPTH {
+            let mut wrapper =
+                Div::new("section").unwrap_or_else(|error| panic!("wrapper div: {error}"));
+            wrapper.push_div(root_div);
+            root_div = wrapper;
+        }
+
+        let document = TeiDocument::new(
+            header,
+            TeiText::new(TeiBody::new([BodyBlock::Div(root_div)])),
+        );
+
+        assert_eq!(
+            validate_document(&document),
+            Err(ValidationError::TooDeep {
+                container: "div",
+                max_depth: MAX_DIV_DEPTH,
+            })
+        );
     }
 
     #[rstest]

@@ -79,7 +79,10 @@ class ListBlock(
     items: list[Item] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 
-DivContent: TypeAlias = TextBlock | ListBlock
+class Head(msgspec.Struct, omit_defaults=True):
+    """Division heading attached to the start of a structural division."""
+
+    content: list[Inline] = ...  # type: ignore[assignment]
 
 class DivBlock(
     msgspec.Struct, tag="div", tag_field="type", omit_defaults=True
@@ -87,8 +90,12 @@ class DivBlock(
     """Structural division within the TEI body."""
 
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = ...  # type: ignore[assignment]
     xml_id: str | None = None
+
+DivContent: TypeAlias = TextBlock | ListBlock | DivBlock
 
 BodyBlock: TypeAlias = TextBlock | DivBlock
 

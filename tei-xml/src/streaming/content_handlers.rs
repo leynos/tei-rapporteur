@@ -4,10 +4,13 @@ use std::io::BufRead;
 
 use quick_xml::events::{BytesRef, BytesStart, BytesText};
 
-use tei_core::{Inline, TeiError};
+use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
 use super::event::TeiEvent;
-use super::helpers::{append_empty_element, build_pause, extract_attribute, resolve_entity_ref};
+use super::helpers::{
+    RawDivAttrs, append_empty_element, build_div, build_pause, extract_attribute, extract_xml_id,
+    resolve_entity_ref,
+};
 use super::parser::TeiPullParser;
 use super::state::ParserState;
 
@@ -96,6 +99,15 @@ impl<R: BufRead> TeiPullParser<R> {
                 self.state = ParserState::DocumentComplete;
                 Ok(Some(TeiEvent::DocumentEnd))
             }
+            ParserState::InBody if name_bytes == b"div" => {
+                let div = Self::build_empty_div(element)?;
+                Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
+            }
+            ParserState::InDiv { content, .. } if name_bytes == b"div" => {
+                let div = Self::build_empty_div(element)?;
+                content.push(DivContent::Div(div));
+                Ok(None)
+            }
             _ => Ok(None),
         }
     }
@@ -142,5 +154,22 @@ impl<R: BufRead> TeiPullParser<R> {
                 Err(TeiError::xml("unexpected end of document"))
             }
         }
+    }
+
+    fn build_empty_div(element: &BytesStart<'_>) -> Result<tei_core::Div, TeiError> {
+        let div_type = extract_attribute(element, b"type")?
+            .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?;
+        let subtype = extract_attribute(element, b"subtype")?;
+        let id = extract_xml_id(element)?;
+
+        build_div(
+            RawDivAttrs {
+                div_type,
+                subtype,
+                id,
+                head: None,
+            },
+            Vec::new(),
+        )
     }
 }

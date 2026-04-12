@@ -57,6 +57,12 @@ pub struct TeiPullParser<R: BufRead> {
     pub(super) reader: Reader<R>,
     pub(super) state: ParserState,
     pub(super) header: Option<TeiHeader>,
+    /// Pending parent `<div>` used while parsing direct paragraph and
+    /// utterance children so completed blocks can be attached or emitted.
+    ///
+    /// Nested structural containers use `ParserState::InDiv.parent_div`
+    /// instead, so this field is intentionally limited to the flat block
+    /// states that do not carry their own parent pointer.
     pub(super) pending_div_state: Option<Box<ParserState>>,
 }
 

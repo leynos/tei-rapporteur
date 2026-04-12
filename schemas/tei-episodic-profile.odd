@@ -72,7 +72,7 @@
           <!-- ============================================================ -->
 
 	          <moduleRef key="tei"/>
-	          <moduleRef key="core" include="p hi title desc list item label"/>
+	          <moduleRef key="core" include="p hi title desc list item label head"/>
 	          <moduleRef key="header"
 	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem refsDecl citeStructure citeData series synopsis speaker lang resp"/>
 	          <moduleRef key="textstructure" include="TEI text body div"/>

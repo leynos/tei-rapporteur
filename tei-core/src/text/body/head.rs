@@ -22,8 +22,8 @@ impl Head {
     ///
     /// # Errors
     ///
-    /// Returns [`BodyContentError::EmptyContent`] when the content lacks
-    /// visible inline information.
+    /// Returns [`BodyContentError::EmptySegment`] with `container` set to
+    /// `"head"` when the content lacks visible inline information.
     pub fn new(content: impl IntoIterator<Item = Inline>) -> Result<Self, BodyContentError> {
         let collected: Vec<Inline> = content.into_iter().collect();
         ensure_container_content(&collected, "head")?;
@@ -35,8 +35,8 @@ impl Head {
     ///
     /// # Errors
     ///
-    /// Returns [`BodyContentError::EmptyContent`] when the text lacks visible
-    /// characters.
+    /// Returns [`BodyContentError::EmptySegment`] with `container` set to
+    /// `"head"` when the text lacks visible characters.
     pub fn from_text(text: impl Into<String>) -> Result<Self, BodyContentError> {
         let mut content = Vec::new();
         push_validated_text_segment(&mut content, text, "head")?;

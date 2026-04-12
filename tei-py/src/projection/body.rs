@@ -248,17 +248,18 @@ pub(crate) fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiErr
             subtype,
             head,
             content,
-        } => div_block_from_py(PyDivArgs {
+        } => build_div_from_py(PyDivArgs {
             xml_id,
             div_type,
             subtype,
             head,
             content,
-        }),
+        })
+        .map(BodyBlock::Div),
     }
 }
 
-fn div_block_from_py(args: PyDivArgs) -> Result<BodyBlock, TeiError> {
+fn build_div_from_py(args: PyDivArgs) -> Result<Div, TeiError> {
     let mut div = Div::new(args.div_type)?;
     if let Some(id) = args.xml_id {
         div.set_id(id)?;
@@ -277,7 +278,7 @@ fn div_block_from_py(args: PyDivArgs) -> Result<BodyBlock, TeiError> {
             DivContent::Div(nested_div) => div.push_div(nested_div),
         }
     }
-    Ok(BodyBlock::Div(div))
+    Ok(div)
 }
 
 fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiError> {
@@ -323,24 +324,15 @@ fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiE
             subtype,
             head,
             content,
-        } => div_content_div_from_py(PyDivArgs {
+        } => build_div_from_py(PyDivArgs {
             xml_id,
             div_type,
             subtype,
             head,
             content,
-        }),
+        })
+        .map(DivContent::Div),
     }
-}
-
-fn div_content_div_from_py(args: PyDivArgs) -> Result<DivContent, TeiError> {
-    let block = div_block_from_py(args)?;
-    let BodyBlock::Div(div) = block else {
-        return Err(TeiError::xml(
-            "internal error: division projection did not produce a div body block",
-        ));
-    };
-    Ok(DivContent::Div(div))
 }
 
 fn core_item_from_py(item: PyItem) -> Result<Item, TeiError> {

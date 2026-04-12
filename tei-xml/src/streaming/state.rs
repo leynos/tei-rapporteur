@@ -103,7 +103,11 @@ pub enum ParserState {
         id: Option<String>,
         /// Optional heading captured before any child content.
         head: Option<Head>,
-        /// Optional parent div state for nested divisions.
+        /// Optional parent div state for nested structural divisions.
+        ///
+        /// This is distinct from `TeiPullParser::pending_div_state`, which is
+        /// only used while a direct paragraph or utterance child is being
+        /// assembled.
         parent_div: Option<Box<ParserState>>,
         /// Accumulated content.
         content: Vec<DivContent>,

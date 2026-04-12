@@ -28,8 +28,9 @@ fields, and the user-facing documentation explains the updated subset clearly.
 
 ## Standards grounding
 
-This plan is based on the official TEI P5 references, which should be treated
-as the standards source during implementation:
+This plan is based on the official Text Encoding Initiative (TEI) P5
+references, which should be treated as the standards source during
+implementation:
 
 1. `ref-div`: the TEI `<div>` element is a text division and may contain nested
    `<div>` elements.

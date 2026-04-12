@@ -541,9 +541,21 @@ fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
     );
     ensure!(
         instance
+            .pointer("/text/body/$value/0/div/@subtype")
+            .is_some_and(|subtype| !subtype.is_null()),
+        "serialized document should include the division subtype"
+    );
+    ensure!(
+        instance
             .pointer("/text/body/$value/0/div/$value/1/div/head")
             .is_some_and(|head| !head.is_null()),
         "serialized document should include the nested division head"
+    );
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/$value/1/div/@subtype")
+            .is_some_and(|subtype| !subtype.is_null()),
+        "serialized document should include the nested division subtype"
     );
     ensure!(
         instance

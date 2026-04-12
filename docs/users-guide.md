@@ -8,31 +8,29 @@ available today and how to exercise it.
 
 - `tei-core` now models the top-level `TeiDocument` together with its
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
-  paragraphs (`P`), utterances, and structural divisions (`Div`) containing
-  paragraphs (`P`), utterances with optional speaker references, and
-  structural divisions (`Div`) containing paragraphs, utterances, lists
-  (`List`/`Item`/`Label`), and nested subdivisions. Each `Div` keeps a
-  validated required `@type` (`DivType`), optional `@subtype`, optional
-  `@xml:id`, and an optional `Head` wrapper for a single leading `<head>`
-  element in the Episodic profile. Each block stores a sequence of `Inline`
-  nodes, allowing clients to mix plain text with emphasised `<hi>` spans and
-  `<pause/>` cues without hand-rolling XML. Plain strings flow through
-  `P::from_text_segments`, `Utterance::from_text_segments`,
-  `Item::from_text_segments`, `Label::from_text`, and `Head::from_text`; the
-  older `new` constructors remain as deprecated shims for existing callers
-  where applicable. `TeiDocument` now exposes `validate()` to enforce
-  document-wide rules: it rejects duplicate `xml:id` values across annotation
-  systems, paragraphs, utterances, divisions, lists, and items, including
-  nested divisions, and ensures utterance speakers appear in the profile cast
-  when it exists. An empty cast still counts as declared, so every `who` fails
-  until the speakers are populated, whereas the absence of a cast allows
-  speaker references, so drafts can be validated incrementally. Identifier
-  checks span the header as well, catching clashes between annotation systems
-  and body blocks. Violations surface as `TeiError::Validation`. Utterances
-  and list items now also carry local provenance and citation attributes where
-  applicable, and XML deserialization remains strict for `<u>` and `<item>`:
-  misspelt or unsupported attributes are rejected instead of being silently
-  discarded.
+  paragraphs (`P`), utterances with optional speaker references, and structural
+  divisions (`Div`) containing paragraphs, utterances, lists
+  (`List`/`Item`/`Label`), and nested subdivisions. Each `Div` keeps a required
+  `@type` (`DivType`), an optional `@subtype`, an optional `@xml:id`, and an
+  optional `Head` wrapper for a single leading `<head>` element in the Episodic
+  profile. Each block stores a sequence of `Inline` nodes, allowing clients to
+  mix plain text with emphasized `<hi>` spans and `<pause/>` cues without
+  hand-rolling XML. Plain strings flow through `P::from_text_segments`,
+  `Utterance::from_text_segments`, `Item::from_text_segments`,
+  `Label::from_text`, and `Head::from_text`; the older `new` constructors
+  remain as deprecated shims for existing callers where applicable.
+  `TeiDocument` now exposes `validate()` to enforce document-wide rules: it
+  rejects duplicate `xml:id` values across annotation systems, paragraphs,
+  utterances, divisions, lists, and items, including nested divisions, and
+  ensures utterance speakers appear in the profile cast when it exists. An
+  empty cast still counts as declared, so every `who` fails until the speakers
+  are populated, whereas the absence of a cast allows speaker references, so
+  drafts can be validated incrementally. Identifier checks span the header as
+  well, catching clashes between annotation systems and body blocks. Violations
+  surface as `TeiError::Validation`. Utterances and list items now also carry
+  local provenance and citation attributes where applicable, and XML
+  deserialization remains strict for `<u>` and `<item>`: misspelt or
+  unsupported attributes are rejected instead of being silently discarded.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,

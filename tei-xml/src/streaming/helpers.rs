@@ -293,11 +293,7 @@ pub fn build_label(content: Vec<Inline>) -> Result<Label, TeiError> {
 
 /// Builds a Head from inline content.
 pub fn build_head(content: Vec<Inline>) -> Result<Head, TeiError> {
-    if content.is_empty() {
-        Head::from_text("").map_err(|e| TeiError::xml(e.to_string()))
-    } else {
-        Head::new(content).map_err(|e| TeiError::xml(e.to_string()))
-    }
+    Head::new(content).map_err(|e| TeiError::xml(e.to_string()))
 }
 
 /// Resolves a `BytesRef` entity reference to its text representation.

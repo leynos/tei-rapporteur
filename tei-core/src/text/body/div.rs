@@ -77,7 +77,7 @@ impl Div {
         set_optional_identifier(&mut self.id, id, "div")
     }
 
-    /// Sets the optional division subtype.
+    /// Sets the optional division subtype, overwriting any existing value.
     ///
     /// # Errors
     ///
@@ -91,7 +91,8 @@ impl Div {
         Ok(())
     }
 
-    /// Sets the optional heading for the division.
+    /// Sets the optional heading for the division, overwriting any existing
+    /// value.
     pub fn set_head(&mut self, head: Head) {
         self.head = Some(head);
     }
