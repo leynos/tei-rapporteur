@@ -16,30 +16,46 @@ use super::state::ParserState;
 
 /// Content handlers (text, empty elements, CDATA, EOF).
 impl<R: BufRead> TeiPullParser<R> {
-    /// Handles a text event.
-    pub(super) fn handle_text(
+    /// Appends an `Inline::Text` node to whichever content buffer the current
+    /// parser state owns, if any.  Returns `Ok(None)` regardless of state so
+    /// callers can propagate it directly.  The `produce` closure is only
+    /// invoked when the state carries an inline-content buffer.
+    fn push_text_inline(
         &mut self,
-        text: &BytesText<'_>,
+        produce: impl FnOnce() -> Result<String, TeiError>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                buffer.extend_from_slice(text.as_ref());
-                Ok(None)
-            }
+        let maybe_content = match &mut self.state {
             ParserState::InParagraph { content, .. }
             | ParserState::InUtterance { content, .. }
             | ParserState::InEmphasis { content, .. }
             | ParserState::InItem { content, .. }
             | ParserState::InHead { content, .. }
-            | ParserState::InLabel { content, .. } => {
-                let unescaped = text.decode().map_err(|e| TeiError::xml(e.to_string()))?;
-                if !unescaped.is_empty() {
-                    content.push(Inline::Text(unescaped.into_owned()));
-                }
-                Ok(None)
+            | ParserState::InLabel { content, .. } => Some(content),
+            _ => None,
+        };
+        if let Some(content) = maybe_content {
+            let text = produce()?;
+            if !text.is_empty() {
+                content.push(Inline::Text(text));
             }
-            _ => Ok(None),
         }
+        Ok(None)
+    }
+
+    /// Handles a text event.
+    pub(super) fn handle_text(
+        &mut self,
+        text: &BytesText<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if let ParserState::InHeader { buffer, .. } = &mut self.state {
+            buffer.extend_from_slice(text.as_ref());
+            return Ok(None);
+        }
+        self.push_text_inline(|| {
+            text.decode()
+                .map(std::borrow::Cow::into_owned)
+                .map_err(|e| TeiError::xml(e.to_string()))
+        })
     }
 
     /// Handles a general entity reference (`&name;` or `&#...;`).
@@ -47,25 +63,13 @@ impl<R: BufRead> TeiPullParser<R> {
         &mut self,
         reference: &BytesRef<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                buffer.push(b'&');
-                buffer.extend_from_slice(reference.as_ref());
-                buffer.push(b';');
-                Ok(None)
-            }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. }
-            | ParserState::InItem { content, .. }
-            | ParserState::InHead { content, .. }
-            | ParserState::InLabel { content, .. } => {
-                let resolved = resolve_entity_ref(reference)?;
-                content.push(Inline::Text(resolved));
-                Ok(None)
-            }
-            _ => Ok(None),
+        if let ParserState::InHeader { buffer, .. } = &mut self.state {
+            buffer.push(b'&');
+            buffer.extend_from_slice(reference.as_ref());
+            buffer.push(b';');
+            return Ok(None);
         }
+        self.push_text_inline(|| resolve_entity_ref(reference))
     }
 
     /// Handles an empty element event (self-closing tag).
@@ -136,28 +140,17 @@ impl<R: BufRead> TeiPullParser<R> {
         &mut self,
         cdata: &quick_xml::events::BytesCData<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        match &mut self.state {
-            ParserState::InHeader { buffer, .. } => {
-                buffer.extend_from_slice(b"<![CDATA[");
-                buffer.extend_from_slice(cdata.as_ref());
-                buffer.extend_from_slice(b"]]>");
-                Ok(None)
-            }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. }
-            | ParserState::InItem { content, .. }
-            | ParserState::InHead { content, .. }
-            | ParserState::InLabel { content, .. } => {
-                let text = std::str::from_utf8(cdata.as_ref())
-                    .map_err(|e| TeiError::xml(format!("invalid UTF-8 in CDATA: {e}")))?;
-                if !text.is_empty() {
-                    content.push(Inline::Text(text.to_owned()));
-                }
-                Ok(None)
-            }
-            _ => Ok(None),
+        if let ParserState::InHeader { buffer, .. } = &mut self.state {
+            buffer.extend_from_slice(b"<![CDATA[");
+            buffer.extend_from_slice(cdata.as_ref());
+            buffer.extend_from_slice(b"]]>");
+            return Ok(None);
         }
+        self.push_text_inline(|| {
+            std::str::from_utf8(cdata.as_ref())
+                .map(std::borrow::ToOwned::to_owned)
+                .map_err(|e| TeiError::xml(format!("invalid UTF-8 in CDATA: {e}")))
+        })
     }
 
     /// Handles end-of-file.
