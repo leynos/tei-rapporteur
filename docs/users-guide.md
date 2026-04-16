@@ -337,18 +337,21 @@ Use the root `tei_core` re-exports to assemble a division tree before wrapping
 it in a document body block:
 
 ```rust
-use tei_core::{BodyBlock, Div, Head, TeiDocument};
+use tei_core::{Div, Head, TeiDocument, BodyBlock};
 
 fn build_episode_doc() -> Result<(), tei_core::TeiError> {
+    // Parent division.
     let mut parent_div = Div::new("segment")?;
     parent_div.set_subtype("chapter-markers")?;
     parent_div.set_id("ch-01".to_string())?;
     parent_div.set_head(Head::from_text("Chapter markers")?);
 
+    // Nested child division.
     let mut child_div = Div::new("segment")?;
     child_div.set_subtype("cold-open")?;
     child_div.set_head(Head::from_text("Cold open")?);
 
+    // Attach the child and wrap the parent as a body block.
     parent_div.push_div(child_div);
 
     let header = tei_core::TeiHeader::new(tei_core::FileDesc::from_title_str(
@@ -512,8 +515,8 @@ stateDiagram-v2
     InDiv --> InParagraph : <p> start
     InDiv --> InUtterance : <u> start
     InDiv --> InDiv : nested <div> start
-    InDiv --> InBody : </div> yields top-level div event
-    InDiv --> InDiv : </div> pushes nested div child
+    InDiv --> InBody : </div> yields BodyBlock&#58;&#58;Div (top-level)
+    InDiv --> InDiv : </div> pushes DivContent&#58;&#58;Div (nested)
 
     InHead --> InDiv : </head> stores heading on parent div
 
@@ -522,8 +525,7 @@ stateDiagram-v2
 ```
 
 Full state coverage, including list, item, and label states, is documented in
-the design document; top-level closing `</div>` emits `BodyBlock::Div`, while
-nested closing `</div>` restores the parent and records `DivContent::Div`.
+the design document.
 
 The streaming parser currently streams the header and body only. Root-level
 `<standOff>` markup is supported by full-document parsing and emission, but it
