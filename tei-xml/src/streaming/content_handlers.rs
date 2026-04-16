@@ -85,33 +85,23 @@ impl<R: BufRead> TeiPullParser<R> {
                 append_empty_element(buffer, element)?;
                 Ok(None)
             }
-            ParserState::InParagraph { content, .. }
-            | ParserState::InUtterance { content, .. }
-            | ParserState::InEmphasis { content, .. }
-            | ParserState::InItem { content, .. }
-            | ParserState::InHead { content, .. }
-            | ParserState::InLabel { content, .. }
-                if name_bytes == b"pause" =>
-            {
-                let dur = extract_attribute(element, b"dur")?;
-                let pause_type = extract_attribute(element, b"type")?;
-                let pause = build_pause(dur, pause_type);
-                content.push(Inline::Pause(pause));
-                Ok(None)
+            ParserState::InParagraph { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InParagraph")
             }
-            ParserState::InParagraph { .. } => {
-                Err(unexpected_empty_element_error(name_bytes, "InParagraph"))
+            ParserState::InUtterance { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InUtterance")
             }
-            ParserState::InUtterance { .. } => {
-                Err(unexpected_empty_element_error(name_bytes, "InUtterance"))
+            ParserState::InEmphasis { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InEmphasis")
             }
-            ParserState::InEmphasis { .. } => {
-                Err(unexpected_empty_element_error(name_bytes, "InEmphasis"))
+            ParserState::InItem { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InItem")
             }
-            ParserState::InItem { .. } => Err(unexpected_empty_element_error(name_bytes, "InItem")),
-            ParserState::InHead { .. } => Err(unexpected_empty_element_error(name_bytes, "InHead")),
-            ParserState::InLabel { .. } => {
-                Err(unexpected_empty_element_error(name_bytes, "InLabel"))
+            ParserState::InHead { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InHead")
+            }
+            ParserState::InLabel { content, .. } => {
+                handle_inline_empty_element(content, name_bytes, element, "InLabel")
             }
             ParserState::AwaitingBody if name_bytes == b"body" => {
                 self.state = ParserState::DocumentComplete;
@@ -193,6 +183,22 @@ impl<R: BufRead> TeiPullParser<R> {
             },
             Vec::new(),
         )
+    }
+}
+
+fn handle_inline_empty_element(
+    content: &mut Vec<Inline>,
+    name_bytes: &[u8],
+    element: &BytesStart<'_>,
+    state_name: &str,
+) -> Result<Option<TeiEvent>, TeiError> {
+    if name_bytes == b"pause" {
+        let dur = extract_attribute(element, b"dur")?;
+        let pause_type = extract_attribute(element, b"type")?;
+        content.push(Inline::Pause(build_pause(dur, pause_type)));
+        Ok(None)
+    } else {
+        Err(unexpected_empty_element_error(name_bytes, state_name))
     }
 }
 

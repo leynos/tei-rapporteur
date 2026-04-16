@@ -166,7 +166,20 @@ class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
 
 
 class Head(msgspec.Struct, omit_defaults=True):
-    """Division heading attached to the start of a structural division."""
+    """Summary
+    -------
+    Division heading emitted at the start of a structural division.
+
+    Attributes
+    ----------
+    content : list[Inline]
+        Ordered inline nodes that make up the visible heading text.
+
+    Notes
+    -----
+    ``Head`` is used by :class:`DivBlock` for optional division titles and must
+    contain at least one inline node.
+    """
 
     content: list[Inline] = msgspec.field(default_factory=list)
 
