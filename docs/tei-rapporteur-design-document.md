@@ -816,6 +816,10 @@ classDiagram
       +Vec~Inline~ content
     }
 
+    class Head {
+      +Vec~Inline~ content
+    }
+
     class Div {
       +DivType div_type
       +String? subtype

@@ -170,6 +170,10 @@ class Head(msgspec.Struct, omit_defaults=True):
 
     content: list[Inline] = msgspec.field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        if not self.content:
+            raise ValueError("Head must contain at least one Inline node")
+
 
 class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     """Summary

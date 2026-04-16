@@ -505,6 +505,9 @@ The parser yields four high-level event types:
 
 ### Parser state overview
 
+This diagram shows the main `InBody` to `InDiv` flow and the return paths from
+`InHead`, `InParagraph`, and `InUtterance`.
+
 ```mermaid
 stateDiagram-v2
     [*] --> InBody
