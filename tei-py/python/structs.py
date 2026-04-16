@@ -460,6 +460,12 @@ class DivEvent(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     content: list[DivContent] = msgspec.field(default_factory=list)
     xml_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if not self.div_type.strip():
+            raise ValueError("DivEvent.div_type must contain non-whitespace text")
+        if self.subtype is not None and not self.subtype.strip():
+            raise ValueError("DivEvent.subtype must contain non-whitespace text")
+
 
 Event: TypeAlias = (
     DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent | DivEvent | DocumentEnd
