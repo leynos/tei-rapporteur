@@ -316,9 +316,9 @@ The profile supports:
 - **Body structure**: paragraphs (`<p>`), utterances (`<u>`) with optional
   speaker attribution via `@who` plus local provenance attributes (`@n`,
   `@source`, `@resp`, `@cert`, `@corresp`, `@ana`), and thematic divisions
-  (`<div>`) with a required validated `@type` (`DivType`), optional `@subtype`,
-  optional `@xml:id`, and an optional `Head` wrapper for a single leading
-  `<head>` element. Divisions can contain paragraphs, utterances, lists
+  (`<div>`) with `@type` (required and validated via `DivType`), optional
+  `@subtype`, optional `@xml:id`, and an optional `Head` wrapper for a single
+  leading `<head>` element. Divisions can contain paragraphs, utterances, lists
   (`<list>`), and nested divisions. Lists hold ordered items (`<item>`) that
   carry optional `@n` (numbering or timestamp metadata), `@corresp` (pointer
   list for cross-references), and `@xml:id`. Each item may include an optional

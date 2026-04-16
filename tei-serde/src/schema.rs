@@ -159,6 +159,9 @@ fn apply_head_constraints(definitions: &mut Map<String, Value>) {
     let Some(properties) = head.get_mut("properties").and_then(Value::as_object_mut) else {
         return;
     };
+    if let Some(value_schema) = properties.get_mut("$value").and_then(Value::as_object_mut) {
+        value_schema.remove("default");
+    }
     set_min_items(properties, "$value", 1);
 }
 

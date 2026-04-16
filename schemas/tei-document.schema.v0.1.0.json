@@ -410,7 +410,6 @@
       "properties": {
         "$value": {
           "type": "array",
-          "default": [],
           "items": {
             "$ref": "#/$defs/Inline"
           },

@@ -1571,6 +1571,7 @@ stateDiagram-v2
 
     InBody --> InParagraph : <p> start
     InBody --> InUtterance : <u> start
+    InBody --> InDiv : <div> start
     InBody --> InBody : other elements
     InBody --> AfterBody : </body>
     InBody --> DocumentComplete : eof (graceful)
@@ -1585,14 +1586,46 @@ stateDiagram-v2
     InUtterance --> InUtterance : text, inline
     InUtterance --> InBody : </u> yields BodyBlock Utterance
 
+    InDiv --> InHead : <head> start before children
+    InDiv --> InParagraph : <p> start with pending parent div
+    InDiv --> InUtterance : <u> start with pending parent div
+    InDiv --> InList : <list> start
+    InDiv --> InDiv : nested <div> start
+    InDiv --> InBody : </div> yields BodyBlock Div when top-level
+    InDiv --> InDiv : </div> pushes DivContent Div when nested
+    InDiv --> Error : duplicate <head> or malformed xml
+
+    InHead --> InEmphasis : <hi> start
+    InHead --> InHead : text, inline
+    InHead --> InDiv : </head> stores heading on parent div
+
+    InList --> InItem : <item> start
+    InList --> InDiv : </list> pushes DivContent List
+    InList --> Error : malformed xml
+
+    InItem --> InLabel : <label> start before content
+    InItem --> InEmphasis : <hi> start
+    InItem --> InItem : text, inline
+    InItem --> InList : </item> appends item to parent list
+    InItem --> Error : malformed xml
+
+    InLabel --> InEmphasis : <hi> start
+    InLabel --> InLabel : text, inline
+    InLabel --> InItem : </label> stores label on parent item
+
     InEmphasis --> InEmphasis : nested inline
     InEmphasis --> InParagraph : </hi> when parent paragraph
     InEmphasis --> InUtterance : </hi> when parent utterance
+    InEmphasis --> InHead : </hi> when parent head
+    InEmphasis --> InItem : </hi> when parent item
+    InEmphasis --> InLabel : </hi> when parent label
 
     InBody --> Error : malformed xml
     AfterBody --> Error : malformed xml
     InParagraph --> Error : malformed xml
     InUtterance --> Error : malformed xml
+    InHead --> Error : malformed xml
+    InLabel --> Error : malformed xml
     InEmphasis --> Error : malformed xml
 
     DocumentComplete --> [*]
