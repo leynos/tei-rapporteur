@@ -114,9 +114,6 @@ impl<R: BufRead> TeiPullParser<R> {
                 let div = Self::build_empty_div(element)?;
                 Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
             }
-            ParserState::InList { .. } if name_bytes == b"item" => {
-                Err(unexpected_empty_element_error(name_bytes, "InList"))
-            }
             ParserState::InList { .. } => Err(unexpected_empty_element_error(name_bytes, "InList")),
             ParserState::InDiv { content, .. } if name_bytes == b"div" => {
                 let div = Self::build_empty_div(element)?;

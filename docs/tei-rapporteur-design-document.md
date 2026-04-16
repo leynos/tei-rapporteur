@@ -2065,6 +2065,116 @@ MessagePack emitted by `to_msgpack` decodes directly into these classes via
 `msgspec.msgpack.decode(payload, type=Episode)`, and encoding the structs feeds
 the bytes straight back into `from_msgpack`.
 
+Figure: class diagram for the Python structural-division projections and their
+Rust-side projection helpers. `DivBlock` and streamed `DivEvent` values both
+carry optional `Head` values plus recursive `DivContent`, while the Rust
+projection enums preserve the same paragraph, utterance, list, and nested
+division shape before conversion across the FFI boundary.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class PyInline {
+        <<enum>>
+        Text
+        Hi
+        Pause
+    }
+
+    class Head {
+        + content: list~PyInline~
+    }
+
+    class DivBlock {
+        <<tagged struct div>>
+        + div_type: str
+        + subtype: str~None~
+        + head: Head~None~
+        + content: list~DivContent~
+        + xml_id: str~None~
+        + __post_init__()
+    }
+
+    class ListBlock {
+        + items: list~Item~
+        + xml_id: str~None~
+    }
+
+    class TextBlock {
+        <<TypeAlias>>
+        Paragraph | Utterance
+    }
+
+    class DivContent {
+        <<TypeAlias>>
+        TextBlock | ListBlock | DivBlock
+    }
+
+    class BodyBlock {
+        <<TypeAlias>>
+        TextBlock | DivBlock
+    }
+
+    class DivEvent {
+        <<tagged struct div>>
+        + div_type: str
+        + subtype: str~None~
+        + head: Head~None~
+        + content: list~DivContent~
+        + xml_id: str~None~
+    }
+
+    class Event {
+        <<enum>>
+        DocumentStart
+        HeaderEvent
+        ParagraphEvent
+        UtteranceEvent
+        DivEvent
+        DocumentEnd
+    }
+
+    class PyBodyBlock_Rust {
+        <<enum>>
+        Paragraph
+        Utterance
+        Div
+    }
+
+    class PyDivContent_Rust {
+        <<enum>>
+        Paragraph
+        Utterance
+        List
+        Div
+    }
+
+    class PyHead_Rust {
+        + content: Vec~PyInline_Rust~
+    }
+
+    class PyInline_Rust {
+    }
+
+    DivBlock "1" --> "*" DivContent : content
+    DivBlock "0..1" --> Head : head
+
+    DivContent --> DivBlock : DivBlock
+    DivContent --> ListBlock : ListBlock
+
+    BodyBlock --> DivBlock : DivBlock
+
+    DivEvent --> DivContent : content
+    DivEvent --> Head : head
+
+    Event --> DivEvent : Div
+
+    PyBodyBlock_Rust --> PyDivContent_Rust : uses
+    PyDivContent_Rust --> PyHead_Rust : head
+    PyHead_Rust --> PyInline_Rust : content
+```
+
 The above Python code shows how seamlessly a workflow can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and
 manipulation). Direct interaction with XML libraries is unnecessary, and the

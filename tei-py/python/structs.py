@@ -51,7 +51,22 @@ class InlineText(msgspec.Struct, tag="text", tag_field="type"):
 
 
 class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
-    """Emphasized inline span."""
+    """Summary
+    -------
+    Emphasized inline span within paragraph, utterance, or heading content.
+
+    ``InlineHi`` represents TEI ``<hi>`` markup and wraps nested inline nodes
+    with an optional rendering hint for downstream styling or interpretation.
+
+    Attributes
+    ----------
+    content : list[Inline]
+        Nested inline nodes contained by the emphasized span. Defaults to an
+        empty list.
+    rend : str | None
+        Optional TEI ``@rend`` hint describing the intended presentation or
+        emphasis style. Defaults to ``None``.
+    """
     content: list[Inline] = msgspec.field(default_factory=list)
     rend: str | None = None
 
@@ -202,14 +217,18 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     head : Head | None
         Optional heading emitted before the division's child blocks.
     content : list[DivContent]
-        Ordered child blocks within the division.
+        Ordered child blocks within the division, including paragraphs,
+        utterances, lists, and nested ``DivBlock`` instances via
+        ``DivContent``.
     xml_id : str | None
         Optional XML identifier for the division.
 
     Notes
     -----
-    ``DivBlock`` groups paragraphs, utterances, and lists into a named section
-    such as chaptered material or show notes.
+    ``DivBlock`` groups paragraphs, utterances, lists, and recursive child
+    divisions into a named section such as chaptered material or show notes.
+    ``DivContent = TextBlock | ListBlock | DivBlock`` means a division can nest
+    further structural divisions beneath itself.
     """
     div_type: str
     subtype: str | None = None
