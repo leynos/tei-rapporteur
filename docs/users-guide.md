@@ -330,6 +330,38 @@ The profile supports:
   as a child of `<body>` and must instead be wrapped in a `<div>`. Document
   validation also rejects duplicate `xml:id` values across nested division
   content and enforces declared-speaker checks when a profile cast is present.
+
+### Building divisions
+
+Use the root `tei_core` re-exports to assemble a division tree before wrapping
+it in a document body block:
+
+```rust
+use tei_core::{BodyBlock, Div, Head, TeiDocument};
+
+fn build_episode_doc() -> Result<(), tei_core::TeiError> {
+    let mut parent_div = Div::new("segment")?;
+    parent_div.set_subtype("chapter-markers")?;
+    parent_div.set_id("ch-01".to_string())?;
+    parent_div.set_head(Head::from_text("Chapter markers")?);
+
+    let mut child_div = Div::new("segment")?;
+    child_div.set_subtype("cold-open")?;
+    child_div.set_head(Head::from_text("Cold open")?);
+
+    parent_div.push_div(child_div);
+
+    let header = tei_core::TeiHeader::new(tei_core::FileDesc::from_title_str(
+        "Episode outline",
+    )?);
+    let mut text = tei_core::TeiText::empty();
+    text.extend([BodyBlock::Div(parent_div)]);
+
+    let _document = TeiDocument::new(header, text);
+    Ok(())
+}
+```
+
 - **Stand-off overlays**: root-level `<standOff>` containers with
   `<spanGrp>`/`<span>` layers for many-to-many citation and analytical markup
 - **Inline elements**: emphasis (`<hi>` with optional `@rend` attribute), pause
@@ -467,6 +499,31 @@ The parser yields four high-level event types:
   accumulated with their full child content (lists, items, nested paragraphs
   and utterances) before being yielded as a single `BodyBlock::Div` event
 - **`DocumentEnd`**: Emitted once after all content has been successfully parsed
+
+### Parser state overview
+
+```mermaid
+stateDiagram-v2
+    [*] --> InBody
+
+    InBody --> InDiv : <div> start
+
+    InDiv --> InHead : <head> start before children
+    InDiv --> InParagraph : <p> start
+    InDiv --> InUtterance : <u> start
+    InDiv --> InDiv : nested <div> start
+    InDiv --> InBody : </div> yields top-level div event
+    InDiv --> InDiv : </div> pushes nested div child
+
+    InHead --> InDiv : </head> stores heading on parent div
+
+    InParagraph --> InDiv : </p> restores parent div
+    InUtterance --> InDiv : </u> restores parent div
+```
+
+Full state coverage, including list, item, and label states, is documented in
+the design document; top-level closing `</div>` emits `BodyBlock::Div`, while
+nested closing `</div>` restores the parent and records `DivContent::Div`.
 
 The streaming parser currently streams the header and body only. Root-level
 `<standOff>` markup is supported by full-document parsing and emission, but it

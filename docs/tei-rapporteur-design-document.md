@@ -265,11 +265,17 @@ clarity and allows reuse or independent testing of components:
   XML library (the implementation uses `quick-xml`). This crate provides
   functions to parse TEI XML into `tei-core` data structures and to serialize
   `tei-core` structures back to XML. It may also include streaming parse
-  utilities (pull parser) and pretty-printing or canonicalization logic. In
-  practice, `tei-xml` might be merged with `tei-core` if tightly coupled, but
-  conceptually it’s a separate concern (XML I/O). This separation can help if
-  later iterations support alternative input formats (e.g., if someone wanted
-  to import a Markdown transcript and produce TEI).
+  utilities (pull parser) and pretty-printing or canonicalization logic. The
+  streaming implementation is split across focused modules: `handlers.rs` for
+  start-element dispatch, `content_handlers.rs` for text, entity reference,
+  CDATA, and empty-element accumulation, `finish_handlers.rs` for end-element
+  completion and parent-state restoration, `helpers.rs` for shared builder
+  functions such as `build_div` and `build_head`, and `state.rs` for the
+  `ParserState` enum and its constructors. In practice, `tei-xml` might be
+  merged with `tei-core` if tightly coupled, but conceptually it’s a separate
+  concern (XML I/O). This separation can help if later iterations support
+  alternative input formats (e.g., if someone wanted to import a Markdown
+  transcript and produce TEI).
 
 - **`tei-serde`**: A crate providing serde serializers/deserializers for
   converting the TEI data structures to/from other formats like JSON or
@@ -742,6 +748,14 @@ annotations (span groups and spans), document-wide validation rules enforced by
 pointers), and the relationships between document entities. Individual value
 types such as `DivType` perform their own validation (e.g., non-empty division
 type strings).
+
+Recursive structures are also depth-bounded during validation. `Div` and `List`
+nesting is checked against `MAX_DIV_DEPTH = 128` to avoid stack exhaustion on
+adversarially deep documents, and exceeding that limit returns
+`ValidationError::TooDeep { container, max_depth }`. The same guard is applied
+in both the structural-validation pass (`validate_div`, `validate_list`) and
+the pointer-resolution pass (`validate_div_pointers`, `validate_list_pointers`)
+so recursive shape and pointer traversal fail consistently.
 
 ```mermaid
 classDiagram
