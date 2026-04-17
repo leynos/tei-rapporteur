@@ -1,8 +1,9 @@
 //! Registers the Python `msgspec.Struct` projections as a submodule.
 //!
-//! The definitions live in `python/structs.py` so they remain readable while
-//! being embedded into the extension at compile time. The module is published
-//! as `tei_rapporteur.structs` when the extension loads.
+//! The public façade lives in `python/structs.py`, with supporting body and
+//! event definitions split into embedded helper modules so the Python sources
+//! stay readable while being compiled into the extension. The public module is
+//! published as `tei_rapporteur.structs` when the extension loads.
 
 use pyo3::{
     Bound, PyResult, Python,
@@ -13,43 +14,93 @@ use pyo3::{
 const STRUCTS_MODULE_NAME: &str = "tei_rapporteur.structs";
 const STRUCTS_FILENAME: &str = "tei_rapporteur/structs.py";
 const STRUCTS_SOURCE: &str = include_str!("../python/structs.py");
+const STRUCTS_COMMON_MODULE_NAME: &str = "_tei_rapporteur_structs_common";
+const STRUCTS_COMMON_FILENAME: &str = "tei_rapporteur/_structs_common.py";
+const STRUCTS_COMMON_SOURCE: &str = include_str!("../python/structs_common.py");
+const STRUCTS_BODY_MODULE_NAME: &str = "_tei_rapporteur_structs_body";
+const STRUCTS_BODY_FILENAME: &str = "tei_rapporteur/_structs_body.py";
+const STRUCTS_BODY_SOURCE: &str = include_str!("../python/structs_body.py");
+const STRUCTS_EVENTS_MODULE_NAME: &str = "_tei_rapporteur_structs_events";
+const STRUCTS_EVENTS_FILENAME: &str = "tei_rapporteur/_structs_events.py";
+const STRUCTS_EVENTS_SOURCE: &str = include_str!("../python/structs_events.py");
 
 /// Adds the `tei_rapporteur.structs` module to the parent extension module.
 pub fn register_structs_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    #[expect(
-        deprecated,
-        reason = "PyO3 0.23 retains from_code_bound; new API requires CStr plumbing we avoid here"
-    )]
-    let structs = match PyModule::from_code_bound(
-        py,
-        STRUCTS_SOURCE,
-        STRUCTS_FILENAME,
-        STRUCTS_MODULE_NAME,
-    ) {
-        Ok(module) => module,
-        Err(error) => {
-            if error.is_instance_of::<PyModuleNotFoundError>(py) {
-                // msgspec missing; skip registering structs while leaving core bindings intact.
-                let warnings = py.import("warnings")?;
-                warnings.call_method1(
-                    "warn",
-                    (
-                        "msgspec not installed; tei_rapporteur.structs unavailable",
-                        py.get_type::<PyRuntimeWarning>(),
-                    ),
-                )?;
-                return Ok(());
-            }
-            return Err(error);
-        }
-    };
-
     let sys = py.import("sys")?;
     let modules = sys.getattr("modules")?;
+
+    let common = match module_from_source(
+        py,
+        STRUCTS_COMMON_SOURCE,
+        STRUCTS_COMMON_FILENAME,
+        STRUCTS_COMMON_MODULE_NAME,
+    ) {
+        Ok(module) => module,
+        Err(error) => return handle_structs_import_error(py, error),
+    };
+    modules.set_item(STRUCTS_COMMON_MODULE_NAME, &common)?;
+
+    let body = match module_from_source(
+        py,
+        STRUCTS_BODY_SOURCE,
+        STRUCTS_BODY_FILENAME,
+        STRUCTS_BODY_MODULE_NAME,
+    ) {
+        Ok(module) => module,
+        Err(error) => return handle_structs_import_error(py, error),
+    };
+    modules.set_item(STRUCTS_BODY_MODULE_NAME, &body)?;
+
+    let events = match module_from_source(
+        py,
+        STRUCTS_EVENTS_SOURCE,
+        STRUCTS_EVENTS_FILENAME,
+        STRUCTS_EVENTS_MODULE_NAME,
+    ) {
+        Ok(module) => module,
+        Err(error) => return handle_structs_import_error(py, error),
+    };
+    modules.set_item(STRUCTS_EVENTS_MODULE_NAME, &events)?;
+
+    let structs =
+        match module_from_source(py, STRUCTS_SOURCE, STRUCTS_FILENAME, STRUCTS_MODULE_NAME) {
+            Ok(module) => module,
+            Err(error) => return handle_structs_import_error(py, error),
+        };
     modules.set_item(STRUCTS_MODULE_NAME, &structs)?;
 
     parent.add_submodule(&structs)?;
     parent.setattr("structs", &structs)?;
 
     Ok(())
+}
+
+#[expect(
+    deprecated,
+    reason = "PyO3 0.23 retains from_code_bound; new API requires CStr plumbing we avoid here"
+)]
+fn module_from_source<'py>(
+    py: Python<'py>,
+    source: &str,
+    filename: &str,
+    module_name: &str,
+) -> PyResult<Bound<'py, PyModule>> {
+    PyModule::from_code_bound(py, source, filename, module_name)
+}
+
+fn handle_structs_import_error(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {
+    if error.is_instance_of::<PyModuleNotFoundError>(py) {
+        // msgspec missing; skip registering structs while leaving core bindings intact.
+        let warnings = py.import("warnings")?;
+        warnings.call_method1(
+            "warn",
+            (
+                "msgspec not installed; tei_rapporteur.structs unavailable",
+                py.get_type::<PyRuntimeWarning>(),
+            ),
+        )?;
+        Ok(())
+    } else {
+        Err(error)
+    }
 }

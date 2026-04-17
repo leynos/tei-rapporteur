@@ -2,7 +2,7 @@
 
 use std::io::BufRead;
 
-use quick_xml::events::{BytesRef, BytesStart, BytesText};
+use quick_xml::events::{BytesCData, BytesRef, BytesStart, BytesText};
 
 use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
@@ -17,9 +17,10 @@ use super::state::ParserState;
 /// Content handlers (text, empty elements, CDATA, EOF).
 impl<R: BufRead> TeiPullParser<R> {
     /// Appends an `Inline::Text` node to whichever content buffer the current
-    /// parser state owns, if any.  Returns `Ok(None)` regardless of state so
-    /// callers can propagate it directly.  The `produce` closure is only
-    /// invoked when the state carries an inline-content buffer.
+    /// parser state owns, if any. Successful execution returns `Ok(None)`,
+    /// while any `Err` produced by the `produce` closure is propagated. The
+    /// `produce` closure is only invoked when the state carries an
+    /// inline-content buffer.
     fn push_text_inline(
         &mut self,
         produce: impl FnOnce() -> Result<String, TeiError>,
@@ -135,7 +136,7 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles CDATA sections.
     pub(super) fn handle_cdata(
         &mut self,
-        cdata: &quick_xml::events::BytesCData<'_>,
+        cdata: &BytesCData<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         if let ParserState::InHeader { buffer, .. } = &mut self.state {
             buffer.extend_from_slice(b"<![CDATA[");

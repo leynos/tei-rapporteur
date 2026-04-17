@@ -1,7 +1,7 @@
 """Type stubs for the ``tei_rapporteur.structs`` submodule (PEP 561).
 
-The runtime definitions live in ``tei-py/python/structs.py`` and are
-embedded into the native extension at compile time via ``include_str!``.
+The runtime definitions live in ``tei-py/python/structs.py`` plus internal
+helper modules and are embedded into the native extension at compile time.
 """
 
 import msgspec

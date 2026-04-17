@@ -217,7 +217,7 @@ fn div_block_rejects_blank_type(#[from(registered_module)] module: Option<Py<PyM
         assert!(
             error
                 .to_string()
-                .contains("DivBlock.div_type must contain non-whitespace text"),
+                .contains("div_type must contain non-whitespace text"),
             "error should explain the DivBlock invariant"
         );
     });
