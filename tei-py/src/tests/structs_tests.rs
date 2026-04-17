@@ -61,7 +61,7 @@ _orig_meta_path_structs_test = list(sys.meta_path)
 class _BlockMsgspecImport:
     def find_spec(self, fullname, path=None, target=None):
         if fullname == "msgspec" or fullname.startswith("msgspec."):
-            raise ModuleNotFoundError("msgspec is blocked for test")
+            raise ModuleNotFoundError("msgspec is blocked for test", name="msgspec")
         return None
 
 _blocker_structs_test = _BlockMsgspecImport()

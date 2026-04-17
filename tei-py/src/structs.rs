@@ -90,16 +90,26 @@ fn module_from_source<'py>(
 
 fn handle_structs_import_error(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {
     if error.is_instance_of::<PyModuleNotFoundError>(py) {
-        // msgspec missing; skip registering structs while leaving core bindings intact.
-        let warnings = py.import("warnings")?;
-        warnings.call_method1(
-            "warn",
-            (
-                "msgspec not installed; tei_rapporteur.structs unavailable",
-                py.get_type::<PyRuntimeWarning>(),
-            ),
-        )?;
-        Ok(())
+        let missing_module = error
+            .value(py)
+            .getattr("name")
+            .ok()
+            .and_then(|name| name.extract::<String>().ok());
+
+        if missing_module.as_deref() == Some("msgspec") {
+            // msgspec missing; skip registering structs while leaving core bindings intact.
+            let warnings = py.import("warnings")?;
+            warnings.call_method1(
+                "warn",
+                (
+                    "msgspec not installed; tei_rapporteur.structs unavailable",
+                    py.get_type::<PyRuntimeWarning>(),
+                ),
+            )?;
+            Ok(())
+        } else {
+            Err(error)
+        }
     } else {
         Err(error)
     }

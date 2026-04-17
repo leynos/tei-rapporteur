@@ -10,15 +10,46 @@ from _tei_rapporteur_structs_common import Inline, TeiHeader
 
 
 class DocumentStart(msgspec.Struct, tag="document_start", tag_field="type"):
-    """Streaming event signalling the start of parsing."""
+    """Summary
+    -------
+    Streaming event emitted when TEI document parsing begins.
+
+    ``DocumentStart`` marks the start of the event stream before any header or
+    body content has been yielded.
+
+    Attributes
+    ----------
+    This event has no public attributes.
+    """
 
 
 class DocumentEnd(msgspec.Struct, tag="document_end", tag_field="type"):
-    """Streaming event signalling parsing completion."""
+    """Summary
+    -------
+    Streaming event emitted when TEI document parsing completes.
+
+    ``DocumentEnd`` marks the end of the event stream after all header and body
+    content has been yielded.
+
+    Attributes
+    ----------
+    This event has no public attributes.
+    """
 
 
 class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
-    """Streaming event carrying the parsed header."""
+    """Summary
+    -------
+    Streaming event carrying the parsed TEI header.
+
+    ``HeaderEvent`` is emitted once the parser has assembled the document
+    header.
+
+    Attributes
+    ----------
+    header : TeiHeader
+        Parsed TEI header projection for the current document.
+    """
 
     header: TeiHeader
 
@@ -26,7 +57,21 @@ class HeaderEvent(msgspec.Struct, tag="header", tag_field="type"):
 class ParagraphEvent(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying a paragraph."""
+    """Summary
+    -------
+    Streaming event carrying a paragraph body block.
+
+    ``ParagraphEvent`` is emitted whenever the parser completes a TEI ``<p>``
+    element in the body stream.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    content : list[Inline]
+        Inline nodes contained by the paragraph. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
@@ -35,7 +80,38 @@ class ParagraphEvent(
 class UtteranceEvent(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Streaming event carrying an utterance."""
+    """Summary
+    -------
+    Streaming event carrying an utterance body block.
+
+    ``UtteranceEvent`` is emitted whenever the parser completes a TEI ``<u>``
+    element in the body stream.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    speaker : str | None
+        Optional speaker reference or label from ``@who``. Defaults to
+        ``None``.
+    content : list[Inline]
+        Inline nodes contained by the utterance. Defaults to an empty list.
+    n : str | None
+        Optional utterance number or label from ``@n``. Defaults to ``None``.
+    source : list[str]
+        Source pointers copied from ``@source``. Defaults to an empty list.
+    resp : list[str]
+        Responsibility pointers copied from ``@resp``. Defaults to an empty
+        list.
+    cert : str | None
+        Optional certainty value from ``@cert``. Defaults to ``None``.
+    corresp : list[str]
+        Correspondence pointers copied from ``@corresp``. Defaults to an empty
+        list.
+    ana : list[str]
+        Analysis pointers copied from ``@ana``. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     speaker: str | None = None

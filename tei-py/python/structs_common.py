@@ -7,7 +7,18 @@ from typing import TypeAlias
 
 
 class InlineText(msgspec.Struct, tag="text", tag_field="type"):
-    """Plain text inline node."""
+    """Summary
+    -------
+    Plain text inline node within TEI inline content.
+
+    ``InlineText`` represents unadorned character data inside paragraphs,
+    utterances, headings, and other inline-capable containers.
+
+    Attributes
+    ----------
+    value : str
+        Raw text content preserved from the source document.
+    """
 
     value: str
 
@@ -35,7 +46,22 @@ class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
 
 
 class InlinePause(msgspec.Struct, tag="pause", tag_field="type", omit_defaults=True):
-    """Pause marker corresponding to ``<pause/>``."""
+    """Summary
+    -------
+    Pause marker corresponding to TEI ``<pause/>`` inline markup.
+
+    ``InlinePause`` captures empty-element pause annotations that may carry
+    optional duration and pause-kind metadata.
+
+    Attributes
+    ----------
+    dur : str | None
+        Optional TEI ``@dur`` value describing the pause duration. Defaults to
+        ``None``.
+    kind : str | None
+        Optional TEI ``@type`` value classifying the pause. Defaults to
+        ``None``.
+    """
 
     dur: str | None = None
     kind: str | None = None
@@ -47,7 +73,21 @@ Inline: TypeAlias = InlineText | InlineHi | InlinePause
 class Paragraph(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Paragraph block from the TEI body."""
+    """Summary
+    -------
+    Paragraph body block with inline TEI content.
+
+    ``Paragraph`` models a TEI ``<p>`` element after projection into the
+    Python structs layer.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    content : list[Inline]
+        Inline nodes contained by the paragraph. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     content: list[Inline] = msgspec.field(default_factory=list)
@@ -56,7 +96,38 @@ class Paragraph(
 class Utterance(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Spoken utterance with inline content and local provenance metadata."""
+    """Summary
+    -------
+    Spoken utterance with inline TEI content and local provenance metadata.
+
+    ``Utterance`` models a TEI ``<u>`` element together with the speech and
+    annotation attributes preserved by the projection layer.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    speaker : str | None
+        Optional speaker reference or label from ``@who``. Defaults to
+        ``None``.
+    content : list[Inline]
+        Inline nodes contained by the utterance. Defaults to an empty list.
+    n : str | None
+        Optional utterance number or label from ``@n``. Defaults to ``None``.
+    source : list[str]
+        Source pointers copied from ``@source``. Defaults to an empty list.
+    resp : list[str]
+        Responsibility pointers copied from ``@resp``. Defaults to an empty
+        list.
+    cert : str | None
+        Optional certainty value from ``@cert``. Defaults to ``None``.
+    corresp : list[str]
+        Correspondence pointers copied from ``@corresp``. Defaults to an empty
+        list.
+    ana : list[str]
+        Analysis pointers copied from ``@ana``. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     speaker: str | None = None
@@ -69,6 +140,20 @@ class Utterance(
     ana: list[str] = msgspec.field(default_factory=list)
 
 
+#: Summary
+#: -------
+#: Union of paragraph and utterance body blocks.
+#:
+#: ``TextBlock`` captures the textual body-block variants that may appear in
+#: the TEI body and inside division content.
+#:
+#: Attributes
+#: ----------
+#: Paragraph
+#:     Paragraph block with inline content and an optional XML identifier.
+#: Utterance
+#:     Spoken utterance block with inline content and local provenance
+#:     metadata.
 TextBlock: TypeAlias = Paragraph | Utterance
 
 
@@ -184,7 +269,24 @@ class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Audience and linguistic profile metadata."""
+    """Summary
+    -------
+    Audience and linguistic profile metadata from ``<profileDesc>``.
+
+    ``ProfileDesc`` collects high-level descriptive metadata about the
+    document's synopsis, speakers, and languages.
+
+    Attributes
+    ----------
+    synopsis : str | None
+        Optional descriptive synopsis for the document. Defaults to ``None``.
+    speakers : list[str]
+        Speaker identifiers or labels associated with the document. Defaults to
+        an empty list.
+    languages : list[str]
+        Language identifiers or labels associated with the document. Defaults
+        to an empty list.
+    """
 
     synopsis: str | None = None
     speakers: list[str] = msgspec.field(default_factory=list, name="speakers")
@@ -192,7 +294,23 @@ class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Bibliographic file description."""
+    """Summary
+    -------
+    Bibliographic file description from ``<fileDesc>``.
+
+    ``FileDesc`` captures the core title-level metadata required for the TEI
+    header projection.
+
+    Attributes
+    ----------
+    title : str
+        Document title.
+    series : str | None
+        Optional series title or grouping label. Defaults to ``None``.
+    synopsis : str | None
+        Optional descriptive synopsis associated with the file description.
+        Defaults to ``None``.
+    """
 
     title: str
     series: str | None = None
@@ -200,7 +318,26 @@ class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Aggregated TEI header sections."""
+    """Summary
+    -------
+    Aggregated TEI header sections projected into Python structs.
+
+    ``TeiHeader`` groups the major TEI header subsections exposed by the
+    embedded Python API.
+
+    Attributes
+    ----------
+    file_desc : FileDesc
+        Required bibliographic file description for the document.
+    profile_desc : ProfileDesc | None
+        Optional audience and linguistic profile metadata. Defaults to
+        ``None``.
+    encoding_desc : EncodingDesc | None
+        Optional encoding metadata, including annotation systems and canonical
+        citations. Defaults to ``None``.
+    revision_desc : RevisionDesc | None
+        Optional revision-history metadata. Defaults to ``None``.
+    """
 
     file_desc: FileDesc = msgspec.field(name="file_desc")
     profile_desc: ProfileDesc | None = msgspec.field(
@@ -215,7 +352,39 @@ class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Stand-off span with many-to-many or range-based targets."""
+    """Summary
+    -------
+    Stand-off span with many-to-many or range-based targets.
+
+    ``Span`` models TEI stand-off annotation links that may target explicit
+    pointers, a from/to range, or both, together with provenance metadata.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    target : list[str]
+        Explicit target pointers copied from ``@target``. Defaults to an empty
+        list.
+    from_ref : str | None
+        Optional range start pointer copied from ``@from``. Defaults to
+        ``None``.
+    to_ref : str | None
+        Optional range end pointer copied from ``@to``. Defaults to ``None``.
+    source : list[str]
+        Source pointers copied from ``@source``. Defaults to an empty list.
+    resp : list[str]
+        Responsibility pointers copied from ``@resp``. Defaults to an empty
+        list.
+    cert : str | None
+        Optional certainty value copied from ``@cert``. Defaults to ``None``.
+    corresp : list[str]
+        Correspondence pointers copied from ``@corresp``. Defaults to an empty
+        list.
+    ana : list[str]
+        Analysis pointers copied from ``@ana``. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     target: list[str] = msgspec.field(default_factory=list)
@@ -229,7 +398,31 @@ class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Logical stand-off grouping of related spans."""
+    """Summary
+    -------
+    Logical stand-off grouping of related annotation spans.
+
+    ``SpanGroup`` corresponds to TEI ``<spanGrp>`` and groups related spans
+    under a shared kind and optional provenance metadata.
+
+    Attributes
+    ----------
+    xml_id : str | None
+        Optional XML identifier preserved from ``@xml:id``. Defaults to
+        ``None``.
+    kind : str
+        Required TEI ``@type`` value describing the span group.
+    resp : list[str]
+        Responsibility pointers copied from ``@resp``. Defaults to an empty
+        list.
+    corresp : list[str]
+        Correspondence pointers copied from ``@corresp``. Defaults to an empty
+        list.
+    ana : list[str]
+        Analysis pointers copied from ``@ana``. Defaults to an empty list.
+    spans : list[Span]
+        Span entries contained by the group. Defaults to an empty list.
+    """
 
     xml_id: str | None = None
     kind: str
@@ -240,6 +433,18 @@ class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class StandOff(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Root stand-off annotation layer."""
+    """Summary
+    -------
+    Root stand-off annotation layer for TEI overlays.
+
+    ``StandOff`` collects the top-level stand-off annotation groups attached to
+    a TEI document.
+
+    Attributes
+    ----------
+    span_groups : list[SpanGroup]
+        Top-level span groups contained by the stand-off layer. Defaults to an
+        empty list.
+    """
 
     span_groups: list[SpanGroup] = msgspec.field(default_factory=list)
