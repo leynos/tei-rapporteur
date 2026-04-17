@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::{BodyBlock, Pointer, PointerList, Span, SpanGroup, TeiDocument, Utterance};
 
-use super::ValidationError;
+use super::{MAX_DIV_DEPTH, ValidationError};
 
 pub(super) fn validate_internal_pointers(
     document: &TeiDocument,
@@ -25,7 +25,7 @@ fn validate_body_utterance_pointers(
                 validate_utterance_pointers(utterance, known_ids)?;
             }
             BodyBlock::Div(div) => {
-                validate_div_pointers(div, known_ids)?;
+                validate_div_pointers(div, known_ids, 0)?;
             }
             BodyBlock::Paragraph(_) => {}
         }
@@ -36,8 +36,11 @@ fn validate_body_utterance_pointers(
 fn validate_div_pointers(
     div: &crate::Div,
     known_ids: &HashSet<String>,
+    current_depth: usize,
 ) -> Result<(), ValidationError> {
     use crate::DivContent;
+
+    ensure_within_max_depth("div", current_depth)?;
 
     for content in div.content() {
         match content {
@@ -45,7 +48,10 @@ fn validate_div_pointers(
                 validate_utterance_pointers(utterance, known_ids)?;
             }
             DivContent::List(list) => {
-                validate_list_pointers(list, known_ids)?;
+                validate_list_pointers(list, known_ids, current_depth + 1)?;
+            }
+            DivContent::Div(nested_div) => {
+                validate_div_pointers(nested_div, known_ids, current_depth + 1)?;
             }
             DivContent::Paragraph(_) => {}
         }
@@ -56,7 +62,10 @@ fn validate_div_pointers(
 fn validate_list_pointers(
     list: &crate::List,
     known_ids: &HashSet<String>,
+    current_depth: usize,
 ) -> Result<(), ValidationError> {
+    ensure_within_max_depth("list", current_depth)?;
+
     for item in list.items() {
         validate_pointer_list("@corresp", item.corresp(), known_ids)?;
     }
@@ -160,5 +169,49 @@ pub(super) fn validate_pointer(
             attribute,
             pointer: pointer.as_str().to_owned(),
         })
+    }
+}
+
+const fn ensure_within_max_depth(
+    container: &'static str,
+    current_depth: usize,
+) -> Result<(), ValidationError> {
+    if current_depth >= MAX_DIV_DEPTH {
+        return Err(ValidationError::TooDeep {
+            container,
+            max_depth: MAX_DIV_DEPTH,
+        });
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for pointer traversal across nested structural containers.
+
+    use std::collections::HashSet;
+
+    use super::*;
+    use crate::Div;
+
+    #[test]
+    fn rejects_pointer_validation_when_divisions_exceed_maximum_depth() {
+        let mut root_div = Div::new("section").unwrap_or_else(|error| panic!("root div: {error}"));
+
+        for _ in 0..MAX_DIV_DEPTH {
+            let mut wrapper =
+                Div::new("section").unwrap_or_else(|error| panic!("wrapper div: {error}"));
+            wrapper.push_div(root_div);
+            root_div = wrapper;
+        }
+
+        assert_eq!(
+            validate_div_pointers(&root_div, &HashSet::new(), 0),
+            Err(ValidationError::TooDeep {
+                container: "div",
+                max_depth: MAX_DIV_DEPTH,
+            })
+        );
     }
 }

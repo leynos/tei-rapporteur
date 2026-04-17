@@ -122,10 +122,9 @@ pub fn generate_benchmark_document(config: &BenchFixtureConfig) -> Result<TeiDoc
 ///
 /// ```
 /// use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
-/// use tei_xml::namespace::TEI_NAMESPACE;
 ///
 /// let xml = generate_benchmark_xml(&BenchFixtureConfig::SMALL)?;
-/// let expected = format!(r#"<TEI xmlns="{TEI_NAMESPACE}">"#);
+/// let expected = r#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#;
 /// assert!(xml.contains(&expected));
 /// # Ok::<(), tei_core::TeiError>(())
 /// ```

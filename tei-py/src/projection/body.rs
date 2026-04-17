@@ -5,11 +5,12 @@
 //! `Utterance`) appears in both [`BodyBlock`] and [`DivContent`] contexts.
 
 use tei_core::{
-    BodyBlock, Div, DivContent, Inline, Item, Label, List, P, PointerList, TeiError, Utterance,
+    BodyBlock, Div, DivContent, Head, Inline, Item, Label, List, P, PointerList, TeiError,
+    Utterance,
 };
 
 use super::{
-    PyBodyBlock, PyDivContent, PyInline, PyItem, PyLabel, apply_optional_pointer_list,
+    PyBodyBlock, PyDivContent, PyHead, PyInline, PyItem, PyLabel, apply_optional_pointer_list,
     certainty_from_option, certainty_to_string, pointer_list_to_vec,
 };
 
@@ -66,6 +67,8 @@ pub(crate) fn py_body_block_from_core(block: &BodyBlock) -> PyBodyBlock {
         BodyBlock::Div(div) => PyBodyBlock::Div {
             xml_id: div.id().map(|id| id.as_str().to_owned()),
             div_type: div.div_type().to_owned(),
+            subtype: div.subtype().map(str::to_owned),
+            head: div.head().map(py_head_from_core),
             content: div.content().iter().map(py_div_content_from_core).collect(),
         },
     }
@@ -112,6 +115,13 @@ pub(crate) fn py_div_content_from_core(div_content: &DivContent) -> PyDivContent
             xml_id: list.id().map(|id| id.as_str().to_owned()),
             items: list.items().iter().map(py_item_from_core).collect(),
         },
+        DivContent::Div(div) => PyDivContent::Div {
+            xml_id: div.id().map(|id| id.as_str().to_owned()),
+            div_type: div.div_type().to_owned(),
+            subtype: div.subtype().map(str::to_owned),
+            head: div.head().map(py_head_from_core),
+            content: div.content().iter().map(py_div_content_from_core).collect(),
+        },
     }
 }
 
@@ -133,6 +143,12 @@ fn py_label_from_core(label: &Label) -> PyLabel {
             .cloned()
             .map(PyInline::from)
             .collect(),
+    }
+}
+
+fn py_head_from_core(head: &Head) -> PyHead {
+    PyHead {
+        content: head.content().iter().cloned().map(PyInline::from).collect(),
     }
 }
 
@@ -169,6 +185,14 @@ pub(crate) struct UtteranceArgs {
     pub(crate) corresp: Vec<String>,
     pub(crate) ana: Vec<String>,
     pub(crate) content: Vec<PyInline>,
+}
+
+struct PyDivArgs {
+    xml_id: Option<String>,
+    div_type: String,
+    subtype: Option<String>,
+    head: Option<PyHead>,
+    content: Vec<PyDivContent>,
 }
 
 /// Builds a core utterance from Python projection fields.
@@ -221,28 +245,40 @@ pub(crate) fn core_block_from_py(block: PyBodyBlock) -> Result<BodyBlock, TeiErr
         PyBodyBlock::Div {
             xml_id,
             div_type,
+            subtype,
+            head,
             content,
-        } => div_block_from_py(xml_id, div_type, content),
+        } => build_div_from_py(PyDivArgs {
+            xml_id,
+            div_type,
+            subtype,
+            head,
+            content,
+        })
+        .map(BodyBlock::Div),
     }
 }
 
-fn div_block_from_py(
-    xml_id: Option<String>,
-    div_type: String,
-    content: Vec<PyDivContent>,
-) -> Result<BodyBlock, TeiError> {
-    let mut div = Div::new(div_type)?;
-    if let Some(id) = xml_id {
+fn build_div_from_py(args: PyDivArgs) -> Result<Div, TeiError> {
+    let mut div = Div::new(args.div_type)?;
+    if let Some(id) = args.xml_id {
         div.set_id(id)?;
     }
-    for py_content in content {
+    if let Some(subtype_value) = args.subtype {
+        div.set_subtype(subtype_value)?;
+    }
+    if let Some(py_head) = args.head {
+        div.set_head(Head::new(inlines_from_py(py_head.content)?)?);
+    }
+    for py_content in args.content {
         match core_div_content_from_py(py_content)? {
             DivContent::Paragraph(p) => div.push_paragraph(p),
             DivContent::Utterance(u) => div.push_utterance(u),
             DivContent::List(l) => div.push_list(l),
+            DivContent::Div(nested_div) => div.push_div(nested_div),
         }
     }
-    Ok(BodyBlock::Div(div))
+    Ok(div)
 }
 
 fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiError> {
@@ -282,6 +318,20 @@ fn core_div_content_from_py(py_content: PyDivContent) -> Result<DivContent, TeiE
             }
             Ok(DivContent::List(list))
         }
+        PyDivContent::Div {
+            xml_id,
+            div_type,
+            subtype,
+            head,
+            content,
+        } => build_div_from_py(PyDivArgs {
+            xml_id,
+            div_type,
+            subtype,
+            head,
+            content,
+        })
+        .map(DivContent::Div),
     }
 }
 

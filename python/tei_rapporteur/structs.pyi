@@ -1,7 +1,7 @@
 """Type stubs for the ``tei_rapporteur.structs`` submodule (PEP 561).
 
-The runtime definitions live in ``tei-py/python/structs.py`` and are
-embedded into the native extension at compile time via ``include_str!``.
+The runtime definitions live in ``tei-py/python/structs.py`` plus internal
+helper modules and are embedded into the native extension at compile time.
 """
 
 import msgspec
@@ -79,7 +79,10 @@ class ListBlock(
     items: list[Item] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 
-DivContent: TypeAlias = TextBlock | ListBlock
+class Head(msgspec.Struct, omit_defaults=True):
+    """Division heading attached to the start of a structural division."""
+
+    content: list[Inline] = ...  # type: ignore[assignment]
 
 class DivBlock(
     msgspec.Struct, tag="div", tag_field="type", omit_defaults=True
@@ -87,8 +90,12 @@ class DivBlock(
     """Structural division within the TEI body."""
 
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = ...  # type: ignore[assignment]
     xml_id: str | None = None
+
+DivContent: TypeAlias = TextBlock | ListBlock | DivBlock
 
 BodyBlock: TypeAlias = TextBlock | DivBlock
 
@@ -275,6 +282,8 @@ class DivEvent(
     """Streaming event carrying an assembled division body block."""
 
     div_type: str
+    subtype: str | None = None
+    head: Head | None = None
     content: list[DivContent] = ...  # type: ignore[assignment]
     xml_id: str | None = None
 

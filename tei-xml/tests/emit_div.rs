@@ -53,6 +53,19 @@ const ITEM_WITH_LABEL: &str = concat!(
     "</TEI>",
 );
 
+const DIV_WITH_HEAD_ONLY: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc><title>Test</title></fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"section\"><head>Intro</head></div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 #[test]
 fn emits_div_with_paragraph() {
     let document = parse_xml(DIV_WITH_PARAGRAPH).expect("test fixture should parse");
@@ -112,6 +125,25 @@ const COMPLEX_DIV: &str = concat!(
     "<item xml:id=\"item1\" n=\"1\" corresp=\"#ref1 #ref2\"><label>1.</label>First</item>",
     "<item>Second</item>",
     "</list>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
+const NESTED_DIV_WITH_HEAD: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc><title>Test</title></fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">",
+    "<head>Chapter markers</head>",
+    "<div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">",
+    "<head>Cold open</head>",
+    "<u who=\"host\">Welcome back.</u>",
+    "</div>",
     "</div>",
     "</body>",
     "</text>",
@@ -190,4 +222,61 @@ fn round_trips_div_list_content() {
     assert_eq!(second_item.corresp(), None);
     assert!(second_item.label().is_none());
     assert_eq!(second_item.content(), &[Inline::Text("Second".into())]);
+}
+
+#[test]
+fn emits_nested_div_with_head_and_subtype_before_children() {
+    let document = parse_xml(NESTED_DIV_WITH_HEAD).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+
+    let outer_div_index = xml
+        .find("<div type=\"segment\" subtype=\"chapter-markers\" xml:id=\"seg1\">")
+        .expect("outer div should be emitted");
+    let outer_head_index = xml
+        .find("<head>Chapter markers</head>")
+        .expect("outer head should be emitted");
+    let inner_div_index = xml
+        .find("<div type=\"segment\" subtype=\"chapter-marker\" xml:id=\"ch1\">")
+        .expect("inner div should be emitted");
+    let inner_head_index = xml
+        .find("<head>Cold open</head>")
+        .expect("inner head should be emitted");
+    let utterance_index = xml
+        .find("<u who=\"host\">Welcome back.</u>")
+        .expect("nested utterance should be emitted");
+
+    assert!(outer_div_index < outer_head_index);
+    assert!(outer_head_index < inner_div_index);
+    assert!(inner_div_index < inner_head_index);
+    assert!(inner_head_index < utterance_index);
+}
+
+#[test]
+fn emits_div_with_head_only_as_non_self_closing() {
+    let document = parse_xml(DIV_WITH_HEAD_ONLY).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+
+    assert!(xml.contains("<div type=\"section\"><head>Intro</head></div>"));
+    assert!(!xml.contains("<div type=\"section\"/>"));
+}
+
+#[test]
+fn round_trips_nested_div_with_head_and_subtype() {
+    let document = parse_xml(NESTED_DIV_WITH_HEAD).expect("test fixture should parse");
+    let xml = emit_xml(&document).expect("document should emit");
+    let parsed = parse_xml(&xml).expect("emitted XML should parse");
+
+    let parsed_div = parsed
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("should have a top-level div");
+    assert_eq!(parsed_div.subtype(), Some("chapter-markers"));
+    assert!(parsed_div.head().is_some());
+    let Some(DivContent::Div(child)) = parsed_div.content().first() else {
+        panic!("expected nested div as first child");
+    };
+    assert_eq!(child.subtype(), Some("chapter-marker"));
+    assert!(child.head().is_some());
 }

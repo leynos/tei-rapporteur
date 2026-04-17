@@ -11,8 +11,8 @@
 //! hand-writing the body portion using direct string construction.
 
 use tei_core::{
-    BodyBlock, Div, DivContent, Hi, Inline, Item, Label, List, P, Pause, TeiDocument, TeiError,
-    Utterance,
+    BodyBlock, Div, DivContent, Head, Hi, Inline, Item, Label, List, P, Pause, TeiDocument,
+    TeiError, Utterance,
 };
 
 use crate::escape_xml_text;
@@ -149,8 +149,13 @@ fn emit_utterance(output: &mut String, utterance: &Utterance) {
 fn emit_div(output: &mut String, div: &Div) {
     output.push_str("<div");
     emit_attr(output, "type", div.div_type());
+    emit_optional_attr(output, "subtype", div.subtype());
     emit_optional_xml_id(output, div.id());
-    emit_element_body(output, "div", div.is_empty(), |out| {
+    let is_empty = div.head().is_none() && div.content().is_empty();
+    emit_element_body(output, "div", is_empty, |out| {
+        if let Some(head) = div.head() {
+            emit_head(out, head);
+        }
         for child in div.content() {
             emit_div_content(out, child);
         }
@@ -163,6 +168,7 @@ fn emit_div_content(output: &mut String, content: &DivContent) {
         DivContent::Paragraph(p) => emit_paragraph(output, p),
         DivContent::Utterance(u) => emit_utterance(output, u),
         DivContent::List(list) => emit_list(output, list),
+        DivContent::Div(div) => emit_div(output, div),
     }
 }
 
@@ -196,6 +202,13 @@ fn emit_label(output: &mut String, label: &Label) {
     output.push_str("<label>");
     emit_inline_sequence(output, label.content());
     output.push_str("</label>");
+}
+
+/// Writes `<head>inline content</head>`.
+fn emit_head(output: &mut String, head: &Head) {
+    output.push_str("<head>");
+    emit_inline_sequence(output, head.content());
+    output.push_str("</head>");
 }
 
 /// Writes a sequence of inline nodes (text, hi, pause).

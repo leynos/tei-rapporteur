@@ -72,7 +72,7 @@
           <!-- ============================================================ -->
 
 	          <moduleRef key="tei"/>
-	          <moduleRef key="core" include="p hi title desc list item label"/>
+	          <moduleRef key="core" include="p hi title desc list item label head"/>
 	          <moduleRef key="header"
 	                     include="teiHeader fileDesc profileDesc encodingDesc revisionDesc change annotationSystem refsDecl citeStructure citeData series synopsis speaker lang resp"/>
 	          <moduleRef key="textstructure" include="TEI text body div"/>
@@ -365,11 +365,15 @@
             <desc>A structural body division grouping related narrative,
             utterance, and list content.</desc>
             <content>
-              <alternate minOccurs="0" maxOccurs="unbounded">
-                <elementRef key="p"/>
-                <elementRef key="u"/>
-                <elementRef key="list"/>
-              </alternate>
+              <sequence>
+                <elementRef key="head" minOccurs="0" maxOccurs="1"/>
+                <alternate minOccurs="0" maxOccurs="unbounded">
+                  <elementRef key="p"/>
+                  <elementRef key="u"/>
+                  <elementRef key="list"/>
+                  <elementRef key="div"/>
+                </alternate>
+              </sequence>
             </content>
             <attList>
               <attDef ident="xml:id" mode="change" usage="opt">
@@ -384,6 +388,12 @@
                   <dataRef key="teidata.text"/>
                 </datatype>
               </attDef>
+              <attDef ident="subtype" mode="change" usage="opt">
+                <desc>Optional finer-grained classification of the division.</desc>
+                <datatype>
+                  <dataRef key="teidata.text"/>
+                </datatype>
+              </attDef>
             </attList>
             <constraintSpec ident="div-type-not-empty" scheme="schematron">
               <constraint>
@@ -391,6 +401,16 @@
                 <sch:rule context="tei:div[@type]">
                   <sch:assert test="normalize-space(@type) != ''">
                     Division @type values must not be empty or whitespace only.
+                  </sch:assert>
+                </sch:rule>
+              </constraint>
+            </constraintSpec>
+            <constraintSpec ident="div-subtype-not-empty" scheme="schematron">
+              <constraint>
+                <sch:ns prefix="tei" uri="http://www.tei-c.org/ns/1.0"/>
+                <sch:rule context="tei:div[@subtype]">
+                  <sch:assert test="normalize-space(@subtype) != ''">
+                    Division @subtype values must not be empty or whitespace only.
                   </sch:assert>
                 </sch:rule>
               </constraint>

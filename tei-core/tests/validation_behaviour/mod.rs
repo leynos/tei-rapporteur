@@ -8,6 +8,7 @@ use tei_core::{Div, Item, List, P, ProfileDesc, TeiDocument, TeiError, Utterance
 use tei_test_helpers::expect_validated_state;
 
 mod stand_off;
+mod scenario_order;
 
 #[derive(Default)]
 struct ValidationState {
@@ -164,6 +165,48 @@ fn i_add_a_division_containing_an_item_with_corresp(
         div.push_list(list);
         let mut text = document.text().clone();
         text.body_mut().push_div(div);
+        Ok(TeiDocument::new(document.header().clone(), text))
+    })
+}
+
+#[when("I add a nested division \"{div_type}\" containing a child item with id \"{identifier}\"")]
+fn i_add_a_nested_division_containing_an_item_with_id(
+    #[from(validated_state)] state: &ValidationState,
+    div_type: String,
+    identifier: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        let mut item = Item::from_text_segments(["Nested resource"]).context("item should be valid")?;
+        item.set_id(identifier.as_str())
+            .context("identifier should validate")?;
+        let list = List::new([item]).context("list should be valid")?;
+        let mut child = Div::new(div_type.as_str()).context("division should be valid")?;
+        child.push_list(list);
+        let mut parent = Div::new("parent").context("parent division should be valid")?;
+        parent.push_div(child);
+        let mut text = document.text().clone();
+        text.body_mut().push_div(parent);
+        Ok(TeiDocument::new(document.header().clone(), text))
+    })
+}
+
+#[when("I add a nested division \"{div_type}\" containing a child item with corresp \"{corresp}\"")]
+fn i_add_a_nested_division_containing_an_item_with_corresp(
+    #[from(validated_state)] state: &ValidationState,
+    div_type: String,
+    corresp: String,
+) -> Result<()> {
+    state.update_document(|document| {
+        let mut item =
+            Item::from_text_segments(["Nested reference"]).context("item should be valid")?;
+        item.set_corresp(tei_core::PointerList::new([corresp.as_str()])?);
+        let list = List::new([item]).context("list should be valid")?;
+        let mut child = Div::new(div_type.as_str()).context("division should be valid")?;
+        child.push_list(list);
+        let mut parent = Div::new("parent").context("parent division should be valid")?;
+        parent.push_div(child);
+        let mut text = document.text().clone();
+        text.body_mut().push_div(parent);
         Ok(TeiDocument::new(document.header().clone(), text))
     })
 }
@@ -330,38 +373,18 @@ fn rejects_unresolved_item_corresp_pointers_inside_divisions(
     expect_validated_state(validated_state, "validation");
 }
 
-#[test]
-fn validation_feature_scenario_order_matches_expectations() {
-    use gherkin::Feature;
+#[scenario(path = "tests/features/validation.feature", index = 12)]
+fn rejects_duplicate_identifiers_inside_nested_divisions(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
 
-    let feature = Feature::parse_path(
-        "tests/features/validation.feature",
-        gherkin::GherkinEnv::default(),
-    )
-    .expect("parse validation.feature");
-    let names: Vec<&str> = feature
-        .scenarios
-        .iter()
-        .map(|scenario| scenario.name.as_str())
-        .collect();
-
-    let expected = [
-        "Accepting unique ids and declared speakers",
-        "Rejecting duplicate xml:id values",
-        "Rejecting header and body identifier clashes",
-        "Rejecting duplicate header annotation system identifiers",
-        "Rejecting unknown speaker references",
-        "Rejecting speakers when the cast is empty",
-        "Allowing speakers when the cast list is absent",
-        "Accepting stand-off spans that target existing utterances",
-        "Rejecting stand-off spans that target missing ids",
-        "Rejecting stand-off spans without anchors",
-        "Rejecting duplicate xml:id values inside divisions",
-        "Rejecting unresolved item corresp pointers inside divisions",
-    ];
-
-    assert_eq!(
-        names, expected,
-        "Scenario indices in validation_behaviour.rs must stay aligned with validation.feature"
-    );
+#[scenario(path = "tests/features/validation.feature", index = 13)]
+fn rejects_unresolved_item_corresp_pointers_inside_nested_divisions(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
 }

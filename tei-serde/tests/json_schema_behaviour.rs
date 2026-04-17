@@ -5,8 +5,8 @@ use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
 use tei_core::{
-    BodyBlock, Div, DivContent, Hi, Inline, Item, Label, List, P, TeiBody, TeiDocument, TeiHeader,
-    TeiText,
+    BodyBlock, Div, DivContent, Head, Hi, Inline, Item, Label, List, P, TeiBody, TeiDocument,
+    TeiHeader, TeiText, Utterance,
 };
 use tei_test_helpers::expect_validated_state;
 
@@ -345,13 +345,34 @@ fn structural_document() -> TeiDocument {
         Label::from_text("1.").unwrap_or_else(|error| panic!("label should validate: {error}")),
     );
     let list = List::new([item]).unwrap_or_else(|error| panic!("list should validate: {error}"));
+    let mut child =
+        Div::new("segment").unwrap_or_else(|error| panic!("child div should validate: {error}"));
+    child
+        .set_subtype("guest-bio")
+        .unwrap_or_else(|error| panic!("child subtype should validate: {error}"));
+    child.set_head(
+        Head::from_text("Guest bios")
+            .unwrap_or_else(|error| panic!("head should validate: {error}")),
+    );
+    child.push_utterance(
+        Utterance::from_text_segments(Some("host"), ["Meet our guest"])
+            .unwrap_or_else(|error| panic!("utterance should validate: {error}")),
+    );
+    child.push_list(list);
+
     let mut div =
         Div::new("show-notes").unwrap_or_else(|error| panic!("div should validate: {error}"));
+    div.set_subtype("chapter-markers")
+        .unwrap_or_else(|error| panic!("subtype should validate: {error}"));
+    div.set_head(
+        Head::from_text("Chapter markers")
+            .unwrap_or_else(|error| panic!("head should validate: {error}")),
+    );
     div.push_paragraph(
         P::from_text_segments(["Intro"])
             .unwrap_or_else(|error| panic!("paragraph should validate: {error}")),
     );
-    div.push_list(list);
+    div.push_div(child);
 
     TeiDocument::new(
         TeiHeader::new(
@@ -381,8 +402,41 @@ fn schema_has_variant(
         })
 }
 
+fn schema_property_references(
+    schema: &serde_json::Value,
+    property_path: &str,
+    expected_ref_suffix: &str,
+) -> bool {
+    let Some(property) = schema.pointer(property_path) else {
+        return false;
+    };
+
+    property
+        .get("$ref")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|reference| reference.ends_with(expected_ref_suffix))
+        || property
+            .get("anyOf")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|variants| {
+                variants.iter().any(|variant| {
+                    variant
+                        .get("$ref")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|reference| reference.ends_with(expected_ref_suffix))
+                })
+            })
+}
+
 fn assert_schema_definitions(schema: &serde_json::Value) -> Result<()> {
-    for definition in ["/$defs/div", "/$defs/list", "/$defs/item", "/$defs/label"] {
+    for definition in [
+        "/$defs/div",
+        "/$defs/list",
+        "/$defs/item",
+        "/$defs/label",
+        "/$defs/head",
+        "/$defs/DivSubtype",
+    ] {
         ensure!(
             schema.pointer(definition).is_some(),
             "schema should define {definition}"
@@ -428,6 +482,27 @@ fn assert_schema_variants(schema: &serde_json::Value) -> Result<()> {
         ),
         "DivContent schema should include the `list` variant"
     );
+    ensure!(
+        schema_has_variant(
+            schema,
+            "/$defs/DivContent/oneOf",
+            "/properties/div/$ref",
+            "#/$defs/div",
+        ),
+        "DivContent schema should include the nested `div` variant"
+    );
+    ensure!(
+        schema_property_references(
+            schema,
+            "/$defs/div/properties/@subtype",
+            "#/$defs/DivSubtype"
+        ),
+        "div schema should reference DivSubtype for @subtype"
+    );
+    ensure!(
+        schema_property_references(schema, "/$defs/div/properties/head", "#/$defs/head"),
+        "div schema should reference head"
+    );
     Ok(())
 }
 
@@ -450,9 +525,9 @@ fn assert_document_shape(document: &TeiDocument) -> Result<()> {
                     BodyBlock::Div(division) => division.content().get(1),
                     _ => None,
                 }),
-            Some(DivContent::List(_))
+            Some(DivContent::Div(_))
         ),
-        "fixture division should contain a list"
+        "fixture division should contain a nested div"
     );
     Ok(())
 }
@@ -460,7 +535,31 @@ fn assert_document_shape(document: &TeiDocument) -> Result<()> {
 fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
     ensure!(
         instance
-            .pointer("/text/body/$value/0/div/$value/1/list/$value/0/label")
+            .pointer("/text/body/$value/0/div/head")
+            .is_some_and(|head| !head.is_null()),
+        "serialized document should include the division head"
+    );
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/@subtype")
+            .is_some_and(|subtype| subtype == "chapter-markers"),
+        "serialized document should include the expected division subtype"
+    );
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/$value/1/div/head")
+            .is_some_and(|head| !head.is_null()),
+        "serialized document should include the nested division head"
+    );
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/$value/1/div/@subtype")
+            .is_some_and(|subtype| subtype == "guest-bio"),
+        "serialized document should include the expected nested division subtype"
+    );
+    ensure!(
+        instance
+            .pointer("/text/body/$value/0/div/$value/1/div/$value/1/list/$value/0/label")
             .is_some_and(|label| !label.is_null()),
         "serialized document should include the list item label"
     );

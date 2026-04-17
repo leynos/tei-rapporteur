@@ -308,11 +308,20 @@
       <attribute name="type">
         <text/>
       </attribute>
+      <optional>
+        <attribute name="subtype">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <ref name="head"/>
+      </optional>
       <zeroOrMore>
         <choice>
           <ref name="p"/>
           <ref name="u"/>
           <ref name="list"/>
+          <ref name="div"/>
         </choice>
       </zeroOrMore>
     </element>
@@ -357,6 +366,12 @@
 
   <define name="label">
     <element name="label" ns="http://www.tei-c.org/ns/1.0">
+      <ref name="inlineContent"/>
+    </element>
+  </define>
+
+  <define name="head">
+    <element name="head" ns="http://www.tei-c.org/ns/1.0">
       <ref name="inlineContent"/>
     </element>
   </define>

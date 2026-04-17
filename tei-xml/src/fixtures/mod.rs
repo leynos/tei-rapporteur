@@ -19,9 +19,9 @@ mod bench;
 pub use bench::{BenchFixtureConfig, generate_benchmark_document, generate_benchmark_xml};
 
 use tei_core::{
-    AnnotationSystem, BodyBlock, CiteData, CiteStructure, Div, EncodingDesc, FileDesc, Item, Label,
-    List, P, PointerList, ProfileDesc, RefsDecl, RevisionChange, RevisionDesc, Span, SpanGroup,
-    StandOff, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
+    AnnotationSystem, BodyBlock, CiteData, CiteStructure, Div, EncodingDesc, FileDesc, Head, Item,
+    Label, List, P, PointerList, ProfileDesc, RefsDecl, RevisionChange, RevisionDesc, Span,
+    SpanGroup, StandOff, TeiBody, TeiDocument, TeiError, TeiHeader, TeiText, Utterance,
 };
 
 /// A function that builds a TEI document fixture.
@@ -207,6 +207,36 @@ pub fn document_with_div_and_list() -> Result<TeiDocument, TeiError> {
     Ok(TeiDocument::new(header, text))
 }
 
+/// Returns a document with nested divisions, headings, and subtypes.
+///
+/// # Errors
+///
+/// Returns [`TeiError`] when any component of the document cannot be
+/// constructed.
+pub fn document_with_nested_divs() -> Result<TeiDocument, TeiError> {
+    let file_desc = FileDesc::from_title_str("Nested Division Fixture")?;
+    let header = TeiHeader::new(file_desc);
+
+    let mut child = Div::new("segment")?;
+    child.set_id("ch1")?;
+    child.set_subtype("chapter-marker")?;
+    child.set_head(Head::from_text("Cold open")?);
+    child.push_utterance(Utterance::from_text_segments(
+        Some("host"),
+        ["Welcome back."],
+    )?);
+
+    let mut parent = Div::new("segment")?;
+    parent.set_id("seg1")?;
+    parent.set_subtype("chapter-markers")?;
+    parent.set_head(Head::from_text("Chapter markers")?);
+    parent.push_div(child);
+
+    let body = TeiBody::new([BodyBlock::Div(parent)]);
+    let text = TeiText::new(body);
+    Ok(TeiDocument::new(header, text))
+}
+
 /// Returns an iterator over all fixture builders with their names.
 ///
 /// This is used by the `generate-fixtures` binary to produce XML files.
@@ -218,6 +248,7 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
         ("utterances", document_with_utterances),
         ("comprehensive", comprehensive_document),
         ("div-list", document_with_div_and_list),
+        ("nested-div", document_with_nested_divs),
     ]
 }
 
@@ -257,6 +288,12 @@ mod tests {
     #[test]
     fn document_with_div_and_list_builds_successfully() {
         let doc = document_with_div_and_list().expect("division fixture should build");
+        assert_eq!(doc.text().body().blocks().len(), 1);
+    }
+
+    #[test]
+    fn document_with_nested_divs_builds_successfully() {
+        let doc = document_with_nested_divs().expect("nested division fixture should build");
         assert_eq!(doc.text().body().blocks().len(), 1);
     }
 

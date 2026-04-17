@@ -61,7 +61,7 @@ _orig_meta_path_structs_test = list(sys.meta_path)
 class _BlockMsgspecImport:
     def find_spec(self, fullname, path=None, target=None):
         if fullname == "msgspec" or fullname.startswith("msgspec."):
-            raise ModuleNotFoundError("msgspec is blocked for test")
+            raise ModuleNotFoundError("msgspec is blocked for test", name="msgspec")
         return None
 
 _blocker_structs_test = _BlockMsgspecImport()
@@ -217,7 +217,7 @@ fn div_block_rejects_blank_type(#[from(registered_module)] module: Option<Py<PyM
         assert!(
             error
                 .to_string()
-                .contains("DivBlock.div_type must contain non-whitespace text"),
+                .contains("div_type must contain non-whitespace text"),
             "error should explain the DivBlock invariant"
         );
     });

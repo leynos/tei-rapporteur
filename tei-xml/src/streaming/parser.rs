@@ -57,6 +57,12 @@ pub struct TeiPullParser<R: BufRead> {
     pub(super) reader: Reader<R>,
     pub(super) state: ParserState,
     pub(super) header: Option<TeiHeader>,
+    /// Pending parent `<div>` used while parsing direct paragraph and
+    /// utterance children so completed blocks can be attached or emitted.
+    ///
+    /// Nested structural containers use `ParserState::InDiv.parent_div`
+    /// instead, so this field is intentionally limited to the flat block
+    /// states that do not carry their own parent pointer.
     pub(super) pending_div_state: Option<Box<ParserState>>,
 }
 
@@ -158,6 +164,7 @@ impl<R: BufRead> TeiPullParser<R> {
             }
             ParserState::InParagraph { .. }
             | ParserState::InUtterance { .. }
+            | ParserState::InHead { .. }
             | ParserState::InEmphasis { .. } => {
                 self.handle_block_content_start(name_bytes, element)
             }
@@ -181,6 +188,7 @@ impl<R: BufRead> TeiPullParser<R> {
             | ParserState::InUtterance { .. }
             | ParserState::InEmphasis { .. }
             | ParserState::InDiv { .. }
+            | ParserState::InHead { .. }
             | ParserState::InList { .. }
             | ParserState::InItem { .. }
             | ParserState::InLabel { .. } => self.handle_body_content_end(name_bytes),
@@ -189,17 +197,18 @@ impl<R: BufRead> TeiPullParser<R> {
     }
 
     /// Dispatches an end-element event for states that represent body content
-    /// (`<p>`, `<u>`, `<hi>`, `<div>`, `<list>`, `<item>`, `<label>`).
+    /// (`<p>`, `<u>`, `<hi>`, `<div>`, `<head>`, `<list>`, `<item>`, `<label>`).
     ///
     /// Called only when `self.state` is already one of the `InParagraph`,
-    /// `InUtterance`, `InEmphasis`, `InDiv`, `InList`, `InItem`, or `InLabel`
-    /// variants; unrecognised tag names are silently ignored.
+    /// `InUtterance`, `InEmphasis`, `InDiv`, `InHead`, `InList`, `InItem`, or
+    /// `InLabel` variants; unrecognised tag names are silently ignored.
     fn handle_body_content_end(&mut self, name_bytes: &[u8]) -> Result<Option<TeiEvent>, TeiError> {
         match name_bytes {
             b"p" => self.finish_paragraph(),
             b"u" => self.finish_utterance(),
             b"hi" => self.finish_emphasis(),
             b"div" => self.finish_div(),
+            b"head" => self.finish_head(),
             b"list" => self.finish_list(),
             b"item" => self.finish_item(),
             b"label" => self.finish_label(),

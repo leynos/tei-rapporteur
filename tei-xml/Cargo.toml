@@ -16,6 +16,10 @@ streaming = []
 name = "generate-fixtures"
 path = "src/bin/generate-fixtures.rs"
 
+[[example]]
+name = "bench_memory"
+required-features = ["streaming"]
+
 [dependencies]
 tei-core = { path = "../tei-core" }
 quick-xml = { workspace = true }

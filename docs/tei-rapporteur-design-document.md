@@ -71,8 +71,9 @@ feel natural to Python users**.
 
 - The body model now treats `BodyBlock` as a three-variant enum:
   `Paragraph`, `Utterance`, and `Div`.
-- `Div` is intentionally shallow for now. It groups `Paragraph`,
-  `Utterance`, and `List` children, but nested `Div` elements remain deferred.
+- `Div` is now recursive. It groups `Paragraph`, `Utterance`, `List`, and
+  nested `Div` children, and also carries required `@type`, optional
+  `@subtype`, and a single optional leading `Head` wrapper for `<head>`.
 - `List` holds ordered `Item` values, and each `Item` may expose a dedicated
   `Label` node plus inline content and an optional `@corresp` pointer list.
 - The streaming parser buffers an entire `Div` before yielding a single
@@ -83,28 +84,28 @@ feel natural to Python users**.
 
 This design keeps the structural extension narrow enough to preserve the
 original ergonomics of the flat body model while still representing chaptered
-material, show notes, and itemized references. The core distinction is between
-top-level body blocks (`BodyBlock`) and content that is only valid inside a
-division (`DivContent`). `List`, `Item`, and `Label` remain nested-only types,
-which keeps the XML profile, JSON schema, and Python `msgspec.Struct` surface
-aligned around the same containment rules.
+material, nested show-note sections, and itemized references. The core
+distinction is between top-level body blocks (`BodyBlock`) and content that is
+only valid inside a division (`DivContent`). `List`, `Item`, `Label`, and
+`Head` remain nested-only types, which keeps the XML profile, JSON schema, and
+Python `msgspec.Struct` surface aligned around the same containment rules.
 
 The hybrid emitter is a deliberate compatibility choice. `quick_xml` remains
 responsible for header and stand-off serialization, where serde-derived output
 works well, but the body is emitted manually once structural blocks are
 present. This avoids the serialization failure mode around inline vectors while
-still preserving a single authoritative Rust model for `Div`, `List`, `Item`,
-and `Label`. The emitter therefore acts as a thin projection layer over
+still preserving a single authoritative Rust model for `Div`, `Head`, `List`,
+`Item`, and `Label`. The emitter therefore acts as a thin projection layer over
 validated domain objects rather than a second source of truth for document
 structure.
 
 The streaming parser follows the same boundary. Paragraphs and utterances can
 still be emitted as soon as their closing tags arrive, but a `Div` event is not
-yielded until the parser has accumulated all nested paragraphs, utterances,
-lists, items, and labels inside that division. This buffering keeps the event
-surface simple for consumers and avoids introducing paired container-open and
-container-close events that would complicate both Python decoding and behaviour
-tests.
+yielded until the parser has accumulated nested paragraphs, utterances, lists,
+headings, and child divisions inside that division. This buffering keeps the
+event surface simple for consumers and avoids introducing paired container-open
+and container-close events that would complicate both Python decoding and
+behaviour tests.
 
 Future structural variants should extend the system feature-first rather than
 layer-first. Adding a new nested body element requires coordinated updates to:
@@ -117,11 +118,11 @@ layer-first. Adding a new nested body element requires coordinated updates to:
 - the Python structs, projection layer, stubs, and streaming event unions
 - behavioural tests, fixtures, and user/developer documentation
 
-Nested `Div` remains intentionally deferred until a concrete use case requires
-it. Supporting recursive divisions would change the Rust enums, the Python type
-aliases, the streaming parser buffering strategy, and the published schemas, so
-it should arrive as an explicit model revision rather than an incidental
-follow-on.
+The Episodic profile intentionally narrows TEI here: a division may carry zero
+or one leading `<head>` rather than the full TEI allowance of multiple heads.
+That keeps the Rust enums, the Python type aliases, the streaming parser
+buffering strategy, and the published schemas aligned with the current roadmap
+without claiming to model the full text-structure chapter.
 
 ## Workspace scaffolding decisions
 
@@ -264,11 +265,17 @@ clarity and allows reuse or independent testing of components:
   XML library (the implementation uses `quick-xml`). This crate provides
   functions to parse TEI XML into `tei-core` data structures and to serialize
   `tei-core` structures back to XML. It may also include streaming parse
-  utilities (pull parser) and pretty-printing or canonicalization logic. In
-  practice, `tei-xml` might be merged with `tei-core` if tightly coupled, but
-  conceptually it’s a separate concern (XML I/O). This separation can help if
-  later iterations support alternative input formats (e.g., if someone wanted
-  to import a Markdown transcript and produce TEI).
+  utilities (pull parser) and pretty-printing or canonicalization logic. The
+  streaming implementation is split across focused modules: `handlers.rs` for
+  start-element dispatch, `content_handlers.rs` for text, entity reference,
+  CDATA, and empty-element accumulation, `finish_handlers.rs` for end-element
+  completion and parent-state restoration, `helpers.rs` for shared builder
+  functions such as `build_div` and `build_head`, and `state.rs` for the
+  `ParserState` enum and its constructors. In practice, `tei-xml` might be
+  merged with `tei-core` if tightly coupled, but conceptually it’s a separate
+  concern (XML I/O). This separation can help if later iterations support
+  alternative input formats (e.g., if someone wanted to import a Markdown
+  transcript and produce TEI).
 
 - **`tei-serde`**: A crate providing serde serializers/deserializers for
   converting the TEI data structures to/from other formats like JSON or
@@ -421,10 +428,10 @@ The text module now models the `<text><body>` hierarchy instead of relying on
 placeholder segments:
 
 - `TeiText` owns a `TeiBody`, and `TeiBody` keeps a `Vec<BodyBlock>` so the
-  order of paragraphs and utterances remains faithful to the source script.
-- `BodyBlock` is an enum with `Paragraph(P)` and `Utterance(Utterance)`
-  variants. This provides a single ordered surface today while leaving room for
-  future variants such as divisions.
+  order of top-level body blocks remains faithful to the source script.
+- `BodyBlock` is an enum with `Paragraph(P)`, `Utterance(Utterance)`, and
+  `Div(Div)` variants so top-level thematic divisions preserve source order
+  without flattening the hierarchy.
 - `P` and `Utterance` wrap a `Vec<Inline>` so plain text, emphasized spans, and
   pauses share a single ordered sequence. Both structs expose helper methods
   for attaching optional `xml:id` values. `Utterance` now also models TEI's
@@ -742,6 +749,14 @@ pointers), and the relationships between document entities. Individual value
 types such as `DivType` perform their own validation (e.g., non-empty division
 type strings).
 
+Recursive structures are also depth-bounded during validation. `Div` and `List`
+nesting is checked against `MAX_DIV_DEPTH = 128` to avoid stack exhaustion on
+adversarially deep documents, and exceeding that limit returns
+`ValidationError::TooDeep { container, max_depth }`. The same guard is applied
+in both the structural-validation pass (`validate_div`, `validate_list`) and
+the pointer-resolution pass (`validate_div_pointers`, `validate_list_pointers`)
+so recursive shape and pointer traversal fail consistently.
+
 ```mermaid
 classDiagram
 
@@ -801,9 +816,15 @@ classDiagram
       +Vec~Inline~ content
     }
 
+    class Head {
+      +Vec~Inline~ content
+    }
+
     class Div {
       +DivType div_type
+      +String? subtype
       +String? xml_id
+      +Head? head
       +Vec~DivContent~ children
     }
 
@@ -812,6 +833,7 @@ classDiagram
       +Paragraph
       +Utterance
       +List
+      +Div
     }
 
     class List {
@@ -908,6 +930,7 @@ classDiagram
     DivContent --> Paragraph
     DivContent --> Utterance
     DivContent --> List
+    DivContent --> Div
 
     List --> Item : ordered_items
 
@@ -915,6 +938,7 @@ classDiagram
     Paragraph --> Inline : has_many
     Utterance --> Inline : has_many
     Label --> Inline : has_many
+    Head --> Inline : has_many
 
     Utterance ..> ProfileCast : who_references_speaker
 
@@ -1565,6 +1589,7 @@ stateDiagram-v2
 
     InBody --> InParagraph : <p> start
     InBody --> InUtterance : <u> start
+    InBody --> InDiv : <div> start
     InBody --> InBody : other elements
     InBody --> AfterBody : </body>
     InBody --> DocumentComplete : eof (graceful)
@@ -1579,14 +1604,46 @@ stateDiagram-v2
     InUtterance --> InUtterance : text, inline
     InUtterance --> InBody : </u> yields BodyBlock Utterance
 
+    InDiv --> InHead : <head> start before children
+    InDiv --> InParagraph : <p> start with pending parent div
+    InDiv --> InUtterance : <u> start with pending parent div
+    InDiv --> InList : <list> start
+    InDiv --> InDiv : nested <div> start
+    InDiv --> InBody : </div> yields BodyBlock Div when top-level
+    InDiv --> InDiv : </div> pushes DivContent Div when nested
+    InDiv --> Error : duplicate <head> or malformed xml
+
+    InHead --> InEmphasis : <hi> start
+    InHead --> InHead : text, inline
+    InHead --> InDiv : </head> stores heading on parent div
+
+    InList --> InItem : <item> start
+    InList --> InDiv : </list> pushes DivContent List
+    InList --> Error : malformed xml
+
+    InItem --> InLabel : <label> start before content
+    InItem --> InEmphasis : <hi> start
+    InItem --> InItem : text, inline
+    InItem --> InList : </item> appends item to parent list
+    InItem --> Error : malformed xml
+
+    InLabel --> InEmphasis : <hi> start
+    InLabel --> InLabel : text, inline
+    InLabel --> InItem : </label> stores label on parent item
+
     InEmphasis --> InEmphasis : nested inline
     InEmphasis --> InParagraph : </hi> when parent paragraph
     InEmphasis --> InUtterance : </hi> when parent utterance
+    InEmphasis --> InHead : </hi> when parent head
+    InEmphasis --> InItem : </hi> when parent item
+    InEmphasis --> InLabel : </hi> when parent label
 
     InBody --> Error : malformed xml
     AfterBody --> Error : malformed xml
     InParagraph --> Error : malformed xml
     InUtterance --> Error : malformed xml
+    InHead --> Error : malformed xml
+    InLabel --> Error : malformed xml
     InEmphasis --> Error : malformed xml
 
     DocumentComplete --> [*]
@@ -2007,6 +2064,116 @@ the existing `tei_rapporteur` module while still registering a real submodule.
 MessagePack emitted by `to_msgpack` decodes directly into these classes via
 `msgspec.msgpack.decode(payload, type=Episode)`, and encoding the structs feeds
 the bytes straight back into `from_msgpack`.
+
+Figure: class diagram for the Python structural-division projections and their
+Rust-side projection helpers. `DivBlock` and streamed `DivEvent` values both
+carry optional `Head` values plus recursive `DivContent`, while the Rust
+projection enums preserve the same paragraph, utterance, list, and nested
+division shape before conversion across the FFI boundary.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class PyInline {
+        <<enum>>
+        Text
+        Hi
+        Pause
+    }
+
+    class Head {
+        + content: list~PyInline~
+    }
+
+    class DivBlock {
+        <<tagged struct div>>
+        + div_type: str
+        + subtype: str~None~
+        + head: Head~None~
+        + content: list~DivContent~
+        + xml_id: str~None~
+        + __post_init__()
+    }
+
+    class ListBlock {
+        + items: list~Item~
+        + xml_id: str~None~
+    }
+
+    class TextBlock {
+        <<TypeAlias>>
+        Paragraph | Utterance
+    }
+
+    class DivContent {
+        <<TypeAlias>>
+        TextBlock | ListBlock | DivBlock
+    }
+
+    class BodyBlock {
+        <<TypeAlias>>
+        TextBlock | DivBlock
+    }
+
+    class DivEvent {
+        <<tagged struct div>>
+        + div_type: str
+        + subtype: str~None~
+        + head: Head~None~
+        + content: list~DivContent~
+        + xml_id: str~None~
+    }
+
+    class Event {
+        <<enum>>
+        DocumentStart
+        HeaderEvent
+        ParagraphEvent
+        UtteranceEvent
+        DivEvent
+        DocumentEnd
+    }
+
+    class PyBodyBlock_Rust {
+        <<enum>>
+        Paragraph
+        Utterance
+        Div
+    }
+
+    class PyDivContent_Rust {
+        <<enum>>
+        Paragraph
+        Utterance
+        List
+        Div
+    }
+
+    class PyHead_Rust {
+        + content: Vec~PyInline_Rust~
+    }
+
+    class PyInline_Rust {
+    }
+
+    DivBlock "1" --> "*" DivContent : content
+    DivBlock "0..1" --> Head : head
+
+    DivContent --> DivBlock : DivBlock
+    DivContent --> ListBlock : ListBlock
+
+    BodyBlock --> DivBlock : DivBlock
+
+    DivEvent --> DivContent : content
+    DivEvent --> Head : head
+
+    Event --> DivEvent : Div
+
+    PyBodyBlock_Rust --> PyDivContent_Rust : uses
+    PyDivContent_Rust --> PyHead_Rust : head
+    PyHead_Rust --> PyInline_Rust : content
+```
 
 The above Python code shows how seamlessly a workflow can move between TEI (for
 interchange/audit) and a Python JSON-friendly form (for analysis and

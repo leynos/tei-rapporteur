@@ -1,11 +1,12 @@
 //! Division model for grouping related body content.
 //!
-//! Defines TEI `<div>` elements that organize paragraphs, utterances, and lists
-//! into thematic sections identified by `@type` and optional `@xml:id`.
+//! Defines TEI `<div>` elements that organize paragraphs, utterances, lists,
+//! nested divisions, and optional headings into thematic sections identified by
+//! `@type`, optional `@subtype`, and optional `@xml:id`.
 
-use crate::text::types::{DivType, XmlId};
+use crate::text::types::{DivSubtype, DivType, XmlId};
 
-use super::{BodyContentError, List, P, Utterance, set_optional_identifier};
+use super::{BodyContentError, Head, List, P, Utterance, set_optional_identifier};
 use serde::{Deserialize, Serialize};
 
 /// Thematic or structural division of body content.
@@ -19,6 +20,8 @@ use serde::{Deserialize, Serialize};
 pub struct Div {
     #[serde(rename = "@type")]
     div_type: DivType,
+    #[serde(rename = "@subtype", skip_serializing_if = "Option::is_none", default)]
+    subtype: Option<DivSubtype>,
     #[serde(
         rename = "@xml:id",
         alias = "@id",
@@ -26,6 +29,8 @@ pub struct Div {
         default
     )]
     id: Option<XmlId>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    head: Option<Head>,
     #[serde(rename = "$value", default)]
     content: Vec<DivContent>,
 }
@@ -53,7 +58,9 @@ impl Div {
 
         Ok(Self {
             div_type: validated,
+            subtype: None,
             id: None,
+            head: None,
             content: Vec::new(),
         })
     }
@@ -70,25 +77,63 @@ impl Div {
         set_optional_identifier(&mut self.id, id, "div")
     }
 
+    /// Sets the optional division subtype, overwriting any existing value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BodyContentError::EmptySegment`] when the value lacks visible
+    /// characters after trimming.
+    pub fn set_subtype(&mut self, subtype: impl Into<String>) -> Result<(), BodyContentError> {
+        self.subtype = Some(
+            DivSubtype::new(subtype)
+                .map_err(|_| BodyContentError::EmptySegment { container: "div" })?,
+        );
+        Ok(())
+    }
+
+    /// Sets the optional heading for the division, overwriting any existing
+    /// value.
+    pub fn set_head(&mut self, head: Head) {
+        self.head = Some(head);
+    }
+
     /// Clears any associated `xml:id`.
     pub fn clear_id(&mut self) {
         self.id = None;
     }
 
+    /// Clears any associated subtype.
+    pub fn clear_subtype(&mut self) {
+        self.subtype = None;
+    }
+
+    /// Clears any associated heading.
+    pub fn clear_head(&mut self) {
+        self.head = None;
+    }
+
     /// Returns the division identifier when present.
     #[must_use]
-    #[expect(
-        clippy::missing_const_for_fn,
-        reason = "Option::as_ref is not const-stable on current MSRV."
-    )]
-    pub fn id(&self) -> Option<&XmlId> {
+    pub const fn id(&self) -> Option<&XmlId> {
         self.id.as_ref()
     }
 
     /// Returns the division type.
     #[must_use]
-    pub fn div_type(&self) -> &str {
+    pub const fn div_type(&self) -> &str {
         self.div_type.as_str()
+    }
+
+    /// Returns the division subtype when present.
+    #[must_use]
+    pub fn subtype(&self) -> Option<&str> {
+        self.subtype.as_ref().map(DivSubtype::as_str)
+    }
+
+    /// Returns the heading when present.
+    #[must_use]
+    pub const fn head(&self) -> Option<&Head> {
+        self.head.as_ref()
     }
 
     /// Returns the stored content.
@@ -112,10 +157,15 @@ impl Div {
         self.content.push(DivContent::List(list));
     }
 
+    /// Appends a nested division to the division.
+    pub fn push_div(&mut self, div: Self) {
+        self.content.push(DivContent::Div(div));
+    }
+
     /// Reports whether the division contains any content.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.content.is_empty()
+        self.head.is_none() && self.content.is_empty()
     }
 }
 
@@ -132,6 +182,9 @@ pub enum DivContent {
     /// List block.
     #[serde(rename = "list")]
     List(List),
+    /// Nested division block.
+    #[serde(rename = "div")]
+    Div(Div),
 }
 
 #[cfg(test)]
@@ -140,6 +193,33 @@ mod tests {
 
     use super::*;
     use crate::text::body::Item;
+
+    fn sample_list() -> List {
+        let item = Item::from_text_segments(["List item"])
+            .unwrap_or_else(|error| panic!("valid item: {error}"));
+        List::new([item]).unwrap_or_else(|error| panic!("valid list: {error}"))
+    }
+
+    fn sample_child_div() -> Div {
+        let mut child_div =
+            Div::new("guest-bios").unwrap_or_else(|error| panic!("valid child div: {error}"));
+        child_div.set_head(
+            Head::from_text("Guests").unwrap_or_else(|error| panic!("valid head: {error}")),
+        );
+        child_div
+    }
+
+    fn div_content_kinds(div: &Div) -> Vec<&'static str> {
+        div.content()
+            .iter()
+            .map(|content| match content {
+                DivContent::Paragraph(_) => "p",
+                DivContent::Utterance(_) => "u",
+                DivContent::List(_) => "list",
+                DivContent::Div(_) => "div",
+            })
+            .collect()
+    }
 
     #[test]
     fn div_new_rejects_empty_type() {
@@ -203,32 +283,75 @@ mod tests {
     }
 
     #[test]
+    fn div_subtype_round_trips() {
+        let mut div = Div::new("segment").unwrap_or_else(|error| panic!("valid div: {error}"));
+        div.set_subtype("chapter-marker")
+            .unwrap_or_else(|error| panic!("valid subtype: {error}"));
+        assert_eq!(div.subtype(), Some("chapter-marker"));
+        div.clear_subtype();
+        assert!(div.subtype().is_none());
+    }
+
+    #[test]
+    fn div_head_round_trips() {
+        let mut div = Div::new("segment").unwrap_or_else(|error| panic!("valid div: {error}"));
+        let head = Head::from_text("Chapter markers")
+            .unwrap_or_else(|error| panic!("valid head: {error}"));
+        div.set_head(head.clone());
+        assert_eq!(div.head(), Some(&head));
+        div.clear_head();
+        assert!(div.head().is_none());
+    }
+
+    #[test]
     fn div_push_content() {
         let mut div = Div::new("show-notes").unwrap_or_else(|error| panic!("valid div: {error}"));
 
         let paragraph = P::from_text_segments(["Intro text"])
             .unwrap_or_else(|error| panic!("valid paragraph: {error}"));
-        div.push_paragraph(paragraph.clone());
+        div.push_paragraph(paragraph);
 
         let utterance = Utterance::from_text_segments(Some("host"), ["Hello!"])
             .unwrap_or_else(|error| panic!("valid utterance: {error}"));
-        div.push_utterance(utterance.clone());
+        div.push_utterance(utterance);
 
-        let item = Item::from_text_segments(["List item"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        let list = super::List::new([item]).unwrap_or_else(|error| panic!("valid list: {error}"));
-        div.push_list(list.clone());
-
-        assert_eq!(div.content().len(), 3);
+        div.push_list(sample_list());
+        div.push_div(sample_child_div());
+        assert_eq!(div_content_kinds(&div), vec!["p", "u", "list", "div"]);
         assert!(!div.is_empty());
-        assert!(matches!(
-            div.content().first(),
-            Some(DivContent::Paragraph(_))
-        ));
-        assert!(matches!(
-            div.content().get(1),
-            Some(DivContent::Utterance(_))
-        ));
-        assert!(matches!(div.content().get(2), Some(DivContent::List(_))));
+    }
+
+    #[test]
+    fn div_serde_round_trips_head_subtype_and_nested_div() {
+        let mut parent = Div::new("segment").unwrap_or_else(|error| panic!("valid div: {error}"));
+        parent
+            .set_subtype("chapter-markers")
+            .unwrap_or_else(|error| panic!("valid subtype: {error}"));
+        parent.set_head(
+            Head::from_text("Chapter markers")
+                .unwrap_or_else(|error| panic!("valid head: {error}")),
+        );
+
+        let mut child =
+            Div::new("segment").unwrap_or_else(|error| panic!("valid child div: {error}"));
+        child
+            .set_subtype("chapter-marker")
+            .unwrap_or_else(|error| panic!("valid subtype: {error}"));
+        child.set_head(
+            Head::from_text("Cold open")
+                .unwrap_or_else(|error| panic!("valid child head: {error}")),
+        );
+        child.push_paragraph(
+            P::from_text_segments(["Welcome back"])
+                .unwrap_or_else(|error| panic!("valid paragraph: {error}")),
+        );
+        parent.push_div(child);
+
+        let json = tei_serde::serde_json::to_string(&parent)
+            .unwrap_or_else(|error| panic!("json: {error}"));
+        let parsed: Div = tei_serde::serde_json::from_str(&json)
+            .unwrap_or_else(|error| panic!("round trip should parse: {error}"));
+
+        assert_eq!(parsed, parent);
     }
 }

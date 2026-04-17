@@ -6,7 +6,7 @@ use pyo3::{
     Python,
     types::{PyAnyMethods, PyDict, PyModule},
 };
-use tei_core::{BodyBlock, Div, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
+use tei_core::{BodyBlock, Div, Head, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
 use tei_serde::msgpack::to_vec_named;
 use tei_xml::streaming::TeiEvent;
 
@@ -16,6 +16,9 @@ fn division_fixture() -> TeiDocument {
     );
     let mut div = Div::new("show-notes").expect("div type should validate");
     div.set_id("div1").expect("id should validate");
+    div.set_subtype("chapter-markers")
+        .expect("subtype should validate");
+    div.set_head(Head::from_text("Chapter markers").expect("head should validate"));
     div.push_paragraph(
         tei_core::P::from_text_segments(["Further reading"]).expect("paragraph should validate"),
     );
@@ -23,10 +26,34 @@ fn division_fixture() -> TeiDocument {
     let mut item = Item::from_text_segments(["Transcript"]).expect("item should validate");
     item.set_label(Label::from_text("1.").expect("label should validate"));
     let list = List::new([item]).expect("list should validate");
-    div.push_list(list);
+    let mut child = Div::new("segment").expect("child div type should validate");
+    child
+        .set_subtype("guest-bio")
+        .expect("child subtype should validate");
+    child.set_head(Head::from_text("Guest bios").expect("child head should validate"));
+    child.push_list(list);
+    div.push_div(child);
 
     let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
     TeiDocument::new(header, text)
+}
+
+fn text_value(any: &pyo3::Bound<'_, pyo3::PyAny>, attr: &str) -> String {
+    any.getattr(attr)
+        .unwrap_or_else(|error| panic!("{attr} should exist: {error}"))
+        .extract()
+        .unwrap_or_else(|error| panic!("{attr} should be a string: {error}"))
+}
+
+fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
+    any.getattr("content")
+        .expect("content should exist")
+        .get_item(0)
+        .expect("first content item should exist")
+        .getattr("value")
+        .expect("text inline should expose value")
+        .extract()
+        .expect("content value should be a string")
 }
 
 #[test]
@@ -74,31 +101,29 @@ fn episode_struct_decodes_div_blocks() {
             "first block should be a structs.DivBlock instance"
         );
 
-        let div_type: String = first
-            .getattr("div_type")
-            .expect("DivBlock should expose div_type")
-            .extract()
-            .expect("div_type should be a string");
-        assert_eq!(div_type, "show-notes");
+        assert_eq!(text_value(&first, "div_type"), "show-notes");
+        assert_eq!(text_value(&first, "subtype"), "chapter-markers");
+        let head = first.getattr("head").expect("DivBlock should expose head");
+        assert_eq!(first_text_content(&head), "Chapter markers");
         let content = first
             .getattr("content")
             .expect("DivBlock should expose content");
-        let list_block = content.get_item(1).expect("list block should exist");
+        let nested_div = content.get_item(1).expect("nested div should exist");
+        let nested_head = nested_div
+            .getattr("head")
+            .expect("nested DivBlock should expose head");
+        assert_eq!(first_text_content(&nested_head), "Guest bios");
+        let list_block = nested_div
+            .getattr("content")
+            .expect("nested content")
+            .get_item(0)
+            .expect("list block should exist");
         let items = list_block
             .getattr("items")
             .expect("ListBlock should expose items");
         let item = items.get_item(0).expect("item should exist");
         let label = item.getattr("label").expect("Item should expose label");
-        let label_text: String = label
-            .getattr("content")
-            .expect("Label should expose content")
-            .get_item(0)
-            .expect("label content item")
-            .getattr("value")
-            .expect("text inline should expose value")
-            .extract()
-            .expect("label content value should be a string");
-        assert_eq!(label_text, "1.");
+        assert_eq!(first_text_content(&label), "1.");
     });
 }
 
@@ -140,5 +165,15 @@ fn streaming_div_events_decode_into_python_union() {
             .extract()
             .expect("div_type should be a string");
         assert_eq!(div_type, "show-notes");
+        let subtype: String = decoded_event
+            .getattr("subtype")
+            .expect("DivEvent should expose subtype")
+            .extract()
+            .expect("subtype should be a string");
+        assert_eq!(subtype, "chapter-markers");
+        let head = decoded_event
+            .getattr("head")
+            .expect("DivEvent should expose head");
+        assert_eq!(first_text_content(&head), "Chapter markers");
     });
 }

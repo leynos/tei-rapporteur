@@ -9,8 +9,8 @@ use crate::{
 use pyo3::{Python, types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
 use tei_core::{
-    BodyBlock, CiteData, CiteStructure, EncodingDesc, Inline, P, PointerList, RefsDecl, Span,
-    SpanGroup, StandOff, TeiDocument, Utterance,
+    BodyBlock, CiteData, CiteStructure, Div, EncodingDesc, Head, Inline, P, PointerList, RefsDecl,
+    Span, SpanGroup, StandOff, TeiDocument, Utterance,
 };
 use tei_serde::{json::Value, serde_json::json};
 use tei_xml::streaming::TeiEvent;
@@ -257,6 +257,55 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
         "citeData entries should survive projection"
     );
     assert_round_tripped_paragraph(&original, &round_tripped);
+}
+
+#[test]
+fn nested_division_projection_round_trips_head_and_subtype() {
+    let mut child = Div::new("segment").expect("child div should validate");
+    child
+        .set_subtype("guest-bio")
+        .expect("child subtype should validate");
+    child.set_head(Head::from_text("Guest bios").expect("head should validate"));
+    child.push_paragraph(P::from_text_segments(["Profile"]).expect("paragraph should validate"));
+
+    let mut parent = Div::new("show-notes").expect("div should validate");
+    parent
+        .set_subtype("chapter-markers")
+        .expect("subtype should validate");
+    parent.set_head(Head::from_text("Chapter markers").expect("head should validate"));
+    parent.push_div(child);
+
+    let header = tei_core::TeiHeader::new(
+        tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
+    );
+    let body = tei_core::TeiBody::new([BodyBlock::Div(parent)]);
+    let document = TeiDocument::new(header, tei_core::TeiText::new(body));
+
+    let value = document_to_value(&document).expect("projection should serialise to JSON");
+    assert_eq!(
+        value.pointer("/text/body/blocks/0/subtype"),
+        Some(&json!("chapter-markers"))
+    );
+    assert_eq!(
+        value.pointer("/text/body/blocks/0/head/content/0/value"),
+        Some(&json!("Chapter markers"))
+    );
+    assert_eq!(
+        value.pointer("/text/body/blocks/0/content/0/subtype"),
+        Some(&json!("guest-bio"))
+    );
+
+    let round_tripped =
+        value_to_document(&value).expect("projection JSON should round-trip into TeiDocument");
+    let Some(BodyBlock::Div(div)) = round_tripped.text().body().blocks().first() else {
+        panic!("expected div body block after round-trip");
+    };
+    assert_eq!(div.subtype(), Some("chapter-markers"));
+    assert!(div.head().is_some());
+    assert!(matches!(
+        div.content().first(),
+        Some(tei_core::DivContent::Div(_))
+    ));
 }
 
 #[test]
