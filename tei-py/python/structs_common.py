@@ -158,14 +158,40 @@ TextBlock: TypeAlias = Paragraph | Utterance
 
 
 class RevisionChange(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Single revision note within ``<revisionDesc>``."""
+    """Summary
+    -------
+    Single revision note nested inside ``<revisionDesc>``.
+
+    ``RevisionChange`` records one change entry from the TEI revision history,
+    including the change description and optional responsibility metadata.
+
+    Attributes
+    ----------
+    description : str
+        Revision note content stored in the TEI ``desc`` field.
+    resp : str | None
+        Optional responsibility pointer stored in the TEI ``resp`` field.
+        Defaults to ``None``.
+    """
 
     description: str = msgspec.field(name="desc")
     resp: str | None = msgspec.field(default=None, name="resp")
 
 
 class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Revision history container."""
+    """Summary
+    -------
+    Container for TEI revision-history entries.
+
+    ``RevisionDesc`` groups the projected ``RevisionChange`` items that were
+    declared under a document's ``<revisionDesc>`` metadata block.
+
+    Attributes
+    ----------
+    changes : list[RevisionChange]
+        Revision history entries stored in the TEI ``change`` field. Defaults
+        to an empty list.
+    """
 
     changes: list[RevisionChange] = msgspec.field(
         default_factory=list, name="change"
@@ -173,7 +199,21 @@ class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Metadata describing an annotation system."""
+    """Summary
+    -------
+    Annotation-system metadata declared in the TEI encoding description.
+
+    ``AnnotationSystem`` captures identifier and descriptive metadata for an
+    annotation scheme referenced by the document.
+
+    Attributes
+    ----------
+    xml_id : str
+        XML identifier for the annotation system declaration.
+    desc : str | None
+        Optional human-readable description stored in the TEI ``desc`` field.
+        Defaults to ``None``.
+    """
 
     xml_id: str
     desc: str | None = msgspec.field(default=None, name="desc")
