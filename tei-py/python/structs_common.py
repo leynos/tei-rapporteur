@@ -158,9 +158,7 @@ TextBlock: TypeAlias = Paragraph | Utterance
 
 
 class RevisionChange(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Single revision note nested inside ``<revisionDesc>``.
+    """Single revision note nested inside ``<revisionDesc>``.
 
     ``RevisionChange`` records one change entry from the TEI revision history,
     including the change description and optional responsibility metadata.
@@ -179,9 +177,7 @@ class RevisionChange(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Container for TEI revision-history entries.
+    """Container for TEI revision-history entries.
 
     ``RevisionDesc`` groups the projected ``RevisionChange`` items that were
     declared under a document's ``<revisionDesc>`` metadata block.
@@ -199,9 +195,7 @@ class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Annotation-system metadata declared in the TEI encoding description.
+    """Annotation-system metadata declared in the TEI encoding description.
 
     ``AnnotationSystem`` captures identifier and descriptive metadata for an
     annotation scheme referenced by the document.
