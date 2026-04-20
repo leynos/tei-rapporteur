@@ -7,9 +7,7 @@ from typing import TypeAlias
 
 
 class InlineText(msgspec.Struct, tag="text", tag_field="type"):
-    """Summary
-    -------
-    Plain text inline node within TEI inline content.
+    """Plain text inline node within TEI inline content.
 
     ``InlineText`` represents unadorned character data inside paragraphs,
     utterances, headings, and other inline-capable containers.
@@ -24,9 +22,7 @@ class InlineText(msgspec.Struct, tag="text", tag_field="type"):
 
 
 class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
-    """Summary
-    -------
-    Emphasized inline span within paragraph, utterance, or heading content.
+    """Emphasized inline span within paragraph, utterance, or heading content.
 
     ``InlineHi`` represents TEI ``<hi>`` markup and wraps nested inline nodes
     with an optional rendering hint for downstream styling or interpretation.
@@ -46,9 +42,7 @@ class InlineHi(msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True):
 
 
 class InlinePause(msgspec.Struct, tag="pause", tag_field="type", omit_defaults=True):
-    """Summary
-    -------
-    Pause marker corresponding to TEI ``<pause/>`` inline markup.
+    """Pause marker corresponding to TEI ``<pause/>`` inline markup.
 
     ``InlinePause`` captures empty-element pause annotations that may carry
     optional duration and pause-kind metadata.
@@ -73,9 +67,7 @@ Inline: TypeAlias = InlineText | InlineHi | InlinePause
 class Paragraph(
     msgspec.Struct, tag="paragraph", tag_field="type", omit_defaults=True
 ):
-    """Summary
-    -------
-    Paragraph body block with inline TEI content.
+    """Paragraph body block with inline TEI content.
 
     ``Paragraph`` models a TEI ``<p>`` element after projection into the
     Python structs layer.
@@ -96,9 +88,7 @@ class Paragraph(
 class Utterance(
     msgspec.Struct, tag="utterance", tag_field="type", omit_defaults=True
 ):
-    """Summary
-    -------
-    Spoken utterance with inline TEI content and local provenance metadata.
+    """Spoken utterance with inline TEI content and local provenance metadata.
 
     ``Utterance`` models a TEI ``<u>`` element together with the speech and
     annotation attributes preserved by the projection layer.
@@ -158,14 +148,36 @@ TextBlock: TypeAlias = Paragraph | Utterance
 
 
 class RevisionChange(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Single revision note within ``<revisionDesc>``."""
+    """Single revision note nested inside ``<revisionDesc>``.
+
+    ``RevisionChange`` records one change entry from the TEI revision history,
+    including the change description and optional responsibility metadata.
+
+    Attributes
+    ----------
+    description : str
+        Revision note content stored in the TEI ``desc`` field.
+    resp : str | None
+        Optional responsibility pointer stored in the TEI ``resp`` field.
+        Defaults to ``None``.
+    """
 
     description: str = msgspec.field(name="desc")
     resp: str | None = msgspec.field(default=None, name="resp")
 
 
 class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Revision history container."""
+    """Container for TEI revision-history entries.
+
+    ``RevisionDesc`` groups the projected ``RevisionChange`` items that were
+    declared under a document's ``<revisionDesc>`` metadata block.
+
+    Attributes
+    ----------
+    changes : list[RevisionChange]
+        Revision history entries stored in the TEI ``change`` field.
+        Defaults to an empty list.
+    """
 
     changes: list[RevisionChange] = msgspec.field(
         default_factory=list, name="change"
@@ -173,7 +185,19 @@ class RevisionDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class AnnotationSystem(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Metadata describing an annotation system."""
+    """Annotation-system metadata from the TEI encoding description.
+
+    ``AnnotationSystem`` captures identifier and descriptive metadata for an
+    annotation scheme referenced by the document.
+
+    Attributes
+    ----------
+    xml_id : str
+        XML identifier for the annotation system declaration.
+    desc : str | None
+        Optional human-readable description stored in the TEI ``desc``
+        field. Defaults to ``None``.
+    """
 
     xml_id: str
     desc: str | None = msgspec.field(default=None, name="desc")
@@ -269,9 +293,7 @@ class EncodingDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Audience and linguistic profile metadata from ``<profileDesc>``.
+    """Audience and linguistic profile metadata from ``<profileDesc>``.
 
     ``ProfileDesc`` collects high-level descriptive metadata about the
     document's synopsis, speakers, and languages.
@@ -294,9 +316,7 @@ class ProfileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Bibliographic file description from ``<fileDesc>``.
+    """Bibliographic file description from ``<fileDesc>``.
 
     ``FileDesc`` captures the core title-level metadata required for the TEI
     header projection.
@@ -318,9 +338,7 @@ class FileDesc(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Aggregated TEI header sections projected into Python structs.
+    """Aggregated TEI header sections projected into Python structs.
 
     ``TeiHeader`` groups the major TEI header subsections exposed by the
     embedded Python API.
@@ -352,9 +370,7 @@ class TeiHeader(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Stand-off span with many-to-many or range-based targets.
+    """Stand-off span with many-to-many or range-based targets.
 
     ``Span`` models TEI stand-off annotation links that may target explicit
     pointers, a from/to range, or both, together with provenance metadata.
@@ -398,9 +414,7 @@ class Span(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Logical stand-off grouping of related annotation spans.
+    """Logical stand-off grouping of related annotation spans.
 
     ``SpanGroup`` corresponds to TEI ``<spanGrp>`` and groups related spans
     under a shared kind and optional provenance metadata.
@@ -433,9 +447,7 @@ class SpanGroup(msgspec.Struct, kw_only=True, omit_defaults=True):
 
 
 class StandOff(msgspec.Struct, kw_only=True, omit_defaults=True):
-    """Summary
-    -------
-    Root stand-off annotation layer for TEI overlays.
+    """Root stand-off annotation layer for TEI overlays.
 
     ``StandOff`` collects the top-level stand-off annotation groups attached to
     a TEI document.
