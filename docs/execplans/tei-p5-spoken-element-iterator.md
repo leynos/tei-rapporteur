@@ -262,6 +262,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-11: Addressed follow-up documentation heading, test fixture
   duplication, Python `sys.modules` restoration, and acceptance-criteria
   wording comments; focused tests, full gates, and CodeRabbit all passed.
+- [x] 2026-05-11: Extracted the `HeaderRecorder` start/empty element shell into
+  `record_element_with_post_step` to clear the remaining CodeScene duplication
+  finding.
 
 ## Surprises & Discoveries
 

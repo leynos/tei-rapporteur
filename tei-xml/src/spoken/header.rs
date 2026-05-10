@@ -21,10 +21,10 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        if self.append_header_element(name, element, b">")? {
-            self.depth += 1;
-        }
-        Ok(())
+        self.record_element_with_post_step(name, element, b">", |s, _name| {
+            s.depth += 1;
+            Ok(())
+        })
     }
 
     /// Records an empty element when it belongs to the TEI header subtree.
@@ -33,10 +33,12 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        if self.append_header_element(name, element, b"/>")? && name == TEI_HEADER {
-            self.validate()?;
-        }
-        Ok(())
+        self.record_element_with_post_step(name, element, b"/>", |s, element_name| {
+            if element_name == TEI_HEADER {
+                s.validate()?;
+            }
+            Ok(())
+        })
     }
 
     /// Records a closing element when it belongs to the TEI header subtree.
@@ -120,6 +122,32 @@ impl HeaderRecorder {
         self.reset_if_header_root(name);
         append_element_with_attributes(&mut self.xml, element, closing)?;
         Ok(true)
+    }
+
+    /// Calls [`append_header_element`] and, when bytes were actually appended,
+    /// invokes `on_appended` with a mutable reference to `self` and the element
+    /// name.
+    ///
+    /// This eliminates the repeated `if self.append_header_element(...)? { ... }
+    /// Ok(())` shell shared by [`record_start`] and [`record_empty`].
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the helper names each part of the extracted record/post-step shell"
+    )]
+    fn record_element_with_post_step<F>(
+        &mut self,
+        name: &str,
+        element: &BytesStart<'_>,
+        closing: &[u8],
+        on_appended: F,
+    ) -> Result<(), TeiError>
+    where
+        F: FnOnce(&mut Self, &str) -> Result<(), TeiError>,
+    {
+        if self.append_header_element(name, element, closing)? {
+            on_appended(self, name)?;
+        }
+        Ok(())
     }
 }
 
