@@ -141,7 +141,15 @@ pub(crate) mod py_exports {
     #[pyfunction(name = "spoken_text_segments")]
     pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<PyObject>> {
         let segments = wrap_tei_result(extract_spoken_segments(xml))?;
-        let structs = py.import("tei_rapporteur.structs")?;
+        let sys_modules = py.import("sys")?.getattr("modules")?;
+        let structs = sys_modules
+            .get_item("tei_rapporteur.structs")
+            .map_err(|_| {
+                pyo3::exceptions::PyRuntimeError::new_err(
+                    "tei_rapporteur.structs is not registered; \
+                 initialise the module before calling spoken_text_segments",
+                )
+            })?;
         let segment_class = structs.getattr("SpokenTextSegment")?;
         segments
             .into_iter()
