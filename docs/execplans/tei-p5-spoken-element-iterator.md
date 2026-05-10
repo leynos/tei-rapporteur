@@ -253,6 +253,12 @@ These are hard invariants. Violation requires escalation, not workarounds.
   `make check-fmt`, `make lint`, `make test`, and CodeRabbit for the
   documentation/Python follow-up; all passed and CodeRabbit reported zero
   findings.
+- [x] 2026-05-11: Corrected the shipped testing acceptance criterion, extracted
+  spoken segment lifecycle code from `tei-xml/src/spoken/mod.rs`, and replaced
+  document-shell booleans with an ordered parser phase.
+- [x] 2026-05-11: Addressed CodeRabbit's extracted-segment lifecycle follow-up
+  by adding focused `SegmentCollector` unit coverage, rerunning the full local
+  gates, and receiving a zero-finding CodeRabbit review.
 
 ## Surprises & Discoveries
 
@@ -572,8 +578,9 @@ Commit only after the relevant gates pass. Keep commits atomic:
 - Nested `<seg>` inside a counted block never creates a duplicate segment.
 - Excluded inline descendants and pause/gap/break-like markers create word
   boundaries but contribute no words.
-- Unit tests use `rstest`, behaviour tests use `rstest-bdd`, and property tests
-  cover the normalization/no-double-count invariants.
+- Unit tests use `rstest`, behaviour cases are implemented as `rstest`-driven
+  tests rather than `rstest-bdd`, Rust and Python unit coverage is present, and
+  property tests for normalization/no-double-count invariants are deferred.
 - `docs/users-guide.md`, `docs/tei-rapporteur-design-document.md`, and
   `docs/developers-guide.md` describe the new public and internal contracts.
 - `make check-fmt`, `make lint`, and `make test` pass before any code commit.
@@ -604,5 +611,5 @@ Final gates passed:
 - `make nixie`
 
 CodeRabbit was run repeatedly after the implementation milestone. All valid
-findings were fixed; the final remaining spelling suggestion was rejected
-because it conflicted with the repository's en-GB Oxford `-ize` spelling rule.
+findings were fixed; the final review after the segment-lifecycle extraction
+reported zero findings.

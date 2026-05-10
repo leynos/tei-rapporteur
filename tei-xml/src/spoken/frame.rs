@@ -2,8 +2,6 @@
 
 use std::collections::BTreeMap;
 
-use tei_core::SpokenTextNormalizer;
-
 /// XML element stack frame with locator state.
 #[derive(Clone, Debug)]
 pub(crate) struct ElementFrame {
@@ -25,51 +23,6 @@ impl ElementFrame {
             locator,
             child_counts: BTreeMap::new(),
             is_excluded,
-        }
-    }
-}
-
-/// Type of active spoken segment currently being collected.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum SegmentKind {
-    /// A block element such as `<p>`, `<ab>`, `<l>`, or standalone `<seg>`.
-    Block,
-    /// A direct `<u>` utterance that may be suppressed by child spoken blocks.
-    Utterance,
-}
-
-/// Active spoken segment accumulator.
-#[derive(Clone, Debug)]
-pub(crate) struct ActiveSegment {
-    /// Segment kind.
-    pub(crate) kind: SegmentKind,
-    /// Local source element name.
-    pub(crate) name: String,
-    /// Stable source locator.
-    pub(crate) locator: String,
-    /// Optional source `xml:id`.
-    pub(crate) xml_id: Option<String>,
-    /// Normalized text accumulator.
-    pub(crate) normalizer: SpokenTextNormalizer,
-    /// Whether this segment has child spoken blocks that own the text.
-    pub(crate) has_child_spoken_block: bool,
-}
-
-impl ActiveSegment {
-    /// Builds an active spoken segment accumulator.
-    pub(crate) fn new(
-        kind: SegmentKind,
-        name: String,
-        locator: String,
-        xml_id: Option<String>,
-    ) -> Self {
-        Self {
-            kind,
-            name,
-            locator,
-            xml_id,
-            normalizer: SpokenTextNormalizer::default(),
-            has_child_spoken_block: false,
         }
     }
 }

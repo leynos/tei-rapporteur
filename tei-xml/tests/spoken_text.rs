@@ -138,6 +138,13 @@ fn rejects_malformed_xml_without_partial_estimates() {
     "</TEI>"
 )
 .to_owned(), "body")]
+#[case::rejects_duplicate_body(concat!(
+    "<TEI>",
+    "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
+    "<text><body><p>Hi</p></body><body><p>Again</p></body></text>",
+    "</TEI>"
+)
+.to_owned(), "body")]
 #[case::rejects_unsupported_body_element(
     document_with_body("<unknown/>"),
     "unsupported TEI body element"

@@ -1,20 +1,22 @@
 //! XML adapter for extracting ADR-006 spoken text segments.
 
 use quick_xml::{Reader, events::BytesStart, events::Event};
-use tei_core::{SpokenTextProvenance, SpokenTextSegment, TeiError};
+use tei_core::{SpokenTextSegment, TeiError};
 
 use self::{
-    element_names::{AB, BODY, DIV, L, P, SEG, TEI, TEI_HEADER, TEXT, U},
-    frame::{ActiveSegment, ElementFrame, SegmentKind},
+    element_names::{BODY, DIV, TEI, TEI_HEADER, TEXT},
+    frame::ElementFrame,
     header::HeaderRecorder,
     predicates::{is_body_element, is_excluded_element, is_silent_boundary_element},
-    xml_utils::{extract_attribute, extract_xml_id, local_name, make_locator, resolve_entity_ref},
+    segments::SegmentCollector,
+    xml_utils::{extract_attribute, local_name, make_locator, resolve_entity_ref},
 };
 
 mod element_names;
 mod frame;
 mod header;
 mod predicates;
+mod segments;
 mod xml_utils;
 
 /// Extracts ordered spoken text segments from a complete TEI XML document.
@@ -48,8 +50,7 @@ pub fn spoken_text_segments(xml: &str) -> Result<Vec<SpokenTextSegment>, TeiErro
 struct SpokenTextParser<'a> {
     reader: Reader<&'a [u8]>,
     stack: Vec<ElementFrame>,
-    active_segments: Vec<ActiveSegment>,
-    segments: Vec<SpokenTextSegment>,
+    segment_collector: SegmentCollector,
     inside_body: bool,
     exclusion_depth: usize,
     document_state: DocumentState,
@@ -58,9 +59,17 @@ struct SpokenTextParser<'a> {
 
 #[derive(Clone, Copy, Debug, Default)]
 struct DocumentState {
-    saw_tei: bool,
-    saw_header: bool,
-    saw_body: bool,
+    phase: DocumentPhase,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum DocumentPhase {
+    #[default]
+    Start,
+    SawTei,
+    SawHeader,
+    SawText,
+    SawBody,
 }
 
 impl<'a> SpokenTextParser<'a> {
@@ -68,8 +77,7 @@ impl<'a> SpokenTextParser<'a> {
         Self {
             reader: Reader::from_str(xml),
             stack: Vec::new(),
-            active_segments: Vec::new(),
-            segments: Vec::new(),
+            segment_collector: SegmentCollector::default(),
             inside_body: false,
             exclusion_depth: 0,
             document_state: DocumentState::default(),
@@ -178,16 +186,16 @@ impl<'a> SpokenTextParser<'a> {
             self.push_boundary();
             return Ok(());
         }
-        self.maybe_start_segment(name, element, frame)
+        if !self.is_inside_body() {
+            return Ok(());
+        }
+        self.segment_collector
+            .maybe_start_segment(name, element, frame)
     }
 
     fn handle_end(&mut self, name: &str) -> Result<(), TeiError> {
-        if self
-            .active_segments
-            .last()
-            .is_some_and(|segment| segment.name == name)
-        {
-            self.finish_active_segment()?;
+        if self.segment_collector.should_finish_active_segment(name) {
+            self.segment_collector.finish_active_segment()?;
         }
 
         let frame = self
@@ -246,104 +254,32 @@ impl<'a> SpokenTextParser<'a> {
         *count
     }
 
-    fn maybe_start_segment(
-        &mut self,
-        name: &str,
-        element: &BytesStart<'_>,
-        frame: &ElementFrame,
-    ) -> Result<(), TeiError> {
-        if !self.is_inside_body() {
-            return Ok(());
-        }
-
-        match name {
-            U => {
-                self.mark_parent_has_child_spoken_block();
-                self.active_segments.push(ActiveSegment::new(
-                    SegmentKind::Utterance,
-                    name.to_owned(),
-                    frame.locator.clone(),
-                    extract_xml_id(element)?,
-                ));
-            }
-            P | AB | L => {
-                self.mark_parent_has_child_spoken_block();
-                self.active_segments.push(ActiveSegment::new(
-                    SegmentKind::Block,
-                    name.to_owned(),
-                    frame.locator.clone(),
-                    extract_xml_id(element)?,
-                ));
-            }
-            SEG if self.active_segments.is_empty() => {
-                self.active_segments.push(ActiveSegment::new(
-                    SegmentKind::Block,
-                    name.to_owned(),
-                    frame.locator.clone(),
-                    extract_xml_id(element)?,
-                ));
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn mark_parent_has_child_spoken_block(&mut self) {
-        if let Some(parent) = self.active_segments.last_mut() {
-            parent.has_child_spoken_block = true;
-        }
-    }
-
-    fn finish_active_segment(&mut self) -> Result<(), TeiError> {
-        let segment = self
-            .active_segments
-            .pop()
-            .ok_or_else(|| TeiError::xml("no active spoken segment to finish"))?;
-        if segment.kind == SegmentKind::Utterance && segment.has_child_spoken_block {
-            return Ok(());
-        }
-        if let Some(text) = segment.normalizer.finish() {
-            let provenance = SpokenTextProvenance::new(segment.xml_id, segment.locator);
-            self.segments.push(SpokenTextSegment::new(text, provenance));
-        }
-        Ok(())
-    }
-
     fn push_text(&mut self, value: &str) {
-        if !self.is_inside_body() || self.is_excluded() {
-            return;
-        }
-        if let Some(segment) = self.active_segments.last_mut() {
-            segment.normalizer.push_text(value);
-        }
+        self.segment_collector
+            .push_text(value, self.is_inside_body(), self.is_excluded());
     }
 
     fn push_boundary(&mut self) {
-        if let Some(segment) = self.active_segments.last_mut() {
-            segment.normalizer.push_boundary();
-        }
+        self.segment_collector.push_boundary();
     }
 
     fn finish(self) -> Result<Vec<SpokenTextSegment>, TeiError> {
-        if !self.document_state.saw_tei {
+        if !self.document_state.saw_tei() {
             return Err(TeiError::xml("missing TEI root element"));
         }
-        if !self.document_state.saw_header {
+        if !self.document_state.saw_header() {
             return Err(TeiError::xml("missing teiHeader element"));
         }
         if !self.header.is_validated() {
             return Err(TeiError::xml("invalid teiHeader element"));
         }
-        if !self.document_state.saw_body {
+        if !self.document_state.saw_body() {
             return Err(TeiError::xml("missing body element"));
         }
         if !self.stack.is_empty() {
             return Err(TeiError::xml("unexpected end of document"));
         }
-        if !self.active_segments.is_empty() {
-            return Err(TeiError::xml("unfinished spoken segment"));
-        }
-        Ok(self.segments)
+        self.segment_collector.finish()
     }
 
     const fn is_inside_body(&self) -> bool {
@@ -376,8 +312,8 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn record_tei_root(&mut self) -> Result<(), TeiError> {
-        if self.stack.is_empty() {
-            self.document_state.saw_tei = true;
+        if self.stack.is_empty() && self.document_state.phase == DocumentPhase::Start {
+            self.document_state.phase = DocumentPhase::SawTei;
             Ok(())
         } else {
             Err(TeiError::xml("TEI root element must be the document root"))
@@ -385,16 +321,25 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn record_tei_header(&mut self) -> Result<(), TeiError> {
-        if self.stack.last().is_some_and(|frame| frame.name == TEI) {
-            self.document_state.saw_header = true;
+        if self.stack.last().is_some_and(|frame| frame.name == TEI)
+            && self.document_state.phase == DocumentPhase::SawTei
+        {
+            self.document_state.phase = DocumentPhase::SawHeader;
             Ok(())
         } else {
             Err(TeiError::xml("teiHeader element must be inside TEI root"))
         }
     }
 
-    fn validate_text_path(&self) -> Result<(), TeiError> {
-        if self.stack.last().is_some_and(|frame| frame.name == TEI) {
+    fn validate_text_path(&mut self) -> Result<(), TeiError> {
+        if self.stack.last().is_none_or(|frame| frame.name != TEI) {
+            return Err(TeiError::xml("text element must be inside TEI root"));
+        }
+        if self.document_state.phase == DocumentPhase::SawTei {
+            return Err(TeiError::xml("missing teiHeader element"));
+        }
+        if self.document_state.phase == DocumentPhase::SawHeader {
+            self.document_state.phase = DocumentPhase::SawText;
             Ok(())
         } else {
             Err(TeiError::xml("text element must be inside TEI root"))
@@ -402,8 +347,10 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn record_body(&mut self) -> Result<(), TeiError> {
-        if self.is_direct_child_of_text_in_tei() {
-            self.document_state.saw_body = true;
+        if self.is_direct_child_of_text_in_tei()
+            && self.document_state.phase == DocumentPhase::SawText
+        {
+            self.document_state.phase = DocumentPhase::SawBody;
             Ok(())
         } else {
             Err(TeiError::xml("body element must be inside TEI text"))
@@ -415,5 +362,22 @@ impl<'a> SpokenTextParser<'a> {
             return false;
         };
         parent.name == TEXT && grandparent.name == TEI
+    }
+}
+
+impl DocumentState {
+    const fn saw_tei(self) -> bool {
+        !matches!(self.phase, DocumentPhase::Start)
+    }
+
+    const fn saw_header(self) -> bool {
+        matches!(
+            self.phase,
+            DocumentPhase::SawHeader | DocumentPhase::SawText | DocumentPhase::SawBody
+        )
+    }
+
+    const fn saw_body(self) -> bool {
+        matches!(self.phase, DocumentPhase::SawBody)
     }
 }
