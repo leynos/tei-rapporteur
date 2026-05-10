@@ -112,6 +112,20 @@ fn rejects_missing_tei_header() {
     assert!(error.to_string().contains("teiHeader"));
 }
 
+#[test]
+fn rejects_invalid_tei_header() {
+    let xml = concat!(
+        "<TEI>",
+        "<teiHeader/>",
+        "<text><body><p>Hi</p></body></text>",
+        "</TEI>"
+    );
+
+    let error = spoken_text_segments(xml).expect_err("invalid teiHeader should be rejected");
+
+    assert!(error.to_string().contains("teiHeader"));
+}
+
 #[rstest]
 #[case(concat!(
     "<TEI>",

@@ -6,12 +6,14 @@ use tei_core::{SpokenTextProvenance, SpokenTextSegment, TeiError};
 use self::{
     element_names::{AB, BODY, DIV, L, P, SEG, TEI, TEI_HEADER, U},
     frame::{ActiveSegment, ElementFrame, SegmentKind},
+    header::HeaderRecorder,
     predicates::{is_body_element, is_excluded_element, is_silent_boundary_element},
     xml_utils::{extract_attribute, extract_xml_id, local_name, make_locator, resolve_entity_ref},
 };
 
 mod element_names;
 mod frame;
+mod header;
 mod predicates;
 mod xml_utils;
 
@@ -51,6 +53,7 @@ struct SpokenTextParser<'a> {
     inside_body: bool,
     exclusion_depth: usize,
     document_state: DocumentState,
+    header: HeaderRecorder,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -70,6 +73,7 @@ impl<'a> SpokenTextParser<'a> {
             inside_body: false,
             exclusion_depth: 0,
             document_state: DocumentState::default(),
+            header: HeaderRecorder::default(),
         }
     }
 
@@ -93,9 +97,11 @@ impl<'a> SpokenTextParser<'a> {
             Event::Empty(element) => self.handle_empty(&element),
             Event::End(element) => {
                 let name = local_name(element.local_name().as_ref())?;
+                self.header.record_end(&name)?;
                 self.handle_end(&name)
             }
             Event::Text(text) => {
+                self.header.record_raw_text(text.as_ref());
                 let value = text
                     .decode()
                     .map_err(|error| TeiError::xml(error.to_string()))?
@@ -104,12 +110,14 @@ impl<'a> SpokenTextParser<'a> {
                 Ok(())
             }
             Event::CData(cdata) => {
+                self.header.record_cdata(cdata.as_ref());
                 let value = std::str::from_utf8(cdata.as_ref())
                     .map_err(|error| TeiError::xml(format!("invalid UTF-8 in CDATA: {error}")))?;
                 self.push_text(value);
                 Ok(())
             }
             Event::GeneralRef(reference) => {
+                self.header.record_general_ref(reference.as_ref());
                 let value = resolve_entity_ref(&reference)?;
                 self.push_text(&value);
                 Ok(())
@@ -122,6 +130,7 @@ impl<'a> SpokenTextParser<'a> {
 
     fn handle_start(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
         let name = local_name(element.local_name().as_ref())?;
+        self.header.record_start(&name, element)?;
         let frame = self.frame_for_start(&name, element)?;
         self.enter_element(&name, element, &frame)?;
         self.enter_cached_state(&name, &frame);
@@ -131,6 +140,7 @@ impl<'a> SpokenTextParser<'a> {
 
     fn handle_empty(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
         let name = local_name(element.local_name().as_ref())?;
+        self.header.record_empty(&name, element)?;
         let frame = self.frame_for_start(&name, element)?;
         self.enter_element(&name, element, &frame)?;
         self.enter_cached_state(&name, &frame);
@@ -319,6 +329,9 @@ impl<'a> SpokenTextParser<'a> {
         }
         if !self.document_state.saw_header {
             return Err(TeiError::xml("missing teiHeader element"));
+        }
+        if !self.header.is_validated() {
+            return Err(TeiError::xml("invalid teiHeader element"));
         }
         if !self.document_state.saw_body {
             return Err(TeiError::xml("missing body element"));

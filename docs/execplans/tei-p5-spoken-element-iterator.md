@@ -208,6 +208,35 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-10: Addressed follow-up review comments covering spoken parser
   tag constants, validation-path tests, nested utterance tests, Python binding
   runtime-type/error coverage, and documentation style.
+- [x] 2026-05-10: Rejected invalid `teiHeader` shells before returning spoken
+  segments by validating the collected header subtree against `TeiHeader`.
+- [x] 2026-05-10: Re-ran gates for the invalid-header fix:
+  `make check-fmt`, `make lint`, `make test`, and targeted
+  `markdownlint docs/execplans/tei-p5-spoken-element-iterator.md` passed.
+- [x] 2026-05-10: CodeRabbit flagged duplicated header-root reset logic in
+  `HeaderRecorder`; extracted `reset_if_header_root` and re-ran
+  `make check-fmt`, `make lint`, and `make test`.
+- [x] 2026-05-10: CodeRabbit's second follow-up requested private helper
+  comments in `HeaderRecorder`; added concise Rustdoc and re-ran
+  `make check-fmt`, `make lint`, and `make test`.
+- [x] 2026-05-10: CodeRabbit's third follow-up requested removal of trivial
+  serialization wrappers and unit coverage for `HeaderRecorder`; removed the
+  wrappers, added focused unit tests, and ran the targeted header test filter.
+- [x] 2026-05-10: After the final `HeaderRecorder` changes, reran
+  `markdownlint docs/execplans/tei-p5-spoken-element-iterator.md`,
+  `make check-fmt`, `make lint`, and `make test`; the full suite reported 382
+  passing tests.
+- [x] 2026-05-10: CodeRabbit's fourth pass found a real validation-state bug
+  for repeated root headers. Reset `validated` with the header buffer, added
+  edge-case tests for repeated headers, escaped attributes, empty headers, and
+  deeper nested header content, then ran the targeted header test filter.
+- [x] 2026-05-10: Re-ran `markdownlint
+  docs/execplans/tei-p5-spoken-element-iterator.md`, `make check-fmt`,
+  `make lint`, and `make test` after the validation-state fix; the full suite
+  reported 386 passing tests.
+- [x] 2026-05-10: CodeRabbit's final pass requested `Serialises` spelling in
+  Rustdoc. Rejected as invalid because repository instructions require
+  en-GB Oxford `-ize` spelling.
 
 ## Surprises & Discoveries
 
@@ -251,6 +280,35 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - Final validation passed on 2026-05-10:
   `make check-fmt`, `make lint`, `make test`, `make markdownlint`, and
   `make nixie`. Logs are under `/tmp/*tei-p5-spoken-element-iterator-final.out`.
+- A follow-up review identified that `spoken_text_segments` accepted
+  `<teiHeader/>` because the parser treated header presence as profile
+  validity. The parser now buffers the header subtree and deserializes it as
+  `TeiHeader`; the focused regression passed with
+  `cargo test -p tei-xml --test spoken_text`. Date: 2026-05-10.
+- `make fmt` successfully formatted Rust but still reported unrelated
+  pre-existing Markdown line-length failures in other documentation files. The
+  unrelated formatting side effect in
+  `docs/execplans/3-3-3-streaming-parser-performance-benchmarks.md` was
+  reverted, and the touched execplan file passed targeted `markdownlint`.
+  Date: 2026-05-10.
+- CodeRabbit's follow-up concern was limited to duplicated root-header buffer
+  reset logic. Extracting a helper kept behaviour unchanged and left all
+  required gates green. Date: 2026-05-10.
+- CodeRabbit's second follow-up was documentation-only for private helper
+  purpose and error behaviour. The comments were added without behavioural
+  changes. Date: 2026-05-10.
+- The `HeaderRecorder` unit tests now cover root reset, nested depth changes,
+  no-op content recording outside headers, raw text/CDATA/entity recording
+  inside headers, successful validation, and invalid UTF-8 failure. Date:
+  2026-05-10.
+- Resetting the header buffer must also reset `HeaderRecorder::validated`;
+  otherwise a valid first header can leave a later invalid header looking
+  accepted if parsing continues far enough to query final state. Date:
+  2026-05-10.
+- CodeRabbit can conflict with the repository spelling policy on
+  `-ize`/`-ise` forms. For this branch, keep `Serializes` in Rustdoc because
+  `AGENTS.md` and prior review resolution require en-GB Oxford spelling. Date:
+  2026-05-10.
 
 ## Decision Log
 
