@@ -3,12 +3,14 @@
 use quick_xml::events::{BytesRef, BytesStart};
 use tei_core::TeiError;
 
+use super::element_names::{BODY, TEXT};
+
 /// Builds a stable XPath-like locator for an element.
 #[must_use]
 pub(crate) fn make_locator(parent_locator: Option<&str>, name: &str, index: usize) -> String {
     match (parent_locator, name) {
         (None, _) => format!("/{name}"),
-        (Some(root_locator @ "/TEI"), "text") | (Some(root_locator @ "/TEI/text"), "body") => {
+        (Some(root_locator @ "/TEI"), TEXT) | (Some(root_locator @ "/TEI/text"), BODY) => {
             format!("{root_locator}/{name}")
         }
         (Some(parent_path), _) => format!("{parent_path}/{name}[{index}]"),

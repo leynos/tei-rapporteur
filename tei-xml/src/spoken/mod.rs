@@ -4,11 +4,13 @@ use quick_xml::{Reader, events::BytesStart, events::Event};
 use tei_core::{SpokenTextProvenance, SpokenTextSegment, TeiError};
 
 use self::{
+    element_names::{AB, BODY, DIV, L, P, SEG, TEI, TEI_HEADER, U},
     frame::{ActiveSegment, ElementFrame, SegmentKind},
     predicates::{is_body_element, is_excluded_element, is_silent_boundary_element},
     xml_utils::{extract_attribute, extract_xml_id, local_name, make_locator, resolve_entity_ref},
 };
 
+mod element_names;
 mod frame;
 mod predicates;
 mod xml_utils;
@@ -144,9 +146,9 @@ impl<'a> SpokenTextParser<'a> {
         frame: &ElementFrame,
     ) -> Result<(), TeiError> {
         match name {
-            "TEI" => self.document_state.saw_tei = true,
-            "teiHeader" => self.document_state.saw_header = true,
-            "body" => self.document_state.saw_body = true,
+            TEI => self.document_state.saw_tei = true,
+            TEI_HEADER => self.document_state.saw_header = true,
+            BODY => self.document_state.saw_body = true,
             _ => {}
         }
 
@@ -195,7 +197,7 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn enter_cached_state(&mut self, name: &str, frame: &ElementFrame) {
-        if name == "body" {
+        if name == BODY {
             self.inside_body = true;
         }
         if frame.is_excluded {
@@ -207,7 +209,7 @@ impl<'a> SpokenTextParser<'a> {
         if frame.is_excluded {
             self.exclusion_depth = self.exclusion_depth.saturating_sub(1);
         }
-        if name == "body" {
+        if name == BODY {
             self.inside_body = false;
         }
     }
@@ -244,7 +246,7 @@ impl<'a> SpokenTextParser<'a> {
         }
 
         match name {
-            "u" => {
+            U => {
                 self.mark_parent_has_child_spoken_block();
                 self.active_segments.push(ActiveSegment::new(
                     SegmentKind::Utterance,
@@ -253,7 +255,7 @@ impl<'a> SpokenTextParser<'a> {
                     extract_xml_id(element)?,
                 ));
             }
-            "p" | "ab" | "l" => {
+            P | AB | L => {
                 self.mark_parent_has_child_spoken_block();
                 self.active_segments.push(ActiveSegment::new(
                     SegmentKind::Block,
@@ -262,7 +264,7 @@ impl<'a> SpokenTextParser<'a> {
                     extract_xml_id(element)?,
                 ));
             }
-            "seg" if self.active_segments.is_empty() => {
+            SEG if self.active_segments.is_empty() => {
                 self.active_segments.push(ActiveSegment::new(
                     SegmentKind::Block,
                     name.to_owned(),
@@ -339,7 +341,7 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn element_is_excluded(name: &str, element: &BytesStart<'_>) -> Result<bool, TeiError> {
-        if name == "div" && extract_attribute(element, b"type")?.as_deref() == Some("notes") {
+        if name == DIV && extract_attribute(element, b"type")?.as_deref() == Some("notes") {
             return Ok(true);
         }
         Ok(is_excluded_element(name))

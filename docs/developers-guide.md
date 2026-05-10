@@ -5,10 +5,11 @@ public user API.
 
 ## Spoken Text Extraction
 
-Spoken-runtime extraction follows ADR-006 and is owned by Rust. Keep the public
-segment value types and normalization helpers in `tei-core`, keep XML traversal
-and profile checks in `tei-xml`, and keep Python as a thin PyO3 adapter. Python
-code must not reimplement TEI spoken-text semantics or parse XML locally.
+Spoken-runtime extraction follows Architectural Decision Record (ADR) 006 and
+is owned by Rust. Keep the public segment value types and normalization helpers
+in `tei-core`, keep XML traversal and profile checks in `tei-xml`, and keep
+Python as a thin PyO3 adapter. Python code must not reimplement TEI spoken-text
+semantics or parse XML locally.
 
 The current `tei-xml::spoken_text_segments` implementation is a streaming
 adapter over `quick-xml`. It returns shared `tei-core::SpokenTextSegment`

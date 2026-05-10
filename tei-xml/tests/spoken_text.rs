@@ -58,6 +58,22 @@ fn extracts_spoken_segments_in_document_order(#[case] body: &str, #[case] expect
 }
 
 #[test]
+fn utterance_with_child_spoken_blocks_emits_only_child_segments() {
+    let xml = document_with_body(
+        "<u xml:id=\"u1\"><p xml:id=\"p1\">Line 1.</p><p xml:id=\"p2\">Line 2.</p></u>",
+    );
+
+    let segments = spoken_text_segments(&xml).expect("spoken extraction should succeed");
+
+    assert_eq!(texts(&segments), vec!["Line 1.", "Line 2."]);
+    assert!(
+        segments
+            .iter()
+            .all(|segment| segment.provenance().xml_id() != Some("u1"))
+    );
+}
+
+#[test]
 fn reports_segment_provenance() {
     let xml = document_with_body(
         "<sp xml:id=\"turn-1\"><speaker>Host</speaker><p xml:id=\"line-2\">Line.</p></sp>",
@@ -85,6 +101,43 @@ fn rejects_malformed_xml_without_partial_estimates() {
     let error = spoken_text_segments(xml).expect_err("malformed XML should be rejected");
 
     assert!(error.to_string().contains("XML"));
+}
+
+#[test]
+fn rejects_missing_tei_header() {
+    let xml = concat!("<TEI>", "<text><body><p>Hi</p></body></text>", "</TEI>");
+
+    let error = spoken_text_segments(xml).expect_err("missing teiHeader should be rejected");
+
+    assert!(error.to_string().contains("teiHeader"));
+}
+
+#[rstest]
+#[case(concat!(
+    "<TEI>",
+    "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
+    "</TEI>"
+))]
+#[case(concat!(
+    "<TEI>",
+    "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
+    "<text></text>",
+    "</TEI>"
+))]
+fn rejects_missing_body(#[case] xml: &str) {
+    let error = spoken_text_segments(xml).expect_err("missing body should be rejected");
+
+    assert!(error.to_string().contains("body"));
+}
+
+#[test]
+fn rejects_unsupported_body_element() {
+    let xml = document_with_body("<unknown/>");
+
+    let error =
+        spoken_text_segments(&xml).expect_err("unsupported body elements should be rejected");
+
+    assert!(error.to_string().contains("unsupported TEI body element"));
 }
 
 #[test]

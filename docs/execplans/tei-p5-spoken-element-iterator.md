@@ -13,7 +13,7 @@ Roadmap item `2.2.6` in Episodic depends on `tei-rapporteur` exposing one
 authoritative interpretation of "spoken script text" for `TEI` P5 documents.
 After this change, a Python caller can pass a complete `TEI` XML document
 string to `tei_rapporteur.spoken_text_segments(xml)` and receive an ordered
-list of typed segment objects containing normalised spoken text plus stable
+list of typed segment objects containing normalized spoken text plus stable
 provenance.
 
 The observable outcome is that Chrono can replace local XML traversal with this
@@ -46,24 +46,24 @@ streaming parser yields `TeiEvent::BodyBlock` events from
 `tei-xml/src/streaming/`, and Python exposes those events via
 `tei_rapporteur.iter_parse`.
 
-ADR-006 broadens the semantic contract beyond the currently accepted Episodic
-profile. The profile currently admits `<p>`, `<u>`, `<div>`, `<list>`,
-`<item>`, `<label>`, `<head>`, `<hi>`, and `<pause>`, but it does not yet admit
-all ADR-006 constructs: `<sp>`, drama-local `<speaker>`, `<stage>`, `<ab>`,
-`<l>`, `<seg>`, `<note>`, `<ref>`, `<ptr>`, `<bibl>`, `<gap>`, or `<break>`.
-That gap must be closed before valid ADR-006 fixtures can parse through the
-same parser/profile path as `parse_xml(...)`.
+Architectural Decision Record (ADR) 006 broadens the semantic contract beyond
+the currently accepted Episodic profile. The profile currently admits `<p>`,
+`<u>`, `<div>`, `<list>`, `<item>`, `<label>`, `<head>`, `<hi>`, and `<pause>`,
+but it does not yet admit all ADR-006 constructs: `<sp>`, drama-local
+`<speaker>`, `<stage>`, `<ab>`, `<l>`, `<seg>`, `<note>`, `<ref>`, `<ptr>`,
+`<bibl>`, `<gap>`, or `<break>`. That gap must be closed before valid ADR-006
+fixtures can parse through the same parser/profile path as `parse_xml(...)`.
 
 Key terms:
 
-- A spoken segment is one returned unit of normalised text intended to be
+- A spoken segment is one returned unit of normalized text intended to be
   performed aloud.
 - Provenance is a stable location for a segment, such as an `xml:id` when
   present and an XPath-like locator such as `/TEI/text/body/sp[1]/p[2]`.
 - An excluded element is markup whose descendants never contribute words to
   spoken runtime, such as `<speaker>`, `<stage>`, `<note>`, `<list>`, `<item>`,
   `<label>`, `<head>`, `<ref>`, `<ptr>`, `<bibl>`, and `<div type="notes">`.
-- Normalisation means trimming segment edges, collapsing XML text whitespace to
+- Normalization means trimming segment edges, collapsing XML text whitespace to
   a single ASCII space, treating excluded inline elements and silent markers as
   word boundaries, preserving punctuation, and preserving text inside emphasis.
 
@@ -99,7 +99,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 - Do not implement until this plan is approved.
 - Chrono policy stays out of this repository. `tei-rapporteur` returns
-  normalised spoken segments; Chrono owns token counting, words-per-minute
+  normalized spoken segments; Chrono owns token counting, words-per-minute
   settings, duration rounding, and estimator metadata.
 - Domain extraction rules live in Rust-owned code. Python exposes typed
   structures and functions, but must not reimplement spoken-text semantics.
@@ -182,7 +182,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 - Risk: adjacent text nodes, entity references, excluded inline elements, and
   pause-like markers can create subtle whitespace bugs. Severity: medium.
-  Likelihood: high. Mitigation: put normalisation in a dedicated Rust helper
+  Likelihood: high. Mitigation: put normalization in a dedicated Rust helper
   with table-driven `rstest` cases and property tests for idempotence and
   boundary handling.
 
@@ -201,10 +201,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [ ] Milestone 2: extend the profile and canonical model for required
   ADR-006 body and inline constructs.
 - [x] Milestone 3: implement spoken-segment domain projection and
-  normalisation.
+  normalization.
 - [x] Milestone 4: expose Rust XML and Python APIs.
 - [x] Milestone 5: update documentation and schemas.
 - [x] Milestone 6: run full gates and commit the approved implementation.
+- [x] 2026-05-10: Addressed follow-up review comments covering spoken parser
+  tag constants, validation-path tests, nested utterance tests, Python binding
+  runtime-type/error coverage, and documentation style.
 
 ## Surprises & Discoveries
 
@@ -238,9 +241,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - CodeRabbit review was run after the first implementation milestone. Valid
   findings were addressed through helper-module extraction, cached parser
   state, Rustdoc examples, entity-reference coverage, predicate extraction, and
-  spelling fixes. The final remaining spelling request to prefer `Normalises`
-  over `Normalizes` was rejected as invalid because this repository's
-  `AGENTS.md` requires en-GB Oxford `-ize` spelling. Date: 2026-05-10.
+  spelling fixes. The final remaining spelling request was rejected as invalid
+  because this repository's `AGENTS.md` requires en-GB Oxford `-ize` spelling.
+  Date: 2026-05-10.
 - Documentation now describes the public Python `spoken_text_segments` API in
   `docs/users-guide.md`, the adapter boundary in
   `docs/tei-rapporteur-design-document.md`, and the internal convention in
@@ -264,12 +267,12 @@ These are hard invariants. Violation requires escalation, not workarounds.
   domain semantics are pure, adapters only parse XML or expose FFI. Date:
   2026-05-10.
 
-- Decision: compute text normalisation in one Rust helper shared by all
+- Decision: compute text normalization in one Rust helper shared by all
   extraction paths. Rationale: whitespace, excluded-inline boundaries, and
   pause-like markers are policy, not adapter trivia. A single helper prevents
   Chrono or Python from drifting. Date: 2026-05-10.
 
-- Decision: use property tests for normalisation and no-double-count invariants,
+- Decision: use property tests for normalization and no-double-count invariants,
   but do not plan `kani` or `verus`. Rationale: this change introduces a
   range-based traversal invariant, which suits `proptest`. It does not
   introduce unsafe code or a mathematical axiom requiring deductive proof.
@@ -295,7 +298,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
 ### Milestone 1: establish executable expectations
 
 Add failing tests before implementation. Create focused `rstest` unit tests in
-`tei-core` for the pure normalisation and extraction policy. Cover at least:
+`tei-core` for the pure normalization and extraction policy. Cover at least:
 
 - `<p>Hello <seg>there</seg></p>` produces one segment, `Hello there`.
 - `<sp><speaker>Host</speaker><p>First.</p><p>Second.</p></sp>` produces two
@@ -357,7 +360,7 @@ re-export the public output type from `tei-core/src/lib.rs`.
 
 The projection should traverse `TeiDocument::text().body()` in document order,
 recursing through `Div` unless the division is `type="notes"`. It should select
-the outermost counted spoken block and then normalise only included inline
+the outermost counted spoken block and then normalize only included inline
 content. Lists, headings, labels, notes, references, bibliography, stage
 directions, speaker labels, stand-off metadata, and header metadata are
 excluded.
@@ -379,17 +382,17 @@ pub struct SpokenTextProvenance {
 Keep constructors private if that helps preserve invariants. Public accessors
 should return borrowed values where possible.
 
-Normalisation rules:
+Normalization rules:
 
 - trim segment edges;
 - collapse XML whitespace runs to one ASCII space;
 - preserve punctuation;
 - preserve text inside emphasis;
 - treat excluded inline descendants and silent markers as word boundaries;
-- omit empty normalised segments unless the approved contract later requires
+- omit empty normalized segments unless the approved contract later requires
   empty pause-only segments.
 
-Add `proptest` coverage for normalisation idempotence and for generated nested
+Add `proptest` coverage for normalization idempotence and for generated nested
 inline trees where each generated text leaf appears in at most one returned
 segment.
 
@@ -480,7 +483,7 @@ Commit only after the relevant gates pass. Keep commits atomic:
 ## Acceptance criteria
 
 - `tei_rapporteur.spoken_text_segments(xml)` exists, is typed, and returns
-  ordered `SpokenTextSegment` structures with normalised text and provenance.
+  ordered `SpokenTextSegment` structures with normalized text and provenance.
 - The API accepts full valid Episodic `TEI` P5 XML and rejects malformed or
   profile-invalid XML without raw-text fallback.
 - `<speaker>`, `<stage>`, notes, lists, labels, headings, references,
@@ -492,7 +495,7 @@ Commit only after the relevant gates pass. Keep commits atomic:
 - Excluded inline descendants and pause/gap/break-like markers create word
   boundaries but contribute no words.
 - Unit tests use `rstest`, behaviour tests use `rstest-bdd`, and property tests
-  cover the normalisation/no-double-count invariants.
+  cover the normalization/no-double-count invariants.
 - `docs/users-guide.md`, `docs/tei-rapporteur-design-document.md`, and
   `docs/developers-guide.md` describe the new public and internal contracts.
 - `make check-fmt`, `make lint`, and `make test` pass before any code commit.

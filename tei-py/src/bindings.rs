@@ -113,6 +113,10 @@ pub(crate) mod py_exports {
     };
     use pyo3::{pyfunction, pymodule, wrap_pyfunction};
 
+    const STRUCTS_MODULE_NAME: &str = "tei_rapporteur.structs";
+    const SPOKEN_TEXT_SEGMENT_CLASS_NAME: &str = "SpokenTextSegment";
+    const SPOKEN_TEXT_SEGMENT_CLASS_CACHE: &str = "_spoken_text_segment_class";
+
     #[pyfunction(name = "emit_title_markup")]
     pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
         wrap_tei_result(emit_title_markup(raw_title))
@@ -141,16 +145,7 @@ pub(crate) mod py_exports {
     #[pyfunction(name = "spoken_text_segments")]
     pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<PyObject>> {
         let segments = wrap_tei_result(extract_spoken_segments(xml))?;
-        let sys_modules = py.import("sys")?.getattr("modules")?;
-        let structs = sys_modules
-            .get_item("tei_rapporteur.structs")
-            .map_err(|_| {
-                pyo3::exceptions::PyRuntimeError::new_err(
-                    "tei_rapporteur.structs is not registered; \
-                 initialise the module before calling spoken_text_segments",
-                )
-            })?;
-        let segment_class = structs.getattr("SpokenTextSegment")?;
+        let segment_class = spoken_text_segment_class(py)?;
         segments
             .into_iter()
             .map(|segment| {
@@ -164,6 +159,23 @@ pub(crate) mod py_exports {
                     .map(Bound::unbind)
             })
             .collect()
+    }
+
+    fn spoken_text_segment_class(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        let sys_modules = py.import("sys")?.getattr("modules")?;
+        let structs = sys_modules.get_item(STRUCTS_MODULE_NAME).map_err(|_| {
+            pyo3::exceptions::PyRuntimeError::new_err(
+                "tei_rapporteur.structs is not registered; \
+                 initialise the module before calling spoken_text_segments",
+            )
+        })?;
+        if let Ok(segment_class) = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE) {
+            Ok(segment_class)
+        } else {
+            let segment_class = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_NAME)?;
+            structs.setattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE, &segment_class)?;
+            Ok(segment_class)
+        }
     }
 
     define_py_from_error_wrapper!(
