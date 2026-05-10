@@ -137,30 +137,34 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn handle_start(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
-        self.enter_start_like_element(element, HeaderRecorder::record_start)
-            .map(|_| ())
+        self.handle_element(element, false)
     }
 
     fn handle_empty(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
-        let name = self.enter_start_like_element(element, HeaderRecorder::record_empty)?;
-        self.handle_end(&name)
+        self.handle_element(element, true)
     }
 
-    fn enter_start_like_element<F>(
-        &mut self,
-        element: &BytesStart<'_>,
-        record_header: F,
-    ) -> Result<String, TeiError>
-    where
-        F: FnOnce(&mut HeaderRecorder, &str, &BytesStart<'_>) -> Result<(), TeiError>,
-    {
+    /// Shared setup for start and empty elements.
+    ///
+    /// Decodes the local name, records the element in the header recorder,
+    /// builds and pushes a stack frame, and enters element/cached state. When
+    /// `is_empty` is `true`, immediately finalises the element by calling
+    /// [`Self::handle_end`].
+    fn handle_element(&mut self, element: &BytesStart<'_>, is_empty: bool) -> Result<(), TeiError> {
         let name = local_name(element.local_name().as_ref())?;
-        record_header(&mut self.header, &name, element)?;
+        if is_empty {
+            self.header.record_empty(&name, element)?;
+        } else {
+            self.header.record_start(&name, element)?;
+        }
         let frame = self.frame_for_start(&name, element)?;
         self.enter_element(&name, element, &frame)?;
         self.enter_cached_state(&name, &frame);
         self.stack.push(frame);
-        Ok(name)
+        if is_empty {
+            self.handle_end(&name)?;
+        }
+        Ok(())
     }
 
     fn enter_element(
@@ -318,23 +322,22 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn record_tei_root(&mut self) -> Result<(), TeiError> {
-        if self.stack.is_empty() && self.document_state.phase == DocumentPhase::Start {
-            self.document_state.phase = DocumentPhase::SawTei;
-            Ok(())
-        } else {
-            Err(TeiError::xml("TEI root element must be the document root"))
-        }
+        let ok = self.stack.is_empty() && self.document_state.phase == DocumentPhase::Start;
+        self.advance_phase_if(
+            ok,
+            DocumentPhase::SawTei,
+            "TEI root element must be the document root",
+        )
     }
 
     fn record_tei_header(&mut self) -> Result<(), TeiError> {
-        if self.stack.last().is_some_and(|frame| frame.name == TEI)
-            && self.document_state.phase == DocumentPhase::SawTei
-        {
-            self.document_state.phase = DocumentPhase::SawHeader;
-            Ok(())
-        } else {
-            Err(TeiError::xml("teiHeader element must be inside TEI root"))
-        }
+        let ok = self.stack.last().is_some_and(|f| f.name == TEI)
+            && self.document_state.phase == DocumentPhase::SawTei;
+        self.advance_phase_if(
+            ok,
+            DocumentPhase::SawHeader,
+            "teiHeader element must be inside TEI root",
+        )
     }
 
     fn validate_text_path(&mut self) -> Result<(), TeiError> {
@@ -353,13 +356,28 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn record_body(&mut self) -> Result<(), TeiError> {
-        if self.is_direct_child_of_text_in_tei()
-            && self.document_state.phase == DocumentPhase::SawText
-        {
-            self.document_state.phase = DocumentPhase::SawBody;
+        let ok = self.is_direct_child_of_text_in_tei()
+            && self.document_state.phase == DocumentPhase::SawText;
+        self.advance_phase_if(
+            ok,
+            DocumentPhase::SawBody,
+            "body element must be inside TEI text",
+        )
+    }
+
+    /// Advances the document phase to `next` when `condition` holds; otherwise
+    /// returns a structured XML error with the given message.
+    fn advance_phase_if(
+        &mut self,
+        condition: bool,
+        next: DocumentPhase,
+        error: &str,
+    ) -> Result<(), TeiError> {
+        if condition {
+            self.document_state.phase = next;
             Ok(())
         } else {
-            Err(TeiError::xml("body element must be inside TEI text"))
+            Err(TeiError::xml(error))
         }
     }
 

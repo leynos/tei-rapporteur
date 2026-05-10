@@ -270,6 +270,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-11: Folded header element serialization into the
   `record_element_with_post_step` callbacks and removed the now-dead
   `append_header_element` helper.
+- [x] 2026-05-11: Replaced the spoken parser start/empty and document-phase
+  duplication clusters with `handle_element` and `advance_phase_if`.
 
 ## Surprises & Discoveries
 
