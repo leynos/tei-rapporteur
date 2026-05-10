@@ -267,6 +267,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
   finding.
 - [x] 2026-05-11: Extracted the spoken XML parser's shared start/empty element
   entry path into `enter_start_like_element`.
+- [x] 2026-05-11: Folded header element serialization into the
+  `record_element_with_post_step` callbacks and removed the now-dead
+  `append_header_element` helper.
 
 ## Surprises & Discoveries
 

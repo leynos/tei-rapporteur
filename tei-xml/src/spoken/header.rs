@@ -21,7 +21,8 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        self.record_element_with_post_step(name, element, b">", |s, _name| {
+        self.record_element_with_post_step(name, |s, _n| {
+            append_element_with_attributes(&mut s.xml, element, b">")?;
             s.depth += 1;
             Ok(())
         })
@@ -33,8 +34,9 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        self.record_element_with_post_step(name, element, b"/>", |s, element_name| {
-            if element_name == TEI_HEADER {
+        self.record_element_with_post_step(name, |s, n| {
+            append_element_with_attributes(&mut s.xml, element, b"/>")?;
+            if n == TEI_HEADER {
                 s.validate()?;
             }
             Ok(())
@@ -104,49 +106,18 @@ impl HeaderRecorder {
         }
     }
 
-    /// Applies the out-of-scope guard, resets the buffer if a new root
-    /// `<teiHeader>` starts, and serialises the element bytes with the given
-    /// closing delimiter.
-    ///
-    /// Returns `Ok(false)` when outside the header subtree (no-op) and
-    /// `Ok(true)` when the element was appended to the buffer.
-    fn append_header_element(
-        &mut self,
-        name: &str,
-        element: &BytesStart<'_>,
-        closing: &[u8],
-    ) -> Result<bool, TeiError> {
-        if name != TEI_HEADER && self.depth == 0 {
-            return Ok(false);
-        }
-        self.reset_if_header_root(name);
-        append_element_with_attributes(&mut self.xml, element, closing)?;
-        Ok(true)
-    }
-
-    /// Calls [`append_header_element`] and, when bytes were actually appended,
-    /// invokes `on_appended` with a mutable reference to `self` and the element
-    /// name.
-    ///
-    /// This eliminates the repeated `if self.append_header_element(...)? { ... }
-    /// Ok(())` shell shared by [`record_start`] and [`record_empty`].
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the helper names each part of the extracted record/post-step shell"
-    )]
-    fn record_element_with_post_step<F>(
-        &mut self,
-        name: &str,
-        element: &BytesStart<'_>,
-        closing: &[u8],
-        on_appended: F,
-    ) -> Result<(), TeiError>
+    /// Applies the out-of-scope guard, resets the buffer when a new root
+    /// `<teiHeader>` starts, and delegates serialisation and any post-step to
+    /// `on_enter`.
+    fn record_element_with_post_step<F>(&mut self, name: &str, on_enter: F) -> Result<(), TeiError>
     where
         F: FnOnce(&mut Self, &str) -> Result<(), TeiError>,
     {
-        if self.append_header_element(name, element, closing)? {
-            on_appended(self, name)?;
+        if name != TEI_HEADER && self.depth == 0 {
+            return Ok(());
         }
+        self.reset_if_header_root(name);
+        on_enter(self, name)?;
         Ok(())
     }
 }
