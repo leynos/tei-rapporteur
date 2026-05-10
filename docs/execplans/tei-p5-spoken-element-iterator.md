@@ -247,6 +247,12 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-10: Re-ran focused spoken/header tests, `markdownlint`,
   `make check-fmt`, `make lint`, `make test`, and CodeRabbit for the shell
   validation follow-up; all passed and CodeRabbit reported zero findings.
+- [x] 2026-05-10: Addressed follow-up documentation crate identifiers and
+  restored `sys.modules` before asserting the Python missing-structs error.
+- [x] 2026-05-10: Re-ran focused PyO3 binding test, Markdown lint,
+  `make check-fmt`, `make lint`, `make test`, and CodeRabbit for the
+  documentation/Python follow-up; all passed and CodeRabbit reported zero
+  findings.
 
 ## Surprises & Discoveries
 

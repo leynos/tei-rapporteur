@@ -95,6 +95,9 @@ fn spoken_text_segments_return_msgspec_structs() {
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
     Python::with_gil(|py| {
+        if ensure_msgspec_installed(py).is_err() {
+            return;
+        }
         let sys_modules = py
             .import("sys")
             .expect("sys should import")
@@ -109,8 +112,7 @@ fn spoken_text_segments_requires_registered_structs_module() {
             "</TEI>"
         );
 
-        let error = crate::bindings::py_exports::spoken_text_segments(py, xml)
-            .expect_err("missing structs module should raise");
+        let call_result = crate::bindings::py_exports::spoken_text_segments(py, xml);
 
         if let Some(structs) = previous_structs {
             sys_modules
@@ -118,6 +120,7 @@ fn spoken_text_segments_requires_registered_structs_module() {
                 .expect("structs module should be restored");
         }
 
+        let error = call_result.expect_err("missing structs module should raise");
         assert!(error.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));
         assert!(
             error
