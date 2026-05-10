@@ -2,17 +2,24 @@
 
 use crate::test_support::ensure_msgspec_installed;
 use pyo3::types::{PyAnyMethods, PyList};
-use pyo3::{Python, types::PyModule};
+use pyo3::{Bound, Python, types::PyModule};
+
+fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
+    if ensure_msgspec_installed(py).is_err() {
+        return None;
+    }
+    let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
+    crate::bindings::py_exports::tei_rapporteur(py, &module)
+        .expect("module registration should succeed");
+    Some(module)
+}
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
     Python::with_gil(|py| {
-        if ensure_msgspec_installed(py).is_err() {
+        let Some(module) = registered_module(py) else {
             return;
-        }
-        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-        crate::bindings::py_exports::tei_rapporteur(py, &module)
-            .expect("module registration should succeed");
+        };
 
         let to_dict = module
             .getattr("to_dict")
@@ -28,12 +35,9 @@ fn to_dict_rejects_non_document_inputs() {
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
     Python::with_gil(|py| {
-        if ensure_msgspec_installed(py).is_err() {
+        let Some(module) = registered_module(py) else {
             return;
-        }
-        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-        crate::bindings::py_exports::tei_rapporteur(py, &module)
-            .expect("module registration should succeed");
+        };
         let extractor = module
             .getattr("spoken_text_segments")
             .expect("spoken_text_segments should be registered");

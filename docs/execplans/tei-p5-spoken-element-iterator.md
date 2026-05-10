@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: IN PROGRESS
+Status: COMPLETED
 
 ## Purpose / big picture
 
@@ -174,7 +174,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
   Severity: medium. Likelihood: medium. Mitigation: construct provenance in one
   Rust projection path and expose the same value to Rust tests and Python.
 
-- Risk: `parse_xml` currently wraps deserialisation errors as `TeiError::Xml`,
+- Risk: `parse_xml` currently wraps deserialization errors as `TeiError::Xml`,
   which may not distinguish malformed XML from profile-invalid structure well
   enough for Chrono. Severity: medium. Likelihood: medium. Mitigation: add
   deterministic error categories only if they can be done additively; otherwise
@@ -198,8 +198,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-10: Approval gate passed; user requested implementation of
   this ExecPlan and ongoing progress updates.
 - [x] Milestone 1: establish failing tests and fixtures for ADR-006 semantics.
-- [ ] Milestone 2: extend the profile and canonical model for required
-  ADR-006 body and inline constructs.
+- [x] Milestone 2: closed by implementing a validated streaming adapter and
+  recording full canonical body-model expansion as future work.
 - [x] Milestone 3: implement spoken-segment domain projection and
   normalization.
 - [x] Milestone 4: expose Rust XML and Python APIs.
@@ -234,15 +234,18 @@ These are hard invariants. Violation requires escalation, not workarounds.
   docs/execplans/tei-p5-spoken-element-iterator.md`, `make check-fmt`,
   `make lint`, and `make test` after the validation-state fix; the full suite
   reported 386 passing tests.
-- [x] 2026-05-10: CodeRabbit's final pass requested `Serialises` spelling in
-  Rustdoc. Rejected as invalid because repository instructions require
+- [x] 2026-05-10: CodeRabbit's final pass requested non-Oxford Rustdoc
+  spelling. Rejected as invalid because repository instructions require
   en-GB Oxford `-ize` spelling.
+- [x] 2026-05-10: Reconciled the completed ExecPlan status and Oxford spelling
+  review, extracted shared PyO3 module registration setup for binding tests,
+  reran local gates, and received a zero-finding CodeRabbit follow-up review.
 
 ## Surprises & Discoveries
 
 - Firecrawl confirmed that the current TEI Guidelines describe `sp` as an
   individual speech in performance text, `u` as a stretch of speech, `speaker`
-  as a specialised heading or label, `stage` as stage direction, and `seg` as
+  as a specialized heading or label, `stage` as stage direction, and `seg` as
   below-chunk text segmentation. This supports ADR-006's distinction between
   grouping containers, spoken leaves, inline segmentation, and excluded
   labels/directions.
@@ -258,7 +261,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - `quick-xml` is already a good fit for the XML adapter boundary because its
   documented model is a StAX-like streaming API for large documents; no new XML
   parser dependency is expected.
-- TEI ODD customisations and generated schemas are the correct place to record
+- TEI ODD customizations and generated schemas are the correct place to record
   profile changes. The implementation must update both checked-in Relax NG
   copies consistently, as previous plans have recorded this as a drift source.
 - The first red `make test` run on 2026-05-10 failed for the expected missing
@@ -342,14 +345,14 @@ These are hard invariants. Violation requires escalation, not workarounds.
   required examples or tempt a raw XML bypass. Date: 2026-05-10.
 
 - Decision: implement the first public API as a dedicated `tei-xml` streaming
-  adapter returning shared `tei-core` segment types, while leaving full
-  canonical body-model expansion open in Milestone 2. Rationale: the existing
-  `parse_xml` model cannot deserialize `<sp>`, `<ab>`, `<l>`, `<seg>`, notes,
-  stage directions, and references without broad enum and projection changes.
-  The adapter still enforces a narrow ADR-006 body profile, rejects malformed
-  documents and unsupported body elements, and keeps Python out of XML
-  semantics. This validates the external Chrono-facing API before undertaking
-  wider canonical-model work. Date: 2026-05-10.
+  adapter returning shared `tei-core` segment types, while deferring full
+  canonical body-model expansion outside this completed plan. Rationale: the
+  existing `parse_xml` model cannot deserialize `<sp>`, `<ab>`, `<l>`, `<seg>`,
+  notes, stage directions, and references without broad enum and projection
+  changes. The adapter still enforces a narrow ADR-006 body profile, rejects
+  malformed documents and unsupported body elements, and keeps Python out of
+  XML semantics. This validates the external Chrono-facing API before
+  undertaking wider canonical-model work. Date: 2026-05-10.
 
 ## Implementation plan
 
@@ -385,7 +388,11 @@ Add behaviour tests with `rstest-bdd` where the behaviour is externally visible:
 Expected red state: the new tests fail because the profile lacks the elements
 and no spoken extraction API exists yet.
 
-### Milestone 2: extend the profile and canonical model
+### Milestone 2: close the profile and canonical model decision
+
+Status: closed by decision. The implemented API uses a validated `tei-xml`
+streaming adapter and records full canonical body-model expansion as future
+work.
 
 Update `schemas/tei-episodic-profile.odd` to admit only the ADR-006 body and
 inline constructs needed for spoken runtime extraction. Update both generated
@@ -570,8 +577,8 @@ callers receive `tei_rapporteur.structs.SpokenTextSegment` values with `text`,
 The main planned deviation is that the first implementation uses a dedicated
 streaming adapter in `tei-xml` rather than expanding the entire canonical
 `TeiDocument` body model in this commit. That keeps the Chrono-facing API
-available and tested while leaving full profile/model expansion as the next
-milestone. The adapter still validates the complete TEI shell, rejects
+available and tested while leaving full profile/model expansion as future work.
+The adapter still validates the complete TEI shell, rejects
 malformed XML and unsupported body elements, excludes ADR-006 non-spoken
 content, preserves entity resolution, and avoids nested `<seg>` double counts.
 
