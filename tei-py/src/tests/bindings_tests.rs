@@ -104,7 +104,9 @@ fn spoken_text_segments_requires_registered_structs_module() {
             .getattr("modules")
             .expect("sys.modules should exist");
         let previous_structs = sys_modules.get_item("tei_rapporteur.structs").ok();
-        drop(sys_modules.del_item("tei_rapporteur.structs"));
+        if previous_structs.is_some() {
+            sys_modules.del_item("tei_rapporteur.structs").ok();
+        }
         let xml = concat!(
             "<TEI>",
             "<teiHeader><fileDesc><title>Example</title></fileDesc></teiHeader>",

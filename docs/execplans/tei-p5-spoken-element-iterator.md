@@ -259,6 +259,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-11: Addressed CodeRabbit's extracted-segment lifecycle follow-up
   by adding focused `SegmentCollector` unit coverage, rerunning the full local
   gates, and receiving a zero-finding CodeRabbit review.
+- [x] 2026-05-11: Addressed follow-up documentation heading, test fixture
+  duplication, Python `sys.modules` restoration, and acceptance-criteria
+  wording comments; focused tests, full gates, and CodeRabbit all passed.
 
 ## Surprises & Discoveries
 
@@ -578,9 +581,9 @@ Commit only after the relevant gates pass. Keep commits atomic:
 - Nested `<seg>` inside a counted block never creates a duplicate segment.
 - Excluded inline descendants and pause/gap/break-like markers create word
   boundaries but contribute no words.
-- Unit tests use `rstest`, behaviour cases are implemented as `rstest`-driven
-  tests rather than `rstest-bdd`, Rust and Python unit coverage is present, and
-  property tests for normalization/no-double-count invariants are deferred.
+- Unit and behaviour tests use `rstest`, Rust and Python unit coverage is
+  present, and property tests for normalization/no-double-count invariants are
+  deferred.
 - `docs/users-guide.md`, `docs/tei-rapporteur-design-document.md`, and
   `docs/developers-guide.md` describe the new public and internal contracts.
 - `make check-fmt`, `make lint`, and `make test` pass before any code commit.

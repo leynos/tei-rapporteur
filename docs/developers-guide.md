@@ -1,4 +1,4 @@
-# Developers Guide
+# Developers guide
 
 This guide records internally facing conventions that are not part of the
 public user API.

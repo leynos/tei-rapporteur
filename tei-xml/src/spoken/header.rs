@@ -183,6 +183,27 @@ mod tests {
         recorder.record_end("fileDesc").expect("fileDesc ends");
     }
 
+    fn record_encoding_desc_with_cite_structure(
+        recorder: &mut HeaderRecorder,
+        cite_match: &str,
+        cite_property: &str,
+    ) {
+        let cite_structure = start_element_with_attr("citeStructure", "match", cite_match);
+        let cite_data = start_element_with_attr("citeData", "property", cite_property);
+        recorder
+            .record_start("encodingDesc", &element("encodingDesc"))
+            .expect("encodingDesc starts");
+        recorder
+            .record_start("refsDecl", &element("refsDecl"))
+            .expect("refsDecl starts");
+        recorder
+            .record_start("citeStructure", &cite_structure)
+            .expect("citeStructure starts");
+        recorder
+            .record_empty("citeData", &cite_data)
+            .expect("citeData is recorded");
+    }
+
     #[test]
     fn validates_when_root_header_closes() {
         let mut recorder = HeaderRecorder::default();
@@ -307,25 +328,12 @@ mod tests {
     #[test]
     fn serializes_escaped_attribute_values() {
         let mut recorder = HeaderRecorder::default();
-        let cite_structure = start_element_with_attr("citeStructure", "match", "A&<>");
 
         recorder
             .record_start(TEI_HEADER, &element(TEI_HEADER))
             .expect("teiHeader starts");
         record_file_desc(&mut recorder, b"Spoken Fixture");
-        recorder
-            .record_start("encodingDesc", &element("encodingDesc"))
-            .expect("encodingDesc starts");
-        recorder
-            .record_start("refsDecl", &element("refsDecl"))
-            .expect("refsDecl starts");
-        recorder
-            .record_start("citeStructure", &cite_structure)
-            .expect("citeStructure starts");
-        let cite_data = start_element_with_attr("citeData", "property", "speaker");
-        recorder
-            .record_empty("citeData", &cite_data)
-            .expect("citeData is recorded");
+        record_encoding_desc_with_cite_structure(&mut recorder, "A&<>", "speaker");
 
         assert!(
             std::str::from_utf8(&recorder.xml)
@@ -348,25 +356,12 @@ mod tests {
     #[test]
     fn deeply_nested_header_content_tracks_depth_until_root_closes() {
         let mut recorder = HeaderRecorder::default();
-        let cite_structure = start_element_with_attr("citeStructure", "match", "//u");
-        let cite_data = start_element_with_attr("citeData", "property", "speaker");
 
         recorder
             .record_start(TEI_HEADER, &element(TEI_HEADER))
             .expect("teiHeader starts");
         record_file_desc(&mut recorder, b"Spoken Fixture");
-        recorder
-            .record_start("encodingDesc", &element("encodingDesc"))
-            .expect("encodingDesc starts");
-        recorder
-            .record_start("refsDecl", &element("refsDecl"))
-            .expect("refsDecl starts");
-        recorder
-            .record_start("citeStructure", &cite_structure)
-            .expect("citeStructure starts");
-        recorder
-            .record_empty("citeData", &cite_data)
-            .expect("citeData is recorded");
+        record_encoding_desc_with_cite_structure(&mut recorder, "//u", "speaker");
 
         assert_eq!(recorder.depth, 4);
         assert!(!recorder.is_validated());
