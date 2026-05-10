@@ -240,6 +240,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-10: Reconciled the completed ExecPlan status and Oxford spelling
   review, extracted shared PyO3 module registration setup for binding tests,
   reran local gates, and received a zero-finding CodeRabbit follow-up review.
+- [x] 2026-05-10: Addressed the next review pass by replacing the remaining
+  non-Oxford tokenizer spelling, extracting shared `HeaderRecorder`
+  start-like element recording, enforcing TEI shell state before setting
+  document flags, and consolidating negative spoken-text document tests.
+- [x] 2026-05-10: Re-ran focused spoken/header tests, `markdownlint`,
+  `make check-fmt`, `make lint`, `make test`, and CodeRabbit for the shell
+  validation follow-up; all passed and CodeRabbit reported zero findings.
 
 ## Surprises & Discoveries
 
@@ -371,7 +378,7 @@ Add failing tests before implementation. Create focused `rstest` unit tests in
 - `<div type="notes"><p>Link dump</p></div>` produces no segments.
 - `<u>` with direct text produces one segment, while `<u>` containing child
   spoken blocks delegates to the children.
-- non-Latin text is preserved in extraction even though Chrono's first tokeniser
+- non-Latin text is preserved in extraction even though Chrono's first tokenizer
   may not count it.
 
 Add behaviour tests with `rstest-bdd` where the behaviour is externally visible:

@@ -103,55 +103,49 @@ fn rejects_malformed_xml_without_partial_estimates() {
     assert!(error.to_string().contains("XML"));
 }
 
-#[test]
-fn rejects_missing_tei_header() {
-    let xml = concat!("<TEI>", "<text><body><p>Hi</p></body></text>", "</TEI>");
-
-    let error = spoken_text_segments(xml).expect_err("missing teiHeader should be rejected");
-
-    assert!(error.to_string().contains("teiHeader"));
-}
-
-#[test]
-fn rejects_invalid_tei_header() {
-    let xml = concat!(
+#[rstest]
+#[case::rejects_missing_tei_header(
+    concat!("<TEI>", "<text><body><p>Hi</p></body></text>", "</TEI>").to_owned(),
+    "teiHeader"
+)]
+#[case::rejects_invalid_tei_header(
+    concat!(
         "<TEI>",
         "<teiHeader/>",
         "<text><body><p>Hi</p></body></text>",
         "</TEI>"
-    );
-
-    let error = spoken_text_segments(xml).expect_err("invalid teiHeader should be rejected");
-
-    assert!(error.to_string().contains("teiHeader"));
-}
-
-#[rstest]
-#[case(concat!(
+    )
+    .to_owned(),
+    "teiHeader"
+)]
+#[case::rejects_missing_body_without_text(concat!(
     "<TEI>",
     "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
     "</TEI>"
-))]
-#[case(concat!(
+)
+.to_owned(), "body")]
+#[case::rejects_missing_body_in_text(concat!(
     "<TEI>",
     "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
     "<text></text>",
     "</TEI>"
-))]
-fn rejects_missing_body(#[case] xml: &str) {
-    let error = spoken_text_segments(xml).expect_err("missing body should be rejected");
+)
+.to_owned(), "body")]
+#[case::rejects_body_outside_text(concat!(
+    "<TEI>",
+    "<teiHeader><fileDesc><title>Spoken Fixture</title></fileDesc></teiHeader>",
+    "<body><p>Hi</p></body>",
+    "</TEI>"
+)
+.to_owned(), "body")]
+#[case::rejects_unsupported_body_element(
+    document_with_body("<unknown/>"),
+    "unsupported TEI body element"
+)]
+fn rejects_invalid_spoken_text_documents(#[case] xml: String, #[case] expected_substr: &str) {
+    let error = spoken_text_segments(&xml).expect_err("invalid spoken TEI should be rejected");
 
-    assert!(error.to_string().contains("body"));
-}
-
-#[test]
-fn rejects_unsupported_body_element() {
-    let xml = document_with_body("<unknown/>");
-
-    let error =
-        spoken_text_segments(&xml).expect_err("unsupported body elements should be rejected");
-
-    assert!(error.to_string().contains("unsupported TEI body element"));
+    assert!(error.to_string().contains(expected_substr));
 }
 
 #[test]

@@ -21,11 +21,10 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        if name != TEI_HEADER && self.depth == 0 {
+        let is_header_root = self.record_header_element(name, element, b">")?;
+        if !is_header_root && self.depth == 0 {
             return Ok(());
         }
-        self.reset_if_header_root(name);
-        append_element_with_attributes(&mut self.xml, element, b">")?;
         self.depth += 1;
         Ok(())
     }
@@ -36,12 +35,7 @@ impl HeaderRecorder {
         name: &str,
         element: &BytesStart<'_>,
     ) -> Result<(), TeiError> {
-        if name != TEI_HEADER && self.depth == 0 {
-            return Ok(());
-        }
-        self.reset_if_header_root(name);
-        append_element_with_attributes(&mut self.xml, element, b"/>")?;
-        if name == TEI_HEADER {
+        if self.record_header_element(name, element, b"/>")? {
             self.validate()?;
         }
         Ok(())
@@ -108,6 +102,21 @@ impl HeaderRecorder {
             self.xml.clear();
             self.validated = false;
         }
+    }
+
+    /// Records a start-like element when it belongs to the TEI header subtree.
+    fn record_header_element(
+        &mut self,
+        name: &str,
+        element: &BytesStart<'_>,
+        terminator: &[u8],
+    ) -> Result<bool, TeiError> {
+        if name != TEI_HEADER && self.depth == 0 {
+            return Ok(false);
+        }
+        self.reset_if_header_root(name);
+        append_element_with_attributes(&mut self.xml, element, terminator)?;
+        Ok(name == TEI_HEADER)
     }
 }
 

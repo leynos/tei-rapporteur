@@ -4,7 +4,7 @@ use quick_xml::{Reader, events::BytesStart, events::Event};
 use tei_core::{SpokenTextProvenance, SpokenTextSegment, TeiError};
 
 use self::{
-    element_names::{AB, BODY, DIV, L, P, SEG, TEI, TEI_HEADER, U},
+    element_names::{AB, BODY, DIV, L, P, SEG, TEI, TEI_HEADER, TEXT, U},
     frame::{ActiveSegment, ElementFrame, SegmentKind},
     header::HeaderRecorder,
     predicates::{is_body_element, is_excluded_element, is_silent_boundary_element},
@@ -156,9 +156,10 @@ impl<'a> SpokenTextParser<'a> {
         frame: &ElementFrame,
     ) -> Result<(), TeiError> {
         match name {
-            TEI => self.document_state.saw_tei = true,
-            TEI_HEADER => self.document_state.saw_header = true,
-            BODY => self.document_state.saw_body = true,
+            TEI => self.record_tei_root()?,
+            TEI_HEADER => self.record_tei_header()?,
+            TEXT => self.validate_text_path()?,
+            BODY => self.record_body()?,
             _ => {}
         }
 
@@ -372,5 +373,47 @@ impl<'a> SpokenTextParser<'a> {
                 "unsupported TEI body element <{name}>"
             )))
         }
+    }
+
+    fn record_tei_root(&mut self) -> Result<(), TeiError> {
+        if self.stack.is_empty() {
+            self.document_state.saw_tei = true;
+            Ok(())
+        } else {
+            Err(TeiError::xml("TEI root element must be the document root"))
+        }
+    }
+
+    fn record_tei_header(&mut self) -> Result<(), TeiError> {
+        if self.stack.last().is_some_and(|frame| frame.name == TEI) {
+            self.document_state.saw_header = true;
+            Ok(())
+        } else {
+            Err(TeiError::xml("teiHeader element must be inside TEI root"))
+        }
+    }
+
+    fn validate_text_path(&self) -> Result<(), TeiError> {
+        if self.stack.last().is_some_and(|frame| frame.name == TEI) {
+            Ok(())
+        } else {
+            Err(TeiError::xml("text element must be inside TEI root"))
+        }
+    }
+
+    fn record_body(&mut self) -> Result<(), TeiError> {
+        if self.is_direct_child_of_text_in_tei() {
+            self.document_state.saw_body = true;
+            Ok(())
+        } else {
+            Err(TeiError::xml("body element must be inside TEI text"))
+        }
+    }
+
+    fn is_direct_child_of_text_in_tei(&self) -> bool {
+        let [.., grandparent, parent] = self.stack.as_slice() else {
+            return false;
+        };
+        parent.name == TEXT && grandparent.name == TEI
     }
 }
