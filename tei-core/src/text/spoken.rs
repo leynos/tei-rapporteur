@@ -108,10 +108,21 @@ impl SpokenTextNormalizer {
     pub fn push_text(&mut self, value: &str) {
         let has_leading_whitespace = value.chars().next().is_some_and(char::is_whitespace);
         let has_trailing_whitespace = value.chars().last().is_some_and(char::is_whitespace);
-        let had_no_tokens = self.push_tokens(value, has_leading_whitespace);
-        if !self.text.is_empty()
-            && (has_trailing_whitespace || had_no_tokens && has_leading_whitespace)
-        {
+        let mut is_first_token = true;
+
+        for token in value.split_whitespace() {
+            if self.needs_space_before_token(is_first_token, has_leading_whitespace) {
+                self.text.push(' ');
+            }
+            self.text.push_str(token);
+            self.needs_boundary = false;
+            is_first_token = false;
+        }
+        if self.should_set_trailing_boundary(
+            has_trailing_whitespace,
+            is_first_token,
+            has_leading_whitespace,
+        ) {
             self.needs_boundary = true;
         }
     }
@@ -158,25 +169,30 @@ impl SpokenTextNormalizer {
         }
     }
 
-    fn push_tokens(&mut self, value: &str, has_leading_whitespace: bool) -> bool {
-        let mut is_first_token = true;
-        for token in value.split_whitespace() {
-            if self.needs_space_before_token(is_first_token, has_leading_whitespace) {
-                self.text.push(' ');
-            }
-            self.text.push_str(token);
-            self.needs_boundary = false;
-            is_first_token = false;
-        }
-        is_first_token
+    const fn needs_separator(&self) -> bool {
+        !self.text.is_empty() && self.needs_boundary
     }
 
+    /// Returns `true` when a space must be inserted before the current token.
     const fn needs_space_before_token(
         &self,
         is_first_token: bool,
         has_leading_whitespace: bool,
     ) -> bool {
-        !self.text.is_empty() && (self.needs_boundary || !is_first_token || has_leading_whitespace)
+        self.needs_separator()
+            || (!self.text.is_empty() && (!is_first_token || has_leading_whitespace))
+    }
+
+    /// Returns `true` when a trailing boundary should be recorded after all
+    /// tokens in the current chunk have been consumed.
+    const fn should_set_trailing_boundary(
+        &self,
+        has_trailing_whitespace: bool,
+        is_first_token: bool,
+        has_leading_whitespace: bool,
+    ) -> bool {
+        !self.text.is_empty()
+            && (has_trailing_whitespace || (is_first_token && has_leading_whitespace))
     }
 }
 
