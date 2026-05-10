@@ -252,6 +252,38 @@ The BDD tests now cover successful decoding, encoding, XML parsing, emission,
 and the corresponding error paths, ensuring the entry points remain reliable as
 the API expands.
 
+For spoken-runtime estimation, use `tei_rapporteur.spoken_text_segments(xml)`
+instead of traversing XML locally. The function accepts a complete TEI document
+string and returns `tei_rapporteur.structs.SpokenTextSegment` objects with
+`text`, `locator`, and `xml_id` fields. It includes performed text from `<p>`,
+`<ab>`, `<l>`, direct `<u>` content, and standalone `<seg>` in spoken context.
+It excludes speaker labels, stage directions, notes, lists, labels, headings,
+references, bibliography, show-note divisions (`<div type="notes">`), TEI
+header metadata, and stand-off metadata. Malformed XML and unsupported body
+markup raise `ValueError`; the API never falls back to raw-text counting.
+
+```python
+import tei_rapporteur as tei
+
+xml = """
+<TEI>
+  <teiHeader><fileDesc><title>Episode</title></fileDesc></teiHeader>
+  <text><body>
+    <sp>
+      <speaker>Host</speaker>
+      <p xml:id="line-1">Hello <seg>there</seg>.<note>cut?</note></p>
+    </sp>
+    <div type="notes"><p>Link dump.</p></div>
+  </body></text>
+</TEI>
+"""
+
+segments = tei.spoken_text_segments(xml)
+assert segments[0].text == "Hello there."
+assert segments[0].locator == "/TEI/text/body/sp[1]/p[1]"
+assert segments[0].xml_id == "line-1"
+```
+
 ### Document validation
 
 The `Document` class exposes a `validate()` method that performs document-wide

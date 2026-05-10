@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: IN PROGRESS
 
 ## Purpose / big picture
 
@@ -23,8 +23,8 @@ API. A human can see success by running the Python example in
 The returned segments must include only performed speech, must preserve
 document order, and must not double count nested inline segmentation.
 
-This plan is draft-only. Do not implement it until the user explicitly approves
-the plan or asks for revisions.
+The approval gate has passed. The user requested implementation on 2026-05-10,
+with this document kept current as the work proceeds.
 
 ## Context and orientation
 
@@ -195,15 +195,16 @@ These are hard invariants. Violation requires escalation, not workarounds.
 
 - [x] 2026-05-10: Drafted this ExecPlan from ADR-006, repository inspection,
   Firecrawl research, and Wyvern team delegation.
-- [ ] Approval gate: receive explicit user approval to implement.
-- [ ] Milestone 1: establish failing tests and fixtures for ADR-006 semantics.
+- [x] 2026-05-10: Approval gate passed; user requested implementation of
+  this ExecPlan and ongoing progress updates.
+- [x] Milestone 1: establish failing tests and fixtures for ADR-006 semantics.
 - [ ] Milestone 2: extend the profile and canonical model for required
   ADR-006 body and inline constructs.
-- [ ] Milestone 3: implement spoken-segment domain projection and
+- [x] Milestone 3: implement spoken-segment domain projection and
   normalisation.
-- [ ] Milestone 4: expose Rust XML and Python APIs.
-- [ ] Milestone 5: update documentation and schemas.
-- [ ] Milestone 6: run full gates and commit the approved implementation.
+- [x] Milestone 4: expose Rust XML and Python APIs.
+- [x] Milestone 5: update documentation and schemas.
+- [x] Milestone 6: run full gates and commit the approved implementation.
 
 ## Surprises & Discoveries
 
@@ -228,6 +229,25 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - TEI ODD customisations and generated schemas are the correct place to record
   profile changes. The implementation must update both checked-in Relax NG
   copies consistently, as previous plans have recorded this as a drift source.
+- The first red `make test` run on 2026-05-10 failed for the expected missing
+  public symbols after the test harness was corrected:
+  `tei_core::SpokenTextSegment` and `tei_xml::spoken_text_segments` do not yet
+  exist. Evidence is in `/tmp/test-tei-p5-spoken-element-iterator-red.out`.
+- A first green implementation run on 2026-05-10 passed `make test` with 369
+  tests. Evidence is in `/tmp/test-tei-p5-spoken-element-iterator-py.out`.
+- CodeRabbit review was run after the first implementation milestone. Valid
+  findings were addressed through helper-module extraction, cached parser
+  state, Rustdoc examples, entity-reference coverage, predicate extraction, and
+  spelling fixes. The final remaining spelling request to prefer `Normalises`
+  over `Normalizes` was rejected as invalid because this repository's
+  `AGENTS.md` requires en-GB Oxford `-ize` spelling. Date: 2026-05-10.
+- Documentation now describes the public Python `spoken_text_segments` API in
+  `docs/users-guide.md`, the adapter boundary in
+  `docs/tei-rapporteur-design-document.md`, and the internal convention in
+  `docs/developers-guide.md`. Date: 2026-05-10.
+- Final validation passed on 2026-05-10:
+  `make check-fmt`, `make lint`, `make test`, `make markdownlint`, and
+  `make nixie`. Logs are under `/tmp/*tei-p5-spoken-element-iterator-final.out`.
 
 ## Decision Log
 
@@ -259,6 +279,16 @@ These are hard invariants. Violation requires escalation, not workarounds.
   prerequisite. Rationale: ADR-006 requires valid `TEI` P5 fixtures.
   Implementing extraction without profile support would either reject the
   required examples or tempt a raw XML bypass. Date: 2026-05-10.
+
+- Decision: implement the first public API as a dedicated `tei-xml` streaming
+  adapter returning shared `tei-core` segment types, while leaving full
+  canonical body-model expansion open in Milestone 2. Rationale: the existing
+  `parse_xml` model cannot deserialize `<sp>`, `<ab>`, `<l>`, `<seg>`, notes,
+  stage directions, and references without broad enum and projection changes.
+  The adapter still enforces a narrow ADR-006 body profile, rejects malformed
+  documents and unsupported body elements, and keeps Python out of XML
+  semantics. This validates the external Chrono-facing API before undertaking
+  wider canonical-model work. Date: 2026-05-10.
 
 ## Implementation plan
 
@@ -469,6 +499,29 @@ Commit only after the relevant gates pass. Keep commits atomic:
 
 ## Outcomes & Retrospective
 
-No implementation has been performed yet. After execution, record the final API
-shape, any deviations from this plan, the exact gate commands that passed, and
-any lessons for future TEI profile changes.
+Implemented an additive Rust and Python spoken-text extraction API:
+`tei_xml::spoken_text_segments(xml)` and
+`tei_rapporteur.spoken_text_segments(xml)`. The Rust return contract is
+`tei_core::SpokenTextSegment` with normalized text and provenance, while Python
+callers receive `tei_rapporteur.structs.SpokenTextSegment` values with `text`,
+`locator`, and `xml_id` fields.
+
+The main planned deviation is that the first implementation uses a dedicated
+streaming adapter in `tei-xml` rather than expanding the entire canonical
+`TeiDocument` body model in this commit. That keeps the Chrono-facing API
+available and tested while leaving full profile/model expansion as the next
+milestone. The adapter still validates the complete TEI shell, rejects
+malformed XML and unsupported body elements, excludes ADR-006 non-spoken
+content, preserves entity resolution, and avoids nested `<seg>` double counts.
+
+Final gates passed:
+
+- `make check-fmt`
+- `make lint`
+- `make test`
+- `make markdownlint`
+- `make nixie`
+
+CodeRabbit was run repeatedly after the implementation milestone. All valid
+findings were fixed; the final remaining spelling suggestion was rejected
+because it conflicted with the repository's en-GB Oxford `-ize` spelling rule.

@@ -3,6 +3,7 @@
 from typing import Any
 
 from tei_rapporteur.structs import Event as Event
+from tei_rapporteur.structs import SpokenTextSegment as SpokenTextSegment
 
 __version__: str
 """Package version sourced from Cargo metadata."""
@@ -130,5 +131,13 @@ def iter_parse(xml: str) -> TeiEventIterator:
 
     Raises:
         ValueError: When initial parsing setup fails.
+    """
+    ...
+
+def spoken_text_segments(xml: str) -> list[SpokenTextSegment]:
+    """Extract normalised spoken text segments from complete TEI XML.
+
+    Raises:
+        ValueError: On malformed XML or invalid TEI content.
     """
     ...

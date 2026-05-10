@@ -47,6 +47,7 @@ fn module_registers_python_bindings() {
             "to_msgpack",
             "parse_xml",
             "emit_xml",
+            "spoken_text_segments",
         ] {
             let present = module
                 .hasattr(name)

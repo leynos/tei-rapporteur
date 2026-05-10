@@ -16,12 +16,14 @@
 
 mod body;
 mod inline;
+mod spoken;
 mod types;
 
 pub use body::{
     BodyBlock, BodyContentError, Div, DivContent, Head, Item, Label, List, P, TeiBody, Utterance,
 };
 pub use inline::{Hi, Inline, Pause};
+pub use spoken::{SpokenTextNormalizer, SpokenTextProvenance, SpokenTextSegment};
 pub use types::{
     Certainty, CertaintyValidationError, DivSubtype, DivSubtypeValidationError, DivType,
     DivTypeValidationError, IdentifierValidationError, Pointer, PointerList,
