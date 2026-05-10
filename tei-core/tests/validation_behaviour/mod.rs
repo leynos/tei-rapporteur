@@ -7,8 +7,8 @@ use std::cell::RefCell;
 use tei_core::{Div, Item, List, P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
 
-mod stand_off;
 mod scenario_order;
+mod stand_off;
 
 #[derive(Default)]
 struct ValidationState {
@@ -138,7 +138,8 @@ fn i_add_a_division_containing_an_item_with_id(
     identifier: String,
 ) -> Result<()> {
     state.update_document(|document| {
-        let mut item = Item::from_text_segments(["Linked resource"]).context("item should be valid")?;
+        let mut item =
+            Item::from_text_segments(["Linked resource"]).context("item should be valid")?;
         item.set_id(identifier.as_str())
             .context("identifier should validate")?;
         let list = List::new([item]).context("list should be valid")?;
@@ -176,7 +177,8 @@ fn i_add_a_nested_division_containing_an_item_with_id(
     identifier: String,
 ) -> Result<()> {
     state.update_document(|document| {
-        let mut item = Item::from_text_segments(["Nested resource"]).context("item should be valid")?;
+        let mut item =
+            Item::from_text_segments(["Nested resource"]).context("item should be valid")?;
         item.set_id(identifier.as_str())
             .context("identifier should validate")?;
         let list = List::new([item]).context("list should be valid")?;
@@ -366,7 +368,7 @@ fn rejects_duplicate_identifiers_inside_divisions(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 11)]
-fn rejects_unresolved_item_corresp_pointers_inside_divisions(
+fn accepts_external_item_corresp_pointers_inside_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
@@ -374,7 +376,7 @@ fn rejects_unresolved_item_corresp_pointers_inside_divisions(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 12)]
-fn rejects_duplicate_identifiers_inside_nested_divisions(
+fn rejects_unresolved_item_corresp_pointers_inside_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
 ) {
@@ -382,6 +384,14 @@ fn rejects_duplicate_identifiers_inside_nested_divisions(
 }
 
 #[scenario(path = "tests/features/validation.feature", index = 13)]
+fn rejects_duplicate_identifiers_inside_nested_divisions(
+    #[from(validated_state)] _: ValidationState,
+    #[from(validated_state_result)] validated_state: Result<ValidationState>,
+) {
+    expect_validated_state(validated_state, "validation");
+}
+
+#[scenario(path = "tests/features/validation.feature", index = 14)]
 fn rejects_unresolved_item_corresp_pointers_inside_nested_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,

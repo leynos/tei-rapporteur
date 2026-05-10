@@ -27,6 +27,7 @@ fn validation_feature_scenario_order_matches_expectations() {
         "Rejecting stand-off spans that target missing ids",
         "Rejecting stand-off spans without anchors",
         "Rejecting duplicate xml:id values inside divisions",
+        "Accepting external item corresp pointers inside divisions",
         "Rejecting unresolved item corresp pointers inside divisions",
         "Rejecting duplicate xml:id values inside nested divisions",
         "Rejecting unresolved item corresp pointers inside nested divisions",

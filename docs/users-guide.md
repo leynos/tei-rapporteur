@@ -324,6 +324,36 @@ Validation raises `ValueError` with a descriptive message when:
 Documents without a profile cast allow speaker references without validation,
 enabling incremental validation of draft documents.
 
+
+### Correspondence pointers
+
+`@corresp` values follow TEI pointer semantics. A value beginning with `#` is
+an internal pointer and must resolve to an `xml:id` in the same TEI document.
+Use this form only when the referenced node is materialised in the document.
+Validation rejects unresolved internal pointers so callers do not accidentally
+ship dangling local references.
+
+External identifiers such as `urn:...`, `tag:...`, or `https://...` may be used
+when the target lives outside the TEI document. Repository-owned objects,
+including Episodic reference-document revisions, should use an external
+identifier in `@corresp` unless that object is also represented in the same TEI
+document with an `xml:id`.
+
+Guest biographies therefore link to their source reference revision as an
+external correspondence:
+
+```xml
+<item corresp="urn:episodic:reference-document-revision:019e1368">
+  <label>Ada Lovelace</label>
+  Mathematician and computing pioneer.
+</item>
+```
+
+`tei-rapporteur` currently supports `@corresp`, `@n`, and `xml:id` on list
+items. `@source` on `Item` is not part of the public body model yet; it may be
+considered later if callers need stricter provenance semantics beyond the
+current correspondence link.
+
 ## Text Encoding Initiative (TEI) Episodic Profile schema
 
 The TEI Episodic Profile is formally documented in an ODD (One Document Does it
@@ -459,6 +489,9 @@ Episodic Profile:
   speakers via `@who`
 - **div-list**: Body containing `<div type="...">` elements with nested
   `<list>`, `<item>`, and `<label>` children
+- **guest-bios**: Body containing `<div type="guest-bios">` with nested
+  guest-biography items whose `@corresp` values point at external reference
+  revisions
 - **comprehensive**: All profile features combined (synopsis, speakers,
   languages, annotation systems, revision history, mixed body content including
   divisions)

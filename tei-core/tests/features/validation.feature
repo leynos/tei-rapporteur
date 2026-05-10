@@ -82,6 +82,12 @@ Feature: TEI document validation
     And I validate the document
     Then validation fails with "duplicate xml:id 'dup'"
 
+  Scenario: Accepting external item corresp pointers inside divisions
+    Given a TEI document titled "Night Vale"
+    When I add a division "guest-bios" containing an item with corresp "urn:episodic:reference-document-revision:019e1368"
+    And I validate the document
+    Then validation succeeds
+
   Scenario: Rejecting unresolved item corresp pointers inside divisions
     Given a TEI document titled "Night Vale"
     When I add a division "show-notes" containing an item with corresp "#missing"

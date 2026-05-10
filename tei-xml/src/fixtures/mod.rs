@@ -207,6 +207,36 @@ pub fn document_with_div_and_list() -> Result<TeiDocument, TeiError> {
     Ok(TeiDocument::new(header, text))
 }
 
+/// Returns a document whose body contains generated guest biographies.
+///
+/// # Errors
+///
+/// Returns [`TeiError`] when any component of the document cannot be
+/// constructed.
+pub fn document_with_guest_bios() -> Result<TeiDocument, TeiError> {
+    let file_desc = FileDesc::from_title_str("Guest Biography Fixture")?;
+    let header = TeiHeader::new(file_desc);
+
+    let label = Label::from_text("Ada Lovelace")?;
+    let mut item = Item::from_text_segments(["Mathematician and computing pioneer."])?;
+    item.set_id("guest-bio-ada")?;
+    item.set_corresp(PointerList::new([
+        "urn:episodic:reference-document-revision:019e1368",
+    ])?);
+    item.set_label(label);
+
+    let mut list = List::new([item])?;
+    list.set_id("guest-bio-list")?;
+
+    let mut div = Div::new("guest-bios")?;
+    div.set_id("guest-bios")?;
+    div.push_list(list);
+
+    let body = TeiBody::new([BodyBlock::Div(div)]);
+    let text = TeiText::new(body);
+    Ok(TeiDocument::new(header, text))
+}
+
 /// Returns a document with nested divisions, headings, and subtypes.
 ///
 /// # Errors
@@ -248,6 +278,7 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
         ("utterances", document_with_utterances),
         ("comprehensive", comprehensive_document),
         ("div-list", document_with_div_and_list),
+        ("guest-bios", document_with_guest_bios),
         ("nested-div", document_with_nested_divs),
     ]
 }
@@ -288,6 +319,12 @@ mod tests {
     #[test]
     fn document_with_div_and_list_builds_successfully() {
         let doc = document_with_div_and_list().expect("division fixture should build");
+        assert_eq!(doc.text().body().blocks().len(), 1);
+    }
+
+    #[test]
+    fn document_with_guest_bios_builds_successfully() {
+        let doc = document_with_guest_bios().expect("guest biographies fixture should build");
         assert_eq!(doc.text().body().blocks().len(), 1);
     }
 

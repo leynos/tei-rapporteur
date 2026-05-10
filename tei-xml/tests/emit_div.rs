@@ -1,5 +1,6 @@
 //! Tests for div, list, and item XML emission.
 
+use rstest::rstest;
 use tei_core::{DivContent, Inline, PointerList};
 use tei_xml::{emit_xml, parse_xml};
 
@@ -46,6 +47,27 @@ const ITEM_WITH_LABEL: &str = concat!(
     "<div type=\"labeled-list\">",
     "<list>",
     "<item><label>Label:</label>Item content</item>",
+    "</list>",
+    "</div>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
+const GUEST_BIOS_DIV: &str = concat!(
+    "<TEI>",
+    "<teiHeader>",
+    "<fileDesc><title>Guest Bios</title></fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<div type=\"guest-bios\" xml:id=\"guest-bios\">",
+    "<list xml:id=\"guest-bio-list\">",
+    "<item xml:id=\"guest-bio-ada\" ",
+    "corresp=\"urn:episodic:reference-document-revision:019e1368\">",
+    "<label>Ada Lovelace</label>",
+    "Mathematician and computing pioneer.",
+    "</item>",
     "</list>",
     "</div>",
     "</body>",
@@ -249,6 +271,63 @@ fn emits_nested_div_with_head_and_subtype_before_children() {
     assert!(outer_head_index < inner_div_index);
     assert!(inner_div_index < inner_head_index);
     assert!(inner_head_index < utterance_index);
+}
+
+#[rstest]
+#[case::episodic_reference_revision(
+    GUEST_BIOS_DIV,
+    "urn:episodic:reference-document-revision:019e1368"
+)]
+fn round_trips_guest_bios_with_external_corresp(#[case] xml: &str, #[case] corresp: &str) {
+    let document = parse_xml(xml).expect("guest-bios fixture should parse");
+    document
+        .validate()
+        .expect("guest-bios fixture should validate");
+
+    let parsed_div = document
+        .text()
+        .body()
+        .divs()
+        .next()
+        .expect("guest-bios fixture should contain a div");
+    assert_eq!(parsed_div.div_type(), "guest-bios");
+    assert_eq!(
+        parsed_div.id().map(tei_core::XmlId::as_str),
+        Some("guest-bios")
+    );
+
+    let Some(DivContent::List(list)) = parsed_div.content().first() else {
+        panic!("guest-bios div should contain a list");
+    };
+    assert_eq!(
+        list.id().map(tei_core::XmlId::as_str),
+        Some("guest-bio-list")
+    );
+
+    let item = list
+        .items()
+        .first()
+        .expect("guest-bios list should have an item");
+    assert_eq!(
+        item.id().map(tei_core::XmlId::as_str),
+        Some("guest-bio-ada")
+    );
+    let label = item.label().expect("guest bio item should have a label");
+    assert_eq!(label.content(), &[Inline::Text("Ada Lovelace".into())]);
+    assert_eq!(
+        item.content(),
+        &[Inline::Text("Mathematician and computing pioneer.".into())]
+    );
+    let expected_corresp =
+        PointerList::parse_attribute(corresp).expect("fixture corresp should be valid");
+    assert_eq!(item.corresp(), Some(&expected_corresp));
+
+    let emitted = emit_xml(&document).expect("guest-bios fixture should emit");
+    assert!(
+        emitted.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
+        "emitted XML should preserve the external @corresp value"
+    );
+    parse_xml(&emitted).expect("emitted guest-bios XML should parse again");
 }
 
 #[test]
