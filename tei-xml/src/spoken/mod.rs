@@ -137,24 +137,30 @@ impl<'a> SpokenTextParser<'a> {
     }
 
     fn handle_start(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
-        let name = local_name(element.local_name().as_ref())?;
-        self.header.record_start(&name, element)?;
-        let frame = self.frame_for_start(&name, element)?;
-        self.enter_element(&name, element, &frame)?;
-        self.enter_cached_state(&name, &frame);
-        self.stack.push(frame);
-        Ok(())
+        self.enter_start_like_element(element, HeaderRecorder::record_start)
+            .map(|_| ())
     }
 
     fn handle_empty(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let name = self.enter_start_like_element(element, HeaderRecorder::record_empty)?;
+        self.handle_end(&name)
+    }
+
+    fn enter_start_like_element<F>(
+        &mut self,
+        element: &BytesStart<'_>,
+        record_header: F,
+    ) -> Result<String, TeiError>
+    where
+        F: FnOnce(&mut HeaderRecorder, &str, &BytesStart<'_>) -> Result<(), TeiError>,
+    {
         let name = local_name(element.local_name().as_ref())?;
-        self.header.record_empty(&name, element)?;
+        record_header(&mut self.header, &name, element)?;
         let frame = self.frame_for_start(&name, element)?;
         self.enter_element(&name, element, &frame)?;
         self.enter_cached_state(&name, &frame);
         self.stack.push(frame);
-        self.handle_end(&name)?;
-        Ok(())
+        Ok(name)
     }
 
     fn enter_element(

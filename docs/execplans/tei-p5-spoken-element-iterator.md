@@ -265,6 +265,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
 - [x] 2026-05-11: Extracted the `HeaderRecorder` start/empty element shell into
   `record_element_with_post_step` to clear the remaining CodeScene duplication
   finding.
+- [x] 2026-05-11: Extracted the spoken XML parser's shared start/empty element
+  entry path into `enter_start_like_element`.
 
 ## Surprises & Discoveries
 
