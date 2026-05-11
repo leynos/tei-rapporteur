@@ -278,7 +278,10 @@ fn emits_nested_div_with_head_and_subtype_before_children() {
     GUEST_BIOS_DIV,
     "urn:episodic:reference-document-revision:019e1368"
 )]
-fn round_trips_guest_bios_with_external_corresp(#[case] xml: &str, #[case] corresp: &str) {
+fn round_trips_guest_bios_with_external_corresp(
+    #[case] xml: &str,
+    #[case] expected_corresp_value: &str,
+) {
     let document = parse_xml(xml).expect("guest-bios fixture should parse");
     document
         .validate()
@@ -318,16 +321,19 @@ fn round_trips_guest_bios_with_external_corresp(#[case] xml: &str, #[case] corre
         item.content(),
         &[Inline::Text("Mathematician and computing pioneer.".into())]
     );
-    let expected_corresp =
-        PointerList::parse_attribute(corresp).expect("fixture corresp should be valid");
+    let expected_corresp = PointerList::parse_attribute(expected_corresp_value)
+        .expect("fixture corresp should be valid");
     assert_eq!(item.corresp(), Some(&expected_corresp));
 
-    let emitted = emit_xml(&document).expect("guest-bios fixture should emit");
+    let corresp = emit_xml(&document).expect("guest-bios fixture should emit");
     assert!(
-        emitted.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
+        corresp.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
         "emitted XML should preserve the external @corresp value"
     );
-    parse_xml(&emitted).expect("emitted guest-bios XML should parse again");
+    let parsed = parse_xml(&corresp).expect("emitted guest-bios XML should parse again");
+    parsed
+        .validate()
+        .expect("reparsed guest-bios XML should validate");
 }
 
 #[test]

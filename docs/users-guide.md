@@ -329,7 +329,7 @@ enabling incremental validation of draft documents.
 
 `@corresp` values follow TEI pointer semantics. A value beginning with `#` is
 an internal pointer and must resolve to an `xml:id` in the same TEI document.
-Use this form only when the referenced node is materialised in the document.
+Use this form only when the referenced node is materialized in the document.
 Validation rejects unresolved internal pointers so callers do not accidentally
 ship dangling local references.
 
