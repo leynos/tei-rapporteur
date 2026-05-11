@@ -44,11 +44,16 @@ impl DocumentState {
 
     /// Records that a root-level `<teiHeader>` has been encountered.
     pub(super) fn record_tei_header(&mut self, is_inside_tei_root: bool) -> Result<(), TeiError> {
-        let ok = is_inside_tei_root && self.phase == DocumentPhase::SawTei;
+        if !is_inside_tei_root {
+            let error = "teiHeader must be inside TEI root";
+            observability::phase_rejected(self.phase, DocumentPhase::SawHeader, error);
+            return Err(TeiError::xml(error));
+        }
+        let ok = self.phase == DocumentPhase::SawTei;
         self.advance_phase_if(
             ok,
             DocumentPhase::SawHeader,
-            "teiHeader element must be inside TEI root",
+            "duplicate or misplaced teiHeader element",
         )
     }
 
@@ -75,11 +80,16 @@ impl DocumentState {
         &mut self,
         is_direct_child_of_text_in_tei: bool,
     ) -> Result<(), TeiError> {
-        let ok = is_direct_child_of_text_in_tei && self.phase == DocumentPhase::SawText;
+        if !is_direct_child_of_text_in_tei {
+            let error = "body element must be inside TEI text";
+            observability::phase_rejected(self.phase, DocumentPhase::SawBody, error);
+            return Err(TeiError::xml(error));
+        }
+        let ok = self.phase == DocumentPhase::SawText;
         self.advance_phase_if(
             ok,
             DocumentPhase::SawBody,
-            "body element must be inside TEI text",
+            "duplicate or misplaced body element",
         )
     }
 

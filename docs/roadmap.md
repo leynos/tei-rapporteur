@@ -114,7 +114,10 @@ prioritizing efficient data transfer.
       `tei_rapporteur.spoken_text_segments`, validating the complete TEI shell,
       returning ordered normalized spoken text with provenance, and emitting
       debug observability events for parser state, segment decisions, errors,
-      and latency/throughput fields.
+      and the `input_bytes`, `segment_count`, `text_bytes`, and
+      `elapsed_microseconds` metrics surface. Dashboards should derive
+      throughput rates from those fields rather than expecting additional
+      throughput counters in the library.
 
 ### Step 2.3: Python-Side Definitions and Packaging
 

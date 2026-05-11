@@ -286,6 +286,9 @@ These are hard invariants. Violation requires escalation, not workarounds.
   making the `SawHeader` to `SawText` transition explicit.
 - [x] 2026-05-11: Addressed follow-up sentence-case ExecPlan headings and
   documented the intentional `HeaderRecorder` start/empty split.
+- [x] 2026-05-11: Addressed follow-up roadmap metrics wording, document-shell
+  parent-versus-phase diagnostics, child-index allocation, and related ExecPlan
+  sentence-case headings.
 
 ## Surprises & discoveries
 

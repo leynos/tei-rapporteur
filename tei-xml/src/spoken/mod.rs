@@ -290,9 +290,12 @@ impl<'a> SpokenTextParser<'a> {
         let Some(parent) = self.stack.last_mut() else {
             return 1;
         };
-        let count = parent.child_counts.entry(name.to_owned()).or_insert(0);
-        *count += 1;
-        *count
+        if let Some(count) = parent.child_counts.get_mut(name) {
+            *count += 1;
+            return *count;
+        }
+        parent.child_counts.insert(name.to_owned(), 1);
+        1
     }
 
     fn push_text(&mut self, value: &str) {

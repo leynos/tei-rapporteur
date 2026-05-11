@@ -1,8 +1,8 @@
 # Support nested `<div>`, `@subtype`, and optional `<head>` in body divisions
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
+`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
+`decision log`, and `outcomes & retrospective` must be kept up to date as work
 proceeds.
 
 Status: COMPLETE
@@ -165,7 +165,7 @@ that should be a separate, explicit extension.
   binary that is not installed in this environment, so XML-schema validation
   must be rerun on a machine with `jing` available.
 
-## Decision Log
+## Decision log
 
 - Decision: model division headings as a dedicated `Head` wrapper type rather
   than reusing `P` or `Label`. Rationale: a division heading is not a paragraph
@@ -197,7 +197,7 @@ that should be a separate, explicit extension.
   while mixing division-specific wrappers with unrelated identifier types.
   Date: 2026-04-10.
 
-## Outcomes & Retrospective
+## Outcomes & retrospective
 
 Nested `<div>` elements, optional `@subtype`, and a single optional leading
 `<head>` now work end-to-end across the Rust core model, XML parsing/emission,
