@@ -1,8 +1,8 @@
 # Add a `TEI` P5 spoken text iterator
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
+`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
+`decision log`, and `outcomes & retrospective` must be kept up to date as work
 proceeds.
 
 Status: COMPLETED
@@ -284,6 +284,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
   duplicate or misplaced `<text>` state-machine errors more precise.
 - [x] 2026-05-11: Addressed CodeRabbit's state-machine cleanup follow-up by
   making the `SawHeader` to `SawText` transition explicit.
+- [x] 2026-05-11: Addressed follow-up sentence-case ExecPlan headings and
+  documented the intentional `HeaderRecorder` start/empty split.
 
 ## Surprises & discoveries
 
@@ -357,7 +359,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
   `AGENTS.md` and prior review resolution require en-GB Oxford spelling. Date:
   2026-05-10.
 
-## Decision Log
+## Decision log
 
 - Decision: expose an additive Python API named
   `tei_rapporteur.spoken_text_segments(xml: str)` returning a list of
@@ -610,7 +612,7 @@ Commit only after the relevant gates pass. Keep commits atomic:
   `docs/developers-guide.md` describe the new public and internal contracts.
 - `make check-fmt`, `make lint`, and `make test` pass before any code commit.
 
-## Outcomes & Retrospective
+## Outcomes & retrospective
 
 Implemented an additive Rust and Python spoken-text extraction API:
 `tei_xml::spoken_text_segments(xml)` and

@@ -15,6 +15,11 @@ pub(super) struct HeaderRecorder {
 }
 
 impl HeaderRecorder {
+    // `record_start` and `record_empty` intentionally share the
+    // `record_element_with_post_step` guard/buffer shell while keeping their
+    // post-processing visible: start tags increment depth, and empty root
+    // headers validate immediately. Extracting further would hide that split.
+
     /// Records a start element when it belongs to the TEI header subtree.
     pub(super) fn record_start(
         &mut self,
