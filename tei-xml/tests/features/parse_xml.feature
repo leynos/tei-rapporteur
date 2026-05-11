@@ -38,3 +38,4 @@ Feature: Parse TEI XML
     When I parse the TEI input
     Then parsing succeeds
     And the parsed document includes guest bios linked to an external reference revision
+    And the emitted guest-bios XML round-trips cleanly

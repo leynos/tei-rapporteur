@@ -162,7 +162,16 @@ fn parsed_document_includes_guest_bios(
         item.corresp() == Some(&expected),
         "guest-bio @corresp should survive parsing"
     );
+    Ok(())
+}
 
+#[then("the emitted guest-bios XML round-trips cleanly")]
+fn emitted_guest_bios_xml_round_trips(
+    #[from(validated_state)] state: &ParseState,
+) -> anyhow::Result<()> {
+    let document = state
+        .result()?
+        .context("expected successful parse before round-trip")?;
     let emitted = emit_xml(&document).context("guest-bios TEI should emit")?;
     ensure!(
         emitted.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
