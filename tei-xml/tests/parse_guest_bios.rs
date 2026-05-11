@@ -177,7 +177,10 @@ fn emitted_guest_bios_xml_round_trips(
         emitted.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
         "guest-bio @corresp should survive emission"
     );
-    parse_xml(&emitted).context("emitted guest-bios TEI should parse again")?;
+    let reparsed_doc = parse_xml(&emitted).context("emitted guest-bios TEI should parse again")?;
+    reparsed_doc
+        .validate()
+        .context("reparsed guest-bios TEI should validate")?;
     Ok(())
 }
 
