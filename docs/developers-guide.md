@@ -3,7 +3,7 @@
 This guide records internally facing conventions that are not part of the
 public user API.
 
-## Spoken Text Extraction
+## Spoken text extraction
 
 Spoken-runtime extraction follows Architectural Decision Record (ADR) 006 and
 is owned by Rust. Keep the public segment value types and normalization helpers

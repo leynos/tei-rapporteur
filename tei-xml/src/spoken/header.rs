@@ -92,6 +92,8 @@ impl HeaderRecorder {
     fn validate(&mut self) -> Result<(), TeiError> {
         let xml = std::str::from_utf8(&self.xml)
             .map_err(|error| TeiError::xml(format!("invalid UTF-8 in teiHeader: {error}")))?;
+        // This recorder only validates streaming input; callers that need a
+        // `TeiHeader` object must parse the canonical document path.
         quick_xml::de::from_str::<TeiHeader>(xml)
             .map_err(|error| TeiError::xml(format!("invalid teiHeader: {error}")))?;
         self.validated = true;

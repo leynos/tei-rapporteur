@@ -1,7 +1,7 @@
 # Add a `TEI` P5 spoken text iterator
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
+`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
@@ -272,8 +272,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
   `append_header_element` helper.
 - [x] 2026-05-11: Replaced the spoken parser start/empty and document-phase
   duplication clusters with `handle_element` and `advance_phase_if`.
+- [x] 2026-05-11: Addressed follow-up documentation heading and header
+  validation comment findings; verified the Python `sys.modules` restoration
+  finding was stale for the current PyO3 API.
+- [x] 2026-05-11: Attempted CodeRabbit agent review for the follow-up change;
+  the service returned a recoverable rate-limit error before review started.
 
-## Surprises & Discoveries
+## Surprises & discoveries
 
 - Firecrawl confirmed that the current TEI Guidelines describe `sp` as an
   individual speech in performance text, `u` as a stretch of speech, `speaker`
