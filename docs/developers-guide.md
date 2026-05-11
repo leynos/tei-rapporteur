@@ -24,3 +24,30 @@ Excluded inline elements and silent markers must be represented as boundaries
 that contribute no words. Do not count a nested `<seg>` twice: inline
 segmentation contributes to its enclosing spoken block unless it is standalone
 in a spoken context.
+
+## Spoken text observability
+
+`tei_xml::spoken_text_segments` emits `tracing` debug events only. Library
+callers own subscriber installation and export. The event schema is stable
+enough for benchmark and diagnostic consumers:
+
+- `spoken_text_parse_started`: includes `input_bytes`.
+- `spoken_text_element_enter`: includes `element`, `is_empty`, `phase`, and
+  `stack_depth`.
+- `spoken_text_phase_transition`: includes `from` and `to`.
+- `spoken_text_phase_rejected`: includes `phase`, `next`, and `error`.
+- `spoken_text_unsupported_body_element`: includes `element`, `phase`, and
+  `stack_depth`.
+- `spoken_text_segment_started`: includes `element`, `kind`, `locator`, and
+  `has_xml_id`.
+- `spoken_text_segment_suppressed`: includes `element` and `locator`.
+- `spoken_text_segment_emitted`: includes `element`, `locator`, and
+  `text_bytes`.
+- `spoken_text_parse_finished`: includes `input_bytes`, `segment_count`, and
+  `elapsed_microseconds`.
+- `spoken_text_parse_error`: includes `error`; parser-state failures also
+  include `phase` and `stack_depth`.
+
+Treat `input_bytes`, `segment_count`, `text_bytes`, and `elapsed_microseconds`
+as the metrics surface for spoken extraction. Throughput dashboards should
+derive rates from those fields rather than adding counters in the library.

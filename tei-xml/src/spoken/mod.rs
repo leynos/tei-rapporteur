@@ -1,9 +1,12 @@
 //! XML adapter for extracting ADR-006 spoken text segments.
 
+use std::time::Instant;
+
 use quick_xml::{Reader, events::BytesStart, events::Event};
 use tei_core::{SpokenTextSegment, TeiError};
 
 use self::{
+    document_state::DocumentState,
     element_names::{BODY, DIV, TEI, TEI_HEADER, TEXT},
     frame::ElementFrame,
     header::HeaderRecorder,
@@ -12,9 +15,11 @@ use self::{
     xml_utils::{extract_attribute, local_name, make_locator, resolve_entity_ref},
 };
 
+mod document_state;
 mod element_names;
 mod frame;
 mod header;
+mod observability;
 mod predicates;
 mod segments;
 mod xml_utils;
@@ -55,21 +60,7 @@ struct SpokenTextParser<'a> {
     exclusion_depth: usize,
     document_state: DocumentState,
     header: HeaderRecorder,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-struct DocumentState {
-    phase: DocumentPhase,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum DocumentPhase {
-    #[default]
-    Start,
-    SawTei,
-    SawHeader,
-    SawText,
-    SawBody,
+    input_bytes: usize,
 }
 
 impl<'a> SpokenTextParser<'a> {
@@ -82,21 +73,49 @@ impl<'a> SpokenTextParser<'a> {
             exclusion_depth: 0,
             document_state: DocumentState::default(),
             header: HeaderRecorder::default(),
+            input_bytes: xml.len(),
         }
     }
 
     fn parse(mut self) -> Result<Vec<SpokenTextSegment>, TeiError> {
+        let started_at = Instant::now();
+        observability::parse_started(self.input_bytes);
         loop {
-            let event = self
-                .reader
-                .read_event()
-                .map_err(|error| TeiError::xml(error.to_string()))?;
+            let event = match self.reader.read_event() {
+                Ok(event) => event,
+                Err(error) => {
+                    observability::parse_state_error(
+                        &error,
+                        self.document_state.phase(),
+                        self.stack.len(),
+                    );
+                    return Err(TeiError::xml(error.to_string()));
+                }
+            };
             if let Event::Eof = event {
                 break;
             }
-            self.handle_event(event)?;
+            if let Err(error) = self.handle_event(event) {
+                observability::parse_state_error(
+                    &error,
+                    self.document_state.phase(),
+                    self.stack.len(),
+                );
+                return Err(error);
+            }
         }
-        self.finish()
+        let input_bytes = self.input_bytes;
+        let elapsed = started_at.elapsed();
+        match self.finish() {
+            Ok(segments) => {
+                observability::parse_finished(input_bytes, segments.len(), elapsed);
+                Ok(segments)
+            }
+            Err(error) => {
+                observability::parse_error(&error, input_bytes);
+                Err(error)
+            }
+        }
     }
 
     fn handle_event(&mut self, event: Event<'_>) -> Result<(), TeiError> {
@@ -152,6 +171,12 @@ impl<'a> SpokenTextParser<'a> {
     /// [`Self::handle_end`].
     fn handle_element(&mut self, element: &BytesStart<'_>, is_empty: bool) -> Result<(), TeiError> {
         let name = local_name(element.local_name().as_ref())?;
+        observability::element_enter(
+            &name,
+            is_empty,
+            self.document_state.phase(),
+            self.stack.len(),
+        );
         if is_empty {
             self.header.record_empty(&name, element)?;
         } else {
@@ -174,10 +199,16 @@ impl<'a> SpokenTextParser<'a> {
         frame: &ElementFrame,
     ) -> Result<(), TeiError> {
         match name {
-            TEI => self.record_tei_root()?,
-            TEI_HEADER => self.record_tei_header()?,
-            TEXT => self.validate_text_path()?,
-            BODY => self.record_body()?,
+            TEI => self.document_state.record_tei_root(self.stack.is_empty())?,
+            TEI_HEADER => self
+                .document_state
+                .record_tei_header(self.stack.last().is_some_and(|entry| entry.name == TEI))?,
+            TEXT => self
+                .document_state
+                .validate_text_path(self.stack.last().is_some_and(|entry| entry.name == TEI))?,
+            BODY => self
+                .document_state
+                .record_body(self.is_direct_child_of_text_in_tei())?,
             _ => {}
         }
 
@@ -315,69 +346,14 @@ impl<'a> SpokenTextParser<'a> {
         if is_known {
             Ok(())
         } else {
+            observability::unsupported_body_element(
+                name,
+                self.document_state.phase(),
+                self.stack.len(),
+            );
             Err(TeiError::xml(format!(
                 "unsupported TEI body element <{name}>"
             )))
-        }
-    }
-
-    fn record_tei_root(&mut self) -> Result<(), TeiError> {
-        let ok = self.stack.is_empty() && self.document_state.phase == DocumentPhase::Start;
-        self.advance_phase_if(
-            ok,
-            DocumentPhase::SawTei,
-            "TEI root element must be the document root",
-        )
-    }
-
-    fn record_tei_header(&mut self) -> Result<(), TeiError> {
-        let ok = self.stack.last().is_some_and(|f| f.name == TEI)
-            && self.document_state.phase == DocumentPhase::SawTei;
-        self.advance_phase_if(
-            ok,
-            DocumentPhase::SawHeader,
-            "teiHeader element must be inside TEI root",
-        )
-    }
-
-    fn validate_text_path(&mut self) -> Result<(), TeiError> {
-        if self.stack.last().is_none_or(|frame| frame.name != TEI) {
-            return Err(TeiError::xml("text element must be inside TEI root"));
-        }
-        if self.document_state.phase == DocumentPhase::SawTei {
-            return Err(TeiError::xml("missing teiHeader element"));
-        }
-        if self.document_state.phase == DocumentPhase::SawHeader {
-            self.document_state.phase = DocumentPhase::SawText;
-            Ok(())
-        } else {
-            Err(TeiError::xml("text element must be inside TEI root"))
-        }
-    }
-
-    fn record_body(&mut self) -> Result<(), TeiError> {
-        let ok = self.is_direct_child_of_text_in_tei()
-            && self.document_state.phase == DocumentPhase::SawText;
-        self.advance_phase_if(
-            ok,
-            DocumentPhase::SawBody,
-            "body element must be inside TEI text",
-        )
-    }
-
-    /// Advances the document phase to `next` when `condition` holds; otherwise
-    /// returns a structured XML error with the given message.
-    fn advance_phase_if(
-        &mut self,
-        condition: bool,
-        next: DocumentPhase,
-        error: &str,
-    ) -> Result<(), TeiError> {
-        if condition {
-            self.document_state.phase = next;
-            Ok(())
-        } else {
-            Err(TeiError::xml(error))
         }
     }
 
@@ -386,22 +362,5 @@ impl<'a> SpokenTextParser<'a> {
             return false;
         };
         parent.name == TEXT && grandparent.name == TEI
-    }
-}
-
-impl DocumentState {
-    const fn saw_tei(self) -> bool {
-        !matches!(self.phase, DocumentPhase::Start)
-    }
-
-    const fn saw_header(self) -> bool {
-        matches!(
-            self.phase,
-            DocumentPhase::SawHeader | DocumentPhase::SawText | DocumentPhase::SawBody
-        )
-    }
-
-    const fn saw_body(self) -> bool {
-        matches!(self.phase, DocumentPhase::SawBody)
     }
 }

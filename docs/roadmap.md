@@ -109,6 +109,12 @@ prioritizing efficient data transfer.
       functions.
 - [x] Add `pyo3-serde` to `tei-py` to implement `from_dict` and `to_dict`
       functions for JSON-like Python object exchange.
+- [x] Implement roadmap item 2.2.6 for Chrono spoken-runtime extraction by
+      exposing `tei_xml::spoken_text_segments` and
+      `tei_rapporteur.spoken_text_segments`, validating the complete TEI shell,
+      returning ordered normalized spoken text with provenance, and emitting
+      debug observability events for parser state, segment decisions, errors,
+      and latency/throughput fields.
 
 ### Step 2.3: Python-Side Definitions and Packaging
 

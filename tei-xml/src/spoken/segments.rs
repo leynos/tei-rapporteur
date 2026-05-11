@@ -2,6 +2,7 @@
 
 use quick_xml::events::BytesStart;
 use tei_core::{SpokenTextNormalizer, SpokenTextProvenance, SpokenTextSegment, TeiError};
+use tracing::debug;
 
 use super::{
     element_names::{AB, L, P, SEG, U},
@@ -53,6 +54,13 @@ impl SegmentCollector {
     }
 
     fn start_segment_without_marking_parent(&mut self, request: SegmentStart) {
+        debug!(
+            element = %request.name,
+            kind = ?request.kind,
+            locator = %request.locator,
+            has_xml_id = request.xml_id.is_some(),
+            "spoken_text_segment_started"
+        );
         self.active_segments.push(ActiveSegment::new(
             request.kind,
             request.name,
@@ -75,10 +83,21 @@ impl SegmentCollector {
             .pop()
             .ok_or_else(|| TeiError::xml("no active spoken segment to finish"))?;
         if segment.kind == SegmentKind::Utterance && segment.has_child_spoken_block {
+            debug!(
+                element = %segment.name,
+                locator = %segment.locator,
+                "spoken_text_segment_suppressed"
+            );
             return Ok(());
         }
         if let Some(text) = segment.normalizer.finish() {
             let provenance = SpokenTextProvenance::new(segment.xml_id, segment.locator);
+            debug!(
+                element = %segment.name,
+                locator = %provenance.locator(),
+                text_bytes = text.len(),
+                "spoken_text_segment_emitted"
+            );
             self.segments.push(SpokenTextSegment::new(text, provenance));
         }
         Ok(())

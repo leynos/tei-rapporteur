@@ -235,15 +235,15 @@ These are hard invariants. Violation requires escalation, not workarounds.
   `make lint`, and `make test` after the validation-state fix; the full suite
   reported 386 passing tests.
 - [x] 2026-05-10: CodeRabbit's final pass requested non-Oxford Rustdoc
-  spelling. Rejected as invalid because repository instructions require
-  en-GB Oxford `-ize` spelling.
+  spelling. Rejected as invalid because repository instructions require en-GB
+  Oxford `-ize` spelling.
 - [x] 2026-05-10: Reconciled the completed ExecPlan status and Oxford spelling
   review, extracted shared PyO3 module registration setup for binding tests,
   reran local gates, and received a zero-finding CodeRabbit follow-up review.
 - [x] 2026-05-10: Addressed the next review pass by replacing the remaining
-  non-Oxford tokenizer spelling, extracting shared `HeaderRecorder`
-  start-like element recording, enforcing TEI shell state before setting
-  document flags, and consolidating negative spoken-text document tests.
+  non-Oxford tokenizer spelling, extracting shared `HeaderRecorder` start-like
+  element recording, enforcing TEI shell state before setting document flags,
+  and consolidating negative spoken-text document tests.
 - [x] 2026-05-10: Re-ran focused spoken/header tests, `markdownlint`,
   `make check-fmt`, `make lint`, `make test`, and CodeRabbit for the shell
   validation follow-up; all passed and CodeRabbit reported zero findings.
@@ -277,6 +277,13 @@ These are hard invariants. Violation requires escalation, not workarounds.
   finding was stale for the current PyO3 API.
 - [x] 2026-05-11: Attempted CodeRabbit agent review for the follow-up change;
   the service returned a recoverable rate-limit error before review started.
+- [x] 2026-05-11: Added roadmap item 2.2.6 completion notes and tracing-based
+  debug observability for spoken extraction parser state, segment decisions,
+  errors, and latency/throughput fields.
+- [x] 2026-05-11: Addressed CodeRabbit's observability follow-up by making
+  duplicate or misplaced `<text>` state-machine errors more precise.
+- [x] 2026-05-11: Addressed CodeRabbit's state-machine cleanup follow-up by
+  making the `SawHeader` to `SawText` transition explicit.
 
 ## Surprises & discoveries
 
@@ -329,8 +336,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
   pre-existing Markdown line-length failures in other documentation files. The
   unrelated formatting side effect in
   `docs/execplans/3-3-3-streaming-parser-performance-benchmarks.md` was
-  reverted, and the touched execplan file passed targeted `markdownlint`.
-  Date: 2026-05-10.
+  reverted, and the touched execplan file passed targeted `markdownlint`. Date:
+  2026-05-10.
 - CodeRabbit's follow-up concern was limited to duplicated root-header buffer
   reset logic. Extracting a helper kept behaviour unchanged and left all
   required gates green. Date: 2026-05-10.
@@ -616,9 +623,9 @@ The main planned deviation is that the first implementation uses a dedicated
 streaming adapter in `tei-xml` rather than expanding the entire canonical
 `TeiDocument` body model in this commit. That keeps the Chrono-facing API
 available and tested while leaving full profile/model expansion as future work.
-The adapter still validates the complete TEI shell, rejects
-malformed XML and unsupported body elements, excludes ADR-006 non-spoken
-content, preserves entity resolution, and avoids nested `<seg>` double counts.
+The adapter still validates the complete TEI shell, rejects malformed XML and
+unsupported body elements, excludes ADR-006 non-spoken content, preserves
+entity resolution, and avoids nested `<seg>` double counts.
 
 Final gates passed:
 
