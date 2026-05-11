@@ -1,8 +1,8 @@
 # Support nested `<div>`, `@subtype`, and optional `<head>` in body divisions
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `tolerances`, `risks`, `progress`, `Surprises & discoveries`,
-`decision log`, and `outcomes & retrospective` must be kept up to date as work
+`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
+`Decision log`, and `Outcomes & retrospective` must be kept up to date as work
 proceeds.
 
 Status: COMPLETE
