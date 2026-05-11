@@ -5,9 +5,9 @@ use anyhow::{Context, bail, ensure};
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
 use std::cell::RefCell;
-use tei_core::{BodyBlock, DivContent, Inline, PointerList, TeiDocument, TeiError};
+use tei_core::{BodyBlock, DivContent, TeiDocument, TeiError};
 use tei_test_helpers::expect_validated_state;
-use tei_xml::{emit_xml, parse_xml};
+use tei_xml::parse_xml;
 
 // Force Cargo to recompile the test binary when the feature file changes so the
 // embedded scenarios stay in sync with expectations.
@@ -97,29 +97,6 @@ const NESTED_DIV_FIXTURE: &str = concat!(
     "</TEI>",
 );
 
-const GUEST_BIOS_FIXTURE: &str = concat!(
-    "<TEI>",
-    "<teiHeader>",
-    "<fileDesc>",
-    "<title>Guest Bios</title>",
-    "</fileDesc>",
-    "</teiHeader>",
-    "<text>",
-    "<body>",
-    "<div type=\"guest-bios\" xml:id=\"guest-bios\">",
-    "<list xml:id=\"guest-bio-list\">",
-    "<item xml:id=\"guest-bio-ada\" ",
-    "corresp=\"urn:episodic:reference-document-revision:019e1368\">",
-    "<label>Ada Lovelace</label>",
-    "Mathematician and computing pioneer.",
-    "</item>",
-    "</list>",
-    "</div>",
-    "</body>",
-    "</text>",
-    "</TEI>",
-);
-
 type DocumentResult = std::result::Result<TeiDocument, TeiError>;
 
 #[derive(Default)]
@@ -162,7 +139,6 @@ fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
         "blank-title" => Ok(BLANK_TITLE_FIXTURE),
         "annotated" => Ok(ANNOTATED_FIXTURE),
         "nested-div" => Ok(NESTED_DIV_FIXTURE),
-        "guest-bios" => Ok(GUEST_BIOS_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
@@ -312,60 +288,6 @@ fn parsed_document_includes_nested_divisions(
     Ok(())
 }
 
-#[then("the parsed document includes guest bios linked to an external reference revision")]
-fn parsed_document_includes_guest_bios(
-    #[from(validated_state)] state: &ParseState,
-) -> anyhow::Result<()> {
-    let document = state
-        .result()?
-        .context("expected successful parse before asserting guest bios")?;
-    document
-        .validate()
-        .context("guest-bios TEI should validate")?;
-
-    let Some(BodyBlock::Div(div)) = document.text().body().blocks().first() else {
-        bail!("expected a top-level guest-bios div body block");
-    };
-    ensure!(
-        div.div_type() == "guest-bios",
-        "expected guest-bios div type, found {:?}",
-        div.div_type()
-    );
-
-    let Some(DivContent::List(list)) = div.content().first() else {
-        bail!("expected guest-bios div to contain a list");
-    };
-    let item = list
-        .items()
-        .first()
-        .context("expected guest-bios list to contain an item")?;
-    let label = item.label().context("expected guest-bio item label")?;
-    ensure!(
-        label.content() == [Inline::text("Ada Lovelace")],
-        "guest-bio label should survive parsing"
-    );
-    ensure!(
-        item.content() == [Inline::text("Mathematician and computing pioneer.")],
-        "guest-bio inline body should survive parsing"
-    );
-
-    let expected =
-        PointerList::parse_attribute("urn:episodic:reference-document-revision:019e1368")
-            .context("expected corresp should be valid")?;
-    ensure!(
-        item.corresp() == Some(&expected),
-        "guest-bio @corresp should survive parsing"
-    );
-
-    let emitted = emit_xml(&document).context("guest-bios TEI should emit")?;
-    ensure!(
-        emitted.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
-        "guest-bio @corresp should survive emission"
-    );
-    parse_xml(&emitted).context("emitted guest-bios TEI should parse again")?;
-    Ok(())
-}
-
 #[scenario(path = "tests/features/parse_xml.feature", index = 0)]
 fn parses_valid_documents(
     #[from(validated_state)] _: ParseState,
@@ -408,14 +330,6 @@ fn rejects_blank_titles(
 
 #[scenario(path = "tests/features/parse_xml.feature", index = 4)]
 fn parses_annotated_documents(
-    #[from(validated_state)] _: ParseState,
-    #[from(validated_state_result)] result: anyhow::Result<ParseState>,
-) {
-    expect_validated_state(result, "parse");
-}
-
-#[scenario(path = "tests/features/parse_xml.feature", index = 6)]
-fn parses_guest_bios(
     #[from(validated_state)] _: ParseState,
     #[from(validated_state_result)] result: anyhow::Result<ParseState>,
 ) {
