@@ -326,8 +326,9 @@ fn round_trips_guest_bios_with_external_corresp(
     assert_eq!(item.corresp(), Some(&expected_corresp));
 
     let corresp = emit_xml(&document).expect("guest-bios fixture should emit");
+    let expected_corresp_attr = format!("corresp=\"{expected_corresp_value}\"");
     assert!(
-        corresp.contains("corresp=\"urn:episodic:reference-document-revision:019e1368\""),
+        corresp.contains(&expected_corresp_attr),
         "emitted XML should preserve the external @corresp value"
     );
     let parsed = parse_xml(&corresp).expect("emitted guest-bios XML should parse again");
