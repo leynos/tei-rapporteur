@@ -1,7 +1,7 @@
 # Support nested `<div>`, `@subtype`, and optional `<head>` in body divisions
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
+`Constraints`, `tolerances`, `risks`, `progress`, `Surprises & discoveries`,
 `decision log`, and `outcomes & retrospective` must be kept up to date as work
 proceeds.
 
@@ -143,7 +143,7 @@ that should be a separate, explicit extension.
   `make nixie`. `make validate-xml` could not run to completion in this
   environment because `jing` is not installed.
 
-## Surprises & Discoveries
+## Surprises & discoveries
 
 - TEI P5 allows a division to carry more than one `<head>`, but the user
   request only requires an optional child for division headings. Narrowing the
