@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     assert_type(tr.emit_title_markup("Example"), str)
     assert_type(tr.parse_xml("<TEI/>"), tr.Document)
     assert_type(tr.emit_xml(_doc), str)
+    assert_type(tr.spoken_text_segments("<TEI/>"), list[structs.SpokenTextSegment])
 
     # -- Free functions: MessagePack round-trip -------------------------------
 
@@ -132,6 +133,15 @@ if TYPE_CHECKING:
     assert_type(_episode, structs.Episode)
     assert_type(_episode.header, structs.TeiHeader)
     assert_type(_episode.text, structs.TeiText)
+
+    _spoken_segment = structs.SpokenTextSegment(
+        text="Hello there.",
+        locator="/TEI/text/body/p[1]",
+    )
+    assert_type(_spoken_segment, structs.SpokenTextSegment)
+    assert_type(_spoken_segment.text, str)
+    assert_type(_spoken_segment.locator, str)
+    assert_type(_spoken_segment.xml_id, str | None)
 
     # -- structs: streaming event types (tagged union) ------------------------
 

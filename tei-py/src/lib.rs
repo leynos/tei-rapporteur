@@ -16,12 +16,13 @@ use pyo3::types::PyAny;
 use pyo3::{Bound, Python};
 use pyo3_serde::{from_pyobject, to_pyobject};
 use serde::de::Error as DeError;
-use tei_core::{TeiDocument, TeiError};
+use tei_core::{SpokenTextSegment, TeiDocument, TeiError};
 use tei_serde::msgpack::{
     MsgpackDecodeError, MsgpackEncodeError, from_slice as msgpack_from_slice, to_vec_named,
 };
 use tei_xml::{
     emit_xml as emit_document_xml, parse_xml as parse_document_xml, serialize_document_title,
+    spoken_text_segments as extract_spoken_text_segments,
 };
 
 mod macros;
@@ -37,7 +38,8 @@ mod structs;
 pub mod test_support;
 pub use bindings::Document;
 pub use bindings::py_exports::{
-    emit_xml, from_dict, from_msgpack, iter_parse, parse_xml, tei_rapporteur, to_dict, to_msgpack,
+    emit_xml, from_dict, from_msgpack, iter_parse, parse_xml, spoken_text_segments, tei_rapporteur,
+    to_dict, to_msgpack,
 };
 
 /// Validates and emits TEI markup suitable for exposure through `PyO3`.
@@ -59,6 +61,15 @@ pub use bindings::py_exports::{
 /// ```
 pub fn emit_title_markup(raw_title: &str) -> Result<String, TeiError> {
     serialize_document_title(raw_title)
+}
+
+/// Extracts spoken text segments from a complete TEI XML document.
+///
+/// # Errors
+///
+/// Returns [`TeiError`] when XML parsing or profile validation fails.
+pub fn extract_spoken_segments(xml: &str) -> Result<Vec<SpokenTextSegment>, TeiError> {
+    extract_spoken_text_segments(xml)
 }
 
 fn document_from_msgpack(bytes: &[u8]) -> Result<TeiDocument, MsgpackDecodeError> {

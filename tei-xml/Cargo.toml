@@ -23,6 +23,7 @@ required-features = ["streaming"]
 [dependencies]
 tei-core = { path = "../tei-core" }
 quick-xml = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

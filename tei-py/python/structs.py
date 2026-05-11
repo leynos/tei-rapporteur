@@ -78,6 +78,7 @@ __all__ = [
     "RevisionDesc",
     "Span",
     "SpanGroup",
+    "SpokenTextSegment",
     "StandOff",
     "TeiBody",
     "TeiHeader",
@@ -94,6 +95,14 @@ class Episode(msgspec.Struct, omit_defaults=True):
     header: TeiHeader
     text: TeiText
     stand_off: StandOff | None = None
+
+
+class SpokenTextSegment(msgspec.Struct, omit_defaults=True):
+    """Normalised spoken text segment with source provenance."""
+
+    text: str
+    locator: str
+    xml_id: str | None = None
 
 
 for _name in (

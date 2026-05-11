@@ -10,12 +10,14 @@ mod emitter;
 pub mod fixtures;
 mod namespace;
 mod schema;
+mod spoken;
 
 #[cfg(feature = "streaming")]
 pub mod streaming;
 
 pub use namespace::{TEI_NAMESPACE, add_tei_namespace};
 pub use schema::{relax_ng_schema, write_relax_ng_schema};
+pub use spoken::spoken_text_segments;
 
 #[cfg(feature = "streaming")]
 pub use streaming::{TeiEvent, TeiPullParser};

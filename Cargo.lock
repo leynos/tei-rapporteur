@@ -2268,6 +2268,7 @@ dependencies = [
  "tei-core",
  "tei-test-helpers",
  "tempfile",
+ "tracing",
 ]
 
 [[package]]

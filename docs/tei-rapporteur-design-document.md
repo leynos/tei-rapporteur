@@ -609,6 +609,26 @@ minimal TEI skeleton) and the unhappy path (surfacing the serializer's control
 character error message) so callers see consistent diagnostics regardless of
 where emission is triggered.
 
+ADR-006 spoken-text extraction is exposed as an XML adapter rather than as
+Python logic. `tei-core` owns the small return contract,
+`SpokenTextSegment { text, provenance }`, and the whitespace/boundary
+normalizer. `tei-xml::spoken_text_segments(xml)` owns XML traversal, entity
+resolution, body-profile checks, excluded-element handling, and XPath-like
+locator construction. `tei-py` only calls that Rust API and materializes
+`tei_rapporteur.structs.SpokenTextSegment` values for Python callers.
+
+The initial extraction adapter intentionally streams the XML instead of
+deserializing through the current `parse_xml` body model. The canonical model
+does not yet represent `<sp>`, `<ab>`, `<l>`, `<seg>`, `<note>`, `<stage>`,
+`<ref>`, `<ptr>`, `<bibl>`, `<gap>`, or `<break>` as first-class body
+constructs. The adapter therefore enforces the narrow ADR-006 spoken-runtime
+profile directly while preserving the architectural boundary: TEI semantics
+remain in Rust, Python does not parse XML, malformed documents and unsupported
+body elements are hard failures, and Chrono receives deterministic normalized
+segments with provenance. A later profile/model milestone can promote those
+elements into the canonical `TeiDocument` model without changing the Python
+spoken-text API.
+
 ```mermaid
 sequenceDiagram
     participant Client

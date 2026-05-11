@@ -236,6 +236,13 @@ class Episode(msgspec.Struct, omit_defaults=True):
     text: TeiText
     stand_off: StandOff | None = None
 
+class SpokenTextSegment(msgspec.Struct, omit_defaults=True):
+    """Normalised spoken text segment with source provenance."""
+
+    text: str
+    locator: str
+    xml_id: str | None = None
+
 class DocumentStart(
     msgspec.Struct, tag="document_start", tag_field="type"
 ):

@@ -1,8 +1,8 @@
 # Add `<div>`, `<list>`, `<item>`, and `<label>` to the TEI body model
 
 This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
+`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
+`decision log`, and `outcomes & retrospective` must be kept up to date as work
 proceeds.
 
 Status: COMPLETE
@@ -1246,7 +1246,7 @@ paths — they extend them. If a stage fails:
 - Fix the issue and re-run the stage's verification command.
 - Do not proceed to the next stage until the current stage passes.
 - If a fundamental design issue is discovered (e.g., serde `$value`
-  conflict), document it in `Decision Log`, adjust the type shapes, and re-run
+  conflict), document it in `Decision log`, adjust the type shapes, and re-run
   from Stage B.
 
 Running `make test` multiple times is safe and produces the same result.

@@ -103,14 +103,19 @@ pub(crate) mod py_exports {
     use crate::{
         define_py_from_error_wrapper, define_py_from_result_wrapper, define_py_to_error_wrapper,
         define_py_to_result_wrapper, document_from_dict, document_from_msgpack, document_from_xml,
-        document_to_dict, document_to_msgpack, document_to_xml, structs::register_structs_module,
+        document_to_dict, document_to_msgpack, document_to_xml, extract_spoken_segments,
+        structs::register_structs_module,
     };
     use pyo3::types::PyModuleMethods;
     use pyo3::{
-        Bound,
-        types::{PyAny, PyModule},
+        Bound, PyObject,
+        types::{PyAny, PyAnyMethods, PyModule},
     };
     use pyo3::{pyfunction, pymodule, wrap_pyfunction};
+
+    const STRUCTS_MODULE_NAME: &str = "tei_rapporteur.structs";
+    const SPOKEN_TEXT_SEGMENT_CLASS_NAME: &str = "SpokenTextSegment";
+    const SPOKEN_TEXT_SEGMENT_CLASS_CACHE: &str = "_spoken_text_segment_class";
 
     #[pyfunction(name = "emit_title_markup")]
     pub fn emit_title_markup_py(raw_title: &str) -> PyResult<String> {
@@ -130,6 +135,47 @@ pub(crate) mod py_exports {
     #[pyfunction(name = "iter_parse")]
     pub fn iter_parse(xml: &str) -> PyResult<crate::streaming::TeiEventIterator> {
         Ok(crate::streaming::iter_parse_py(xml))
+    }
+
+    /// Extracts ADR-006 spoken text segments from a TEI XML string.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PyValueError`] when XML parsing or profile validation fails.
+    #[pyfunction(name = "spoken_text_segments")]
+    pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<PyObject>> {
+        let segments = wrap_tei_result(extract_spoken_segments(xml))?;
+        let segment_class = spoken_text_segment_class(py)?;
+        segments
+            .into_iter()
+            .map(|segment| {
+                let xml_id = segment.provenance().xml_id().map(str::to_owned);
+                segment_class
+                    .call1((
+                        segment.text().to_owned(),
+                        segment.provenance().locator().to_owned(),
+                        xml_id,
+                    ))
+                    .map(Bound::unbind)
+            })
+            .collect()
+    }
+
+    fn spoken_text_segment_class(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        let sys_modules = py.import("sys")?.getattr("modules")?;
+        let structs = sys_modules.get_item(STRUCTS_MODULE_NAME).map_err(|_| {
+            pyo3::exceptions::PyRuntimeError::new_err(
+                "tei_rapporteur.structs is not registered; \
+                 initialise the module before calling spoken_text_segments",
+            )
+        })?;
+        if let Ok(segment_class) = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE) {
+            Ok(segment_class)
+        } else {
+            let segment_class = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_NAME)?;
+            structs.setattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE, &segment_class)?;
+            Ok(segment_class)
+        }
     }
 
     define_py_from_error_wrapper!(
@@ -301,6 +347,7 @@ pub(crate) mod py_exports {
         py_module.add_function(wrap_pyfunction!(parse_xml, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(emit_xml, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(iter_parse, py_module)?)?;
+        py_module.add_function(wrap_pyfunction!(spoken_text_segments, py_module)?)?;
         register_structs_module(py_context, py_module)?;
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
