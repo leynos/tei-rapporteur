@@ -83,6 +83,7 @@ macro_rules! require_jing {
 #[case::utterances("utterances", fixtures::document_with_utterances)]
 #[case::comprehensive("comprehensive", fixtures::comprehensive_document)]
 #[case::div_list("div-list", fixtures::document_with_div_and_list)]
+#[case::guest_bios("guest-bios", fixtures::document_with_guest_bios)]
 #[case::nested_div("nested-div", fixtures::document_with_nested_divs)]
 fn validates_fixture(
     #[case] name: &str,

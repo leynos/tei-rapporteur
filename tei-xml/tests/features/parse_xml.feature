@@ -32,3 +32,10 @@ Feature: Parse TEI XML
     When I parse the TEI input
     Then parsing succeeds
     And the parsed document includes nested divisions with headings and subtypes
+
+  Scenario: Parse guest biographies with external reference bindings
+    Given the TEI fixture "guest-bios"
+    When I parse the TEI input
+    Then parsing succeeds
+    And the parsed document includes guest bios linked to an external reference revision
+    And the emitted guest-bios XML round-trips cleanly

@@ -76,6 +76,17 @@ feel natural to Python users**.
   `@subtype`, and a single optional leading `Head` wrapper for `<head>`.
 - `List` holds ordered `Item` values, and each `Item` may expose a dedicated
   `Label` node plus inline content and an optional `@corresp` pointer list.
+- Guest biographies use the existing structural pattern rather than a bespoke
+  personography branch: `<div type="guest-bios">` contains a `<list>` of
+  labelled `<item>` entries, and each item may use external `@corresp` values
+  such as Episodic reference-document revision URNs.
+- `#...` correspondence pointers remain internal references and must resolve
+  to an `xml:id` in the same TEI document. Repository-owned objects that live
+  outside the TEI payload should therefore use external `urn:`, `tag:`, or
+  `https:` identifiers in `@corresp`.
+- `Item` does not expose `@source` in this structural extension. The current
+  guest-bio integration uses `@corresp`; stronger provenance semantics can be
+  added later as a separate public body-model change if needed.
 - The streaming parser buffers an entire `Div` before yielding a single
   `BodyBlock::Div` event. This preserves the existing event model instead of
   introducing enter/exit events for structural containers.
