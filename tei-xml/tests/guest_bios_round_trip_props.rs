@@ -43,6 +43,8 @@ fn prop_result<T>(result: anyhow::Result<T>) -> Result<T, TestCaseError> {
 }
 
 mod guest_bios_round_trip_props {
+    //! Validates generated guest-biography correspondence survives XML round-trips.
+
     use super::*;
 
     proptest! {
