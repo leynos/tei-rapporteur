@@ -367,3 +367,178 @@ pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> 
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for streaming attribute extraction helpers.
+
+    use quick_xml::events::BytesStart;
+
+    use super::*;
+
+    #[test]
+    fn utterance_attrs_all_fields_extracted() {
+        let mut el = BytesStart::new("u");
+        el.push_attribute(("xml:id", "u1"));
+        el.push_attribute(("n", "1"));
+        el.push_attribute(("who", "#speaker1"));
+        el.push_attribute(("source", "#src1"));
+        el.push_attribute(("resp", "#resp1"));
+        el.push_attribute(("cert", "high"));
+        el.push_attribute(("corresp", "#u2"));
+        el.push_attribute(("ana", "#ana1"));
+
+        let attrs = extract_utterance_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
+
+        assert_eq!(attrs.id.as_deref(), Some("u1"));
+        assert_eq!(attrs.n.as_deref(), Some("1"));
+        assert_eq!(attrs.who.as_deref(), Some("#speaker1"));
+        assert_eq!(attrs.source.as_deref(), Some("#src1"));
+        assert_eq!(attrs.resp.as_deref(), Some("#resp1"));
+        assert_eq!(attrs.cert.as_deref(), Some("high"));
+        assert_eq!(attrs.corresp.as_deref(), Some("#u2"));
+        assert_eq!(attrs.ana.as_deref(), Some("#ana1"));
+    }
+
+    #[test]
+    fn utterance_attrs_absent_fields_are_none() {
+        let el = BytesStart::new("u");
+
+        let attrs = extract_utterance_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
+
+        assert!(attrs.id.is_none());
+        assert!(attrs.n.is_none());
+        assert!(attrs.who.is_none());
+        assert!(attrs.source.is_none());
+        assert!(attrs.resp.is_none());
+        assert!(attrs.cert.is_none());
+        assert!(attrs.corresp.is_none());
+        assert!(attrs.ana.is_none());
+    }
+
+    #[test]
+    fn utterance_attrs_unknown_entity_returns_error() {
+        let el = BytesStart::from_content(r#"u who="&badentity;""#, 1);
+
+        assert!(
+            extract_utterance_attrs(&el).is_err(),
+            "unknown entity reference must produce an error"
+        );
+    }
+
+    #[test]
+    fn div_attrs_required_and_optional_fields_extracted() {
+        let mut el = BytesStart::new("div");
+        el.push_attribute(("type", "interview"));
+        el.push_attribute(("subtype", "formal"));
+        el.push_attribute(("xml:id", "d1"));
+
+        let attrs = extract_div_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
+
+        assert_eq!(attrs.div_type, "interview");
+        assert_eq!(attrs.subtype.as_deref(), Some("formal"));
+        assert_eq!(attrs.id.as_deref(), Some("d1"));
+        assert!(attrs.head.is_none());
+    }
+
+    #[test]
+    fn div_attrs_optional_fields_absent() {
+        let mut el = BytesStart::new("div");
+        el.push_attribute(("type", "session"));
+
+        let attrs = extract_div_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
+
+        assert_eq!(attrs.div_type, "session");
+        assert!(attrs.subtype.is_none());
+        assert!(attrs.id.is_none());
+    }
+
+    #[test]
+    fn div_attrs_missing_required_type_returns_error() {
+        let el = BytesStart::new("div");
+
+        assert!(
+            extract_div_attrs(&el, None).is_err(),
+            "absent `@type` attribute must produce an error"
+        );
+    }
+
+    #[test]
+    fn div_attrs_unknown_entity_in_type_returns_error() {
+        let el = BytesStart::from_content(r#"div type="&badentity;""#, 3);
+
+        assert!(
+            extract_div_attrs(&el, None).is_err(),
+            "unknown entity reference in `@type` must produce an error"
+        );
+    }
+
+    #[test]
+    fn item_attrs_all_optional_fields_extracted() {
+        let mut el = BytesStart::new("item");
+        el.push_attribute(("xml:id", "i1"));
+        el.push_attribute(("n", "42"));
+        el.push_attribute(("corresp", "#i2"));
+
+        let attrs = extract_item_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
+
+        assert_eq!(attrs.id.as_deref(), Some("i1"));
+        assert_eq!(attrs.n.as_deref(), Some("42"));
+        assert_eq!(attrs.corresp.as_deref(), Some("#i2"));
+        assert!(attrs.label.is_none());
+    }
+
+    #[test]
+    fn item_attrs_all_absent_fields_are_none() {
+        let el = BytesStart::new("item");
+
+        let attrs = extract_item_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
+
+        assert!(attrs.id.is_none());
+        assert!(attrs.n.is_none());
+        assert!(attrs.corresp.is_none());
+        assert!(attrs.label.is_none());
+    }
+
+    #[test]
+    fn item_attrs_unknown_entity_returns_error() {
+        let el = BytesStart::from_content(r#"item n="&badentity;""#, 4);
+
+        assert!(
+            extract_item_attrs(&el, None).is_err(),
+            "unknown entity reference must produce an error"
+        );
+    }
+
+    #[test]
+    fn pause_attrs_both_fields_extracted() {
+        let mut el = BytesStart::new("pause");
+        el.push_attribute(("dur", "PT1S"));
+        el.push_attribute(("type", "short"));
+
+        let (dur, pause_type) = extract_pause_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
+
+        assert_eq!(dur.as_deref(), Some("PT1S"));
+        assert_eq!(pause_type.as_deref(), Some("short"));
+    }
+
+    #[test]
+    fn pause_attrs_both_absent_are_none() {
+        let el = BytesStart::new("pause");
+
+        let (dur, pause_type) = extract_pause_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
+
+        assert!(dur.is_none());
+        assert!(pause_type.is_none());
+    }
+
+    #[test]
+    fn pause_attrs_unknown_entity_returns_error() {
+        let el = BytesStart::from_content(r#"pause dur="&badentity;""#, 5);
+
+        assert!(
+            extract_pause_attrs(&el).is_err(),
+            "unknown entity reference must produce an error"
+        );
+    }
+}
