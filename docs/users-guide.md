@@ -324,7 +324,6 @@ Validation raises `ValueError` with a descriptive message when:
 Documents without a profile cast allow speaker references without validation,
 enabling incremental validation of draft documents.
 
-
 ### Correspondence pointers
 
 `@corresp` values follow TEI pointer semantics. A value beginning with `#` is
