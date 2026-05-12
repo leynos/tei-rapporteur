@@ -91,9 +91,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements when awaiting the teiHeader element.
     pub(super) fn handle_awaiting_header_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         if name_bytes == b"teiHeader" {
             self.state = ParserState::in_header(1);
             if let ParserState::InHeader { buffer, .. } = &mut self.state {
@@ -134,9 +136,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements for body content (paragraphs, utterances, and divs).
     pub(super) fn handle_body_content_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         match BodyChildKind::from_tag(name_bytes) {
             BodyChildKind::Paragraph => {
                 let id = extract_xml_id(element)?;
@@ -158,9 +162,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements for inline content (emphasis).
     pub(super) fn handle_block_content_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         if name_bytes == b"hi" {
             let rend = extract_attribute(element, b"rend")?;
             self.state.transition_to_emphasis(rend);
@@ -171,9 +177,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements within a `<div>`.
     pub(super) fn handle_div_content_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         match DivChildKind::from_tag(name_bytes) {
             DivChildKind::Head => {
                 self.validate_head_placement()?;
@@ -225,9 +233,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements within a `<list>` (items).
     pub(super) fn handle_list_content_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         if name_bytes == b"item" {
             let attrs = extract_item_attrs(element, None)?;
             let current_state = std::mem::take(&mut self.state);
@@ -239,9 +249,11 @@ impl<R: BufRead> TeiPullParser<R> {
     /// Handles start elements within an `<item>` (label, inline content).
     pub(super) fn handle_item_content_start(
         &mut self,
-        name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes: &[u8] = name.as_ref();
+
         if name_bytes == b"label" {
             self.validate_label_placement()?;
             let current_state = std::mem::take(&mut self.state);
@@ -295,7 +307,7 @@ mod tests {
         parser.state = ParserState::in_div("section".into(), None, None);
 
         let element = utterance_with_bad_entity();
-        let result = parser.handle_div_content_start(b"u", &element);
+        let result = parser.handle_div_content_start(&element);
 
         assert!(result.is_err(), "expected an error from the unknown entity");
         assert!(
