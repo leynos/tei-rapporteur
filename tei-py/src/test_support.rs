@@ -1,4 +1,14 @@
-//! Test-only helpers shared across Rust and Python BDD suites.
+//! Test-only helpers shared across Rust unit tests and Python BDD suites.
+//!
+//! The helpers use `PyO3`'s embedding API, including `pyo3::sync::OnceExt`,
+//! `pyo3::call::PyCallArgs`, and `Bound<PyAny>`, against the supported `PyO3`
+//! `0.24.x` minor series. The primary job is bootstrapping
+//! `msgspec>=0.19,<0.20` into the embedded interpreter with `uv` or `pip` via
+//! `subprocess.run`, so both Rust and Python BDD tests can import it. Only
+//! [`ensure_msgspec_installed`] and [`msgspec_available`] are exported;
+//! `run_with_kwargs`, `install_msgspec`, and `has_uv` are private details.
+//! The bootstrap is serialised with `Once` via `OnceExt::call_once_py_attached`
+//! to prevent races when tests run in parallel.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
 const PIP_COMMON_FLAGS: [&str; 6] = [
     "--no-input",
