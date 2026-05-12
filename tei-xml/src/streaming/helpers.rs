@@ -3,15 +3,14 @@
 //! These functions handle XML element construction, attribute extraction,
 //! and building of TEI domain objects from parsed content.
 
-use quick_xml::{
-    XmlVersion,
-    events::{BytesEnd, BytesRef, BytesStart},
-};
+use quick_xml::events::{BytesEnd, BytesRef, BytesStart};
 
 use tei_core::{
     BodyContentError, Certainty, Div, DivContent, Head, Hi, Inline, Item, Label, List, P, Pause,
     PointerList, TeiError, Utterance,
 };
+
+use crate::attributes::extract_normalized_attribute;
 
 use super::state::RawUtteranceAttrs;
 
@@ -60,16 +59,7 @@ pub fn extract_attribute(
     element: &BytesStart<'_>,
     name: &[u8],
 ) -> Result<Option<String>, TeiError> {
-    for attr_result in element.attributes() {
-        let attr = attr_result.map_err(|e| TeiError::xml(e.to_string()))?;
-        if attr.key.as_ref() == name {
-            let value = attr
-                .normalized_value(XmlVersion::Implicit1_0)
-                .map_err(|e| TeiError::xml(e.to_string()))?;
-            return Ok(Some(value.into_owned()));
-        }
-    }
-    Ok(None)
+    extract_normalized_attribute(element, name)
 }
 
 /// Appends an element opening tag with attributes and a custom closing sequence.

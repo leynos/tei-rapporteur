@@ -1,10 +1,9 @@
 //! XML utility helpers for spoken-text extraction.
 
-use quick_xml::{
-    XmlVersion,
-    events::{BytesRef, BytesStart},
-};
+use quick_xml::events::{BytesRef, BytesStart};
 use tei_core::TeiError;
+
+use crate::attributes::extract_normalized_attribute;
 
 use super::element_names::{BODY, TEXT};
 
@@ -36,16 +35,7 @@ pub(crate) fn extract_attribute(
     element: &BytesStart<'_>,
     name: &[u8],
 ) -> Result<Option<String>, TeiError> {
-    for attr_result in element.attributes() {
-        let attr = attr_result.map_err(|error| TeiError::xml(error.to_string()))?;
-        if attr.key.as_ref() == name {
-            let value = attr
-                .normalized_value(XmlVersion::Implicit1_0)
-                .map_err(|error| TeiError::xml(error.to_string()))?;
-            return Ok(Some(value.into_owned()));
-        }
-    }
-    Ok(None)
+    extract_normalized_attribute(element, name)
 }
 
 /// Resolves an XML entity reference to its literal text.
