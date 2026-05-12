@@ -161,6 +161,7 @@ mod tests {
     struct RunAndKwargs<'py> {
         run: Bound<'py, PyAny>,
         kwargs: Bound<'py, PyDict>,
+        globals: Bound<'py, PyDict>,
     }
 
     enum RunWithKwargsArgShape {
@@ -170,11 +171,41 @@ mod tests {
     }
 
     fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
+        let globals = PyDict::new(py);
+        let patch = CString::new(
+            "import subprocess\n\
+             _original_run = subprocess.run\n\
+             _calls = []\n\
+             subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
+        )
+        .expect("CString build");
+        py.run(patch.as_c_str(), Some(&globals), None)
+            .expect("monkeypatch subprocess.run");
         let subprocess = py.import("subprocess").expect("import subprocess");
         let run = subprocess.getattr("run").expect("get subprocess.run");
         let kwargs = PyDict::new(py);
 
-        RunAndKwargs { run, kwargs }
+        RunAndKwargs {
+            run,
+            kwargs,
+            globals,
+        }
+    }
+
+    fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
+        let restore =
+            CString::new("import subprocess\nsubprocess.run = _original_run\n_calls = []\n")
+                .expect("CString build");
+        py.run(restore.as_c_str(), Some(globals), None)
+            .expect("restore subprocess.run");
+    }
+
+    fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
+        globals
+            .get_item("_calls")
+            .expect("read recorded subprocess.run calls")
+            .len()
+            .expect("count recorded subprocess.run calls")
     }
 
     #[rstest]
@@ -183,7 +214,11 @@ mod tests {
     #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
     fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
         Python::with_gil(|py| {
-            let RunAndKwargs { run, kwargs } = setup_run_and_kwargs(py);
+            let RunAndKwargs {
+                run,
+                kwargs,
+                globals,
+            } = setup_run_and_kwargs(py);
 
             match arg_shape {
                 RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),
@@ -198,6 +233,11 @@ mod tests {
                     run_with_kwargs(&run, args_tuple, &kwargs);
                 }
             }
+
+            let call_count = recorded_call_count(&globals);
+            restore_subprocess_run(py, &globals);
+
+            assert!(call_count > 0);
         });
     }
 
