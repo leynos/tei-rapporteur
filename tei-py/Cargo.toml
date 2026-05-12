@@ -32,4 +32,4 @@ anyhow = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { version = "0.24.2", features = ["resolve-config"] }
