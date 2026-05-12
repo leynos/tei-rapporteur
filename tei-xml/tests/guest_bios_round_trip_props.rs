@@ -58,6 +58,12 @@ mod guest_bios_round_trip_props {
             let reparsed =
                 prop_result(parse_xml(&emitted).context("emitted guest-bios TEI should parse"))?;
             prop_result(reparsed.validate().context("reparsed guest-bios TEI should validate"))?;
+            let re_emitted =
+                prop_result(emit_xml(&reparsed).context("reparsed guest-bios TEI should emit"))?;
+            prop_assert!(
+                re_emitted.contains(&expected_corresp),
+                "re-emitted XML should preserve generated @corresp value"
+            );
         }
     }
 }
