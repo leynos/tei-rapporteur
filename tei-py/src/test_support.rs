@@ -155,40 +155,49 @@ mod tests {
     //! Unit tests for Python-side test support helpers.
 
     use super::*;
+    use rstest::rstest;
     use std::ffi::CString;
 
-    #[test]
-    fn run_with_kwargs_accepts_unit_tuple() {
-        Python::with_gil(|py| {
-            let subprocess = py.import("subprocess").expect("import subprocess");
-            let run = subprocess.getattr("run").expect("get subprocess.run");
-            let kwargs = PyDict::new(py);
-
-            run_with_kwargs(&run, (), &kwargs);
-        });
+    struct RunAndKwargs<'py> {
+        run: Bound<'py, PyAny>,
+        kwargs: Bound<'py, PyDict>,
     }
 
-    #[test]
-    fn run_with_kwargs_accepts_one_tuple_of_pybytes() {
-        Python::with_gil(|py| {
-            let subprocess = py.import("subprocess").expect("import subprocess");
-            let run = subprocess.getattr("run").expect("get subprocess.run");
-            let kwargs = PyDict::new(py);
-            let args_tuple = PyTuple::new(py, ["true"]).expect("build argument tuple");
-
-            run_with_kwargs(&run, (args_tuple,), &kwargs);
-        });
+    enum RunWithKwargsArgShape {
+        Unit,
+        NestedPyTuple,
+        DirectPyTuple,
     }
 
-    #[test]
-    fn run_with_kwargs_accepts_bound_pytuple() {
-        Python::with_gil(|py| {
-            let subprocess = py.import("subprocess").expect("import subprocess");
-            let run = subprocess.getattr("run").expect("get subprocess.run");
-            let kwargs = PyDict::new(py);
-            let args_tuple = PyTuple::new(py, [["true"]]).expect("build subprocess args");
+    fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
+        let subprocess = py.import("subprocess").expect("import subprocess");
+        let run = subprocess.getattr("run").expect("get subprocess.run");
+        let kwargs = PyDict::new(py);
 
-            run_with_kwargs(&run, args_tuple, &kwargs);
+        RunAndKwargs { run, kwargs }
+    }
+
+    #[rstest]
+    #[case::unit_tuple(RunWithKwargsArgShape::Unit)]
+    #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
+    #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
+    fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
+        Python::with_gil(|py| {
+            let RunAndKwargs { run, kwargs } = setup_run_and_kwargs(py);
+
+            match arg_shape {
+                RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),
+                RunWithKwargsArgShape::NestedPyTuple => {
+                    let args_tuple = PyTuple::new(py, ["true"]).expect("build argument tuple");
+
+                    run_with_kwargs(&run, (args_tuple,), &kwargs);
+                }
+                RunWithKwargsArgShape::DirectPyTuple => {
+                    let args_tuple = PyTuple::new(py, [["true"]]).expect("build subprocess args");
+
+                    run_with_kwargs(&run, args_tuple, &kwargs);
+                }
+            }
         });
     }
 
