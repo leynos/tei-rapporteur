@@ -149,6 +149,41 @@ mod tests {
     use std::ffi::CString;
 
     #[test]
+    fn run_with_kwargs_accepts_unit_tuple() {
+        Python::with_gil(|py| {
+            let subprocess = py.import("subprocess").expect("import subprocess");
+            let run = subprocess.getattr("run").expect("get subprocess.run");
+            let kwargs = PyDict::new(py);
+
+            run_with_kwargs(&run, (), &kwargs);
+        });
+    }
+
+    #[test]
+    fn run_with_kwargs_accepts_one_tuple_of_pybytes() {
+        Python::with_gil(|py| {
+            let subprocess = py.import("subprocess").expect("import subprocess");
+            let run = subprocess.getattr("run").expect("get subprocess.run");
+            let kwargs = PyDict::new(py);
+            let args_tuple = PyTuple::new(py, ["true"]).expect("build argument tuple");
+
+            run_with_kwargs(&run, (args_tuple,), &kwargs);
+        });
+    }
+
+    #[test]
+    fn run_with_kwargs_accepts_bound_pytuple() {
+        Python::with_gil(|py| {
+            let subprocess = py.import("subprocess").expect("import subprocess");
+            let run = subprocess.getattr("run").expect("get subprocess.run");
+            let kwargs = PyDict::new(py);
+            let args_tuple = PyTuple::new(py, [["true"]]).expect("build subprocess args");
+
+            run_with_kwargs(&run, args_tuple, &kwargs);
+        });
+    }
+
+    #[test]
     fn has_uv_reports_absence_when_which_returns_none() {
         Python::with_gil(|py| {
             let code = CString::new(
