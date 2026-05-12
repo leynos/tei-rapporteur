@@ -14,6 +14,25 @@ use super::helpers::{
 use super::parser::TeiPullParser;
 use super::state::ParserState;
 
+/// Classifies a tag name encountered directly inside `<body>`.
+enum BodyChildKind {
+    Paragraph,
+    Utterance,
+    Div,
+    Other,
+}
+
+impl BodyChildKind {
+    const fn from_tag(name_bytes: &[u8]) -> Self {
+        match name_bytes {
+            b"p" => Self::Paragraph,
+            b"u" => Self::Utterance,
+            b"div" => Self::Div,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// Classifies a tag name encountered inside a `<div>`.
 enum DivChildKind {
     Head,
@@ -95,14 +114,20 @@ impl<R: BufRead> TeiPullParser<R> {
         name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes == b"p" {
-            let id = extract_xml_id(element)?;
-            self.state = ParserState::in_paragraph(id);
-        } else if name_bytes == b"u" {
-            self.state = ParserState::in_utterance(extract_utterance_attrs(element)?);
-        } else if name_bytes == b"div" {
-            let attrs = extract_div_attrs(element, None)?;
-            self.state = ParserState::in_div(attrs.div_type, attrs.subtype, attrs.id);
+        match BodyChildKind::from_tag(name_bytes) {
+            BodyChildKind::Paragraph => {
+                let id = extract_xml_id(element)?;
+                self.state = ParserState::in_paragraph(id);
+            }
+            BodyChildKind::Utterance => {
+                let attrs = extract_utterance_attrs(element)?;
+                self.state = ParserState::in_utterance(attrs);
+            }
+            BodyChildKind::Div => {
+                let attrs = extract_div_attrs(element, None)?;
+                self.state = ParserState::in_div(attrs.div_type, attrs.subtype, attrs.id);
+            }
+            BodyChildKind::Other => {}
         }
         Ok(None)
     }
