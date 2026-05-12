@@ -1,6 +1,9 @@
 //! XML utility helpers for spoken-text extraction.
 
-use quick_xml::events::{BytesRef, BytesStart};
+use quick_xml::{
+    XmlVersion,
+    events::{BytesRef, BytesStart},
+};
 use tei_core::TeiError;
 
 use super::element_names::{BODY, TEXT};
@@ -37,7 +40,7 @@ pub(crate) fn extract_attribute(
         let attr = attr_result.map_err(|error| TeiError::xml(error.to_string()))?;
         if attr.key.as_ref() == name {
             let value = attr
-                .unescape_value()
+                .normalized_value(XmlVersion::Implicit1_0)
                 .map_err(|error| TeiError::xml(error.to_string()))?;
             return Ok(Some(value.into_owned()));
         }

@@ -3,7 +3,10 @@
 //! These functions handle XML element construction, attribute extraction,
 //! and building of TEI domain objects from parsed content.
 
-use quick_xml::events::{BytesEnd, BytesRef, BytesStart};
+use quick_xml::{
+    XmlVersion,
+    events::{BytesEnd, BytesRef, BytesStart},
+};
 
 use tei_core::{
     BodyContentError, Certainty, Div, DivContent, Head, Hi, Inline, Item, Label, List, P, Pause,
@@ -61,7 +64,7 @@ pub fn extract_attribute(
         let attr = attr_result.map_err(|e| TeiError::xml(e.to_string()))?;
         if attr.key.as_ref() == name {
             let value = attr
-                .unescape_value()
+                .normalized_value(XmlVersion::Implicit1_0)
                 .map_err(|e| TeiError::xml(e.to_string()))?;
             return Ok(Some(value.into_owned()));
         }
