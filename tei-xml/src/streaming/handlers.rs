@@ -285,6 +285,8 @@ impl<R: BufRead> TeiPullParser<R> {
 
 #[cfg(test)]
 mod tests {
+    //! Unit tests for start-element handlers.
+
     use std::io::Cursor;
 
     use quick_xml::events::BytesStart;
