@@ -139,8 +139,9 @@ impl<R: BufRead> TeiPullParser<R> {
                 self.pending_div_state = Some(Box::new(current_state));
             }
             DivChildKind::Utterance => {
+                let attrs = extract_utterance_attrs(element)?;
                 let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_utterance(extract_utterance_attrs(element)?);
+                self.state = ParserState::in_utterance(attrs);
                 self.pending_div_state = Some(Box::new(current_state));
             }
             DivChildKind::List => {
