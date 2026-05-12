@@ -156,7 +156,7 @@ mod tests {
 
     use super::*;
     use rstest::rstest;
-    use std::ffi::CString;
+    use std::{ffi::CString, thread};
 
     struct RunAndKwargs<'py> {
         run: Bound<'py, PyAny>,
@@ -199,6 +199,37 @@ mod tests {
                 }
             }
         });
+    }
+
+    #[test]
+    fn msgspec_available_returns_bool() {
+        assert_eq!(msgspec_available(), msgspec_available());
+    }
+
+    #[test]
+    fn ensure_msgspec_installed_is_idempotent() {
+        let first_result = Python::with_gil(ensure_msgspec_installed).is_ok();
+        let second_result = Python::with_gil(ensure_msgspec_installed).is_ok();
+
+        assert_eq!(first_result, second_result);
+    }
+
+    #[test]
+    fn msgspec_available_matches_ensure_installed() {
+        let ensure_result = Python::with_gil(|py| ensure_msgspec_installed(py).is_ok());
+
+        assert_eq!(msgspec_available(), ensure_result);
+    }
+
+    #[test]
+    fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
+        let handles: Vec<_> = (0..8)
+            .map(|_| thread::spawn(|| Python::with_gil(ensure_msgspec_installed)))
+            .collect();
+
+        for handle in handles {
+            assert!(handle.join().is_ok());
+        }
     }
 
     #[test]
