@@ -222,3 +222,38 @@ impl<R: BufRead> TeiPullParser<R> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use quick_xml::events::BytesStart;
+
+    use super::*;
+    use crate::streaming::state::ParserState;
+
+    /// Returns a `<u>` element whose `who` attribute contains a raw unknown
+    /// entity reference. `BytesStart::from_content` is used so that the
+    /// unescaped `&badentity;` bytes are preserved and reach
+    /// `normalized_value()`, triggering a parse error.
+    fn utterance_with_bad_entity() -> BytesStart<'static> {
+        BytesStart::from_content(r#"u who="&badentity;""#, 1)
+    }
+
+    /// Attribute extraction must fail before the parser state is taken.
+    #[test]
+    fn utterance_extraction_failure_preserves_div_state() {
+        let mut parser = TeiPullParser::new(Cursor::new(""));
+        parser.state = ParserState::in_div("section".into(), None, None);
+
+        let element = utterance_with_bad_entity();
+        let result = parser.handle_div_content_start(b"u", &element);
+
+        assert!(result.is_err(), "expected an error from the unknown entity");
+        assert!(
+            matches!(parser.state, ParserState::InDiv { .. }),
+            "InDiv state must be preserved after attribute extraction failure; got: {:?}",
+            parser.state,
+        );
+    }
+}
