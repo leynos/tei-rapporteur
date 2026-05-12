@@ -7,9 +7,12 @@ use quick_xml::events::BytesStart;
 use tei_core::{Inline, TeiError};
 
 use super::event::TeiEvent;
-use super::helpers::{append_start_element, extract_attribute, extract_xml_id};
+use super::helpers::{
+    append_start_element, extract_attribute, extract_div_attrs, extract_item_attrs,
+    extract_utterance_attrs, extract_xml_id,
+};
 use super::parser::TeiPullParser;
-use super::state::{ParserState, RawUtteranceAttrs};
+use super::state::ParserState;
 
 /// Classifies a tag name encountered inside a `<div>`.
 enum DivChildKind {
@@ -96,22 +99,10 @@ impl<R: BufRead> TeiPullParser<R> {
             let id = extract_xml_id(element)?;
             self.state = ParserState::in_paragraph(id);
         } else if name_bytes == b"u" {
-            self.state = ParserState::in_utterance(RawUtteranceAttrs {
-                id: extract_xml_id(element)?,
-                n: extract_attribute(element, b"n")?,
-                who: extract_attribute(element, b"who")?,
-                source: extract_attribute(element, b"source")?,
-                resp: extract_attribute(element, b"resp")?,
-                cert: extract_attribute(element, b"cert")?,
-                corresp: extract_attribute(element, b"corresp")?,
-                ana: extract_attribute(element, b"ana")?,
-            });
+            self.state = ParserState::in_utterance(extract_utterance_attrs(element)?);
         } else if name_bytes == b"div" {
-            let div_type = extract_attribute(element, b"type")?
-                .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?;
-            let subtype = extract_attribute(element, b"subtype")?;
-            let id = extract_xml_id(element)?;
-            self.state = ParserState::in_div(div_type, subtype, id);
+            let attrs = extract_div_attrs(element, None)?;
+            self.state = ParserState::in_div(attrs.div_type, attrs.subtype, attrs.id);
         }
         Ok(None)
     }
@@ -149,16 +140,7 @@ impl<R: BufRead> TeiPullParser<R> {
             }
             DivChildKind::Utterance => {
                 let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_utterance(RawUtteranceAttrs {
-                    id: extract_xml_id(element)?,
-                    n: extract_attribute(element, b"n")?,
-                    who: extract_attribute(element, b"who")?,
-                    source: extract_attribute(element, b"source")?,
-                    resp: extract_attribute(element, b"resp")?,
-                    cert: extract_attribute(element, b"cert")?,
-                    corresp: extract_attribute(element, b"corresp")?,
-                    ana: extract_attribute(element, b"ana")?,
-                });
+                self.state = ParserState::in_utterance(extract_utterance_attrs(element)?);
                 self.pending_div_state = Some(Box::new(current_state));
             }
             DivChildKind::List => {
@@ -167,12 +149,10 @@ impl<R: BufRead> TeiPullParser<R> {
                 self.state = ParserState::in_list(current_state, list_id);
             }
             DivChildKind::NestedDiv => {
-                let div_type = extract_attribute(element, b"type")?
-                    .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?;
-                let subtype = extract_attribute(element, b"subtype")?;
-                let id = extract_xml_id(element)?;
+                let attrs = extract_div_attrs(element, None)?;
                 let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::nested_div(current_state, div_type, subtype, id);
+                self.state =
+                    ParserState::nested_div(current_state, attrs.div_type, attrs.subtype, attrs.id);
             }
             DivChildKind::Other => {}
         }
@@ -200,11 +180,9 @@ impl<R: BufRead> TeiPullParser<R> {
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
         if name_bytes == b"item" {
-            let item_id = extract_xml_id(element)?;
-            let item_n = extract_attribute(element, b"n")?;
-            let item_corresp = extract_attribute(element, b"corresp")?;
+            let attrs = extract_item_attrs(element, None)?;
             let current_state = std::mem::take(&mut self.state);
-            self.state = ParserState::in_item(current_state, item_id, item_n, item_corresp);
+            self.state = ParserState::in_item(current_state, attrs.id, attrs.n, attrs.corresp);
         }
         Ok(None)
     }

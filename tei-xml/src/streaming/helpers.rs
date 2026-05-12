@@ -10,7 +10,7 @@ use tei_core::{
     PointerList, TeiError, Utterance,
 };
 
-use crate::attributes::extract_normalized_attribute;
+use crate::attributes::{NormalizedAttributes, extract_normalized_attribute};
 
 use super::state::RawUtteranceAttrs;
 
@@ -60,6 +60,57 @@ pub fn extract_attribute(
     name: &[u8],
 ) -> Result<Option<String>, TeiError> {
     extract_normalized_attribute(element, name)
+}
+
+/// Extracts all `<u>` attributes from an element with a single attribute scan.
+pub fn extract_utterance_attrs(element: &BytesStart<'_>) -> Result<RawUtteranceAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawUtteranceAttrs {
+        id: attributes.get(b"xml:id"),
+        n: attributes.get(b"n"),
+        who: attributes.get(b"who"),
+        source: attributes.get(b"source"),
+        resp: attributes.get(b"resp"),
+        cert: attributes.get(b"cert"),
+        corresp: attributes.get(b"corresp"),
+        ana: attributes.get(b"ana"),
+    })
+}
+
+/// Extracts `<div>` type, subtype, and ID attributes with a single scan.
+pub fn extract_div_attrs(
+    element: &BytesStart<'_>,
+    head: Option<Head>,
+) -> Result<RawDivAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawDivAttrs {
+        div_type: attributes.required(b"type", "div element missing required @type attribute")?,
+        subtype: attributes.get(b"subtype"),
+        id: attributes.get(b"xml:id"),
+        head,
+    })
+}
+
+/// Extracts `<item>` attributes with a single attribute scan.
+pub fn extract_item_attrs(
+    element: &BytesStart<'_>,
+    label: Option<Label>,
+) -> Result<RawItemAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawItemAttrs {
+        id: attributes.get(b"xml:id"),
+        n: attributes.get(b"n"),
+        corresp: attributes.get(b"corresp"),
+        label,
+    })
+}
+
+/// Extracts `<pause>` attributes with a single attribute scan.
+pub fn extract_pause_attrs(
+    element: &BytesStart<'_>,
+) -> Result<(Option<String>, Option<String>), TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok((attributes.get(b"dur"), attributes.get(b"type")))
 }
 
 /// Appends an element opening tag with attributes and a custom closing sequence.

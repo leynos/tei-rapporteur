@@ -8,7 +8,7 @@ use tei_core::{BodyBlock, DivContent, Inline, TeiError};
 
 use super::event::TeiEvent;
 use super::helpers::{
-    RawDivAttrs, append_empty_element, build_div, build_pause, extract_attribute, extract_xml_id,
+    append_empty_element, build_div, build_pause, extract_div_attrs, extract_pause_attrs,
     resolve_entity_ref,
 };
 use super::parser::TeiPullParser;
@@ -167,20 +167,7 @@ impl<R: BufRead> TeiPullParser<R> {
     }
 
     fn build_empty_div(element: &BytesStart<'_>) -> Result<tei_core::Div, TeiError> {
-        let div_type = extract_attribute(element, b"type")?
-            .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?;
-        let subtype = extract_attribute(element, b"subtype")?;
-        let id = extract_xml_id(element)?;
-
-        build_div(
-            RawDivAttrs {
-                div_type,
-                subtype,
-                id,
-                head: None,
-            },
-            Vec::new(),
-        )
+        build_div(extract_div_attrs(element, None)?, Vec::new())
     }
 }
 
@@ -191,8 +178,7 @@ fn handle_inline_empty_element(
     state_name: &str,
 ) -> Result<Option<TeiEvent>, TeiError> {
     if name_bytes == b"pause" {
-        let dur = extract_attribute(element, b"dur")?;
-        let pause_type = extract_attribute(element, b"type")?;
+        let (dur, pause_type) = extract_pause_attrs(element)?;
         content.push(Inline::Pause(build_pause(dur, pause_type)));
         Ok(None)
     } else {
