@@ -44,11 +44,6 @@ impl NormalizedAttributes {
             .iter()
             .find_map(|(key, value)| (key.as_slice() == name).then(|| value.clone()))
     }
-
-    /// Returns a required cloned attribute value by raw attribute name.
-    pub(crate) fn required(&self, name: &[u8], message: &str) -> Result<String, TeiError> {
-        self.get(name).ok_or_else(|| TeiError::xml(message))
-    }
 }
 
 /// Extracts a normalized attribute value from an element by raw attribute name.

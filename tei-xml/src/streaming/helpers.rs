@@ -84,7 +84,9 @@ pub fn extract_div_attrs(
 ) -> Result<RawDivAttrs, TeiError> {
     let attributes = NormalizedAttributes::from_element(element)?;
     Ok(RawDivAttrs {
-        div_type: attributes.required(b"type", "div element missing required @type attribute")?,
+        div_type: attributes
+            .get(b"type")
+            .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?,
         subtype: attributes.get(b"subtype"),
         id: attributes.get(b"xml:id"),
         head,
