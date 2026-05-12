@@ -14,6 +14,29 @@ use super::helpers::{
 use super::parser::TeiPullParser;
 use super::state::ParserState;
 
+/// Classifies raw start-element tag names used by streaming handlers.
+enum StartTagKind {
+    Head,
+    Paragraph,
+    Utterance,
+    List,
+    Div,
+    Other,
+}
+
+impl StartTagKind {
+    const fn from_tag(name_bytes: &[u8]) -> Self {
+        match name_bytes {
+            b"head" => Self::Head,
+            b"p" => Self::Paragraph,
+            b"u" => Self::Utterance,
+            b"list" => Self::List,
+            b"div" => Self::Div,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// Classifies a tag name encountered directly inside `<body>`.
 enum BodyChildKind {
     Paragraph,
@@ -24,11 +47,11 @@ enum BodyChildKind {
 
 impl BodyChildKind {
     const fn from_tag(name_bytes: &[u8]) -> Self {
-        match name_bytes {
-            b"p" => Self::Paragraph,
-            b"u" => Self::Utterance,
-            b"div" => Self::Div,
-            _ => Self::Other,
+        match StartTagKind::from_tag(name_bytes) {
+            StartTagKind::Paragraph => Self::Paragraph,
+            StartTagKind::Utterance => Self::Utterance,
+            StartTagKind::Div => Self::Div,
+            StartTagKind::Head | StartTagKind::List | StartTagKind::Other => Self::Other,
         }
     }
 }
@@ -45,13 +68,13 @@ enum DivChildKind {
 
 impl DivChildKind {
     const fn from_tag(name_bytes: &[u8]) -> Self {
-        match name_bytes {
-            b"head" => Self::Head,
-            b"p" => Self::Paragraph,
-            b"u" => Self::Utterance,
-            b"list" => Self::List,
-            b"div" => Self::NestedDiv,
-            _ => Self::Other,
+        match StartTagKind::from_tag(name_bytes) {
+            StartTagKind::Head => Self::Head,
+            StartTagKind::Paragraph => Self::Paragraph,
+            StartTagKind::Utterance => Self::Utterance,
+            StartTagKind::List => Self::List,
+            StartTagKind::Div => Self::NestedDiv,
+            StartTagKind::Other => Self::Other,
         }
     }
 }
