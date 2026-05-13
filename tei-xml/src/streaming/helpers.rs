@@ -397,7 +397,7 @@ mod tests {
     }
 
     fn assert_utterance_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-        let attrs = extract_utterance_attrs(element).unwrap_or_else(|error| panic!("{error}"));
+        let attrs = extract_utterance_attrs(element).expect("failed to extract utterance attrs");
         for (field, value) in expected {
             let actual = match *field {
                 "xml:id" => attrs.id.as_deref(),
@@ -415,7 +415,7 @@ mod tests {
     }
 
     fn assert_div_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-        let attrs = extract_div_attrs(element, None).unwrap_or_else(|error| panic!("{error}"));
+        let attrs = extract_div_attrs(element, None).expect("failed to extract div attrs");
         for (field, value) in expected {
             let actual = match *field {
                 "type" => Some(attrs.div_type.as_str()),
@@ -429,7 +429,7 @@ mod tests {
     }
 
     fn assert_item_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-        let attrs = extract_item_attrs(element, None).unwrap_or_else(|error| panic!("{error}"));
+        let attrs = extract_item_attrs(element, None).expect("failed to extract item attrs");
         for (field, value) in expected {
             let actual = match *field {
                 "xml:id" => attrs.id.as_deref(),
@@ -444,7 +444,7 @@ mod tests {
 
     fn assert_pause_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
         let (dur, pause_type) =
-            extract_pause_attrs(element).unwrap_or_else(|error| panic!("{error}"));
+            extract_pause_attrs(element).expect("failed to extract pause attrs");
         for (field, value) in expected {
             let actual = match *field {
                 "dur" => dur.as_deref(),
@@ -622,9 +622,7 @@ mod tests {
     ) {
         let result = extract_attrs_for(helper, &el);
 
-        let error = result
-            .err()
-            .unwrap_or_else(|| panic!("attribute extraction should fail"));
+        let error = result.expect_err("attribute extraction should fail");
 
         assert!(error.to_string().contains(expected_error));
     }
