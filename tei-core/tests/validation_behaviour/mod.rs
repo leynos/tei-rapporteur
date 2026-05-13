@@ -1,4 +1,8 @@
 //! Behaviour-driven tests for document-level validation.
+//!
+//! This parent module owns the shared validation state and common steps. The
+//! `stand_off` submodule extends the same feature file with stand-off specific
+//! steps while reusing the parent fixtures and assertions.
 
 use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;

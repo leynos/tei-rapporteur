@@ -1,4 +1,7 @@
 //! Stand-off specific validation steps and helpers.
+//!
+//! This module serves the parent `validation_behaviour` test module by adding
+//! stand-off setup steps and scenarios that share the parent validation state.
 
 use super::*;
 use tei_core::{AnnotationSystem, EncodingDesc, PointerList, Span, SpanGroup, StandOff};
