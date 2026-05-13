@@ -377,195 +377,255 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn utterance_attrs_all_fields_extracted() {
-        let mut el = BytesStart::new("u");
-        el.push_attribute(("xml:id", "u1"));
-        el.push_attribute(("n", "1"));
-        el.push_attribute(("who", "#speaker1"));
-        el.push_attribute(("source", "#src1"));
-        el.push_attribute(("resp", "#resp1"));
-        el.push_attribute(("cert", "high"));
-        el.push_attribute(("corresp", "#u2"));
-        el.push_attribute(("ana", "#ana1"));
-
-        let attrs = extract_utterance_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
-
-        assert_eq!(attrs.id.as_deref(), Some("u1"));
-        assert_eq!(attrs.n.as_deref(), Some("1"));
-        assert_eq!(attrs.who.as_deref(), Some("#speaker1"));
-        assert_eq!(attrs.source.as_deref(), Some("#src1"));
-        assert_eq!(attrs.resp.as_deref(), Some("#resp1"));
-        assert_eq!(attrs.cert.as_deref(), Some("high"));
-        assert_eq!(attrs.corresp.as_deref(), Some("#u2"));
-        assert_eq!(attrs.ana.as_deref(), Some("#ana1"));
+    #[derive(Clone, Copy)]
+    enum HelperKind {
+        Utterance,
+        Div,
+        Item,
+        Pause,
     }
 
-    #[test]
-    fn utterance_attrs_absent_fields_are_none() {
-        let el = BytesStart::new("u");
-
-        let attrs = extract_utterance_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
-
-        assert!(attrs.id.is_none());
-        assert!(attrs.n.is_none());
-        assert!(attrs.who.is_none());
-        assert!(attrs.source.is_none());
-        assert!(attrs.resp.is_none());
-        assert!(attrs.cert.is_none());
-        assert!(attrs.corresp.is_none());
-        assert!(attrs.ana.is_none());
+    fn element_with_attrs(
+        tag: &'static str,
+        attrs: &[(&'static str, &'static str)],
+    ) -> BytesStart<'static> {
+        let mut el = BytesStart::new(tag);
+        for attr in attrs {
+            el.push_attribute(*attr);
+        }
+        el
     }
 
-    #[test]
-    fn utterance_attrs_unknown_entity_returns_error() {
-        let el = BytesStart::from_content(r#"u who="&badentity;""#, 1);
-
-        assert!(
-            extract_utterance_attrs(&el).is_err(),
-            "unknown entity reference must produce an error"
-        );
+    fn assert_utterance_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
+        let attrs = extract_utterance_attrs(element).unwrap_or_else(|error| panic!("{error}"));
+        for (field, value) in expected {
+            let actual = match *field {
+                "xml:id" => attrs.id.as_deref(),
+                "n" => attrs.n.as_deref(),
+                "who" => attrs.who.as_deref(),
+                "source" => attrs.source.as_deref(),
+                "resp" => attrs.resp.as_deref(),
+                "cert" => attrs.cert.as_deref(),
+                "corresp" => attrs.corresp.as_deref(),
+                "ana" => attrs.ana.as_deref(),
+                other => panic!("unknown utterance field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected utterance @{field}");
+        }
     }
 
-    #[test]
-    fn div_attrs_required_and_optional_fields_extracted() {
-        let mut el = BytesStart::new("div");
-        el.push_attribute(("type", "interview"));
-        el.push_attribute(("subtype", "formal"));
-        el.push_attribute(("xml:id", "d1"));
-
-        let attrs = extract_div_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
-
-        assert_eq!(attrs.div_type, "interview");
-        assert_eq!(attrs.subtype.as_deref(), Some("formal"));
-        assert_eq!(attrs.id.as_deref(), Some("d1"));
-        assert!(attrs.head.is_none());
+    fn assert_div_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
+        let attrs = extract_div_attrs(element, None).unwrap_or_else(|error| panic!("{error}"));
+        for (field, value) in expected {
+            let actual = match *field {
+                "type" => Some(attrs.div_type.as_str()),
+                "subtype" => attrs.subtype.as_deref(),
+                "xml:id" => attrs.id.as_deref(),
+                "head" => attrs.head.as_ref().map(|_| "<head>"),
+                other => panic!("unknown div field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected div @{field}");
+        }
     }
 
-    #[test]
-    fn div_attrs_optional_fields_absent() {
-        let mut el = BytesStart::new("div");
-        el.push_attribute(("type", "session"));
-
-        let attrs = extract_div_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
-
-        assert_eq!(attrs.div_type, "session");
-        assert!(attrs.subtype.is_none());
-        assert!(attrs.id.is_none());
+    fn assert_item_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
+        let attrs = extract_item_attrs(element, None).unwrap_or_else(|error| panic!("{error}"));
+        for (field, value) in expected {
+            let actual = match *field {
+                "xml:id" => attrs.id.as_deref(),
+                "n" => attrs.n.as_deref(),
+                "corresp" => attrs.corresp.as_deref(),
+                "label" => attrs.label.as_ref().map(|_| "<label>"),
+                other => panic!("unknown item field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected item @{field}");
+        }
     }
 
-    #[test]
-    fn div_attrs_missing_required_type_returns_error() {
-        let el = BytesStart::new("div");
-
-        assert!(
-            extract_div_attrs(&el, None).is_err(),
-            "absent `@type` attribute must produce an error"
-        );
+    fn assert_pause_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
+        let (dur, pause_type) =
+            extract_pause_attrs(element).unwrap_or_else(|error| panic!("{error}"));
+        for (field, value) in expected {
+            let actual = match *field {
+                "dur" => dur.as_deref(),
+                "type" => pause_type.as_deref(),
+                other => panic!("unknown pause field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected pause @{field}");
+        }
     }
 
-    #[test]
-    fn div_attrs_unknown_entity_in_type_returns_error() {
-        let el = BytesStart::from_content(r#"div type="&badentity;""#, 3);
-
-        assert!(
-            extract_div_attrs(&el, None).is_err(),
-            "unknown entity reference in `@type` must produce an error"
-        );
-    }
-
-    #[test]
-    fn item_attrs_all_optional_fields_extracted() {
-        let mut el = BytesStart::new("item");
-        el.push_attribute(("xml:id", "i1"));
-        el.push_attribute(("n", "42"));
-        el.push_attribute(("corresp", "#i2"));
-
-        let attrs = extract_item_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
-
-        assert_eq!(attrs.id.as_deref(), Some("i1"));
-        assert_eq!(attrs.n.as_deref(), Some("42"));
-        assert_eq!(attrs.corresp.as_deref(), Some("#i2"));
-        assert!(attrs.label.is_none());
-    }
-
-    #[test]
-    fn item_attrs_all_absent_fields_are_none() {
-        let el = BytesStart::new("item");
-
-        let attrs = extract_item_attrs(&el, None).unwrap_or_else(|error| panic!("{error}"));
-
-        assert!(attrs.id.is_none());
-        assert!(attrs.n.is_none());
-        assert!(attrs.corresp.is_none());
-        assert!(attrs.label.is_none());
-    }
-
-    #[test]
-    fn item_attrs_unknown_entity_returns_error() {
-        let el = BytesStart::from_content(r#"item n="&badentity;""#, 4);
-
-        assert!(
-            extract_item_attrs(&el, None).is_err(),
-            "unknown entity reference must produce an error"
-        );
-    }
-
-    #[test]
-    fn pause_attrs_both_fields_extracted() {
-        let mut el = BytesStart::new("pause");
-        el.push_attribute(("dur", "PT1S"));
-        el.push_attribute(("type", "short"));
-
-        let (dur, pause_type) = extract_pause_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
-
-        assert_eq!(dur.as_deref(), Some("PT1S"));
-        assert_eq!(pause_type.as_deref(), Some("short"));
-    }
-
-    #[test]
-    fn pause_attrs_both_absent_are_none() {
-        let el = BytesStart::new("pause");
-
-        let (dur, pause_type) = extract_pause_attrs(&el).unwrap_or_else(|error| panic!("{error}"));
-
-        assert!(dur.is_none());
-        assert!(pause_type.is_none());
-    }
-
-    #[test]
-    fn pause_attrs_unknown_entity_returns_error() {
-        let el = BytesStart::from_content(r#"pause dur="&badentity;""#, 5);
-
-        assert!(
-            extract_pause_attrs(&el).is_err(),
-            "unknown entity reference must produce an error"
-        );
+    fn assert_attrs_for(
+        helper: HelperKind,
+        element: &BytesStart<'_>,
+        expected: &[(&str, Option<&str>)],
+    ) {
+        match helper {
+            HelperKind::Utterance => assert_utterance_attrs(element, expected),
+            HelperKind::Div => assert_div_attrs(element, expected),
+            HelperKind::Item => assert_item_attrs(element, expected),
+            HelperKind::Pause => assert_pause_attrs(element, expected),
+        }
     }
 
     #[rstest]
-    #[case::utterance(r#"u who="speaker" who="duplicate""#, 1, "utterance")]
-    #[case::div(r#"div type="section" type="duplicate""#, 3, "div")]
-    #[case::item(r#"item n="1" n="duplicate""#, 4, "item")]
-    #[case::pause(r#"pause dur="PT1S" dur="duplicate""#, 5, "pause")]
-    fn attribute_iteration_errors_are_forwarded(
+    #[case::utterance_all_fields(
+        HelperKind::Utterance,
+        "u",
+        &[
+            ("xml:id", "u1"),
+            ("n", "1"),
+            ("who", "#speaker1"),
+            ("source", "#src1"),
+            ("resp", "#resp1"),
+            ("cert", "high"),
+            ("corresp", "#u2"),
+            ("ana", "#ana1"),
+        ],
+        &[
+            ("xml:id", Some("u1")),
+            ("n", Some("1")),
+            ("who", Some("#speaker1")),
+            ("source", Some("#src1")),
+            ("resp", Some("#resp1")),
+            ("cert", Some("high")),
+            ("corresp", Some("#u2")),
+            ("ana", Some("#ana1")),
+        ]
+    )]
+    #[case::utterance_absent_fields(
+        HelperKind::Utterance,
+        "u",
+        &[],
+        &[
+            ("xml:id", None),
+            ("n", None),
+            ("who", None),
+            ("source", None),
+            ("resp", None),
+            ("cert", None),
+            ("corresp", None),
+            ("ana", None),
+        ]
+    )]
+    #[case::div_required_and_optional_fields(
+        HelperKind::Div,
+        "div",
+        &[("type", "interview"), ("subtype", "formal"), ("xml:id", "d1")],
+        &[
+            ("type", Some("interview")),
+            ("subtype", Some("formal")),
+            ("xml:id", Some("d1")),
+            ("head", None),
+        ]
+    )]
+    #[case::div_optional_fields_absent(
+        HelperKind::Div,
+        "div",
+        &[("type", "session")],
+        &[("type", Some("session")), ("subtype", None), ("xml:id", None)]
+    )]
+    #[case::item_all_optional_fields(
+        HelperKind::Item,
+        "item",
+        &[("xml:id", "i1"), ("n", "42"), ("corresp", "#i2")],
+        &[
+            ("xml:id", Some("i1")),
+            ("n", Some("42")),
+            ("corresp", Some("#i2")),
+            ("label", None),
+        ]
+    )]
+    #[case::item_absent_fields(
+        HelperKind::Item,
+        "item",
+        &[],
+        &[("xml:id", None), ("n", None), ("corresp", None), ("label", None)]
+    )]
+    #[case::pause_both_fields(
+        HelperKind::Pause,
+        "pause",
+        &[("dur", "PT1S"), ("type", "short")],
+        &[("dur", Some("PT1S")), ("type", Some("short"))]
+    )]
+    #[case::pause_absent_fields(
+        HelperKind::Pause,
+        "pause",
+        &[],
+        &[("dur", None), ("type", None)]
+    )]
+    fn helper_attrs_match_expected_fields(
+        #[case] helper: HelperKind,
+        #[case] tag: &'static str,
+        #[case] attrs: &[(&'static str, &'static str)],
+        #[case] expected: &[(&str, Option<&str>)],
+    ) {
+        let el = element_with_attrs(tag, attrs);
+
+        assert_attrs_for(helper, &el, expected);
+    }
+
+    #[rstest]
+    #[case::utterance(HelperKind::Utterance, r#"u who="&badentity;""#, 1)]
+    #[case::div(HelperKind::Div, r#"div type="&badentity;""#, 3)]
+    #[case::item(HelperKind::Item, r#"item n="&badentity;""#, 4)]
+    #[case::pause(HelperKind::Pause, r#"pause dur="&badentity;""#, 5)]
+    fn unknown_entity_errors_are_forwarded(
+        #[case] helper: HelperKind,
         #[case] content: &str,
         #[case] tag_len: usize,
-        #[case] helper: &str,
     ) {
         let el = BytesStart::from_content(content, tag_len);
-        let result = match helper {
-            "utterance" => extract_utterance_attrs(&el).map(|_| ()),
-            "div" => extract_div_attrs(&el, None).map(|_| ()),
-            "item" => extract_item_attrs(&el, None).map(|_| ()),
-            "pause" => extract_pause_attrs(&el).map(|_| ()),
-            other => panic!("unknown helper case: {other}"),
-        };
+        let result = extract_attrs_for(helper, &el);
+
+        assert!(
+            result.is_err(),
+            "unknown entity reference must produce an error"
+        );
+    }
+
+    fn extract_attrs_for(helper: HelperKind, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        match helper {
+            HelperKind::Utterance => extract_utterance_attrs(element).map(|_| ()),
+            HelperKind::Div => extract_div_attrs(element, None).map(|_| ()),
+            HelperKind::Item => extract_item_attrs(element, None).map(|_| ()),
+            HelperKind::Pause => extract_pause_attrs(element).map(|_| ()),
+        }
+    }
+
+    #[rstest]
+    #[case::missing_div_type(HelperKind::Div, BytesStart::new("div"), "missing required")]
+    #[case::duplicate_utterance(
+        HelperKind::Utterance,
+        BytesStart::from_content(r#"u who="speaker" who="duplicate""#, 1),
+        "duplicated attribute"
+    )]
+    #[case::duplicate_div(
+        HelperKind::Div,
+        BytesStart::from_content(r#"div type="section" type="duplicate""#, 3),
+        "duplicated attribute"
+    )]
+    #[case::duplicate_item(
+        HelperKind::Item,
+        BytesStart::from_content(r#"item n="1" n="duplicate""#, 4),
+        "duplicated attribute"
+    )]
+    #[case::duplicate_pause(
+        HelperKind::Pause,
+        BytesStart::from_content(r#"pause dur="PT1S" dur="duplicate""#, 5),
+        "duplicated attribute"
+    )]
+    fn attribute_iteration_errors_are_forwarded(
+        #[case] helper: HelperKind,
+        #[case] el: BytesStart<'_>,
+        #[case] expected_error: &str,
+    ) {
+        let result = extract_attrs_for(helper, &el);
 
         let error = result
             .err()
-            .unwrap_or_else(|| panic!("duplicate attribute should fail"));
+            .unwrap_or_else(|| panic!("attribute extraction should fail"));
 
-        assert!(error.to_string().contains("duplicated attribute"));
+        assert!(error.to_string().contains(expected_error));
     }
 }
