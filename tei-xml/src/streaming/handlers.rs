@@ -289,6 +289,7 @@ mod tests {
 
     use std::io::Cursor;
 
+    use proptest::prelude::*;
     use quick_xml::events::BytesStart;
 
     use super::*;
@@ -317,5 +318,25 @@ mod tests {
             "InDiv state must be preserved after attribute extraction failure; got: {:?}",
             parser.state,
         );
+    }
+
+    proptest! {
+        #[test]
+        fn utterance_extraction_failure_preserves_arbitrary_div_state(
+            div_type in "[A-Za-z][A-Za-z0-9_-]{0,24}",
+            subtype in proptest::option::of("[A-Za-z][A-Za-z0-9_-]{0,24}"),
+            id in proptest::option::of("[A-Za-z_][A-Za-z0-9_-]{0,24}"),
+        ) {
+            let mut parser = TeiPullParser::new(Cursor::new(""));
+            let expected_state = ParserState::in_div(div_type, subtype, id);
+            parser.state = expected_state.clone();
+
+            let element = utterance_with_bad_entity();
+            let result = parser.handle_div_content_start(&element);
+
+            prop_assert!(result.is_err(), "unknown entity extraction should fail");
+            prop_assert_eq!(parser.state, expected_state);
+            prop_assert!(parser.pending_div_state.is_none());
+        }
     }
 }

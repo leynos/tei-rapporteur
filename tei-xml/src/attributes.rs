@@ -15,6 +15,7 @@
 
 use quick_xml::{XmlVersion, events::BytesStart};
 use tei_core::TeiError;
+use tracing::debug;
 
 /// Normalized attributes collected from a single XML start element.
 #[derive(Debug, Eq, PartialEq)]
@@ -26,12 +27,29 @@ impl NormalizedAttributes {
     /// Collects all normalized attributes from `element` in one pass.
     pub(crate) fn from_element(element: &BytesStart<'_>) -> Result<Self, TeiError> {
         let mut values = Vec::new();
+        let element_name = element_name(element);
 
         for attr_result in element.attributes() {
-            let attr = attr_result.map_err(|error| TeiError::xml(error.to_string()))?;
+            let attr = attr_result.map_err(|error| {
+                debug!(
+                    element = %element_name,
+                    error = %error,
+                    "xml_attribute_iteration_failed"
+                );
+                TeiError::xml(error.to_string())
+            })?;
+            let attribute_name = attribute_name(attr.key.as_ref());
             let value = attr
                 .normalized_value(XmlVersion::Implicit1_0)
-                .map_err(|error| TeiError::xml(error.to_string()))?;
+                .map_err(|error| {
+                    debug!(
+                        element = %element_name,
+                        attribute = %attribute_name,
+                        error = %error,
+                        "xml_attribute_normalization_failed"
+                    );
+                    TeiError::xml(error.to_string())
+                })?;
             values.push((attr.key.as_ref().to_vec(), value.into_owned()));
         }
 
@@ -44,6 +62,15 @@ impl NormalizedAttributes {
             .iter()
             .find_map(|(key, value)| (key.as_slice() == name).then(|| value.clone()))
     }
+}
+
+fn element_name(element: &BytesStart<'_>) -> String {
+    let local_name = element.local_name();
+    String::from_utf8_lossy(local_name.as_ref()).into_owned()
+}
+
+fn attribute_name(name: &[u8]) -> String {
+    String::from_utf8_lossy(name).into_owned()
 }
 
 /// Extracts a normalized attribute value from an element by raw attribute name.
@@ -60,6 +87,7 @@ pub(crate) fn extract_normalized_attribute(
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
     use quick_xml::events::BytesStart;
     use rstest::{fixture, rstest};
 
@@ -128,5 +156,67 @@ mod tests {
         assert_eq!(attributes.get(b"first"), Some("one".to_owned()));
         assert_eq!(attributes.get(b"second"), Some("two".to_owned()));
         assert_eq!(attributes.get(b"missing"), None);
+    }
+
+    #[derive(Clone, Debug)]
+    enum AttributeFragment {
+        Text(String),
+        Whitespace(char),
+        Entity(&'static str, char),
+    }
+
+    impl AttributeFragment {
+        fn raw(&self) -> String {
+            match self {
+                Self::Text(value) => value.clone(),
+                Self::Whitespace(ch) => ch.to_string(),
+                Self::Entity(name, _) => format!("&{name};"),
+            }
+        }
+
+        fn normalized(&self) -> String {
+            match self {
+                Self::Text(value) => value.clone(),
+                Self::Whitespace(_) => " ".to_owned(),
+                Self::Entity(_, ch) => ch.to_string(),
+            }
+        }
+    }
+
+    fn attribute_fragment_strategy() -> impl Strategy<Value = AttributeFragment> {
+        prop_oneof![
+            "[A-Za-z0-9,.;:!? -]{0,16}".prop_map(AttributeFragment::Text),
+            prop::sample::select(vec!['\t', '\n']).prop_map(AttributeFragment::Whitespace),
+            prop::sample::select(vec![
+                ("quot", '"'),
+                ("apos", '\''),
+                ("lt", '<'),
+                ("gt", '>'),
+                ("amp", '&'),
+            ])
+            .prop_map(|(name, ch)| AttributeFragment::Entity(name, ch)),
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn normalizes_xml_1_0_attribute_values_for_arbitrary_fragments(
+            fragments in prop::collection::vec(attribute_fragment_strategy(), 0..24)
+        ) {
+            let raw_value = fragments.iter().map(AttributeFragment::raw).collect::<String>();
+            let expected = fragments
+                .iter()
+                .map(AttributeFragment::normalized)
+                .collect::<String>();
+            let element = BytesStart::from_content(
+                format!(r#"tag value="{raw_value}""#),
+                3,
+            );
+
+            let actual = extract_normalized_attribute(&element, b"value")
+                .expect("attribute extraction must succeed");
+
+            prop_assert_eq!(actual, Some(expected));
+        }
     }
 }
