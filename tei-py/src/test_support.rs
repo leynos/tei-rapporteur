@@ -399,7 +399,9 @@ mod tests {
             ensure_msgspec_installed(py).ok();
         });
 
-        assert!(run_count.load(Ordering::SeqCst) <= 1);
+        // The Once guard fires at most once across all threads; each firing makes at
+        // most two subprocess.run calls (ensurepip + msgspec install).
+        assert!(run_count.load(Ordering::SeqCst) <= 2);
     }
 
     #[rstest]
