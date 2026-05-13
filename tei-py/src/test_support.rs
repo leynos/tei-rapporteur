@@ -155,8 +155,16 @@ mod tests {
     //! Unit tests for Python-side test support helpers.
 
     use super::*;
+    use pyo3::{pyclass, pymethods};
     use rstest::rstest;
-    use std::{ffi::CString, thread};
+    use std::{
+        ffi::CString,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+        thread,
+    };
 
     struct RunAndKwargs<'py> {
         run: Bound<'py, PyAny>,
@@ -208,6 +216,45 @@ mod tests {
         fn drop(&mut self) {
             restore_subprocess_run(self.py, &self.globals);
         }
+    }
+
+    #[pyclass]
+    struct BootstrapRunCounter {
+        count: Arc<AtomicUsize>,
+    }
+
+    #[pymethods]
+    impl BootstrapRunCounter {
+        fn __call__(&self, _args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) {
+            self.count.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn setup_bootstrap_run_counter(py: Python<'_>, count: Arc<AtomicUsize>) -> pyo3::Py<PyDict> {
+        let globals = PyDict::new(py);
+        globals
+            .set_item(
+                "_counter",
+                pyo3::Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
+            )
+            .expect("install run counter");
+        let patch = CString::new(
+            "import subprocess\n\
+             _original_run = subprocess.run\n\
+             subprocess.run = _counter\n",
+        )
+        .expect("CString build");
+        py.run(patch.as_c_str(), Some(&globals), None)
+            .expect("monkeypatch subprocess.run");
+
+        globals.unbind()
+    }
+
+    fn remove_msgspec_from_modules(py: Python<'_>) {
+        let remove =
+            CString::new("import sys\nsys.modules.pop('msgspec', None)\n").expect("CString build");
+        py.run(remove.as_c_str(), None, None)
+            .expect("remove msgspec from sys.modules");
     }
 
     fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
@@ -271,13 +318,34 @@ mod tests {
 
     #[test]
     fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
+        let run_count = Arc::new(AtomicUsize::new(0));
+        let globals = Python::with_gil(|py| {
+            let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+            remove_msgspec_from_modules(py);
+
+            globals
+        });
+
         let handles: Vec<_> = (0..8)
-            .map(|_| thread::spawn(|| Python::with_gil(ensure_msgspec_installed)))
+            .map(|_| {
+                let thread_run_count = Arc::clone(&run_count);
+                thread::spawn(move || {
+                    let _run_count = Arc::clone(&thread_run_count);
+                    Python::with_gil(ensure_msgspec_installed)
+                })
+            })
             .collect();
 
         for handle in handles {
             assert!(handle.join().is_ok());
         }
+
+        Python::with_gil(|py| {
+            restore_subprocess_run(py, globals.bind(py));
+            ensure_msgspec_installed(py).ok();
+        });
+
+        assert!(run_count.load(Ordering::SeqCst) <= 1);
     }
 
     #[rstest]
