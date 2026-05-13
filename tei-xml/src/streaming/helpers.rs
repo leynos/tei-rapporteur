@@ -373,6 +373,7 @@ mod tests {
     //! Unit tests for streaming attribute extraction helpers.
 
     use quick_xml::events::BytesStart;
+    use rstest::rstest;
 
     use super::*;
 
@@ -540,5 +541,31 @@ mod tests {
             extract_pause_attrs(&el).is_err(),
             "unknown entity reference must produce an error"
         );
+    }
+
+    #[rstest]
+    #[case::utterance(r#"u who="speaker" who="duplicate""#, 1, "utterance")]
+    #[case::div(r#"div type="section" type="duplicate""#, 3, "div")]
+    #[case::item(r#"item n="1" n="duplicate""#, 4, "item")]
+    #[case::pause(r#"pause dur="PT1S" dur="duplicate""#, 5, "pause")]
+    fn attribute_iteration_errors_are_forwarded(
+        #[case] content: &str,
+        #[case] tag_len: usize,
+        #[case] helper: &str,
+    ) {
+        let el = BytesStart::from_content(content, tag_len);
+        let result = match helper {
+            "utterance" => extract_utterance_attrs(&el).map(|_| ()),
+            "div" => extract_div_attrs(&el, None).map(|_| ()),
+            "item" => extract_item_attrs(&el, None).map(|_| ()),
+            "pause" => extract_pause_attrs(&el).map(|_| ()),
+            other => panic!("unknown helper case: {other}"),
+        };
+
+        let error = result
+            .err()
+            .unwrap_or_else(|| panic!("duplicate attribute should fail"));
+
+        assert!(error.to_string().contains("duplicated attribute"));
     }
 }

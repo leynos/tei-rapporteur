@@ -61,6 +61,7 @@ pub(crate) fn extract_normalized_attribute(
 #[cfg(test)]
 mod tests {
     use quick_xml::events::BytesStart;
+    use rstest::{fixture, rstest};
 
     use super::{NormalizedAttributes, extract_normalized_attribute};
 
@@ -68,60 +69,53 @@ mod tests {
         BytesStart::from_content(content, 3)
     }
 
-    #[test]
-    fn returns_none_for_missing_attribute() {
-        let element = element(r#"tag present="value""#);
-
-        let result = extract_normalized_attribute(&element, b"missing");
-
-        assert_eq!(result.unwrap_or_else(|error| panic!("{error}")), None);
+    #[fixture]
+    fn element_fixture() -> for<'a> fn(&'a str) -> BytesStart<'a> {
+        element
     }
 
-    #[test]
-    fn normalizes_predefined_xml_entities_in_attribute_values() {
-        let element =
-            element(r#"tag value="&quot;quoted&quot; &apos;single&apos; &lt;tag&gt; &amp; text""#);
-
-        let result = extract_normalized_attribute(&element, b"value");
+    #[rstest]
+    #[case(r#"tag present="value""#, b"missing", None)]
+    #[case(
+        r#"tag value="&quot;quoted&quot; &apos;single&apos; &lt;tag&gt; &amp; text""#,
+        b"value",
+        Some("\"quoted\" 'single' <tag> & text")
+    )]
+    #[case(
+        "tag value='alpha\tbeta\r\ngamma\nomega'",
+        b"value",
+        Some("alpha beta gamma omega")
+    )]
+    fn extracts_normalized_attribute_values(
+        #[case] content: &str,
+        #[case] name: &[u8],
+        #[case] expected: Option<&str>,
+        element_fixture: for<'a> fn(&'a str) -> BytesStart<'a>,
+    ) {
+        let element = element_fixture(content);
+        let result = extract_normalized_attribute(&element, name);
 
         assert_eq!(
             result.unwrap_or_else(|error| panic!("{error}")),
-            Some("\"quoted\" 'single' <tag> & text".to_owned())
+            expected.map(str::to_owned)
         );
     }
 
-    #[test]
-    fn normalizes_xml_1_0_attribute_whitespace() {
-        let element = element("tag value='alpha\tbeta\r\ngamma\nomega'");
-
-        let result = extract_normalized_attribute(&element, b"value");
-
-        assert_eq!(
-            result.unwrap_or_else(|error| panic!("{error}")),
-            Some("alpha beta gamma omega".to_owned())
-        );
-    }
-
-    #[test]
-    fn reports_attribute_iteration_errors() {
-        let element = element(r"tag key='value' key='duplicate'");
-
-        let error = extract_normalized_attribute(&element, b"key")
+    #[rstest]
+    #[case(r"tag key='value' key='duplicate'", b"key", "duplicated attribute")]
+    #[case(r#"tag value="&unknown;""#, b"value", "unknown")]
+    fn reports_normalized_attribute_errors(
+        #[case] content: &str,
+        #[case] name: &[u8],
+        #[case] expected_error: &str,
+        element_fixture: for<'a> fn(&'a str) -> BytesStart<'a>,
+    ) {
+        let element = element_fixture(content);
+        let error = extract_normalized_attribute(&element, name)
             .err()
-            .unwrap_or_else(|| panic!("duplicate attribute should fail"));
+            .unwrap_or_else(|| panic!("attribute extraction should fail"));
 
-        assert!(error.to_string().contains("duplicated attribute"));
-    }
-
-    #[test]
-    fn reports_normalization_errors() {
-        let element = element(r#"tag value="&unknown;""#);
-
-        let error = extract_normalized_attribute(&element, b"value")
-            .err()
-            .unwrap_or_else(|| panic!("unknown entity should fail"));
-
-        assert!(error.to_string().contains("unknown"));
+        assert!(error.to_string().contains(expected_error));
     }
 
     #[test]
