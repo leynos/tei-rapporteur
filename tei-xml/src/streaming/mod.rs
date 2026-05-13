@@ -46,5 +46,8 @@ mod helpers;
 mod parser;
 mod state;
 
+#[cfg(test)]
+mod helpers_tests;
+
 pub use event::TeiEvent;
 pub use parser::TeiPullParser;
