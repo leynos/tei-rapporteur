@@ -346,9 +346,10 @@ mod tests {
 
     #[test]
     fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
+        let available = msgspec_available();
         let directly_importable = Python::with_gil(|py| py.import("msgspec").is_ok());
 
-        assert_eq!(msgspec_available(), directly_importable);
+        assert_eq!(available, directly_importable);
     }
 
     #[test]
