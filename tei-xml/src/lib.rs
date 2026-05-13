@@ -6,6 +6,7 @@
 use quick_xml::de;
 use tei_core::{TeiDocument, TeiError};
 
+mod attributes;
 mod emitter;
 pub mod fixtures;
 mod namespace;

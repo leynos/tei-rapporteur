@@ -3,6 +3,8 @@
 use quick_xml::events::{BytesRef, BytesStart};
 use tei_core::TeiError;
 
+use crate::attributes::extract_normalized_attribute;
+
 use super::element_names::{BODY, TEXT};
 
 /// Builds a stable XPath-like locator for an element.
@@ -33,16 +35,7 @@ pub(crate) fn extract_attribute(
     element: &BytesStart<'_>,
     name: &[u8],
 ) -> Result<Option<String>, TeiError> {
-    for attr_result in element.attributes() {
-        let attr = attr_result.map_err(|error| TeiError::xml(error.to_string()))?;
-        if attr.key.as_ref() == name {
-            let value = attr
-                .unescape_value()
-                .map_err(|error| TeiError::xml(error.to_string()))?;
-            return Ok(Some(value.into_owned()));
-        }
-    }
-    Ok(None)
+    extract_normalized_attribute(element, name)
 }
 
 /// Resolves an XML entity reference to its literal text.
@@ -64,5 +57,58 @@ pub(crate) fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, Tei
             ))),
             Err(error) => Err(TeiError::xml(error.to_string())),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use quick_xml::events::BytesStart;
+
+    use super::{extract_attribute, extract_xml_id};
+
+    #[test]
+    fn extract_attribute_returns_value_when_present() {
+        let mut el = BytesStart::new("foo");
+        el.push_attribute(("lang", "en"));
+        assert_eq!(
+            extract_attribute(&el, b"lang").expect("extraction must succeed"),
+            Some("en".to_owned())
+        );
+    }
+
+    #[test]
+    fn extract_attribute_returns_none_when_absent() {
+        let el = BytesStart::new("foo");
+        assert_eq!(
+            extract_attribute(&el, b"missing").expect("extraction must succeed"),
+            None
+        );
+    }
+
+    #[test]
+    fn extract_attribute_propagates_unknown_entity_error() {
+        let el = BytesStart::from_content(r#"foo lang="&badentity;""#, 3);
+        let err =
+            extract_attribute(&el, b"lang").expect_err("unknown entity must produce an error");
+        assert!(
+            err.to_string().contains("badentity"),
+            "error message must mention the unknown entity; got: {err}"
+        );
+    }
+
+    #[test]
+    fn extract_xml_id_returns_value_when_present() {
+        let mut el = BytesStart::new("u");
+        el.push_attribute(("xml:id", "u42"));
+        assert_eq!(
+            extract_xml_id(&el).expect("extraction must succeed"),
+            Some("u42".to_owned())
+        );
+    }
+
+    #[test]
+    fn extract_xml_id_returns_none_when_absent() {
+        let el = BytesStart::new("u");
+        assert_eq!(extract_xml_id(&el).expect("extraction must succeed"), None);
     }
 }

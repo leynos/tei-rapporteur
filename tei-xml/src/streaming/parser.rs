@@ -152,22 +152,20 @@ impl<R: BufRead> TeiPullParser<R> {
 
         match &self.state {
             ParserState::AwaitingRoot => Ok(self.handle_root_start(name_bytes)),
-            ParserState::AwaitingHeader => self.handle_awaiting_header_start(name_bytes, element),
+            ParserState::AwaitingHeader => self.handle_awaiting_header_start(element),
             ParserState::InHeader { .. } => self.handle_in_header_start(element),
             ParserState::AwaitingText => Ok(self.handle_awaiting_text_start(name_bytes)),
             ParserState::AwaitingBody => Ok(self.handle_awaiting_body_start(name_bytes)),
-            ParserState::InBody => self.handle_body_content_start(name_bytes, element),
-            ParserState::InDiv { .. } => self.handle_div_content_start(name_bytes, element),
-            ParserState::InList { .. } => self.handle_list_content_start(name_bytes, element),
+            ParserState::InBody => self.handle_body_content_start(element),
+            ParserState::InDiv { .. } => self.handle_div_content_start(element),
+            ParserState::InList { .. } => self.handle_list_content_start(element),
             ParserState::InItem { .. } | ParserState::InLabel { .. } => {
-                self.handle_item_content_start(name_bytes, element)
+                self.handle_item_content_start(element)
             }
             ParserState::InParagraph { .. }
             | ParserState::InUtterance { .. }
             | ParserState::InHead { .. }
-            | ParserState::InEmphasis { .. } => {
-                self.handle_block_content_start(name_bytes, element)
-            }
+            | ParserState::InEmphasis { .. } => self.handle_block_content_start(element),
             _ => Ok(None),
         }
     }

@@ -10,6 +10,8 @@ use tei_core::{
     PointerList, TeiError, Utterance,
 };
 
+use crate::attributes::{NormalizedAttributes, extract_normalized_attribute};
+
 use super::state::RawUtteranceAttrs;
 
 /// Applies an optional ID to a block element that supports `set_id`.
@@ -57,16 +59,60 @@ pub fn extract_attribute(
     element: &BytesStart<'_>,
     name: &[u8],
 ) -> Result<Option<String>, TeiError> {
-    for attr_result in element.attributes() {
-        let attr = attr_result.map_err(|e| TeiError::xml(e.to_string()))?;
-        if attr.key.as_ref() == name {
-            let value = attr
-                .unescape_value()
-                .map_err(|e| TeiError::xml(e.to_string()))?;
-            return Ok(Some(value.into_owned()));
-        }
-    }
-    Ok(None)
+    extract_normalized_attribute(element, name)
+}
+
+/// Extracts all `<u>` attributes from an element with a single attribute scan.
+pub fn extract_utterance_attrs(element: &BytesStart<'_>) -> Result<RawUtteranceAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawUtteranceAttrs {
+        id: attributes.get(b"xml:id"),
+        n: attributes.get(b"n"),
+        who: attributes.get(b"who"),
+        source: attributes.get(b"source"),
+        resp: attributes.get(b"resp"),
+        cert: attributes.get(b"cert"),
+        corresp: attributes.get(b"corresp"),
+        ana: attributes.get(b"ana"),
+    })
+}
+
+/// Extracts `<div>` type, subtype, and ID attributes with a single scan.
+pub fn extract_div_attrs(
+    element: &BytesStart<'_>,
+    head: Option<Head>,
+) -> Result<RawDivAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawDivAttrs {
+        div_type: attributes
+            .get(b"type")
+            .ok_or_else(|| TeiError::xml("div element missing required @type attribute"))?,
+        subtype: attributes.get(b"subtype"),
+        id: attributes.get(b"xml:id"),
+        head,
+    })
+}
+
+/// Extracts `<item>` attributes with a single attribute scan.
+pub fn extract_item_attrs(
+    element: &BytesStart<'_>,
+    label: Option<Label>,
+) -> Result<RawItemAttrs, TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok(RawItemAttrs {
+        id: attributes.get(b"xml:id"),
+        n: attributes.get(b"n"),
+        corresp: attributes.get(b"corresp"),
+        label,
+    })
+}
+
+/// Extracts `<pause>` attributes with a single attribute scan.
+pub fn extract_pause_attrs(
+    element: &BytesStart<'_>,
+) -> Result<(Option<String>, Option<String>), TeiError> {
+    let attributes = NormalizedAttributes::from_element(element)?;
+    Ok((attributes.get(b"dur"), attributes.get(b"type")))
 }
 
 /// Appends an element opening tag with attributes and a custom closing sequence.
@@ -321,3 +367,7 @@ pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> 
         },
     }
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod helpers_tests;

@@ -25,6 +25,22 @@ that contribute no words. Do not count a nested `<seg>` twice: inline
 segmentation contributes to its enclosing spoken block unless it is standalone
 in a spoken context.
 
+## XML attribute extraction
+
+`tei-xml/src/attributes.rs` owns shared `quick-xml` attribute extraction for
+the spoken-text extractor and the streaming parser. Use
+`extract_normalized_attribute` for isolated lookups and
+`NormalizedAttributes::from_element` when a handler needs several attributes
+from the same `BytesStart`. The latter collects attributes once and serves
+repeated lookups from an element-local cache, which keeps hot parser paths from
+re-scanning the same start tag for each field.
+
+The helper normalizes attributes with `XmlVersion::Implicit1_0`. The parser
+states currently do not retain the XML declaration beside start-element events,
+and XML 1.0 is the specification default when a declaration is absent. If the
+parsers later preserve XML version state, thread that version into this module
+first so spoken-text and streaming behaviour remain aligned.
+
 ## Spoken text observability
 
 `tei_xml::spoken_text_segments` emits `tracing` debug events only. Library
