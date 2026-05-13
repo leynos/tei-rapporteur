@@ -43,6 +43,8 @@ mod event;
 mod finish_handlers;
 mod handlers;
 mod helpers;
+#[cfg(test)]
+mod helpers_tests;
 mod parser;
 mod state;
 
