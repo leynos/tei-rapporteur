@@ -337,19 +337,37 @@ mod tests {
     }
 
     #[test]
-    fn ensure_msgspec_installed_is_idempotent() {
-        let first_result = Python::with_gil(ensure_msgspec_installed).is_ok();
-        let second_result = Python::with_gil(ensure_msgspec_installed).is_ok();
+    fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
+        let run_count = Arc::new(AtomicUsize::new(0));
 
-        assert_eq!(first_result, second_result);
+        let globals = Python::with_gil(|py| {
+            let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+            remove_msgspec_from_modules(py);
+            g
+        });
+
+        Python::with_gil(ensure_msgspec_installed).ok();
+        Python::with_gil(ensure_msgspec_installed).ok();
+
+        Python::with_gil(|py| {
+            restore_subprocess_run(py, globals.bind(py));
+            ensure_msgspec_installed(py).ok();
+        });
+
+        // The Once guard must prevent a second bootstrap: subprocess.run is invoked
+        // for ensurepip and for the msgspec install, so at most two calls occur in
+        // total across both ensure_msgspec_installed invocations.
+        assert!(run_count.load(Ordering::SeqCst) <= 2);
     }
 
     #[test]
     fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
-        let available = msgspec_available();
-        let directly_importable = Python::with_gil(|py| py.import("msgspec").is_ok());
+        // Call the function under test first; it may bootstrap msgspec as a
+        // side-effect, so the importability check must come *after* the call.
+        let reported_available = msgspec_available();
+        let importable_after_check = Python::with_gil(|py| py.import("msgspec").is_ok());
 
-        assert_eq!(available, directly_importable);
+        assert_eq!(reported_available, importable_after_check);
     }
 
     #[test]
