@@ -1,7 +1,7 @@
 //! Unit tests for streaming attribute extraction helpers.
 
 use quick_xml::events::BytesStart;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use tei_core::TeiError;
 
 use super::helpers::{
@@ -16,10 +16,17 @@ enum HelperKind {
     Pause,
 }
 
-fn element_with_attrs(
+#[derive(Clone, Copy)]
+struct ElementAttrs {
     tag: &'static str,
-    attrs: &[(&'static str, &'static str)],
+    attrs: &'static [(&'static str, &'static str)],
+}
+
+#[fixture]
+fn element_with_attrs(
+    #[default(ElementAttrs { tag: "u", attrs: &[] })] input: ElementAttrs,
 ) -> BytesStart<'static> {
+    let ElementAttrs { tag, attrs } = input;
     let mut el = BytesStart::new(tag);
     for attr in attrs {
         el.push_attribute(*attr);
@@ -101,17 +108,19 @@ fn assert_attrs_for(
 #[rstest]
 #[case::utterance_all_fields(
     HelperKind::Utterance,
-    "u",
-    &[
-        ("xml:id", "u1"),
-        ("n", "1"),
-        ("who", "#speaker1"),
-        ("source", "#src1"),
-        ("resp", "#resp1"),
-        ("cert", "high"),
-        ("corresp", "#u2"),
-        ("ana", "#ana1"),
-    ],
+    ElementAttrs {
+        tag: "u",
+        attrs: &[
+            ("xml:id", "u1"),
+            ("n", "1"),
+            ("who", "#speaker1"),
+            ("source", "#src1"),
+            ("resp", "#resp1"),
+            ("cert", "high"),
+            ("corresp", "#u2"),
+            ("ana", "#ana1"),
+        ],
+    },
     &[
         ("xml:id", Some("u1")),
         ("n", Some("1")),
@@ -125,8 +134,7 @@ fn assert_attrs_for(
 )]
 #[case::utterance_absent_fields(
     HelperKind::Utterance,
-    "u",
-    &[],
+    ElementAttrs { tag: "u", attrs: &[] },
     &[
         ("xml:id", None),
         ("n", None),
@@ -140,8 +148,10 @@ fn assert_attrs_for(
 )]
 #[case::div_required_and_optional_fields(
     HelperKind::Div,
-    "div",
-    &[("type", "interview"), ("subtype", "formal"), ("xml:id", "d1")],
+    ElementAttrs {
+        tag: "div",
+        attrs: &[("type", "interview"), ("subtype", "formal"), ("xml:id", "d1")],
+    },
     &[
         ("type", Some("interview")),
         ("subtype", Some("formal")),
@@ -151,14 +161,18 @@ fn assert_attrs_for(
 )]
 #[case::div_optional_fields_absent(
     HelperKind::Div,
-    "div",
-    &[("type", "session")],
+    ElementAttrs {
+        tag: "div",
+        attrs: &[("type", "session")],
+    },
     &[("type", Some("session")), ("subtype", None), ("xml:id", None)]
 )]
 #[case::item_all_optional_fields(
     HelperKind::Item,
-    "item",
-    &[("xml:id", "i1"), ("n", "42"), ("corresp", "#i2")],
+    ElementAttrs {
+        tag: "item",
+        attrs: &[("xml:id", "i1"), ("n", "42"), ("corresp", "#i2")],
+    },
     &[
         ("xml:id", Some("i1")),
         ("n", Some("42")),
@@ -168,31 +182,32 @@ fn assert_attrs_for(
 )]
 #[case::item_absent_fields(
     HelperKind::Item,
-    "item",
-    &[],
+    ElementAttrs { tag: "item", attrs: &[] },
     &[("xml:id", None), ("n", None), ("corresp", None), ("label", None)]
 )]
 #[case::pause_both_fields(
     HelperKind::Pause,
-    "pause",
-    &[("dur", "PT1S"), ("type", "short")],
+    ElementAttrs {
+        tag: "pause",
+        attrs: &[("dur", "PT1S"), ("type", "short")],
+    },
     &[("dur", Some("PT1S")), ("type", Some("short"))]
 )]
 #[case::pause_absent_fields(
     HelperKind::Pause,
-    "pause",
-    &[],
+    ElementAttrs { tag: "pause", attrs: &[] },
     &[("dur", None), ("type", None)]
 )]
 fn helper_attrs_match_expected_fields(
     #[case] helper: HelperKind,
-    #[case] tag: &'static str,
-    #[case] attrs: &[(&'static str, &'static str)],
+    #[case] input: ElementAttrs,
     #[case] expected: &[(&str, Option<&str>)],
+    #[from(element_with_attrs)]
+    #[with(input)]
+    element: BytesStart<'static>,
 ) {
-    let el = element_with_attrs(tag, attrs);
-
-    assert_attrs_for(helper, &el, expected);
+    let _ = input;
+    assert_attrs_for(helper, &element, expected);
 }
 
 #[rstest]
