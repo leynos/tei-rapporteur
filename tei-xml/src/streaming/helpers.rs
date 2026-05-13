@@ -367,3 +367,7 @@ pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> 
         },
     }
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod helpers_tests;

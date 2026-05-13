@@ -1,12 +1,9 @@
-//! Unit tests for streaming attribute extraction helpers.
+//! Unit tests for streaming parser attribute-extraction helpers.
 
 use quick_xml::events::BytesStart;
-use rstest::{fixture, rstest};
-use tei_core::TeiError;
 
-use super::helpers::{
-    extract_div_attrs, extract_item_attrs, extract_pause_attrs, extract_utterance_attrs,
-};
+use super::*;
+use rstest::{fixture, rstest};
 
 #[derive(Clone, Copy)]
 enum HelperKind {
