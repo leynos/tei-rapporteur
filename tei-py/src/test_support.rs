@@ -268,15 +268,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case::which_returns_none("None", false)]
-    #[case::which_returns_path("'/usr/bin/uv'", true)]
-    fn has_uv_reflects_which_result(#[case] which_result: &str, #[case] expected: bool) {
+    #[case::none_means_absent("None", false)]
+    #[case::path_means_present("'/usr/bin/uv'", true)]
+    fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
         Python::with_gil(|py| {
-            let code = CString::new(format!(
-                "import shutil\norig = shutil.which\nshutil.which = lambda name: {which_result}\n",
+            let patch = CString::new(format!(
+                "import shutil\n\
+                 orig = shutil.which\n\
+                 shutil.which = lambda name: {which_return_expr}\n"
             ))
             .expect("CString build");
-            py.run(code.as_c_str(), None, None)
+            py.run(patch.as_c_str(), None, None)
                 .expect("monkeypatch shutil.which");
 
             assert_eq!(has_uv(py), expected);
