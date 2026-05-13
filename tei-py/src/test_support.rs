@@ -381,13 +381,7 @@ mod tests {
         });
 
         let handles: Vec<_> = (0..8)
-            .map(|_| {
-                let thread_run_count = Arc::clone(&run_count);
-                thread::spawn(move || {
-                    drop(thread_run_count);
-                    Python::with_gil(ensure_msgspec_installed)
-                })
-            })
+            .map(|_| thread::spawn(move || Python::with_gil(ensure_msgspec_installed)))
             .collect();
 
         for handle in handles {
