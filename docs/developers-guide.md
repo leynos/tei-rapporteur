@@ -67,3 +67,48 @@ enough for benchmark and diagnostic consumers:
 Treat `input_bytes`, `segment_count`, `text_bytes`, and `elapsed_microseconds`
 as the metrics surface for spoken extraction. Throughput dashboards should
 derive rates from those fields rather than adding counters in the library.
+
+## tei-py build requirements
+
+`tei-py` uses PyO3 for the Python binding layer. The current supported PyO3
+minor series is `0.24.x`, with `pyo3` pinned to `0.24.2` and the direct
+`pyo3-build-config` build dependency pinned to `0.24.2`.
+
+Keep `pyo3` and `pyo3-build-config` on the same minor series. PyO3 uses the
+build configuration crate to resolve interpreter configuration and emit cfg
+flags consumed by the runtime crate. Mixing minor series risks subtle build
+configuration mismatches, including cfg flags or generated binding assumptions
+that no longer match the runtime dependency.
+
+The `pyo3` dependency enables `auto-initialize` so tests and Rust-side helpers
+can attach to an embedded Python interpreter without requiring every caller to
+perform explicit interpreter initialization first. The `pyo3-build-config`
+dependency enables `resolve-config` so `tei-py/build.rs` can resolve the active
+Python configuration and apply the PyO3 cfg values needed by the crate.
+
+## tei-py test-support API
+
+`tei-py/src/test_support.rs` contains the private `run_with_kwargs` helper used
+by the `msgspec` bootstrap path:
+
+```rust
+fn run_with_kwargs<'py, A>(
+    run: &Bound<'py, PyAny>,
+    args: A,
+    kwargs: &Bound<'py, PyDict>,
+)
+where
+    A: pyo3::call::PyCallArgs<'py>,
+```
+
+Any future caller must pass an argument value that implements
+`pyo3::call::PyCallArgs<'py>`. PyO3 0.24 tightened `PyAnyMethods::call` to use
+`PyCallArgs` directly rather than accepting any value convertible through
+`IntoPyObject<'py, Target = PyTuple>`. When the intended Python call receives
+one positional argument, wrap that argument in a Rust one-tuple, such as
+`(args_tuple,)`.
+
+Only `ensure_msgspec_installed` and `msgspec_available` are public exports from
+this module. They are thread-safe: `ensure_msgspec_installed` guards the
+bootstrap with `Once`, and `msgspec_available` delegates to it while attached
+to the Python interpreter.
