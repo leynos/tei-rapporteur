@@ -237,13 +237,8 @@ mod tests {
             let call_count = recorded_call_count(&globals);
             restore_subprocess_run(py, &globals);
 
-            assert!(call_count > 0);
+            assert_eq!(call_count, 1);
         });
-    }
-
-    #[test]
-    fn msgspec_available_returns_bool() {
-        assert_eq!(msgspec_available(), msgspec_available());
     }
 
     #[test]
@@ -272,39 +267,19 @@ mod tests {
         }
     }
 
-    #[test]
-    fn has_uv_reports_absence_when_which_returns_none() {
+    #[rstest]
+    #[case::which_returns_none("None", false)]
+    #[case::which_returns_path("'/usr/bin/uv'", true)]
+    fn has_uv_reflects_which_result(#[case] which_result: &str, #[case] expected: bool) {
         Python::with_gil(|py| {
-            let code = CString::new(
-                "import shutil\norig = shutil.which\nshutil.which = lambda name: None\n",
-            )
+            let code = CString::new(format!(
+                "import shutil\norig = shutil.which\nshutil.which = lambda name: {which_result}\n",
+            ))
             .expect("CString build");
             py.run(code.as_c_str(), None, None)
                 .expect("monkeypatch shutil.which");
 
-            assert!(!has_uv(py), "uv should be absent when which returns None");
-
-            let restore =
-                CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-            py.run(restore.as_c_str(), None, None)
-                .expect("restore shutil.which");
-        });
-    }
-
-    #[test]
-    fn has_uv_reports_presence_when_which_returns_path() {
-        Python::with_gil(|py| {
-            let code = CString::new(
-                "import shutil\norig = shutil.which\nshutil.which = lambda name: '/usr/bin/uv'\n",
-            )
-            .expect("CString build");
-            py.run(code.as_c_str(), None, None)
-                .expect("monkeypatch shutil.which");
-
-            assert!(
-                has_uv(py),
-                "uv should be detected when which returns a path"
-            );
+            assert_eq!(has_uv(py), expected);
 
             let restore =
                 CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
