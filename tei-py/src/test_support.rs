@@ -196,8 +196,18 @@ mod tests {
         let restore =
             CString::new("import subprocess\nsubprocess.run = _original_run\n_calls = []\n")
                 .expect("CString build");
-        py.run(restore.as_c_str(), Some(globals), None)
-            .expect("restore subprocess.run");
+        py.run(restore.as_c_str(), Some(globals), None).ok();
+    }
+
+    struct SubprocessRestoreGuard<'py> {
+        py: Python<'py>,
+        globals: Bound<'py, PyDict>,
+    }
+
+    impl Drop for SubprocessRestoreGuard<'_> {
+        fn drop(&mut self) {
+            restore_subprocess_run(self.py, &self.globals);
+        }
     }
 
     fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
@@ -219,6 +229,10 @@ mod tests {
                 kwargs,
                 globals,
             } = setup_run_and_kwargs(py);
+            let _restore_guard = SubprocessRestoreGuard {
+                py,
+                globals: globals.clone(),
+            };
 
             match arg_shape {
                 RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),
@@ -235,7 +249,6 @@ mod tests {
             }
 
             let call_count = recorded_call_count(&globals);
-            restore_subprocess_run(py, &globals);
 
             assert_eq!(call_count, 1);
         });
@@ -272,21 +285,37 @@ mod tests {
     #[case::path_means_present("'/usr/bin/uv'", true)]
     fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
         Python::with_gil(|py| {
+            let globals = PyDict::new(py);
             let patch = CString::new(format!(
                 "import shutil\n\
                  orig = shutil.which\n\
                  shutil.which = lambda name: {which_return_expr}\n"
             ))
             .expect("CString build");
-            py.run(patch.as_c_str(), None, None)
+            py.run(patch.as_c_str(), Some(&globals), None)
                 .expect("monkeypatch shutil.which");
+            let _restore_guard = ShutilRestoreGuard {
+                py,
+                globals: globals.clone(),
+            };
 
             assert_eq!(has_uv(py), expected);
-
-            let restore =
-                CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-            py.run(restore.as_c_str(), None, None)
-                .expect("restore shutil.which");
         });
+    }
+
+    fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) {
+        let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
+        py.run(restore.as_c_str(), Some(globals), None).ok();
+    }
+
+    struct ShutilRestoreGuard<'py> {
+        py: Python<'py>,
+        globals: Bound<'py, PyDict>,
+    }
+
+    impl Drop for ShutilRestoreGuard<'_> {
+        fn drop(&mut self) {
+            restore_shutil_which(self.py, &self.globals);
+        }
     }
 }
