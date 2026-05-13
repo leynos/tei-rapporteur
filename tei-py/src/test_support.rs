@@ -366,7 +366,7 @@ mod tests {
             .map(|_| {
                 let thread_run_count = Arc::clone(&run_count);
                 thread::spawn(move || {
-                    let _run_count = Arc::clone(&thread_run_count);
+                    drop(thread_run_count);
                     Python::with_gil(ensure_msgspec_installed)
                 })
             })
