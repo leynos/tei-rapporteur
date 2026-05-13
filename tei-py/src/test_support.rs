@@ -172,6 +172,7 @@ mod tests {
         globals: Bound<'py, PyDict>,
     }
 
+    #[derive(Clone, Copy)]
     enum RunWithKwargsArgShape {
         Unit,
         NestedPyTuple,
@@ -265,6 +266,14 @@ mod tests {
             .expect("count recorded subprocess.run calls")
     }
 
+    fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> Bound<'py, PyAny> {
+        let expr = CString::new("_calls[0][0]").expect("CString build");
+        globals
+            .py()
+            .eval(expr.as_c_str(), Some(globals), None)
+            .expect("read recorded subprocess.run positional arguments")
+    }
+
     #[rstest]
     #[case::unit_tuple(RunWithKwargsArgShape::Unit)]
     #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
@@ -298,6 +307,32 @@ mod tests {
             let call_count = recorded_call_count(&globals);
 
             assert_eq!(call_count, 1);
+
+            let args = recorded_args(&globals);
+            match arg_shape {
+                RunWithKwargsArgShape::Unit => {
+                    assert_eq!(args.len().expect("count positional arguments"), 0);
+                }
+                RunWithKwargsArgShape::NestedPyTuple => {
+                    let first_arg = args.get_item(0).expect("read first positional argument");
+                    assert_eq!(
+                        first_arg
+                            .extract::<(String,)>()
+                            .expect("extract nested tuple argument"),
+                        ("true".to_owned(),)
+                    );
+                }
+                RunWithKwargsArgShape::DirectPyTuple => {
+                    assert_eq!(args.len().expect("count positional arguments"), 1);
+                    let first_arg = args.get_item(0).expect("read first positional argument");
+                    assert_eq!(
+                        first_arg
+                            .extract::<Vec<String>>()
+                            .expect("extract direct list argument"),
+                        vec!["true".to_owned()]
+                    );
+                }
+            }
         });
     }
 
@@ -310,10 +345,10 @@ mod tests {
     }
 
     #[test]
-    fn msgspec_available_matches_ensure_installed() {
-        let ensure_result = Python::with_gil(|py| ensure_msgspec_installed(py).is_ok());
+    fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
+        let directly_importable = Python::with_gil(|py| py.import("msgspec").is_ok());
 
-        assert_eq!(msgspec_available(), ensure_result);
+        assert_eq!(msgspec_available(), directly_importable);
     }
 
     #[test]
