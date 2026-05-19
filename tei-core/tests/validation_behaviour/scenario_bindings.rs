@@ -22,10 +22,32 @@ fn validation_feature_scenarios_have_matching_test_bindings() {
     );
 }
 
+#[test]
+fn feature_scenario_names_include_scenarios_and_outlines() {
+    let names = feature_scenario_names(concat!(
+        "Feature: Mixed scenarios\n",
+        "  Scenario: Plain scenario\n",
+        "  Scenario Outline: Parameterised scenario\n",
+    ));
+
+    assert_eq!(
+        names,
+        BTreeSet::from([
+            "Plain scenario".to_owned(),
+            "Parameterised scenario".to_owned(),
+        ]),
+    );
+}
+
 fn feature_scenario_names(source: &str) -> BTreeSet<String> {
     source
         .lines()
-        .filter_map(|line| line.trim_start().strip_prefix("Scenario: "))
+        .filter_map(|line| {
+            let trimmed_line = line.trim_start();
+            trimmed_line
+                .strip_prefix("Scenario: ")
+                .or_else(|| trimmed_line.strip_prefix("Scenario Outline: "))
+        })
         .map(str::to_owned)
         .collect()
 }
