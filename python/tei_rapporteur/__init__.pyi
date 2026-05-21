@@ -53,7 +53,10 @@ class TeiEventIterator:
     typed structs via ``msgspec.convert(event, Event)``.
     """
 
-    def __iter__(self) -> TeiEventIterator: ...
+    def __iter__(self) -> TeiEventIterator:
+        """Return this streaming iterator."""
+        ...
+
     def __next__(self) -> dict[str, Any]:
         """Yield the next streaming event as a tagged dictionary.
 
