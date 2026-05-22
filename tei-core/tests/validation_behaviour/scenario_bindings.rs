@@ -15,6 +15,8 @@ fn validation_feature_scenarios_have_matching_test_bindings() {
     let feature_scenarios = feature_scenario_names(FEATURE_SOURCE);
     let test_bindings = bound_scenario_names([PARENT_TEST_SOURCE, STAND_OFF_TEST_SOURCE]);
 
+    insta::assert_debug_snapshot!("validation_feature_scenario_bindings", test_bindings);
+
     assert_eq!(
         feature_scenarios, test_bindings,
         "validation.feature scenarios must match validation behaviour test \

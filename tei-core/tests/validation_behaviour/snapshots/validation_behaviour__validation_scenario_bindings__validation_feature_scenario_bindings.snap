@@ -1,0 +1,21 @@
+---
+source: tei-core/tests/validation_behaviour/scenario_bindings.rs
+expression: test_bindings
+---
+{
+    "Accepting external item corresp pointers inside divisions",
+    "Accepting stand-off spans that target existing utterances",
+    "Accepting unique ids and declared speakers",
+    "Allowing speakers when the cast list is absent",
+    "Rejecting duplicate header annotation system identifiers",
+    "Rejecting duplicate xml:id values",
+    "Rejecting duplicate xml:id values inside divisions",
+    "Rejecting duplicate xml:id values inside nested divisions",
+    "Rejecting header and body identifier clashes",
+    "Rejecting speakers when the cast is empty",
+    "Rejecting stand-off spans that target missing ids",
+    "Rejecting stand-off spans without anchors",
+    "Rejecting unknown speaker references",
+    "Rejecting unresolved item corresp pointers inside divisions",
+    "Rejecting unresolved item corresp pointers inside nested divisions",
+}
