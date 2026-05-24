@@ -54,6 +54,16 @@ relationship explicit in module documentation. The parent module should state
 which child modules extend its fixtures or shared state, and child modules
 should state which parent module they serve.
 
+Binding guard tests that assert parity between feature-file scenarios and Rust
+test bindings must call `insta::assert_debug_snapshot!` to record the expected
+set of bound scenario names explicitly before the parity assertion. The
+snapshot makes the binding set visible in code review, and `insta`'s diff
+output surfaces regressions more clearly than a bare `assert_eq!` failure.
+Commit snapshot files under the matching `tei-core/tests/**/snapshots/`
+directory, such as `tei-core/tests/validation_behaviour/snapshots/` for the
+validation guards, and update them with `cargo insta review` or
+`INSTA_UPDATE=always cargo test` whenever binding changes are intentional.
+
 ## Spoken text observability
 
 `tei_xml::spoken_text_segments` emits `tracing` debug events only. Library
