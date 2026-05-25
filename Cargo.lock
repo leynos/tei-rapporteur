@@ -250,6 +250,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "console"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -420,6 +431,12 @@ checksum = "e079f19b08ca6239f47f8ba8509c11cf3ea30095831f7fed61441475edd8c449"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "encode_unicode"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "equivalent"
@@ -694,24 +711,7 @@ dependencies = [
  "syn 2.0.106",
  "textwrap",
  "thiserror 1.0.69",
- "typed-builder 0.15.2",
-]
-
-[[package]]
-name = "gherkin"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e2c0d8c632f8a251ce9a8198079b1022adc586ff4e3d33e18debd40eb463b31"
-dependencies = [
- "heck 0.5.0",
- "peg",
- "quote",
- "serde",
- "serde_json",
- "syn 2.0.106",
- "textwrap",
- "thiserror 2.0.17",
- "typed-builder 0.23.2",
+ "typed-builder",
 ]
 
 [[package]]
@@ -1010,6 +1010,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79cf5c93f93228cf8efb3ba362535fb11199ac548a09ce117c9b1adc3030d706"
 dependencies = [
  "rustversion",
+]
+
+[[package]]
+name = "insta"
+version = "1.47.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b4a6248eb93a4401ed2f37dfe8ea592d3cf05b7cf4f8efa867b6895af7e094e"
+dependencies = [
+ "console",
+ "once_cell",
+ "similar",
+ "tempfile",
 ]
 
 [[package]]
@@ -1811,7 +1823,7 @@ dependencies = [
  "ctor",
  "derive_more",
  "fluent",
- "gherkin 0.14.0",
+ "gherkin",
  "hashbrown",
  "i18n-embed",
  "inventory",
@@ -1836,7 +1848,7 @@ dependencies = [
  "cap-std",
  "cfg-if",
  "convert_case 0.6.0",
- "gherkin 0.14.0",
+ "gherkin",
  "newt-hype",
  "proc-macro-crate",
  "proc-macro-error",
@@ -1856,7 +1868,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39abaa69316cdbbad0512dc0f37b704b09e4cdb5018d80f197cbdb77a2269d06"
 dependencies = [
- "gherkin 0.14.0",
+ "gherkin",
  "regex",
  "thiserror 1.0.69",
 ]
@@ -2121,6 +2133,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
 name = "slab"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2215,7 +2233,7 @@ name = "tei-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "gherkin 0.16.0",
+ "insta",
  "proptest",
  "rstest",
  "rstest-bdd",
@@ -2512,16 +2530,7 @@ version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fe83c85a85875e8c4cb9ce4a890f05b23d38cd0d47647db7895d3d2a79566d2"
 dependencies = [
- "typed-builder-macro 0.15.2",
-]
-
-[[package]]
-name = "typed-builder"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31aa81521b70f94402501d848ccc0ecaa8f93c8eb6999eb9747e72287757ffda"
-dependencies = [
- "typed-builder-macro 0.23.2",
+ "typed-builder-macro",
 ]
 
 [[package]]
@@ -2529,17 +2538,6 @@ name = "typed-builder-macro"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29a3151c41d0b13e3d011f98adc24434560ef06673a155a6c7f66b9879eecce2"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
-name = "typed-builder-macro"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076a02dc54dd46795c2e9c8282ed40bcfb1e22747e955de9389a1de28190fb26"
 dependencies = [
  "proc-macro2",
  "quote",

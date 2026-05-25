@@ -81,6 +81,7 @@ class ListBlock(msgspec.Struct, tag="list", tag_field="type", omit_defaults=True
     xml_id: str | None = None
 
     def __post_init__(self) -> None:
+        """Reject empty list blocks before they cross the Python boundary."""
         if not self.items:
             raise ValueError("ListBlock must contain at least one Item")
 
@@ -104,11 +105,13 @@ class Head(msgspec.Struct, omit_defaults=True):
     content: list[Inline] = msgspec.field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Reject headings that would serialise without visible content."""
         if not self.content:
             raise ValueError("Head must contain at least one Inline node")
 
 
 def _validate_div_invariants(div_type: str, subtype: str | None) -> None:
+    """Validate the shared division type and subtype constraints."""
     if not div_type.strip():
         raise ValueError("div_type must contain non-whitespace text")
     if subtype is not None and not subtype.strip():
@@ -150,6 +153,7 @@ class DivBlock(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     xml_id: str | None = None
 
     def __post_init__(self) -> None:
+        """Apply shared division validation after struct decoding."""
         _validate_div_invariants(self.div_type, self.subtype)
 
 

@@ -41,6 +41,29 @@ and XML 1.0 is the specification default when a declaration is absent. If the
 parsers later preserve XML version state, thread that version into this module
 first so spoken-text and streaming behaviour remain aligned.
 
+## Behaviour scenario binding
+
+Prefer `rstest-bdd` name-based scenario binding for behaviour tests. Use the
+exact Gherkin `Scenario:` title in each `#[scenario(..., name = "...")]`
+attribute so Rust test functions are independent of feature-file ordering. Do
+not add new index-based bindings unless an upstream limitation makes them
+unavoidable and the same change documents the limitation.
+
+When splitting one feature across several Rust modules, make the module
+relationship explicit in module documentation. The parent module should state
+which child modules extend its fixtures or shared state, and child modules
+should state which parent module they serve.
+
+Binding guard tests that assert parity between feature-file scenarios and Rust
+test bindings must call `insta::assert_debug_snapshot!` to record the expected
+set of bound scenario names explicitly before the parity assertion. The
+snapshot makes the binding set visible in code review, and `insta`'s diff
+output surfaces regressions more clearly than a bare `assert_eq!` failure.
+Commit snapshot files under the matching `tei-core/tests/**/snapshots/`
+directory, such as `tei-core/tests/validation_behaviour/snapshots/` for the
+validation guards, and update them with `cargo insta review` or
+`INSTA_UPDATE=always cargo test` whenever binding changes are intentional.
+
 ## Spoken text observability
 
 `tei_xml::spoken_text_segments` emits `tracing` debug events only. Library

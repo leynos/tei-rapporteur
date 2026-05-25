@@ -19,10 +19,10 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+insta = { workspace = true }
 proptest = { workspace = true }
 rstest = { workspace = true }
 rstest-bdd = { workspace = true }
 rstest-bdd-macros = { workspace = true }
 tei-serde = { workspace = true }
 tei-test-helpers = { path = "../tei-test-helpers" }
-gherkin = "0.16.0"

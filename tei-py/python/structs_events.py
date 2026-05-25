@@ -155,6 +155,7 @@ class DivEvent(msgspec.Struct, tag="div", tag_field="type", omit_defaults=True):
     xml_id: str | None = None
 
     def __post_init__(self) -> None:
+        """Apply shared division validation to streamed division events."""
         _validate_div_invariants(self.div_type, self.subtype)
 
 

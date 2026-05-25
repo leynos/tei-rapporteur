@@ -71,6 +71,9 @@ used to drive the TEI fixtures.
 - [x] Upgrade the workspace to `rstest-bdd` and `rstest-bdd-macros` version
       `0.5.0`, ensuring scenarios run on the stable release line and benefit
       from the new diagnostics bundle.
+- [x] Migrate validation behaviour tests away from index-based scenario
+      coupling by binding `validation.feature` scenarios by name instead
+      (`#34`).
 
 ## Phase 2: Python Integration
 

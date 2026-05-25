@@ -1,4 +1,8 @@
 //! Behaviour-driven tests for document-level validation.
+//!
+//! This parent module owns the shared validation state and common steps. The
+//! `stand_off` submodule extends the same feature file with stand-off specific
+//! steps while reusing the parent fixtures and assertions.
 
 use anyhow::{Context, Result, anyhow, ensure};
 use rstest::fixture;
@@ -7,7 +11,6 @@ use std::cell::RefCell;
 use tei_core::{Div, Item, List, P, ProfileDesc, TeiDocument, TeiError, Utterance};
 use tei_test_helpers::expect_validated_state;
 
-mod scenario_order;
 mod stand_off;
 
 #[derive(Default)]
@@ -300,10 +303,10 @@ fn add_utterance_to_document(document: &TeiDocument, utterance: Utterance) -> Te
     TeiDocument::new(document.header().clone(), text)
 }
 
-// Scenario indices are coupled to validation.feature ordering. Update the
-// indices below if scenarios are reordered or inserted; the guard test at the
-// end of this module ensures the names stay aligned with the feature file.
-#[scenario(path = "tests/features/validation.feature", index = 0)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Accepting unique ids and declared speakers"
+)]
 fn accepts_unique_ids_and_declared_speakers(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -311,7 +314,10 @@ fn accepts_unique_ids_and_declared_speakers(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 1)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting duplicate xml:id values"
+)]
 fn rejects_duplicate_identifiers(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -319,7 +325,10 @@ fn rejects_duplicate_identifiers(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 2)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting header and body identifier clashes"
+)]
 fn rejects_header_body_identifier_clashes(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -327,7 +336,10 @@ fn rejects_header_body_identifier_clashes(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 3)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting duplicate header annotation system identifiers"
+)]
 fn rejects_header_annotation_system_clashes(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -335,7 +347,10 @@ fn rejects_header_annotation_system_clashes(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 4)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting unknown speaker references"
+)]
 fn rejects_unknown_speakers(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -343,7 +358,10 @@ fn rejects_unknown_speakers(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 5)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting speakers when the cast is empty"
+)]
 fn rejects_speakers_when_cast_is_empty(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -351,7 +369,10 @@ fn rejects_speakers_when_cast_is_empty(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 6)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Allowing speakers when the cast list is absent"
+)]
 fn allows_speakers_without_cast(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -359,7 +380,10 @@ fn allows_speakers_without_cast(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 10)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting duplicate xml:id values inside divisions"
+)]
 fn rejects_duplicate_identifiers_inside_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -367,7 +391,10 @@ fn rejects_duplicate_identifiers_inside_divisions(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 11)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Accepting external item corresp pointers inside divisions"
+)]
 fn accepts_external_item_corresp_pointers_inside_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -375,7 +402,10 @@ fn accepts_external_item_corresp_pointers_inside_divisions(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 12)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting unresolved item corresp pointers inside divisions"
+)]
 fn rejects_unresolved_item_corresp_pointers_inside_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -383,7 +413,10 @@ fn rejects_unresolved_item_corresp_pointers_inside_divisions(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 13)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting duplicate xml:id values inside nested divisions"
+)]
 fn rejects_duplicate_identifiers_inside_nested_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -391,7 +424,10 @@ fn rejects_duplicate_identifiers_inside_nested_divisions(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 14)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting unresolved item corresp pointers inside nested divisions"
+)]
 fn rejects_unresolved_item_corresp_pointers_inside_nested_divisions(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,

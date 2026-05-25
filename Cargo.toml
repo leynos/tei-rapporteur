@@ -28,6 +28,7 @@ proptest = { version = "1.9.0" }
 criterion = { version = "0.5.1", features = ["html_reports"] }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tei-serde = { path = "tei-serde" }
+insta = { version = "1.47.2" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }

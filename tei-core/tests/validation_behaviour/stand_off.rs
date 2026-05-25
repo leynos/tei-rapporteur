@@ -1,4 +1,7 @@
 //! Stand-off specific validation steps and helpers.
+//!
+//! This module serves the parent `validation_behaviour` test module by adding
+//! stand-off setup steps and scenarios that share the parent validation state.
 
 use super::*;
 use tei_core::{AnnotationSystem, EncodingDesc, PointerList, Span, SpanGroup, StandOff};
@@ -110,7 +113,10 @@ fn add_span_to_group(document: &TeiDocument, group_id: &str, span: Span) -> Resu
     )
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 7)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Accepting stand-off spans that target existing utterances"
+)]
 fn accepts_stand_off_spans_that_target_existing_utterances(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -118,7 +124,10 @@ fn accepts_stand_off_spans_that_target_existing_utterances(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 8)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting stand-off spans that target missing ids"
+)]
 fn rejects_stand_off_spans_that_target_missing_ids(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
@@ -126,7 +135,10 @@ fn rejects_stand_off_spans_that_target_missing_ids(
     expect_validated_state(validated_state, "validation");
 }
 
-#[scenario(path = "tests/features/validation.feature", index = 9)]
+#[scenario(
+    path = "tests/features/validation.feature",
+    name = "Rejecting stand-off spans without anchors"
+)]
 fn rejects_stand_off_spans_without_anchors(
     #[from(validated_state)] _: ValidationState,
     #[from(validated_state_result)] validated_state: Result<ValidationState>,
