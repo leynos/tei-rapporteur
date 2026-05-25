@@ -64,7 +64,7 @@ impl BufRead for SliceReader {
 /// immediately return `None`.
 ///
 /// # Usage
-/// ```
+/// ```python
 /// for event in tei_rapporteur.iter_parse(xml_string):
 ///     ...
 /// ```

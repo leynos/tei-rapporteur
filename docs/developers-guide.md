@@ -112,10 +112,31 @@ extension-safe linker flags without linking `libpython`. The
 can resolve the active Python configuration and apply the PyO3 cfg values
 needed by the crate.
 
+## tei-py UI compile tests
+
+`tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
+compile-time API behaviour. The harness lives in `tei-py/tests/ui.rs` and calls
+`trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`, so each Rust
+file under `tei-py/tests/ui/` must fail to compile and must have a committed
+matching `.stderr` snapshot.
+
+Use UI tests when a runtime test cannot prove a public or hidden-public Rust
+API rejects an invalid type. Name fixtures after the behaviour being guarded,
+for example `non_pycallargs_rejected.rs`, and commit the generated
+`non_pycallargs_rejected.stderr` beside it. To add a fixture, create the
+compile-fail `.rs` file, run `cargo test -p tei-py --test ui`, inspect the
+generated snapshot under `tei-py/wip/`, then move the `.stderr` file into
+`tei-py/tests/ui/` only when the compiler error demonstrates the intended
+contract.
+
+The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
+`run_with_kwargs` rejects a plain `String` because `String` does not implement
+`pyo3::call::PyCallArgs<'py>`.
+
 ## tei-py test-support API
 
-`tei-py/src/test_support.rs` contains the private `run_with_kwargs` helper used
-by the `msgspec` bootstrap path:
+`tei-py/src/test_support.rs` contains the hidden-public `run_with_kwargs`
+helper used by the `msgspec` bootstrap path and UI compile tests:
 
 ```rust
 fn run_with_kwargs<'py, A>(

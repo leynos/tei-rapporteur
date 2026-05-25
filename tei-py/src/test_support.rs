@@ -36,7 +36,8 @@ fn has_uv(py: Python<'_>) -> bool {
         .is_some()
 }
 
-fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
+#[doc(hidden)]
+pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
 where
     A: pyo3::call::PyCallArgs<'py>,
 {

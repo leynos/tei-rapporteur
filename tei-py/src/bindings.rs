@@ -198,12 +198,10 @@ pub(crate) mod py_exports {
         /// # Examples
         ///
         /// ```
-        /// use tei_serde::msgpack::to_vec_named;
-        /// use tei_core::TeiDocument;
-        /// use tei_py::from_msgpack;
+        /// use tei_py::{Document, from_msgpack, to_msgpack};
         ///
-        /// let source = TeiDocument::from_title_str("Wolf 359")?;
-        /// let payload = to_vec_named(&source)?;
+        /// let source = Document::try_from_title("Wolf 359")?;
+        /// let payload = to_msgpack(&source)?;
         /// let document = from_msgpack(&payload)?;
         /// assert_eq!(document.title(), "Wolf 359");
         /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -297,9 +295,9 @@ pub(crate) mod py_exports {
     ///     let payload = to_dict(py, &document)?;
     ///     let round_tripped = from_dict(payload)?;
     ///     assert_eq!(round_tripped.title(), "Wolf 359");
-    ///     Ok::<(), pyo3::PyErr>(())
+    ///     Ok::<(), Box<dyn std::error::Error>>(())
     /// })?;
-    /// # Ok::<(), pyo3::PyErr>(())
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     #[pyfunction(name = "from_dict")]
     pub fn from_dict(payload: Bound<'_, PyAny>) -> PyResult<Document> {
@@ -325,14 +323,14 @@ pub(crate) mod py_exports {
     ///     let document = Document::try_from_title("Bridgewater")?;
     ///     let payload = to_dict(py, &document)?;
     ///     let title: String = payload
-    ///         .get_item("teiHeader")?
-    ///         .get_item("fileDesc")?
+    ///         .get_item("header")?
+    ///         .get_item("file_desc")?
     ///         .get_item("title")?
     ///         .extract()?;
     ///     assert_eq!(title, "Bridgewater");
-    ///     Ok::<(), pyo3::PyErr>(())
+    ///     Ok::<(), Box<dyn std::error::Error>>(())
     /// })?;
-    /// # Ok::<(), pyo3::PyErr>(())
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     #[pyfunction(name = "to_dict")]
     pub fn to_dict<'py>(py: Python<'py>, document: &'py Document) -> PyResult<Bound<'py, PyAny>> {

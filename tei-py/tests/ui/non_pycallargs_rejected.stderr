@@ -1,0 +1,33 @@
+error[E0277]: `String` cannot used as a Python `call` argument
+ --> tests/ui/non_pycallargs_rejected.rs:8:26
+  |
+8 |     run_with_kwargs(run, String::from("not call args"), kwargs);
+  |     ---------------      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `PyCallArgs<'_>` is not implemented for `String`
+  |     |
+  |     required by a bound introduced by this call
+  |
+  = note: `PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`
+  = note: if your type is convertible to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually
+  = note: if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`
+  = help: the following other types implement trait `PyCallArgs<'py>`:
+            &'a (T0, T1)
+            &'a (T0, T1, T2)
+            &'a (T0, T1, T2, T3)
+            &'a (T0, T1, T2, T3, T4)
+            &'a (T0, T1, T2, T3, T4, T5)
+            &'a (T0, T1, T2, T3, T4, T5, T6)
+            &'a (T0, T1, T2, T3, T4, T5, T6, T7)
+            &'a (T0, T1, T2, T3, T4, T5, T6, T7, T8)
+          and $N others
+note: required by a bound in `run_with_kwargs`
+ --> src/test_support.rs
+  |
+  | pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
+  |        --------------- required by a bound in this function
+  | where
+  |     A: pyo3::call::PyCallArgs<'py>,
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `run_with_kwargs`
+help: use a unary tuple instead
+  |
+8 |     run_with_kwargs(run, (String::from("not call args"),), kwargs);
+  |                          +                             ++
