@@ -181,6 +181,7 @@ mod tests {
     //! Unit tests for Python-side test support helpers.
 
     use super::*;
+    use proptest::prelude::*;
     use pyo3::{pyclass, pymethods};
     use rstest::rstest;
     use std::{
@@ -438,6 +439,69 @@ subprocess.run = _mock_run
         // skipped) and that the `Once` guard prevented a second bootstrap across
         // both repeated calls.
         assert_eq!(run_count.load(Ordering::SeqCst), 2);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            // `MSGSPEC_INIT` is process-wide, so each generated case needs its
+            // own nextest process to exercise the forced bootstrap path.
+            cases: 1,
+            ..ProptestConfig::default()
+        })]
+
+        #[test]
+        fn idempotency_holds_over_arbitrary_repetitions(repetitions in 1..=50u8) {
+            let run_count = Arc::new(AtomicUsize::new(0));
+
+            let globals = Python::attach(|py| {
+                let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+                remove_msgspec_from_modules(py);
+                g
+            });
+
+            for _ in 0..usize::from(repetitions) {
+                let result = Python::attach(ensure_msgspec_installed);
+                prop_assert!(result.is_ok());
+            }
+
+            let restored_after_bootstrap = Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok();
+            prop_assert!(restored_after_bootstrap);
+
+            prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
+        }
+
+        #[test]
+        fn no_panics_under_variable_thread_count(thread_count in 2..=32u8) {
+            let run_count = Arc::new(AtomicUsize::new(0));
+            let globals = Python::attach(|py| {
+                let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+                remove_msgspec_from_modules(py);
+
+                globals
+            });
+
+            let handles: Vec<_> = (0..usize::from(thread_count))
+                .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
+                .collect();
+
+            for handle in handles {
+                let result = handle.join().expect("bootstrap thread panicked");
+                prop_assert!(result.is_ok());
+            }
+
+            let restored_after_bootstrap = Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok();
+            prop_assert!(restored_after_bootstrap);
+
+            prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
+        }
     }
 
     #[test]
