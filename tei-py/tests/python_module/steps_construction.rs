@@ -5,11 +5,36 @@ use super::state::{
 };
 use anyhow::{Context, Result};
 use pyo3::{Python, types::PyAnyMethods};
+use pyo3_serde::to_pyobject;
 use rstest_bdd_macros::{given, scenario, when};
+use tei_core::{
+    BodyBlock, Div, FileDesc, Head, Item, Label, List, P, TeiBody, TeiDocument, TeiHeader, TeiText,
+};
+use tei_py::projection::document_to_value;
 
 const _: fn() -> PythonModuleState = python_state;
 
-#[given("the tei_rapporteur Python module is initialised")]
+pub(super) fn div_body_document_fixture() -> Result<TeiDocument> {
+    let header = TeiHeader::new(FileDesc::from_title_str("Bridgewater")?);
+    let mut div = Div::new("show-notes")?;
+    div.set_id("div1")?;
+    div.set_subtype("chapter-markers")?;
+    div.set_head(Head::from_text("Chapter markers")?);
+    div.push_paragraph(P::from_text_segments(["Further reading"])?);
+
+    let mut item = Item::from_text_segments(["Transcript"])?;
+    item.set_label(Label::from_text("1.")?);
+    let list = List::new([item])?;
+
+    let mut child = Div::new("segment")?;
+    child.set_subtype("guest-bio")?;
+    child.set_head(Head::from_text("Guest bios")?);
+    child.push_list(list);
+    div.push_div(child);
+
+    let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
+    Ok(TeiDocument::new(header, text))
+}
 pub(super) fn module_is_initialised_step(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
@@ -24,7 +49,27 @@ pub(super) fn i_construct_a_document(
     construct_python_document(state, &title)
 }
 
-#[when("I construct a Document with the XML special characters fixture")]
+pub(super) fn i_construct_a_document_with_div_body_content(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    let payload = document_to_value(&div_body_document_fixture()?)
+        .context("serialising div fixture to JSON should succeed")?;
+    Python::with_gil(|py| {
+        state.with_module(py, |module| {
+            let decoder = module
+                .getattr("from_dict")
+                .context("from_dict must be registered")?;
+            let py_payload =
+                to_pyobject(py, &payload).context("converting fixture to Python should succeed")?;
+            match decoder.call1((py_payload,)) {
+                Ok(document) => state.store_document(document.unbind()),
+                Err(error) => state.store_error(error.to_string()),
+            }
+            Ok::<(), anyhow::Error>(())
+        })
+    })?;
+    Ok(())
+}
 pub(super) fn i_construct_the_xml_special_fixture_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {

@@ -111,6 +111,20 @@ Feature: tei_rapporteur Python module
     And I decode the MessagePack payload
     Then the document title equals "Bridgewater Remix"
 
+  Scenario: Round-trip MessagePack via Episode struct with div blocks
+    Given the tei_rapporteur Python module is initialised
+    And I construct a Document with div body content
+    When I encode the constructed Document to MessagePack
+    And I decode the MessagePack payload to an Episode struct
+    Then the DivBlock, nested DivBlock, ListBlock, and Item are preserved
+
+  Scenario: Round-trip dictionary payload with div blocks
+    Given the tei_rapporteur Python module is initialised
+    And I construct a Document with div body content
+    When I encode the constructed Document to a dictionary
+    And I decode the dictionary payload
+    Then the div structure is preserved
+
   Scenario: Report msgspec errors for malformed payloads
     Given the tei_rapporteur Python module is initialised
     And I encode a MessagePack document missing required fields

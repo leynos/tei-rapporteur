@@ -74,12 +74,64 @@ pub struct TeiEventIterator {
 }
 
 impl TeiEventIterator {
-    fn new(xml: &str) -> Self {
-        let buffer: Arc<[u8]> = Arc::from(xml.as_bytes());
-        let reader = SliceReader::new(buffer);
-        let parser = TeiPullParser::new(reader);
-        Self {
-            parser: Some(parser),
+    /// Returns the iterator instance for Python `for` loops.
+    ///
+    /// # Returns
+    /// The same iterator, enabling `for event in iter_parse(xml)` in Python.
+    #[expect(
+        clippy::missing_const_for_fn,
+        reason = "PyO3 iterator signature cannot be const"
+    )]
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    /// Retrieves the next streaming event.
+    ///
+    /// # Returns
+    /// - `Some(Py<PyAny>)` holding a tagged event from the Python-visible union
+    ///   `Event = DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent
+    ///   | DivEvent | DocumentEnd`, until the stream completes.
+    /// - `None` when the stream is exhausted.
+    ///
+    /// # Errors
+    /// Raises [`PyValueError`] on malformed XML, TEI validation failures, or a
+    /// projection/conversion failure, and exhausts the iterator thereafter.
+    ///
+    /// The parser call runs inside `py.detach()`, releasing the GIL
+    /// while `parser.next()` performs blocking XML parsing so other Python
+    /// threads may progress.
+    pub fn __next__<'py>(&'py mut self, py: Python<'py>) -> PyResult<Option<Py<PyAny>>> {
+        let Some(parser) = self.parser.as_mut() else {
+            return Ok(None);
+        };
+
+        let next_event = py.detach(|| parser.next());
+
+        match next_event {
+            None => {
+                self.parser = None;
+                Ok(None)
+            }
+            Some(Err(error)) => {
+                self.parser = None;
+                Err(PyValueError::new_err(error.to_string()))
+            }
+            Some(Ok(event)) => {
+                if matches!(event, TeiEvent::DocumentEnd) {
+                    self.parser = None;
+                }
+                let projected = py_event_from_core(event);
+                match to_pyobject(py, &projected) {
+                    Ok(py_obj) => Ok(Some(py_obj.unbind())),
+                    Err(error) => {
+                        // A conversion failure exhausts the iterator, matching
+                        // the malformed-XML path and the documented contract.
+                        self.parser = None;
+                        Err(PyValueError::new_err(error.to_string()))
+                    }
+                }
+            }
         }
     }
 }

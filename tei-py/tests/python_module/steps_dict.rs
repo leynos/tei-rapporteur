@@ -1,10 +1,10 @@
 //! Dictionary-based steps and scenarios for the Python module.
 
 use super::state::{PythonModuleState, python_state};
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use pyo3::prelude::*;
 use pyo3_serde::{from_pyobject, to_pyobject};
-use rstest_bdd_macros::{given, scenario, when};
+use rstest_bdd_macros::{given, scenario, then, when};
 use tei_core::{P, ProfileDesc, TeiDocument, Utterance};
 use tei_serde::json::Value;
 use tei_serde::serde_json::json;
@@ -174,8 +174,78 @@ pub(super) fn i_encode_a_dictionary_without_providing_a_document(
     Ok(())
 }
 
-/// Scenario: Decode a `Document` from a dictionary payload.
-#[scenario(path = "tests/features/python_module.feature", index = 13)]
+fn text_from_content(value: &Value) -> Result<&str> {
+    value
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.first())
+        .and_then(|inline| inline.get("value"))
+        .and_then(Value::as_str)
+        .context("value should include first inline text")
+}
+
+pub(super) fn the_div_structure_is_preserved(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    i_encode_the_constructed_document_to_a_dictionary(state)?;
+    let payload = state.dict_output()?;
+    let div = payload
+        .get("text")
+        .and_then(|text| text.get("body"))
+        .and_then(|body| body.get("blocks"))
+        .and_then(Value::as_array)
+        .and_then(|blocks| blocks.first())
+        .context("dictionary payload should contain a body division")?;
+
+    ensure!(
+        div.get("type").and_then(Value::as_str) == Some("div"),
+        "top-level body block should be a division"
+    );
+    ensure!(
+        div.get("div_type").and_then(Value::as_str) == Some("show-notes"),
+        "division type should survive dictionary round-trip"
+    );
+    ensure!(
+        div.get("subtype").and_then(Value::as_str) == Some("chapter-markers"),
+        "division subtype should survive dictionary round-trip"
+    );
+    ensure!(
+        div.get("head").map(text_from_content).transpose()? == Some("Chapter markers"),
+        "division head should survive dictionary round-trip"
+    );
+
+    let nested_div = div
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.get(1))
+        .context("dictionary payload should contain a nested division")?;
+    ensure!(
+        nested_div.get("type").and_then(Value::as_str) == Some("div"),
+        "nested block should be a division"
+    );
+    ensure!(
+        nested_div.get("head").map(text_from_content).transpose()? == Some("Guest bios"),
+        "nested division head should survive dictionary round-trip"
+    );
+
+    let item = nested_div
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.first())
+        .and_then(|list| list.get("items"))
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .context("dictionary payload should contain a list item")?;
+    ensure!(
+        item.get("label").map(text_from_content).transpose()? == Some("1."),
+        "list item label should survive dictionary round-trip"
+    );
+    ensure!(
+        text_from_content(item)? == "Transcript",
+        "list item content should survive dictionary round-trip"
+    );
+    Ok(())
+}
 pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {
     let _ = python_state;
 }
@@ -201,5 +271,9 @@ pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {
 /// Scenario: Surface errors when `to_dict` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 17)]
 pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
+    let _ = python_state;
+}
+
+pub fn round_trips_div_blocks_via_dictionary(python_state: PythonModuleState) {
     let _ = python_state;
 }
