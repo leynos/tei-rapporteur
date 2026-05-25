@@ -127,6 +127,21 @@ const EOF_AFTER_BODY_FIXTURE: &str = concat!(
     "</body>",
 );
 
+const NAMESPACE_FIXTURE: &str = concat!(
+    "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">",
+    "<teiHeader>",
+    "<fileDesc>",
+    "<title>Namespaced Document</title>",
+    "</fileDesc>",
+    "</teiHeader>",
+    "<text>",
+    "<body>",
+    "<p>Content with namespace</p>",
+    "</body>",
+    "</text>",
+    "</TEI>",
+);
+
 type EventResult = Result<TeiEvent, TeiError>;
 
 #[derive(Default)]
@@ -206,6 +221,7 @@ fn fixture_by_name(name: &str) -> anyhow::Result<&'static str> {
         "missing-header" => Ok(MISSING_HEADER_FIXTURE),
         "cdata" => Ok(CDATA_FIXTURE),
         "eof-after-body" => Ok(EOF_AFTER_BODY_FIXTURE),
+        "namespace" => Ok(NAMESPACE_FIXTURE),
         other => bail!("unknown TEI fixture: {other}"),
     }
 }
@@ -471,6 +487,25 @@ fn the_parser_header_returns_none_before(
     Ok(())
 }
 
+#[then("the header title is \"{title}\"")]
+fn the_header_title_is(
+    #[from(validated_state)] state: &StreamingState,
+    title: String,
+) -> anyhow::Result<()> {
+    let events = state.events();
+    for event in events {
+        if let Ok(TeiEvent::Header(header)) = event {
+            let actual = header.file_desc().title().as_str();
+            ensure!(
+                actual == title,
+                "header title mismatch: expected {title:?}, found {actual:?}"
+            );
+            return Ok(());
+        }
+    }
+    bail!("no header event found");
+}
+
 #[then("the first paragraph contains CDATA text")]
 fn the_first_paragraph_contains_cdata_text(
     #[from(validated_state)] state: &StreamingState,
@@ -579,6 +614,14 @@ fn handle_eof_after_body(
 
 #[scenario(path = "tests/features/streaming.feature", index = 10)]
 fn header_is_none_before_header_event(
+    #[from(validated_state)] _: StreamingState,
+    #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
+) {
+    expect_validated_state(result, "streaming");
+}
+
+#[scenario(path = "tests/features/streaming.feature", index = 11)]
+fn parse_namespaced_tei_document_correctly(
     #[from(validated_state)] _: StreamingState,
     #[from(validated_state_result)] result: anyhow::Result<StreamingState>,
 ) {
