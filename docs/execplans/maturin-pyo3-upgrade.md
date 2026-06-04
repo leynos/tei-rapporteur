@@ -4,7 +4,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
 and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-Status: VALIDATED, READY TO COMMIT
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -77,8 +77,10 @@ test make target.
 - [x] 2026-06-05: Ran the focused Python maturin compatibility test and the
   required gates: `make check-fmt`, `make lint`, `make typecheck`, and
   `make test`.
-- [ ] Commit each completed change after its gates pass.
-- [ ] Create a draft pull request with a reviewer-focused description.
+- [x] 2026-06-05: Committed the validated implementation as `4c9246e`
+  (`Update maturin and PyO3 validation`).
+- [x] 2026-06-05: Created draft pull request
+  <https://github.com/leynos/tei-rapporteur/pull/87>.
 
 ## Surprises & Discoveries
 
@@ -175,3 +177,6 @@ make test
 
 `make fmt` was required before the final format check because the new execplan
 and existing Markdown files needed repository-standard wrapping.
+
+The implementation commit is `4c9246e` and the draft pull request is
+<https://github.com/leynos/tei-rapporteur/pull/87>.
