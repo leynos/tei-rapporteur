@@ -11,7 +11,7 @@ const _: fn() -> PythonModuleState = python_state;
 pub(super) fn i_validate_the_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_document(py, |document| match document.call_method0("validate") {
             Ok(_) => Ok(()),
             Err(error) => {

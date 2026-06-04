@@ -51,7 +51,7 @@ pub(super) fn i_decode_the_messagepack_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_msgpack")
@@ -70,7 +70,7 @@ pub(super) fn i_decode_the_messagepack_payload(
 pub(super) fn i_encode_the_document_to_messagepack(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_msgpack")
@@ -94,7 +94,7 @@ pub(super) fn i_encode_the_document_to_messagepack(
 pub(super) fn i_encode_messagepack_without_a_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_msgpack")

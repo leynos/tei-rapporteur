@@ -12,7 +12,7 @@ use std::ffi::CString;
 
 #[fixture]
 fn registered_module() -> Option<Py<PyModule>> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return None;
         }
@@ -27,7 +27,7 @@ fn structs_submodule_is_registered(#[from(registered_module)] module: Option<Py<
     let Some(registered_module) = module else {
         return;
     };
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bound_module = registered_module.bind(py);
         assert!(
             bound_module
@@ -50,7 +50,7 @@ fn structs_submodule_is_registered(#[from(registered_module)] module: Option<Py<
 
 #[test]
 fn structs_submodule_is_not_registered_when_msgspec_missing() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
             r#"
@@ -119,7 +119,7 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Opt
     let Some(registered_module) = module else {
         return;
     };
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bound_module = registered_module.bind(py);
         let document = Document::try_from_title("Bridgewater")
             .expect("valid title should construct a document");
@@ -176,7 +176,7 @@ fn list_block_rejects_empty_items(#[from(registered_module)] module: Option<Py<P
     let Some(registered_module) = module else {
         return;
     };
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let list_block_type = structs.getattr("ListBlock").expect("ListBlock class");
@@ -202,7 +202,7 @@ fn div_block_rejects_blank_type(#[from(registered_module)] module: Option<Py<PyM
     let Some(registered_module) = module else {
         return;
     };
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");

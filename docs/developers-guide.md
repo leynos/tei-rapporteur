@@ -94,8 +94,8 @@ derive rates from those fields rather than adding counters in the library.
 ## tei-py build requirements
 
 `tei-py` uses PyO3 for the Python binding layer. The current supported PyO3
-minor series is `0.24.x`, with `pyo3` pinned to `0.24.2` and the direct
-`pyo3-build-config` build dependency pinned to `0.24.2`.
+minor series is `0.28.x`, with `pyo3` pinned to `0.28.3` and the direct
+`pyo3-build-config` build dependency pinned to `0.28.3`.
 
 Keep `pyo3` and `pyo3-build-config` on the same minor series. PyO3 uses the
 build configuration crate to resolve interpreter configuration and emit cfg
@@ -103,11 +103,14 @@ flags consumed by the runtime crate. Mixing minor series risks subtle build
 configuration mismatches, including cfg flags or generated binding assumptions
 that no longer match the runtime dependency.
 
-The `pyo3` dependency enables `auto-initialize` so tests and Rust-side helpers
-can attach to an embedded Python interpreter without requiring every caller to
-perform explicit interpreter initialization first. The `pyo3-build-config`
-dependency enables `resolve-config` so `tei-py/build.rs` can resolve the active
-Python configuration and apply the PyO3 cfg values needed by the crate.
+The `tei-py` crate enables `auto-initialize` by default so tests and Rust-side
+helpers can attach to an embedded Python interpreter without requiring every
+caller to perform explicit interpreter initialization first. Wheel builds
+disable default features and use only `extension-module` so PyO3 emits
+extension-safe linker flags without linking `libpython`. The
+`pyo3-build-config` dependency enables `resolve-config` so `tei-py/build.rs`
+can resolve the active Python configuration and apply the PyO3 cfg values
+needed by the crate.
 
 ## tei-py test-support API
 

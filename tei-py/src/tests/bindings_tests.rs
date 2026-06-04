@@ -16,7 +16,7 @@ fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let Some(module) = registered_module(py) else {
             return;
         };
@@ -34,7 +34,7 @@ fn to_dict_rejects_non_document_inputs() {
 
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let Some(module) = registered_module(py) else {
             return;
         };
@@ -54,7 +54,7 @@ fn spoken_text_segments_return_msgspec_structs() {
             .call1((xml,))
             .expect("spoken extraction should succeed");
         let segments = result
-            .downcast::<PyList>()
+            .cast::<PyList>()
             .expect("spoken extraction should return a list");
         assert_eq!(segments.len().expect("list length should be available"), 1);
         let segment = segments.get_item(0).expect("segment should be present");
@@ -94,7 +94,7 @@ fn spoken_text_segments_return_msgspec_structs() {
 
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }

@@ -157,7 +157,7 @@ fn streaming_event_discriminators_remain_aligned() {
 
 #[test]
 fn streaming_events_decode_into_python_event_union() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }

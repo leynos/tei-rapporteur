@@ -11,7 +11,7 @@ use tei_xml::emit_xml as emit_document_xml;
 const _: fn() -> PythonModuleState = python_state;
 
 fn assert_document_title(state: &PythonModuleState, expected: &str) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_document(py, |document| {
             let title: String = document.getattr("title")?.extract()?;
             ensure!(

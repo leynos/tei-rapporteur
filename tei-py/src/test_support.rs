@@ -147,7 +147,7 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
 /// `true` only when importing succeeds after the best-effort bootstrap.
 #[must_use]
 pub fn msgspec_available() -> bool {
-    Python::with_gil(|py| ensure_msgspec_installed(py).is_ok())
+    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
 
 #[cfg(test)]
@@ -279,7 +279,7 @@ mod tests {
     #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
     #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
     fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let RunAndKwargs {
                 run,
                 kwargs,
@@ -340,16 +340,16 @@ mod tests {
     fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
         let run_count = Arc::new(AtomicUsize::new(0));
 
-        let globals = Python::with_gil(|py| {
+        let globals = Python::attach(|py| {
             let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
             g
         });
 
-        Python::with_gil(ensure_msgspec_installed).ok();
-        Python::with_gil(ensure_msgspec_installed).ok();
+        Python::attach(ensure_msgspec_installed).ok();
+        Python::attach(ensure_msgspec_installed).ok();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             restore_subprocess_run(py, globals.bind(py));
             ensure_msgspec_installed(py).ok();
         });
@@ -365,7 +365,7 @@ mod tests {
         // Call the function under test first; it may bootstrap msgspec as a
         // side-effect, so the importability check must come *after* the call.
         let reported_available = msgspec_available();
-        let importable_after_check = Python::with_gil(|py| py.import("msgspec").is_ok());
+        let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
         assert_eq!(reported_available, importable_after_check);
     }
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
         let run_count = Arc::new(AtomicUsize::new(0));
-        let globals = Python::with_gil(|py| {
+        let globals = Python::attach(|py| {
             let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
 
@@ -381,14 +381,14 @@ mod tests {
         });
 
         let handles: Vec<_> = (0..8)
-            .map(|_| thread::spawn(move || Python::with_gil(ensure_msgspec_installed)))
+            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
             .collect();
 
         for handle in handles {
             assert!(handle.join().is_ok());
         }
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             restore_subprocess_run(py, globals.bind(py));
             ensure_msgspec_installed(py).ok();
         });
@@ -402,7 +402,7 @@ mod tests {
     #[case::none_means_absent("None", false)]
     #[case::path_means_present("'/usr/bin/uv'", true)]
     fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let globals = PyDict::new(py);
             let patch = CString::new(format!(
                 "import shutil\n\

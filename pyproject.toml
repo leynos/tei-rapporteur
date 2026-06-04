@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.6,<2.0"]
+requires = ["maturin==1.13.3"]
 build-backend = "maturin"
 
 [project]
@@ -28,12 +28,20 @@ dev = [
     "msgspec>=0.19,<0.20",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0,<9.0",
+    # Keep in sync with .github/workflows/ci.yml.
+    "maturin==1.13.3",
+]
+
 [tool.maturin]
 manifest-path = "tei-py/Cargo.toml"
 module-name = "tei_rapporteur"
 python-source = "python"
 bindings = "pyo3"
 strip = true
+no-default-features = true
 features = ["extension-module"]
 
 [tool.maturin.env]

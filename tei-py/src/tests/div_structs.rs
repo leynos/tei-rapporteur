@@ -58,7 +58,7 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 
 #[test]
 fn episode_struct_decodes_div_blocks() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }
@@ -129,7 +129,7 @@ fn episode_struct_decodes_div_blocks() {
 
 #[test]
 fn streaming_div_events_decode_into_python_union() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }

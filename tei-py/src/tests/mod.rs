@@ -34,7 +34,7 @@ fn document_construction_rejects_blank_titles() {
 
 #[test]
 fn module_registers_python_bindings() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -59,7 +59,7 @@ fn module_registers_python_bindings() {
 
 #[test]
 fn python_function_emits_markup() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let emit = module

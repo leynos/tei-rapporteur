@@ -88,7 +88,7 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
         return Ok(());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let episode = match decode_episode(py, &module, &payload) {
                 Ok(value) => value,
@@ -140,7 +140,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
         return Ok(());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {
             Ok(_) => Ok::<(), anyhow::Error>(()),
             Err(error) => {

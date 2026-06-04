@@ -6,7 +6,7 @@
 use std::io::{BufRead, Read};
 use std::sync::Arc;
 
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyAny};
 use pyo3_serde::to_pyobject;
 use tei_xml::streaming::{TeiEvent, TeiPullParser};
 
@@ -101,7 +101,7 @@ impl TeiEventIterator {
     /// Retrieves the next streaming event.
     ///
     /// # Returns
-    /// - `Some(PyObject)` containing a tagged event dict/struct until the
+    /// - `Some(Py<PyAny>)` containing a tagged event dict/struct until the
     ///   stream completes.
     /// - `None` when the stream is exhausted.
     ///
@@ -109,15 +109,15 @@ impl TeiEventIterator {
     /// Raises [`PyValueError`] on malformed XML or TEI validation failures and
     /// exhausts the iterator thereafter.
     ///
-    /// The parser call runs inside `py.allow_threads()`, releasing the GIL
+    /// The parser call runs inside `py.detach()`, releasing the GIL
     /// while `parser.next()` performs blocking XML parsing so other Python
     /// threads may progress.
-    pub fn __next__<'py>(&'py mut self, py: Python<'py>) -> PyResult<Option<PyObject>> {
+    pub fn __next__<'py>(&'py mut self, py: Python<'py>) -> PyResult<Option<Py<PyAny>>> {
         let Some(parser) = self.parser.as_mut() else {
             return Ok(None);
         };
 
-        let next_event = py.allow_threads(|| parser.next());
+        let next_event = py.detach(|| parser.next());
 
         match next_event {
             None => {

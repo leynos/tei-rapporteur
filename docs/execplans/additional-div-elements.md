@@ -1,9 +1,8 @@
 # Support nested `<div>`, `@subtype`, and optional `<head>` in body divisions
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
-`Decision log`, and `Outcomes & retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
+and `Outcomes & retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -222,8 +221,8 @@ environment because the `jing` binary was not installed. Second, the Relax NG
 profile still needed follow-up work to align `<head>` support and nested
 `<div>` semantics with the updated Rust/XML model. The actionable next steps
 were therefore separate: install `jing` anywhere the XML validation gate is
-expected to run, including CI, and track the Relax NG follow-up so
-`<head>`/nested-division support remains synchronized with the profile.
+expected to run, including CI, and track the Relax NG follow-up so `<head>`
+/nested-division support remains synchronized with the profile.
 
 ## Context and orientation
 
