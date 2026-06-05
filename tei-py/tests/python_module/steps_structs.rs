@@ -174,26 +174,46 @@ fn root_div(document: &TeiDocument) -> Result<&tei_core::Div> {
     }
 }
 
+fn extract_div_content<'a, T>(
+    div: &'a tei_core::Div,
+    index: usize,
+    missing_msg: &'static str,
+    mismatch_msg: &'static str,
+    extract: impl Fn(&'a DivContent) -> Option<T>,
+) -> Result<T> {
+    let item = div.content().get(index).context(missing_msg)?;
+    extract(item).ok_or_else(|| anyhow::anyhow!("{mismatch_msg}"))
+}
 fn nested_div(div: &tei_core::Div) -> Result<&tei_core::Div> {
-    match div
-        .content()
-        .get(1)
-        .context("document should contain a nested division")?
-    {
-        DivContent::Div(nested_div) => Ok(nested_div),
-        _ => anyhow::bail!("second division content item should be a nested division"),
-    }
+    extract_div_content(
+        div,
+        1,
+        "document should contain a nested division",
+        "second division content item should be a nested division",
+        |c| {
+            if let DivContent::Div(d) = c {
+                Some(d)
+            } else {
+                None
+            }
+        },
+    )
 }
 
 fn nested_list(div: &tei_core::Div) -> Result<&tei_core::List> {
-    match div
-        .content()
-        .first()
-        .context("nested division should contain a list")?
-    {
-        DivContent::List(list) => Ok(list),
-        _ => anyhow::bail!("nested division content should be a list"),
-    }
+    extract_div_content(
+        div,
+        0,
+        "nested division should contain a list",
+        "nested division content should be a list",
+        |c| {
+            if let DivContent::List(l) = c {
+                Some(l)
+            } else {
+                None
+            }
+        },
+    )
 }
 
 fn assert_core_root_div(div: &tei_core::Div) -> Result<()> {
