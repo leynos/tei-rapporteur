@@ -62,7 +62,7 @@ validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 		echo "error: no XML fixtures found in $(FIXTURES_DIR)"; exit 1; \
 	fi; \
 	for xml in $$xml_files; do \
-		echo "Validating $$xml..."; \
+		echo "Validating $$xml…"; \
 		jing $(FIXTURES_DIR)/tei-episodic-profile.rng "$$xml" || exit 1; \
 	done
 	@echo "All fixtures validated successfully"

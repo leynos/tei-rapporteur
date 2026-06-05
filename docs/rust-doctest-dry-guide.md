@@ -329,7 +329,7 @@ the library:
 /// # }
 /// ```
 pub fn my_func_that_needs_env(ctx: &mut TestContext) -> Result<(), ()> {
-    //... function logic...
+    // … function logic …
     Ok(())
 }
 
@@ -341,19 +341,19 @@ mod doctest_helpers {
     use std::io::Result;
 
     pub struct TestContext {
-        //... fields for the test context...
+        // … fields for the test context …
     }
 
     pub fn setup_test_environment() -> Result<TestContext> {
         // All the complex, shared setup logic lives here once.
-        println!("Setting up test environment...");
-        Ok(TestContext { /*... */ })
+        println!("Setting up test environment…");
+        Ok(TestContext { /* … */ })
     }
 }
 
 // A struct that might be needed by the public function signature.
 // It can be defined normally.
-pub struct TestContext { /*... */ }
+pub struct TestContext { /* … */ }
 ```
 
 This pattern is the most effective way to achieve DRY doctests. It centralizes
@@ -487,7 +487,7 @@ feature-gated items in the generated documentation. This is achieved with the
 // On the feature-gated item
 #[cfg(feature = "serde")]
 #[doc(cfg(feature = "serde"))]
-pub fn function_requiring_serde() { /*... */ }
+pub fn function_requiring_serde() { /* … */ }
 ```
 
 This will render a banner in the documentation for `function_requiring_serde`

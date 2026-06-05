@@ -1013,12 +1013,12 @@ Scenario: capture table and docstring
 ```rust,no_run
 #[given("the following numbers:")]
 fn capture_table(datatable: Vec<Vec<String>>) {
-    // ...
+    // …
 }
 
 #[when("I submit:")]
 fn capture_docstring(docstring: String) {
-    // ...
+    // …
 }
 
 #[then("table and text:")]

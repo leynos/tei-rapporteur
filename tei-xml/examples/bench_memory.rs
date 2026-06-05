@@ -61,7 +61,7 @@ fn status(message: &str) {
     reason = "Measurement tool: panicking on fixture errors is appropriate"
 )]
 fn run_streaming_parser() {
-    status("Generating very large benchmark fixture to temporary file...");
+    status("Generating very large benchmark fixture to temporary file…");
     let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
         .expect("fixture generation should succeed");
     let xml_len = xml.len();
@@ -78,7 +78,7 @@ fn run_streaming_parser() {
         temp_path.display()
     ));
 
-    status("Parsing with streaming parser from file...");
+    status("Parsing with streaming parser from file…");
     let file = fs::File::open(&temp_path).expect("temp file open should succeed");
     let reader = BufReader::new(file);
     let parser = TeiPullParser::new(reader);
@@ -105,12 +105,12 @@ fn run_streaming_parser() {
     reason = "Measurement tool: panicking on fixture errors is appropriate"
 )]
 fn run_full_parser() {
-    status("Generating very large benchmark fixture...");
+    status("Generating very large benchmark fixture…");
     let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
         .expect("fixture generation should succeed");
     status(&format!("Generated {} bytes of XML", xml.len()));
 
-    status("Parsing with full document parser...");
+    status("Parsing with full document parser…");
     let document = parse_xml(&xml).expect("benchmark fixture should parse");
 
     let block_count = document.text().body().blocks().len();
