@@ -174,22 +174,27 @@ fn root_div(document: &TeiDocument) -> Result<&tei_core::Div> {
     }
 }
 
-fn extract_div_content<'a, T>(
-    div: &'a tei_core::Div,
+struct ContentQuery {
     index: usize,
     missing_msg: &'static str,
     mismatch_msg: &'static str,
+}
+fn extract_div_content<'a, T>(
+    div: &'a tei_core::Div,
+    query: ContentQuery,
     extract: impl Fn(&'a DivContent) -> Option<T>,
 ) -> Result<T> {
-    let item = div.content().get(index).context(missing_msg)?;
-    extract(item).ok_or_else(|| anyhow::anyhow!("{mismatch_msg}"))
+    let item = div.content().get(query.index).context(query.missing_msg)?;
+    extract(item).ok_or_else(|| anyhow::anyhow!("{}", query.mismatch_msg))
 }
 fn nested_div(div: &tei_core::Div) -> Result<&tei_core::Div> {
     extract_div_content(
         div,
-        1,
-        "document should contain a nested division",
-        "second division content item should be a nested division",
+        ContentQuery {
+            index: 1,
+            missing_msg: "document should contain a nested division",
+            mismatch_msg: "second division content item should be a nested division",
+        },
         |c| {
             if let DivContent::Div(d) = c {
                 Some(d)
@@ -203,9 +208,11 @@ fn nested_div(div: &tei_core::Div) -> Result<&tei_core::Div> {
 fn nested_list(div: &tei_core::Div) -> Result<&tei_core::List> {
     extract_div_content(
         div,
-        0,
-        "nested division should contain a list",
-        "nested division content should be a list",
+        ContentQuery {
+            index: 0,
+            missing_msg: "nested division should contain a list",
+            mismatch_msg: "nested division content should be a list",
+        },
         |c| {
             if let DivContent::List(l) = c {
                 Some(l)
