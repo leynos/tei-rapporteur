@@ -8,13 +8,14 @@ Status: COMPLETE
 
 ## Purpose / big picture
 
-This branch updates the Python extension toolchain used by TEI Rapporteur. The
-Rust binding crate `tei-py` should build against the latest verified PyO3
-family, and the Python packaging configuration should use a pinned maturin
-release so future upgrades are intentional and testable. A reviewer can observe
-success by running the Rust quality gates and by running the new Python maturin
-tests, which inspect wheel metadata and packaging layout in the style used by
-Cuprum commit `df25f6c09e388cba1a055d167a5a88d13a8826fd`.
+This branch updates the Python extension toolchain used by Text Encoding
+Initiative (TEI) Rapporteur. The Rust binding crate `tei-py` should build
+against the latest verified PyO3 family, and the Python packaging configuration
+should use a pinned maturin release so future upgrades are intentional and
+testable. A reviewer can observe success by running the Rust quality gates and
+by running the new Python maturin tests, which inspect wheel metadata and
+packaging layout in the style used by Cuprum commit
+`df25f6c09e388cba1a055d167a5a88d13a8826fd`.
 
 The desired end state is that a future maturin or PyO3 upgrade changes a small,
 obvious set of pins and either preserves the wheel contract or fails with a
@@ -84,10 +85,10 @@ test make target.
 
 ## Surprises & Discoveries
 
-The local CI currently installs `maturin==1.10.1` directly, while
-`pyproject.toml` permits any maturin from `1.6` up to but excluding `2.0`. That
-means the project does not currently have a single source of truth for the
-maturin version.
+The local continuous integration (CI) environment currently installs
+`maturin==1.10.1` directly, while `pyproject.toml` permits any maturin from
+`1.6` up to but excluding `2.0`. That means the project does not currently have
+a single source of truth for the maturin version.
 
 Cuprum pins maturin as a development dependency and synchronizes that exact pin
 with wheel-building CI. TEI Rapporteur currently has no Python test dependency
