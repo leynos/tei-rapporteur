@@ -48,6 +48,8 @@ jobs:
           # Keep in sync with pyproject.toml.
           MATURIN_VERSION: "1.13.3"
         run: python -m pip install --upgrade pip "maturin==${MATURIN_VERSION}"
+      - name: Run maturin compatibility tests
+        run: uv run --group dev pytest python/tests/test_maturin_build.py -q
       - name: Build Python wheel
         shell: bash
         env:
