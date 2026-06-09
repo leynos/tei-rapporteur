@@ -144,8 +144,8 @@ These are hard invariants. Violation requires escalation, not workarounds.
   string construction with XML-escaped text.
 - Stage F: the externally published Relax NG snapshot lives in two places:
   `schemas/tei-episodic-profile.rng` and the embedded copy at
-  `tei-xml/resources/tei-episodic-profile.rng`. Both must be updated together or
-  `write_relax_ng_schema()` drifts from the checked-in schema.
+  `tei-xml/resources/tei-episodic-profile.rng`. Both must be updated together,
+  or `write_relax_ng_schema()` drifts from the checked-in schema.
 - Stage L: XML property tests need text-only `Label` generation for the same
   reason text-only paragraph and utterance strategies exist — adjacent XML text
   nodes merge on round-trip.

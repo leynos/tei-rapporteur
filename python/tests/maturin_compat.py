@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.metadata as metadata
-import importlib.util
 import os
 import re
 import shutil
@@ -77,13 +76,27 @@ def installed_maturin_version() -> str | None:
         return None
 
 
+def maturin_cli_runnable() -> bool:
+    """Return whether ``python -m maturin`` can be executed by this interpreter."""
+
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "maturin", "--version"],
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return True
+
+
 def toolchain_available() -> bool:
-    """Return whether the Rust toolchain and Python maturin module are usable."""
+    """Return whether the Rust toolchain and a runnable maturin CLI are present."""
 
     return (
         shutil.which("cargo") is not None
         and shutil.which("rustc") is not None
-        and importlib.util.find_spec("maturin") is not None
+        and maturin_cli_runnable()
     )
 
 

@@ -140,7 +140,7 @@ internally consistent. Then add a Python helper modelled on Cuprum's
 `tests/helpers/maturin.py`, adapted for the TEI Rapporteur package name,
 extension module path, metadata and CI pin locations. Add Python tests that
 verify the maturin pins stay synchronized, the installed maturin version
-matches the pin when present, and a locally built wheel has expected normalised
+matches the pin when present, and a locally built wheel has expected normalized
 metadata and entries.
 
 After implementation, run focused compatibility checks first, then run the

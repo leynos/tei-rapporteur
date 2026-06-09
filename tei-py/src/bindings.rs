@@ -139,12 +139,18 @@ pub(crate) mod py_exports {
 
     /// Extracts ADR-006 spoken text segments from a TEI XML string.
     ///
+    /// XML parsing runs inside `py.detach()`, releasing the GIL while
+    /// [`extract_spoken_segments`] performs blocking parsing so other Python
+    /// threads may progress. The GIL is reacquired before constructing the
+    /// Python segment objects.
+    ///
     /// # Errors
     ///
     /// Returns [`PyValueError`] when XML parsing or profile validation fails.
     #[pyfunction(name = "spoken_text_segments")]
     pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<Py<PyAny>>> {
-        let segments = wrap_tei_result(extract_spoken_segments(xml))?;
+        let xml_owned = xml.to_owned();
+        let segments = wrap_tei_result(py.detach(|| extract_spoken_segments(&xml_owned)))?;
         let segment_class = spoken_text_segment_class(py)?;
         segments
             .into_iter()
