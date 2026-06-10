@@ -28,7 +28,7 @@ EXPECTED_WHEEL_SNAPSHOT = {
         "tei_rapporteur/__init__.pyi",
         "tei_rapporteur/py.typed",
         "tei_rapporteur/structs.pyi",
-        "tei_rapporteur/tei_rapporteur.cpython-<platform>.so",
+        "tei_rapporteur/tei_rapporteur.cpython-<platform>.<ext>",
     ],
     "generator": "1.13.3",
     "metadata": {

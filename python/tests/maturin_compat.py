@@ -15,7 +15,9 @@ from typing import Any
 MATURIN_VERSION_RE = re.compile(r"maturin==(\d+\.\d+\.\d+)")
 CI_MATURIN_VERSION_RE = re.compile(r'MATURIN_VERSION:\s*"(\d+\.\d+\.\d+)"')
 GENERATOR_RE = re.compile(r"^Generator:\s*maturin\s*\(([^)]+)\)\s*$", re.MULTILINE)
-EXTENSION_MODULE_RE = re.compile(r"^tei_rapporteur/tei_rapporteur\.cpython-[^/]+\.so$")
+EXTENSION_MODULE_RE = re.compile(
+    r"^tei_rapporteur/tei_rapporteur\.cpython-[^/]+\.(?:so|pyd)$"
+)
 DIST_INFO_SUFFIXES: dict[str, str] = {
     ".dist-info/METADATA": "tei_rapporteur-<version>.dist-info/METADATA",
     ".dist-info/RECORD": "tei_rapporteur-<version>.dist-info/RECORD",
@@ -215,7 +217,7 @@ def normalise_wheel_entry(name: str) -> str:
     """Normalize versioned or platform-specific wheel entry names."""
 
     if EXTENSION_MODULE_RE.match(name):
-        return "tei_rapporteur/tei_rapporteur.cpython-<platform>.so"
+        return "tei_rapporteur/tei_rapporteur.cpython-<platform>.<ext>"
     if "/sboms/" in name:
         return "tei_rapporteur-<version>.dist-info/sboms/<sbom>.cyclonedx.json"
     for suffix, normalised in DIST_INFO_SUFFIXES.items():
