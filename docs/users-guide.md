@@ -9,8 +9,9 @@ available today and how to exercise it.
 - `tei-core` now models the top-level `TeiDocument` together with its
   `TeiHeader` and body-aware `TeiText`. The text model records ordered
   paragraphs (`P`), utterances with optional speaker references, and structural
-  divisions (`Div`) containing paragraphs, utterances, lists (`List`/`Item`/
-  `Label`), and nested subdivisions. Each `Div` keeps a required `@type`
+  divisions (`Div`) containing paragraphs, utterances, lists (`List`/`Item`,
+  where each `Item` may carry an optional inline `Label`), and nested
+  subdivisions. Each `Div` keeps a required `@type`
   (`DivType`), an optional `@subtype`, an optional `@xml:id`, and an optional
   `Head` wrapper for a single leading `<head>` element in the Episodic profile.
   Each block stores a sequence of `Inline` nodes, allowing clients to mix plain

@@ -50,6 +50,18 @@ fn structs_submodule_is_registered(#[from(registered_module)] module: Option<Py<
 
 #[test]
 fn structs_submodule_is_not_registered_when_msgspec_missing() {
+    // Restores the import machinery on scope exit — including panic unwind —
+    // so the msgspec blocker can never leak into other in-process tests.
+    struct RestoreImportsGuard<'py> {
+        py: Python<'py>,
+        script: CString,
+    }
+    impl Drop for RestoreImportsGuard<'_> {
+        fn drop(&mut self) {
+            self.py.run(self.script.as_c_str(), None, None).ok();
+        }
+    }
+
     Python::attach(|py| {
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
@@ -73,6 +85,27 @@ sys.modules.pop("msgspec", None)
         py.run(block_msgspec.as_c_str(), None, None)
             .expect("failed to install msgspec import blocker");
 
+        // Arrange restoration now so the blocker is removed even if an assertion
+        // below panics (Drop runs during unwind while the GIL is still held).
+        let restore_imports = CString::new(
+            r#"
+import sys
+
+try:
+    sys.meta_path.remove(_blocker_structs_test)
+except ValueError:
+    pass
+
+if "_orig_meta_path_structs_test" in globals():
+    sys.meta_path = _orig_meta_path_structs_test
+"#,
+        )
+        .expect("inline Python should be valid");
+        let _restore_guard = RestoreImportsGuard {
+            py,
+            script: restore_imports,
+        };
+
         // Register the module without calling the helper so msgspec remains absent.
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
         tei_rapporteur(py, &module)
@@ -94,23 +127,7 @@ sys.modules.pop("msgspec", None)
             "missing structs attribute should surface as AttributeError"
         );
 
-        // Restore import machinery to avoid interfering with other tests.
-        let restore_imports = CString::new(
-            r#"
-import sys
-
-try:
-    sys.meta_path.remove(_blocker_structs_test)
-except ValueError:
-    pass
-
-if "_orig_meta_path_structs_test" in globals():
-    sys.meta_path = _orig_meta_path_structs_test
-"#,
-        )
-        .expect("inline Python should be valid");
-        py.run(restore_imports.as_c_str(), None, None)
-            .expect("failed to restore import state");
+        // Import machinery is restored by `_restore_guard` on scope exit.
     });
 }
 
