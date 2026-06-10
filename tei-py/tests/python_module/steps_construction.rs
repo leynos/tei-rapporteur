@@ -36,7 +36,7 @@ pub(super) fn i_emit_title_markup(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
 ) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let emit = module
                 .getattr("emit_title_markup")
@@ -55,7 +55,7 @@ pub(super) fn i_emit_title_markup(
 pub(super) fn i_emit_markup_from_the_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    let markup = Python::with_gil(|py| {
+    let markup = Python::attach(|py| {
         state.with_document(py, |document| {
             let markup: String = document.call_method0("emit_title_markup")?.extract()?;
             Ok::<_, anyhow::Error>(markup)

@@ -1,9 +1,8 @@
 # Add a `TEI` P5 spoken text iterator
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
-`decision log`, and `outcomes & retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`tolerances`, `risks`, `progress`, `surprises & discoveries`, `decision log`,
+and `outcomes & retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETED
 
@@ -230,10 +229,11 @@ These are hard invariants. Violation requires escalation, not workarounds.
   for repeated root headers. Reset `validated` with the header buffer, added
   edge-case tests for repeated headers, escaped attributes, empty headers, and
   deeper nested header content, then ran the targeted header test filter.
-- [x] 2026-05-10: Re-ran `markdownlint
-  docs/execplans/tei-p5-spoken-element-iterator.md`, `make check-fmt`,
-  `make lint`, and `make test` after the validation-state fix; the full suite
-  reported 386 passing tests.
+- [x] 2026-05-10: Re-ran
+      `markdownlint docs/execplans/tei-p5-spoken-element-iterator.md`,
+      `make check-fmt`,
+      `make lint`, and `make test` after the validation-state fix; the full
+      suite reported 386 passing tests.
 - [x] 2026-05-10: CodeRabbit's final pass requested non-Oxford Rustdoc
   spelling. Rejected as invalid because repository instructions require en-GB
   Oxford `-ize` spelling.

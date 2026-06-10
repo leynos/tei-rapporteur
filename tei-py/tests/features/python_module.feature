@@ -48,7 +48,7 @@ Feature: tei_rapporteur Python module
   Scenario: Reject to_msgpack when a Document is not provided
     Given the tei_rapporteur Python module is initialised
     When I encode MessagePack without providing a Document
-    Then construction fails mentioning "cannot be converted to 'Document'"
+    Then construction fails mentioning "object is not an instance of 'Document'"
 
   Scenario: Parse TEI XML into a Document
     Given the tei_rapporteur Python module is initialised
@@ -101,7 +101,7 @@ Feature: tei_rapporteur Python module
   Scenario: Reject to_dict when a Document is not provided
     Given the tei_rapporteur Python module is initialised
     When I encode a dictionary without providing a Document
-    Then construction fails mentioning "cannot be converted to 'Document'"
+    Then construction fails mentioning "object is not an instance of 'Document'"
 
   Scenario: Round-trip MessagePack via the Episode struct
     Given the tei_rapporteur Python module is initialised

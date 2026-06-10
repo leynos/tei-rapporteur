@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use std::ops::Deref;
 
 /// Wrapper around [`TeiDocument`] surfaced to Python.
-#[pyclass(module = "tei_rapporteur", name = "Document")]
+#[pyclass(module = "tei_rapporteur", name = "Document", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct Document {
     inner: TeiDocument,
@@ -108,7 +108,8 @@ pub(crate) mod py_exports {
     };
     use pyo3::types::PyModuleMethods;
     use pyo3::{
-        Bound, PyObject,
+        Bound, Py,
+        pybacked::PyBackedStr,
         types::{PyAny, PyAnyMethods, PyModule},
     };
     use pyo3::{pyfunction, pymodule, wrap_pyfunction};
@@ -139,12 +140,20 @@ pub(crate) mod py_exports {
 
     /// Extracts ADR-006 spoken text segments from a TEI XML string.
     ///
+    /// XML parsing runs inside `py.detach()`, releasing the GIL while
+    /// [`extract_spoken_segments`] performs blocking parsing so other Python
+    /// threads may progress. The GIL is reacquired before constructing the
+    /// Python segment objects.
+    ///
+    /// The `xml` argument is taken as a [`PyBackedStr`] so the Python-owned
+    /// string buffer stays valid across the GIL release without an extra copy.
+    ///
     /// # Errors
     ///
     /// Returns [`PyValueError`] when XML parsing or profile validation fails.
     #[pyfunction(name = "spoken_text_segments")]
-    pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<PyObject>> {
-        let segments = wrap_tei_result(extract_spoken_segments(xml))?;
+    pub fn spoken_text_segments(py: Python<'_>, xml: PyBackedStr) -> PyResult<Vec<Py<PyAny>>> {
+        let segments = wrap_tei_result(py.detach(move || extract_spoken_segments(xml.as_str())))?;
         let segment_class = spoken_text_segment_class(py)?;
         segments
             .into_iter()
@@ -283,7 +292,7 @@ pub(crate) mod py_exports {
     /// use pyo3::{Python, types::PyAnyMethods};
     /// use tei_py::{Document, from_dict, to_dict};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let document = Document::try_from_title("Wolf 359")?;
     ///     let payload = to_dict(py, &document)?;
     ///     let round_tripped = from_dict(payload)?;
@@ -312,7 +321,7 @@ pub(crate) mod py_exports {
     /// use pyo3::{Python, types::PyAnyMethods};
     /// use tei_py::{Document, to_dict};
     ///
-    /// Python::with_gil(|py| {
+    /// Python::attach(|py| {
     ///     let document = Document::try_from_title("Bridgewater")?;
     ///     let payload = to_dict(py, &document)?;
     ///     let title: String = payload
@@ -367,7 +376,7 @@ pub(crate) fn wrap_tei_result<T>(result: Result<T, TeiError>) -> PyResult<T> {
 
 fn map_serde_error(error: pyo3_serde::Error) -> PyErr {
     let inner: PyErr = error.into();
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if inner.is_instance_of::<PyTypeError>(py) {
             inner
         } else {

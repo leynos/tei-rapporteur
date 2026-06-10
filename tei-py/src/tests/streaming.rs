@@ -64,7 +64,7 @@ fn parse_with_iterator(state: &mut StreamingState) {
     };
     let mut iterator = crate::streaming::iter_parse_py(xml);
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         loop {
             match iterator.__next__(py) {
                 Ok(Some(obj)) => {
@@ -245,7 +245,7 @@ fn exhausted_after_error(#[from(state)] state: &StreamingState) {
 
 #[then("all events decode into msgspec Event instances")]
 fn events_decode(#[from(state)] state: &StreamingState) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }

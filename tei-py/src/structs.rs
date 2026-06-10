@@ -7,9 +7,10 @@
 
 use pyo3::{
     Bound, PyResult, Python,
-    exceptions::{PyModuleNotFoundError, PyRuntimeWarning},
+    exceptions::{PyModuleNotFoundError, PyRuntimeWarning, PyValueError},
     types::{PyAnyMethods, PyModule, PyModuleMethods},
 };
+use std::ffi::CString;
 
 const STRUCTS_MODULE_NAME: &str = "tei_rapporteur.structs";
 const STRUCTS_FILENAME: &str = "tei_rapporteur/structs.py";
@@ -75,17 +76,21 @@ pub fn register_structs_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     Ok(())
 }
 
-#[expect(
-    deprecated,
-    reason = "PyO3 0.23 retains from_code_bound; new API requires CStr plumbing we avoid here"
-)]
 fn module_from_source<'py>(
     py: Python<'py>,
     source: &str,
     filename: &str,
     module_name: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
-    PyModule::from_code_bound(py, source, filename, module_name)
+    let source_cstr = cstring(source, "source")?;
+    let filename_cstr = cstring(filename, "filename")?;
+    let module_name_cstr = cstring(module_name, "module name")?;
+    PyModule::from_code(py, &source_cstr, &filename_cstr, &module_name_cstr)
+}
+
+fn cstring(value: &str, label: &str) -> PyResult<CString> {
+    CString::new(value)
+        .map_err(|error| PyValueError::new_err(format!("embedded NUL byte in {label}: {error}")))
 }
 
 fn handle_structs_import_error(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {

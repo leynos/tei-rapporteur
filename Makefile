@@ -52,7 +52,7 @@ markdownlint: ## Lint Markdown files
 	fi
 
 nixie: ## Validate Mermaid diagrams
-	$(NIXIE) --no-sandbox
+	$(NIXIE) --no-sandbox --max-concurrency 1
 
 validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 	@command -v jing >/dev/null 2>&1 || { echo "error: jing not found; install with 'apt-get install jing-trang' or 'brew install jing'"; exit 1; }
@@ -62,7 +62,7 @@ validate-xml: ## Validate XML fixtures against the Relax NG schema using jing
 		echo "error: no XML fixtures found in $(FIXTURES_DIR)"; exit 1; \
 	fi; \
 	for xml in $$xml_files; do \
-		echo "Validating $$xml..."; \
+		echo "Validating $$xml…"; \
 		jing $(FIXTURES_DIR)/tei-episodic-profile.rng "$$xml" || exit 1; \
 	done
 	@echo "All fixtures validated successfully"

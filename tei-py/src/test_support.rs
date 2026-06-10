@@ -1,7 +1,7 @@
 //! Test-only helpers shared across Rust unit tests and Python BDD suites.
 //! They use `PyO3`'s embedding API (`pyo3::sync::OnceExt`,
 //! `pyo3::call::PyCallArgs`, and `Bound<PyAny>`) with the supported `PyO3`
-//! `0.24.x` minor series to interact with an embedded Python interpreter.
+//! `0.28.x` minor series to interact with an embedded Python interpreter.
 //! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
 //! via `subprocess.run` so Rust and Python BDD tests can import it.
 //! Only [`ensure_msgspec_installed`] and [`msgspec_available`] are exported;
@@ -147,7 +147,7 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
 /// `true` only when importing succeeds after the best-effort bootstrap.
 #[must_use]
 pub fn msgspec_available() -> bool {
-    Python::with_gil(|py| ensure_msgspec_installed(py).is_ok())
+    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
 
 #[cfg(test)]
@@ -202,9 +202,24 @@ mod tests {
     }
 
     fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-        let restore =
-            CString::new("import subprocess\nsubprocess.run = _original_run\n_calls = []\n")
-                .expect("CString build");
+        // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker
+        // if one was installed. The blocker removal is a no-op for callers that
+        // never installed it (e.g. the `run_with_kwargs` tests).
+        let restore = CString::new(
+            r"
+import subprocess
+import sys
+
+subprocess.run = _original_run
+_calls = []
+
+try:
+    sys.meta_path.remove(_bootstrap_msgspec_blocker)
+except (ValueError, NameError):
+    pass
+",
+        )
+        .expect("CString build");
         py.run(restore.as_c_str(), Some(globals), None).ok();
     }
 
@@ -239,10 +254,44 @@ mod tests {
                 pyo3::Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
             )
             .expect("install run counter");
+        // Force the bootstrap to actually run, then count and satisfy it:
+        //   * a `meta_path` blocker makes `import msgspec` fail, so
+        //     `ensure_msgspec_installed` cannot short-circuit and must enter the
+        //     `Once`-guarded installer (even if msgspec is installed on disk);
+        //   * the mocked `subprocess.run` counts each call and registers an
+        //     importable stub `msgspec` module, so the installer's final
+        //     `import msgspec` resolves without network access.
+        // The counter therefore proves the installer path executed, and the
+        // assertions fail if the bootstrap is ever skipped. Each test runs in
+        // its own process under nextest, so the process-wide `Once` is fresh and
+        // no cross-test reset seam or mutex is required.
         let patch = CString::new(
-            "import subprocess\n\
-             _original_run = subprocess.run\n\
-             subprocess.run = _counter\n",
+            r#"
+import subprocess
+import sys
+import types
+
+
+class _BlockMsgspecBootstrap:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "msgspec" or fullname.startswith("msgspec."):
+            raise ModuleNotFoundError("msgspec blocked for bootstrap test", name="msgspec")
+        return None
+
+
+_bootstrap_msgspec_blocker = _BlockMsgspecBootstrap()
+sys.meta_path.insert(0, _bootstrap_msgspec_blocker)
+
+_original_run = subprocess.run
+
+
+def _mock_run(*args, **kwargs):
+    _counter(args, kwargs)
+    sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
+
+
+subprocess.run = _mock_run
+"#,
         )
         .expect("CString build");
         py.run(patch.as_c_str(), Some(&globals), None)
@@ -279,7 +328,7 @@ mod tests {
     #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
     #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
     fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let RunAndKwargs {
                 run,
                 kwargs,
@@ -340,24 +389,29 @@ mod tests {
     fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
         let run_count = Arc::new(AtomicUsize::new(0));
 
-        let globals = Python::with_gil(|py| {
+        let globals = Python::attach(|py| {
             let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
             g
         });
 
-        Python::with_gil(ensure_msgspec_installed).ok();
-        Python::with_gil(ensure_msgspec_installed).ok();
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
 
-        Python::with_gil(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py).ok();
-        });
+        assert!(
+            Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok()
+        );
 
-        // The Once guard must prevent a second bootstrap: subprocess.run is invoked
-        // for ensurepip and for the msgspec install, so at most two calls occur in
-        // total across both ensure_msgspec_installed invocations.
-        assert!(run_count.load(Ordering::SeqCst) <= 2);
+        // The blocker forces the installer to run exactly once: subprocess.run
+        // is invoked for ensurepip and for the msgspec install. Asserting the
+        // exact count proves the bootstrap path executed (it would be 0 if
+        // skipped) and that the `Once` guard prevented a second bootstrap across
+        // both repeated calls.
+        assert_eq!(run_count.load(Ordering::SeqCst), 2);
     }
 
     #[test]
@@ -365,7 +419,7 @@ mod tests {
         // Call the function under test first; it may bootstrap msgspec as a
         // side-effect, so the importability check must come *after* the call.
         let reported_available = msgspec_available();
-        let importable_after_check = Python::with_gil(|py| py.import("msgspec").is_ok());
+        let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
         assert_eq!(reported_available, importable_after_check);
     }
@@ -373,7 +427,7 @@ mod tests {
     #[test]
     fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
         let run_count = Arc::new(AtomicUsize::new(0));
-        let globals = Python::with_gil(|py| {
+        let globals = Python::attach(|py| {
             let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
 
@@ -381,28 +435,33 @@ mod tests {
         });
 
         let handles: Vec<_> = (0..8)
-            .map(|_| thread::spawn(move || Python::with_gil(ensure_msgspec_installed)))
+            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
             .collect();
 
         for handle in handles {
-            assert!(handle.join().is_ok());
+            assert!(handle.join().expect("bootstrap thread panicked").is_ok());
         }
 
-        Python::with_gil(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py).ok();
-        });
+        assert!(
+            Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok()
+        );
 
-        // The Once guard fires at most once across all threads; each firing makes at
-        // most two subprocess.run calls (ensurepip + msgspec install).
-        assert!(run_count.load(Ordering::SeqCst) <= 2);
+        // The blocker forces the installer to run, and the `Once` guard fires
+        // exactly once across all threads, making exactly two subprocess.run
+        // calls (ensurepip + msgspec install). The exact count proves the
+        // bootstrap path executed rather than being skipped.
+        assert_eq!(run_count.load(Ordering::SeqCst), 2);
     }
 
     #[rstest]
     #[case::none_means_absent("None", false)]
     #[case::path_means_present("'/usr/bin/uv'", true)]
     fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let globals = PyDict::new(py);
             let patch = CString::new(format!(
                 "import shutil\n\

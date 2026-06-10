@@ -12,7 +12,7 @@ use rstest::fixture;
 
 #[fixture]
 fn registered_module() -> Option<Py<PyModule>> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return None;
         }
@@ -28,7 +28,7 @@ fn head_rejects_empty_content(#[from(registered_module)] module: Option<Py<PyMod
         return;
     };
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let head_type = structs.getattr("Head").expect("Head class");

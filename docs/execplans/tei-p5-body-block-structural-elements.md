@@ -1,9 +1,8 @@
 # Add `<div>`, `<list>`, `<item>`, and `<label>` to the TEI body model
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `tolerances`, `risks`, `progress`, `surprises & discoveries`,
-`decision log`, and `outcomes & retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`tolerances`, `risks`, `progress`, `surprises & discoveries`, `decision log`,
+and `outcomes & retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -145,7 +144,7 @@ These are hard invariants. Violation requires escalation, not workarounds.
   string construction with XML-escaped text.
 - Stage F: the externally published Relax NG snapshot lives in two places:
   `schemas/tei-episodic-profile.rng` and the embedded copy at
-  `tei-xml/resources/tei-episodic-profile.rng`. Both must be updated together
+  `tei-xml/resources/tei-episodic-profile.rng`. Both must be updated together,
   or `write_relax_ng_schema()` drifts from the checked-in schema.
 - Stage L: XML property tests need text-only `Label` generation for the same
   reason text-only paragraph and utterance strategies exist — adjacent XML text
@@ -285,8 +284,8 @@ This document. No code changes.
 ### Stage B: prototype serde round-trip for new types
 
 Before committing to the type shapes, write a throwaway unit test in `tei-core`
-that constructs a `Div` containing a `List` with two `Item` children (one with
-a `Label`), serializes it to XML via `quick_xml::se`, deserializes it back, and
+that constructs a `Div` containing a `List` with two `Item` children (one with a
+`Label`), serializes it to XML via `quick_xml::se`, deserializes it back, and
 asserts equality. This confirms that serde's `$value` mixed-content handling
 works for the chosen struct layout.
 
@@ -429,8 +428,8 @@ pub struct Label {
 
 Public API for `Item`:
 
-- `Item::new(content: impl IntoIterator<Item = Inline>) -> Result<Self,
-  BodyContentError>` — validates non-empty content.
+- `Item::new(...) -> Result<Self, BodyContentError>` validates non-empty
+  content.
 - `Item::from_text_segments(segments: impl IntoIterator<Item = S>) ->
   Result<Self, BodyContentError>`
 - `set_id`, `clear_id`, `id`
@@ -441,10 +440,9 @@ Public API for `Item`:
 
 Public API for `Label`:
 
-- `Label::new(content: impl IntoIterator<Item = Inline>) -> Result<Self,
-  BodyContentError>` — validates non-empty content.
-- `Label::from_text(text: impl Into<String>) -> Result<Self,
-  BodyContentError>`
+- `Label::new(...) -> Result<Self, BodyContentError>` validates non-empty
+  content.
+- `Label::from_text(text: impl Into<String>) -> Result<Self, BodyContentError>`
 - `content() -> &[Inline]`
 
 Note on serde: the `label` field uses a named child element, not `$value`, so
@@ -458,8 +456,9 @@ will detect this. The fallback is to move `label` into `$value` as a
 In `tei-core/src/text/body/mod.rs`:
 
 - Add `mod div; mod list; mod item;` declarations.
-- Add `pub use div::{Div, DivContent}; pub use list::List;
-  pub use item::{Item, Label};` to the module re-exports.
+- Add
+  `pub use div::{Div, DivContent}; pub use list::List; pub use item::{Item, Label};`
+  to the module re-exports.
 - Add `BodyBlock::Div(Div)` variant with `#[serde(rename = "div")]`.
 - Add `TeiBody::push_div(&mut self, div: Div)` method.
 - Add `TeiBody::divs()` filter iterator.
@@ -584,11 +583,8 @@ Add builder functions:
 
 - `build_div(div_type: String, id: Option<String>,
   content: Vec<DivContent>) -> Result<Div, TeiError>`
-- `build_list(id: Option<String>, items: Vec<Item>) ->
-  Result<List, TeiError>`
-- `build_item(id: Option<String>, n: Option<String>,
-  corresp: Option<String>, label: Option<Label>, content: Vec<Inline>) ->
-  Result<Item, TeiError>`
+- `build_list(id: Option<String>, items: Vec<Item>) -> Result<List, TeiError>`
+- `build_item(id, n, corresp, label, content) -> Result<Item, TeiError>`
 - `build_label(content: Vec<Inline>) -> Result<Label, TeiError>`
 
 **Verification:** `cargo test -p tei-xml` passes, including new unit tests for

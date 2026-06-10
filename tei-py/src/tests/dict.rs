@@ -27,7 +27,7 @@ fn bridgewater_document() -> Document {
 
 #[rstest]
 fn from_dict_decodes_documents(wolf_payload: Value) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_payload =
             to_pyobject(py, &wolf_payload).expect("converting fixture to PyObject should succeed");
 
@@ -38,7 +38,7 @@ fn from_dict_decodes_documents(wolf_payload: Value) {
 
 #[test]
 fn from_dict_rejects_missing_fields() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let payload = json!({ "text": {} });
         let py_payload =
             to_pyobject(py, &payload).expect("serialising malformed payload should succeed");
@@ -53,7 +53,7 @@ fn from_dict_rejects_missing_fields() {
 
 #[rstest]
 fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let mut payload =
             document_to_value(&wolf_document).expect("serialising fixture to JSON should succeed");
 
@@ -76,7 +76,7 @@ fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
 
 #[rstest]
 fn to_dict_serialises_documents(bridgewater_document: Document) {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let py_payload = to_dict(py, &bridgewater_document)
             .expect("serialising document to dict should succeed");
         let value: Value = from_pyobject(py_payload)

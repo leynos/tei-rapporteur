@@ -45,7 +45,7 @@ pub(super) fn i_parse_the_tei_xml_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let xml = state.xml_payload()?;
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let parser = module
                 .getattr("parse_xml")
@@ -64,7 +64,7 @@ pub(super) fn i_parse_the_tei_xml_payload(
 pub(super) fn i_emit_the_document_to_tei_xml(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let emitter = module
                 .getattr("emit_xml")

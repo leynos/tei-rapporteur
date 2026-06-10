@@ -163,7 +163,7 @@ pub(super) fn python_state() -> PythonModuleState {
 }
 
 pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let document_class = module
                 .getattr("Document")
@@ -179,7 +179,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 }
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());

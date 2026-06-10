@@ -7,7 +7,7 @@ use pyo3::{
 
 #[test]
 fn validate_returns_none_for_valid_document() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
             .expect("module registration should succeed");
@@ -22,7 +22,7 @@ fn validate_returns_none_for_valid_document() {
 
 #[test]
 fn validate_method_is_registered_on_document() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
             .expect("module registration should succeed");

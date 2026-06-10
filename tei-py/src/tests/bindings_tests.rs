@@ -4,6 +4,24 @@ use crate::test_support::ensure_msgspec_installed;
 use pyo3::types::{PyAnyMethods, PyList};
 use pyo3::{Bound, Python, types::PyModule};
 
+/// Restores `sys.modules["tei_rapporteur.structs"]` on drop so a test that
+/// deletes it cannot leak that mutation into other in-process tests, even on
+/// panic.
+struct RestoreStructs<'py> {
+    sys_modules: Bound<'py, pyo3::types::PyAny>,
+    previous: Option<Bound<'py, pyo3::types::PyAny>>,
+}
+
+impl Drop for RestoreStructs<'_> {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            self.sys_modules
+                .set_item("tei_rapporteur.structs", previous)
+                .ok();
+        }
+    }
+}
+
 fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
     if ensure_msgspec_installed(py).is_err() {
         return None;
@@ -16,7 +34,7 @@ fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let Some(module) = registered_module(py) else {
             return;
         };
@@ -34,7 +52,7 @@ fn to_dict_rejects_non_document_inputs() {
 
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let Some(module) = registered_module(py) else {
             return;
         };
@@ -54,7 +72,7 @@ fn spoken_text_segments_return_msgspec_structs() {
             .call1((xml,))
             .expect("spoken extraction should succeed");
         let segments = result
-            .downcast::<PyList>()
+            .cast::<PyList>()
             .expect("spoken extraction should return a list");
         assert_eq!(segments.len().expect("list length should be available"), 1);
         let segment = segments.get_item(0).expect("segment should be present");
@@ -94,7 +112,7 @@ fn spoken_text_segments_return_msgspec_structs() {
 
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         if ensure_msgspec_installed(py).is_err() {
             return;
         }
@@ -107,6 +125,12 @@ fn spoken_text_segments_requires_registered_structs_module() {
         if previous_structs.is_some() {
             sys_modules.del_item("tei_rapporteur.structs").ok();
         }
+        // Restore `sys.modules` on scope exit — including panic unwind — so the
+        // deletion cannot leak into other in-process tests.
+        let _restore = RestoreStructs {
+            sys_modules: sys_modules.clone(),
+            previous: previous_structs,
+        };
         let xml = concat!(
             "<TEI>",
             "<teiHeader><fileDesc><title>Example</title></fileDesc></teiHeader>",
@@ -114,13 +138,11 @@ fn spoken_text_segments_requires_registered_structs_module() {
             "</TEI>"
         );
 
-        let call_result = crate::bindings::py_exports::spoken_text_segments(py, xml);
-
-        if let Some(structs) = previous_structs {
-            sys_modules
-                .set_item("tei_rapporteur.structs", structs)
-                .expect("structs module should be restored");
-        }
+        let xml_arg: pyo3::pybacked::PyBackedStr = pyo3::types::PyString::new(py, xml)
+            .as_any()
+            .extract()
+            .expect("XML literal should back a PyBackedStr");
+        let call_result = crate::bindings::py_exports::spoken_text_segments(py, xml_arg);
 
         let error = call_result.expect_err("missing structs module should raise");
         assert!(error.is_instance_of::<pyo3::exceptions::PyRuntimeError>(py));

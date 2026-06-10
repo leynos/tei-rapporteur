@@ -123,8 +123,8 @@ PY
 
 ### Type checking (PEP 561)
 
-The package ships inline type stubs and a `py.typed` marker per [PEP
-561][pep561], so type checkers recognize the public API without extra
+The package ships inline type stubs and a `py.typed` marker per
+[PEP 561][pep561], so type checkers recognize the public API without extra
 configuration:
 
 ```python
