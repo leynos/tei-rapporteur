@@ -202,9 +202,24 @@ mod tests {
     }
 
     fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-        let restore =
-            CString::new("import subprocess\nsubprocess.run = _original_run\n_calls = []\n")
-                .expect("CString build");
+        // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker
+        // if one was installed. The blocker removal is a no-op for callers that
+        // never installed it (e.g. the `run_with_kwargs` tests).
+        let restore = CString::new(
+            r"
+import subprocess
+import sys
+
+subprocess.run = _original_run
+_calls = []
+
+try:
+    sys.meta_path.remove(_bootstrap_msgspec_blocker)
+except (ValueError, NameError):
+    pass
+",
+        )
+        .expect("CString build");
         py.run(restore.as_c_str(), Some(globals), None).ok();
     }
 
@@ -239,16 +254,33 @@ mod tests {
                 pyo3::Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
             )
             .expect("install run counter");
-        // The mock counts each `subprocess.run` and simulates a successful
-        // install by registering an importable stub `msgspec` module. This
-        // lets the bootstrap's final `import msgspec` resolve without network
-        // access, so callers observe success while the counter still records
-        // how many times the installer ran (verifying the `Once` guard).
+        // Force the bootstrap to actually run, then count and satisfy it:
+        //   * a `meta_path` blocker makes `import msgspec` fail, so
+        //     `ensure_msgspec_installed` cannot short-circuit and must enter the
+        //     `Once`-guarded installer (even if msgspec is installed on disk);
+        //   * the mocked `subprocess.run` counts each call and registers an
+        //     importable stub `msgspec` module, so the installer's final
+        //     `import msgspec` resolves without network access.
+        // The counter therefore proves the installer path executed, and the
+        // assertions fail if the bootstrap is ever skipped. Each test runs in
+        // its own process under nextest, so the process-wide `Once` is fresh and
+        // no cross-test reset seam or mutex is required.
         let patch = CString::new(
             r#"
 import subprocess
 import sys
 import types
+
+
+class _BlockMsgspecBootstrap:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "msgspec" or fullname.startswith("msgspec."):
+            raise ModuleNotFoundError("msgspec blocked for bootstrap test", name="msgspec")
+        return None
+
+
+_bootstrap_msgspec_blocker = _BlockMsgspecBootstrap()
+sys.meta_path.insert(0, _bootstrap_msgspec_blocker)
 
 _original_run = subprocess.run
 
@@ -374,10 +406,12 @@ subprocess.run = _mock_run
             .is_ok()
         );
 
-        // The Once guard must prevent a second bootstrap: subprocess.run is invoked
-        // for ensurepip and for the msgspec install, so at most two calls occur in
-        // total across both ensure_msgspec_installed invocations.
-        assert!(run_count.load(Ordering::SeqCst) <= 2);
+        // The blocker forces the installer to run exactly once: subprocess.run
+        // is invoked for ensurepip and for the msgspec install. Asserting the
+        // exact count proves the bootstrap path executed (it would be 0 if
+        // skipped) and that the `Once` guard prevented a second bootstrap across
+        // both repeated calls.
+        assert_eq!(run_count.load(Ordering::SeqCst), 2);
     }
 
     #[test]
@@ -416,9 +450,11 @@ subprocess.run = _mock_run
             .is_ok()
         );
 
-        // The Once guard fires at most once across all threads; each firing makes at
-        // most two subprocess.run calls (ensurepip + msgspec install).
-        assert!(run_count.load(Ordering::SeqCst) <= 2);
+        // The blocker forces the installer to run, and the `Once` guard fires
+        // exactly once across all threads, making exactly two subprocess.run
+        // calls (ensurepip + msgspec install). The exact count proves the
+        // bootstrap path executed rather than being skipped.
+        assert_eq!(run_count.load(Ordering::SeqCst), 2);
     }
 
     #[rstest]

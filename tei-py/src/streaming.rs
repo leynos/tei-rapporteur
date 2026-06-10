@@ -101,13 +101,14 @@ impl TeiEventIterator {
     /// Retrieves the next streaming event.
     ///
     /// # Returns
-    /// - `Some(Py<PyAny>)` containing a tagged event dict/struct until the
-    ///   stream completes.
+    /// - `Some(Py<PyAny>)` holding a tagged event from the Python-visible union
+    ///   `Event = DocumentStart | HeaderEvent | ParagraphEvent | UtteranceEvent
+    ///   | DivEvent | DocumentEnd`, until the stream completes.
     /// - `None` when the stream is exhausted.
     ///
     /// # Errors
-    /// Raises [`PyValueError`] on malformed XML or TEI validation failures and
-    /// exhausts the iterator thereafter.
+    /// Raises [`PyValueError`] on malformed XML, TEI validation failures, or a
+    /// projection/conversion failure, and exhausts the iterator thereafter.
     ///
     /// The parser call runs inside `py.detach()`, releasing the GIL
     /// while `parser.next()` performs blocking XML parsing so other Python
