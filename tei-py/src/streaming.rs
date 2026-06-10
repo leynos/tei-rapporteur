@@ -133,9 +133,15 @@ impl TeiEventIterator {
                     self.parser = None;
                 }
                 let projected = py_event_from_core(event);
-                let py_obj = to_pyobject(py, &projected)
-                    .map_err(|error| PyValueError::new_err(error.to_string()))?;
-                Ok(Some(py_obj.unbind()))
+                match to_pyobject(py, &projected) {
+                    Ok(py_obj) => Ok(Some(py_obj.unbind())),
+                    Err(error) => {
+                        // A conversion failure exhausts the iterator, matching
+                        // the malformed-XML path and the documented contract.
+                        self.parser = None;
+                        Err(PyValueError::new_err(error.to_string()))
+                    }
+                }
             }
         }
     }

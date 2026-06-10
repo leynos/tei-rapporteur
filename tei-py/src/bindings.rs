@@ -109,6 +109,7 @@ pub(crate) mod py_exports {
     use pyo3::types::PyModuleMethods;
     use pyo3::{
         Bound, Py,
+        pybacked::PyBackedStr,
         types::{PyAny, PyAnyMethods, PyModule},
     };
     use pyo3::{pyfunction, pymodule, wrap_pyfunction};
@@ -144,13 +145,15 @@ pub(crate) mod py_exports {
     /// threads may progress. The GIL is reacquired before constructing the
     /// Python segment objects.
     ///
+    /// The `xml` argument is taken as a [`PyBackedStr`] so the Python-owned
+    /// string buffer stays valid across the GIL release without an extra copy.
+    ///
     /// # Errors
     ///
     /// Returns [`PyValueError`] when XML parsing or profile validation fails.
     #[pyfunction(name = "spoken_text_segments")]
-    pub fn spoken_text_segments(py: Python<'_>, xml: &str) -> PyResult<Vec<Py<PyAny>>> {
-        let xml_owned = xml.to_owned();
-        let segments = wrap_tei_result(py.detach(|| extract_spoken_segments(&xml_owned)))?;
+    pub fn spoken_text_segments(py: Python<'_>, xml: PyBackedStr) -> PyResult<Vec<Py<PyAny>>> {
+        let segments = wrap_tei_result(py.detach(move || extract_spoken_segments(xml.as_str())))?;
         let segment_class = spoken_text_segment_class(py)?;
         segments
             .into_iter()

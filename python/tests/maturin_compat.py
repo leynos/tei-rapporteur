@@ -68,8 +68,6 @@ def read_expected_maturin_version(root: Path) -> str:
 def installed_maturin_version() -> str | None:
     """Return the installed maturin package version, if maturin is present."""
 
-    if shutil.which("maturin") is None:
-        return None
     try:
         return metadata.version("maturin")
     except metadata.PackageNotFoundError:

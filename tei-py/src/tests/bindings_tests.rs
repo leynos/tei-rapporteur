@@ -114,7 +114,11 @@ fn spoken_text_segments_requires_registered_structs_module() {
             "</TEI>"
         );
 
-        let call_result = crate::bindings::py_exports::spoken_text_segments(py, xml);
+        let xml_arg: pyo3::pybacked::PyBackedStr = pyo3::types::PyString::new(py, xml)
+            .as_any()
+            .extract()
+            .expect("XML literal should back a PyBackedStr");
+        let call_result = crate::bindings::py_exports::spoken_text_segments(py, xml_arg);
 
         if let Some(structs) = previous_structs {
             sys_modules

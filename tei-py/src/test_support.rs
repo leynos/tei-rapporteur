@@ -1,7 +1,7 @@
 //! Test-only helpers shared across Rust unit tests and Python BDD suites.
 //! They use `PyO3`'s embedding API (`pyo3::sync::OnceExt`,
 //! `pyo3::call::PyCallArgs`, and `Bound<PyAny>`) with the supported `PyO3`
-//! `0.24.x` minor series to interact with an embedded Python interpreter.
+//! `0.28.x` minor series to interact with an embedded Python interpreter.
 //! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
 //! via `subprocess.run` so Rust and Python BDD tests can import it.
 //! Only [`ensure_msgspec_installed`] and [`msgspec_available`] are exported;
@@ -239,10 +239,27 @@ mod tests {
                 pyo3::Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
             )
             .expect("install run counter");
+        // The mock counts each `subprocess.run` and simulates a successful
+        // install by registering an importable stub `msgspec` module. This
+        // lets the bootstrap's final `import msgspec` resolve without network
+        // access, so callers observe success while the counter still records
+        // how many times the installer ran (verifying the `Once` guard).
         let patch = CString::new(
-            "import subprocess\n\
-             _original_run = subprocess.run\n\
-             subprocess.run = _counter\n",
+            r#"
+import subprocess
+import sys
+import types
+
+_original_run = subprocess.run
+
+
+def _mock_run(*args, **kwargs):
+    _counter(args, kwargs)
+    sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
+
+
+subprocess.run = _mock_run
+"#,
         )
         .expect("CString build");
         py.run(patch.as_c_str(), Some(&globals), None)
@@ -346,13 +363,16 @@ mod tests {
             g
         });
 
-        Python::attach(ensure_msgspec_installed).ok();
-        Python::attach(ensure_msgspec_installed).ok();
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
 
-        Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py).ok();
-        });
+        assert!(
+            Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok()
+        );
 
         // The Once guard must prevent a second bootstrap: subprocess.run is invoked
         // for ensurepip and for the msgspec install, so at most two calls occur in
@@ -385,13 +405,16 @@ mod tests {
             .collect();
 
         for handle in handles {
-            assert!(handle.join().is_ok());
+            assert!(handle.join().expect("bootstrap thread panicked").is_ok());
         }
 
-        Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py).ok();
-        });
+        assert!(
+            Python::attach(|py| {
+                restore_subprocess_run(py, globals.bind(py));
+                ensure_msgspec_installed(py)
+            })
+            .is_ok()
+        );
 
         // The Once guard fires at most once across all threads; each firing makes at
         // most two subprocess.run calls (ensurepip + msgspec install).

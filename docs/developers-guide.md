@@ -128,7 +128,7 @@ where
 ```
 
 Any future caller must pass an argument value that implements
-`pyo3::call::PyCallArgs<'py>`. PyO3 0.24 tightened `PyAnyMethods::call` to use
+`pyo3::call::PyCallArgs<'py>`. Under PyO3 0.28.3, `PyAnyMethods::call` takes
 `PyCallArgs` directly rather than accepting any value convertible through
 `IntoPyObject<'py, Target = PyTuple>`. When the intended Python call receives
 one positional argument, wrap that argument in a Rust one-tuple, such as

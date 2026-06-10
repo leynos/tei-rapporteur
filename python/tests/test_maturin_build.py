@@ -90,4 +90,7 @@ def test_maturin_wheel_build_snapshot(tmp_path: Path) -> None:
     assert snapshot["generator"] == expected, (
         f"Expected generator {expected!r}, found {snapshot['generator']!r}"
     )
-    assert snapshot == EXPECTED_WHEEL_SNAPSHOT
+    assert snapshot == EXPECTED_WHEEL_SNAPSHOT, (
+        f"Wheel snapshot mismatch.\nActual:   {snapshot!r}\n"
+        f"Expected: {EXPECTED_WHEEL_SNAPSHOT!r}"
+    )
