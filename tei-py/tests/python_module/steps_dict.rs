@@ -184,6 +184,7 @@ fn text_from_content(value: &Value) -> Result<&str> {
         .context("value should include first inline text")
 }
 
+#[then("the div structure is preserved")]
 pub(super) fn the_div_structure_is_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
@@ -246,6 +247,9 @@ pub(super) fn the_div_structure_is_preserved(
     );
     Ok(())
 }
+
+/// Scenario: Decode a `Document` from a dictionary payload.
+#[scenario(path = "tests/features/python_module.feature", index = 13)]
 pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {
     let _ = python_state;
 }
@@ -274,6 +278,8 @@ pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
     let _ = python_state;
 }
 
+/// Scenario: Round-trip a div-containing `Document` through a dictionary payload.
+#[scenario(path = "tests/features/python_module.feature", index = 20)]
 pub fn round_trips_div_blocks_via_dictionary(python_state: PythonModuleState) {
     let _ = python_state;
 }

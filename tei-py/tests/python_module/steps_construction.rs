@@ -35,6 +35,8 @@ pub(super) fn div_body_document_fixture() -> Result<TeiDocument> {
     let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
     Ok(TeiDocument::new(header, text))
 }
+
+#[given("the tei_rapporteur Python module is initialised")]
 pub(super) fn module_is_initialised_step(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
@@ -49,12 +51,13 @@ pub(super) fn i_construct_a_document(
     construct_python_document(state, &title)
 }
 
+#[given("I construct a Document with div body content")]
 pub(super) fn i_construct_a_document_with_div_body_content(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = document_to_value(&div_body_document_fixture()?)
         .context("serialising div fixture to JSON should succeed")?;
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_dict")
@@ -70,6 +73,8 @@ pub(super) fn i_construct_a_document_with_div_body_content(
     })?;
     Ok(())
 }
+
+#[when("I construct a Document with the XML special characters fixture")]
 pub(super) fn i_construct_the_xml_special_fixture_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {

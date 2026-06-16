@@ -89,10 +89,33 @@ mod document_methods {
 }
 
 pub(crate) mod py_exports {
+    // PyO3 expands #[pyfunction] into wrappers with extra ABI parameters; the
+    // resulting signatures trip clippy::too_many_arguments but are unavoidable
+    // at this FFI boundary, so the lint is locally expected here.
+    #![expect(
+        clippy::too_many_arguments,
+        reason = "PyO3 #[pyfunction] wrappers add ABI parameters the lint counts"
+    )]
+    use super::{
+        Document, PyResult, PyValueError, Python, emit_title_markup, map_serde_error,
+        wrap_tei_result,
+    };
+    use crate::{
+        define_py_from_error_wrapper, define_py_from_result_wrapper, define_py_to_error_wrapper,
+        define_py_to_result_wrapper, document_from_dict, document_from_msgpack, document_from_xml,
+        document_to_dict, document_to_msgpack, document_to_xml, extract_spoken_segments,
+        structs::register_structs_module,
+    };
+    use pyo3::types::PyModuleMethods;
+    use pyo3::{
+        Bound, Py,
+        pybacked::PyBackedStr,
+        types::{PyAny, PyAnyMethods, PyModule},
+    };
+    use pyo3::{pyfunction, pymodule, wrap_pyfunction};
+
     const STRUCTS_MODULE_NAME: &str = "tei_rapporteur.structs";
-
     const SPOKEN_TEXT_SEGMENT_CLASS_NAME: &str = "SpokenTextSegment";
-
     const SPOKEN_TEXT_SEGMENT_CLASS_CACHE: &str = "_spoken_text_segment_class";
 
     #[pyfunction(name = "emit_title_markup")]
@@ -163,6 +186,99 @@ pub(crate) mod py_exports {
             Ok(segment_class)
         }
     }
+
+    define_py_from_error_wrapper!(
+        /// Deserialises `MessagePack` bytes into a [`Document`].
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when the payload cannot be decoded into a
+        /// valid [`tei_core::TeiDocument`].
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_py::{Document, from_msgpack, to_msgpack};
+        ///
+        /// let source = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
+        /// let payload = to_msgpack(&source)?;
+        /// let document = from_msgpack(&payload)?;
+        /// assert_eq!(document.title(), "Wolf 359");
+        /// # Ok::<(), pyo3::PyErr>(())
+        /// ```
+        fn from_msgpack(bytes: &[u8]) -> Document using document_from_msgpack,
+        "invalid MessagePack payload: {error}"
+    );
+
+    define_py_to_error_wrapper!(
+        /// Serialises a [`Document`] into `MessagePack` bytes.
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when `MessagePack` encoding fails.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_py::{Document, to_msgpack, from_msgpack};
+        ///
+        /// let document = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
+        /// let payload = to_msgpack(&document)?;
+        /// let decoded = from_msgpack(&payload)?;
+        /// assert_eq!(decoded.title(), "Wolf 359");
+        /// # Ok::<(), pyo3::PyErr>(())
+        /// ```
+        fn to_msgpack(document: &Document) -> Vec<u8> => document_to_msgpack,
+        "MessagePack encoding failed: {error}"
+    );
+
+    define_py_from_result_wrapper!(
+        /// Parses TEI XML into a [`Document`].
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when parsing fails due to
+        /// invalid XML or TEI content.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_core::TeiDocument;
+        /// use tei_py::parse_xml;
+        /// use tei_xml::emit_xml;
+        ///
+        /// let source = TeiDocument::from_title_str("Wolf 359")?;
+        /// let xml = emit_xml(&source)?;
+        /// let document = parse_xml(&xml)?;
+        /// assert_eq!(document.title(), "Wolf 359");
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        fn parse_xml(xml: &str) -> Document using document_from_xml
+    );
+
+    define_py_to_result_wrapper!(
+        /// Emits TEI XML from a [`Document`].
+        ///
+        /// # Errors
+        ///
+        /// Returns [`pyo3::exceptions::PyValueError`] when XML emission fails,
+        /// for example due to forbidden control characters.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use tei_py::{Document, emit_xml};
+        ///
+        /// let document = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
+        /// let xml = emit_xml(&document)?;
+        /// assert!(xml.contains("<title>Wolf 359</title>"));
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        fn emit_xml(document: &Document) -> String => document_to_xml
+    );
 
     /// Constructs a [`Document`] from a JSON-like Python structure.
     ///

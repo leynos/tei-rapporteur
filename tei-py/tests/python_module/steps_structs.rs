@@ -365,6 +365,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     Ok(())
 }
 
+#[then("the DivBlock, nested DivBlock, ListBlock, and Item are preserved")]
 pub(super) fn the_div_blocks_are_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
@@ -377,7 +378,7 @@ pub(super) fn the_div_blocks_are_preserved(
         return assert_core_div_blocks(&document);
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         state.with_module(py, |module| {
             let episode = decode_episode(py, &module, &payload)
                 .context("MessagePack payload should decode to an Episode")?;
@@ -389,6 +390,8 @@ pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {
     let _ = python_state;
 }
 
+/// Scenario: Round-trip a div-containing Document through the Python Episode struct.
+#[scenario(path = "tests/features/python_module.feature", index = 19)]
 pub fn round_trips_div_blocks_via_episode_struct(python_state: PythonModuleState) {
     let _ = python_state;
 }
