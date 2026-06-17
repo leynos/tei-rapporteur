@@ -10,8 +10,6 @@ use tei_py::projection::PyTeiDocument;
 use tei_py::test_support::msgspec_available;
 use tei_serde::msgpack::from_slice;
 
-const _: fn() -> PythonModuleState = python_state;
-
 fn first_inline_text(any: &Bound<'_, PyAny>) -> Result<String> {
     any.getattr("content")
         .context("content should exist")?
@@ -118,56 +116,28 @@ fn root_div(document: &TeiDocument) -> Result<&tei_core::Div> {
     }
 }
 
-#[derive(Clone, Copy)]
-struct ContentQuery {
-    index: usize,
-    missing_msg: &'static str,
-    mismatch_msg: &'static str,
-}
-
-fn extract_div_content<'a, T>(
-    div: &'a tei_core::Div,
-    query: ContentQuery,
-    extract: impl Fn(&'a DivContent) -> Option<T>,
-) -> Result<T> {
-    let item = div.content().get(query.index).context(query.missing_msg)?;
-    extract(item).ok_or_else(|| anyhow::anyhow!("{}", query.mismatch_msg))
-}
-
 fn nested_div(div: &tei_core::Div) -> Result<&tei_core::Div> {
-    extract_div_content(
-        div,
-        ContentQuery {
-            index: 1,
-            missing_msg: "document should contain a nested division",
-            mismatch_msg: "second division content item should be a nested division",
-        },
-        |c| {
-            if let DivContent::Div(d) = c {
-                Some(d)
-            } else {
-                None
-            }
-        },
-    )
+    let item = div
+        .content()
+        .get(1)
+        .context("document should contain a nested division")?;
+    if let DivContent::Div(d) = item {
+        Ok(d)
+    } else {
+        anyhow::bail!("second division content item should be a nested division")
+    }
 }
 
 fn nested_list(div: &tei_core::Div) -> Result<&tei_core::List> {
-    extract_div_content(
-        div,
-        ContentQuery {
-            index: 0,
-            missing_msg: "nested division should contain a list",
-            mismatch_msg: "nested division content should be a list",
-        },
-        |c| {
-            if let DivContent::List(l) = c {
-                Some(l)
-            } else {
-                None
-            }
-        },
-    )
+    let item = div
+        .content()
+        .first()
+        .context("nested division should contain a list")?;
+    if let DivContent::List(l) = item {
+        Ok(l)
+    } else {
+        anyhow::bail!("nested division content should be a list")
+    }
 }
 
 fn assert_core_root_div(div: &tei_core::Div) -> Result<()> {
@@ -254,6 +224,8 @@ pub(super) fn the_div_blocks_are_preserved(
 
 /// Scenario: Round-trip a div-containing Document through the Python Episode struct.
 #[scenario(path = "tests/features/python_module.feature", index = 19)]
-pub fn round_trips_div_blocks_via_episode_struct(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects the state fixture into generated step calls"
+)]
+pub fn round_trips_div_blocks_via_episode_struct(python_state: PythonModuleState) {}
