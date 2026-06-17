@@ -11,8 +11,6 @@ use tei_py::test_support::try_ensure_msgspec_installed;
 use tei_serde::json::Value;
 use tei_serde::msgpack::{from_slice, to_vec_named};
 
-const _: fn() -> PythonModuleState = python_state;
-
 fn retitle_document(document: &TeiDocument, title: &str) -> Result<TeiDocument> {
     let old_header = document.header().clone();
     let old_file_desc = old_header.file_desc().clone();
@@ -149,9 +147,19 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     })?;
     Ok(())
 }
-pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {
-    let _ = python_state;
-}
-pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+
+/// Scenario: Round-trip a Document through the Python Episode struct.
+#[scenario(path = "tests/features/python_module.feature", index = 18)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects the state fixture into generated step calls"
+)]
+pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {}
+
+/// Scenario: Surface struct decoding errors for malformed `MessagePack` payloads.
+#[scenario(path = "tests/features/python_module.feature", index = 21)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects the state fixture into generated step calls"
+)]
+pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {}
