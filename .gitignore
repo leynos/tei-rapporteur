@@ -10,3 +10,5 @@
 Cargo.lock.bak
 /.venv/
 dist/
+# Memtrace daemon runtime state (PID, local index state)
+.memdb/

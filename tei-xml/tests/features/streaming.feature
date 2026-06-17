@@ -60,3 +60,9 @@ Feature: Streaming TEI parsing
     Given a streaming parser for the "minimal" TEI fixture
     When I check header before the Header event
     Then the parser header method returns None before the Header event
+
+  Scenario: Parse namespaced TEI document correctly
+    Given a streaming parser for the "namespace" TEI fixture
+    When I collect all events
+    Then the event sequence is "DocumentStart, Header, BodyBlock, DocumentEnd"
+    And the header title is "Namespaced Document"
