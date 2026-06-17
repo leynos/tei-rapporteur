@@ -6,7 +6,7 @@
 #![cfg(feature = "streaming")]
 
 use anyhow::{Context, bail, ensure};
-use tei_core::{BodyBlock, Inline};
+use tei_core::{BodyBlock, DivContent, Inline};
 use tei_xml::streaming::{TeiEvent, TeiPullParser};
 
 const DIV_WITH_LIST_FIXTURE: &str = concat!(
@@ -70,7 +70,7 @@ const ENTITY_REF_FIXTURE: &str = concat!(
 
 #[test]
 fn streams_div_with_paragraphs_and_list_items() -> anyhow::Result<()> {
-    use tei_core::{Div, DivContent};
+    use tei_core::Div;
 
     let parser = TeiPullParser::from_str(DIV_WITH_LIST_FIXTURE);
 
@@ -87,60 +87,9 @@ fn streams_div_with_paragraphs_and_list_items() -> anyhow::Result<()> {
     ensure!(div.div_type() == "chapter", "expected div type 'chapter'");
     ensure!(div.content().len() == 3, "expected 3 div children");
 
-    // First child: paragraph
-    let Some(DivContent::Paragraph(p)) = div.content().first() else {
-        bail!("expected paragraph as first div child");
-    };
-    ensure!(
-        p.content()
-            .iter()
-            .any(|i| matches!(i, Inline::Text(t) if t == "Intro text")),
-        "paragraph should contain 'Intro text'"
-    );
-
-    // Second child: utterance
-    let Some(DivContent::Utterance(u)) = div.content().get(1) else {
-        bail!("expected utterance as second div child");
-    };
-    ensure!(u.speaker().is_some(), "utterance should have a speaker");
-
-    // Third child: list with labelled items
-    let Some(DivContent::List(list)) = div.content().get(2) else {
-        bail!("expected list as third div child");
-    };
-    ensure!(list.items().len() == 2, "list should have 2 items");
-
-    let first_item = list.items().first().expect("list should have a first item");
-    let label = first_item
-        .label()
-        .context("first item should have a label")?;
-    ensure!(
-        label
-            .content()
-            .iter()
-            .any(|i| matches!(i, Inline::Text(t) if t == "1.")),
-        "label should contain '1.'"
-    );
-    ensure!(
-        first_item
-            .content()
-            .iter()
-            .any(|i| matches!(i, Inline::Text(t) if t == "First item")),
-        "first item should contain 'First item'"
-    );
-
-    let second_item = list.items().get(1).expect("list should have a second item");
-    ensure!(
-        second_item.n() == Some("2"),
-        "second item should have n='2'"
-    );
-    ensure!(
-        second_item
-            .content()
-            .iter()
-            .any(|i| matches!(i, Inline::Text(t) if t == "Second item")),
-        "second item should contain 'Second item'"
-    );
+    assert_div_paragraph(div.content().first())?;
+    assert_div_utterance(div.content().get(1))?;
+    assert_div_list(div.content().get(2))?;
 
     Ok(())
 }
@@ -246,5 +195,75 @@ fn preserves_entity_references_in_streamed_content() -> anyhow::Result<()> {
         "utterance should contain '1 < 2 & 3 > 0', found '{utterance_text}'"
     );
 
+    Ok(())
+}
+
+/// Assert the first division child is a paragraph containing the intro text.
+fn assert_div_paragraph(child: Option<&DivContent>) -> anyhow::Result<()> {
+    let Some(DivContent::Paragraph(p)) = child else {
+        bail!("expected paragraph as first div child");
+    };
+    ensure!(
+        p.content()
+            .iter()
+            .any(|i| matches!(i, Inline::Text(t) if t == "Intro text")),
+        "paragraph should contain 'Intro text'"
+    );
+    Ok(())
+}
+
+/// Assert the second division child is an utterance with a speaker.
+fn assert_div_utterance(child: Option<&DivContent>) -> anyhow::Result<()> {
+    let Some(DivContent::Utterance(u)) = child else {
+        bail!("expected utterance as second div child");
+    };
+    ensure!(u.speaker().is_some(), "utterance should have a speaker");
+    Ok(())
+}
+
+/// Assert the third division child is a list with the two labelled items.
+fn assert_div_list(child: Option<&DivContent>) -> anyhow::Result<()> {
+    let Some(DivContent::List(list)) = child else {
+        bail!("expected list as third div child");
+    };
+    ensure!(list.items().len() == 2, "list should have 2 items");
+
+    let first_item = list
+        .items()
+        .first()
+        .context("list should have a first item")?;
+    let label = first_item
+        .label()
+        .context("first item should have a label")?;
+    ensure!(
+        label
+            .content()
+            .iter()
+            .any(|i| matches!(i, Inline::Text(t) if t == "1.")),
+        "label should contain '1.'"
+    );
+    ensure!(
+        first_item
+            .content()
+            .iter()
+            .any(|i| matches!(i, Inline::Text(t) if t == "First item")),
+        "first item should contain 'First item'"
+    );
+
+    let second_item = list
+        .items()
+        .get(1)
+        .context("list should have a second item")?;
+    ensure!(
+        second_item.n() == Some("2"),
+        "second item should have n='2'"
+    );
+    ensure!(
+        second_item
+            .content()
+            .iter()
+            .any(|i| matches!(i, Inline::Text(t) if t == "Second item")),
+        "second item should contain 'Second item'"
+    );
     Ok(())
 }
