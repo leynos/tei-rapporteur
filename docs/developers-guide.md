@@ -189,9 +189,9 @@ exports from this module. They are thread-safe: `ensure_msgspec_installed`
 guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
 attached to the Python interpreter.
 
-`tei-py` uses the workspace `proptest` dev-dependency to protect the bootstrap
-invariants that ordinary example tests do not cover. The test-support module
-contains property tests for two behaviours:
+`tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
+that ordinary example tests do not cover. The test-support module contains
+property tests for two behaviours:
 
 - idempotency: `ensure_msgspec_installed` must return a consistent successful
   result over a generated number of repeated calls.
