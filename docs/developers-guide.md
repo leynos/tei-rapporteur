@@ -189,6 +189,23 @@ exports from this module. They are thread-safe: `ensure_msgspec_installed`
 guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
 attached to the Python interpreter.
 
+`tei-py` uses the workspace `proptest` dev-dependency to protect the bootstrap
+invariants that ordinary example tests do not cover. The test-support module
+contains property tests for two behaviours:
+
+- idempotency: `ensure_msgspec_installed` must return a consistent successful
+  result over a generated number of repeated calls.
+- thread safety: concurrent callers over a generated thread count must not
+  panic, and the `Once` guard must still restrict bootstrap execution.
+
+The property tests reuse the `subprocess.run` monkeypatch in
+`setup_bootstrap_run_counter`. That monkeypatch blocks direct `msgspec` imports
+through `sys.meta_path`, forcing the bootstrap path even when `msgspec` is
+installed on the host interpreter, then registers a stub `msgspec` module after
+the mocked installer runs. Keep this pattern when extending the properties:
+tests should prove the `Once`-guarded installer path executed without invoking
+real package installation or network access.
+
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to
