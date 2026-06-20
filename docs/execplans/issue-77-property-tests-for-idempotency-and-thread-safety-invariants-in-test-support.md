@@ -51,7 +51,8 @@ forced once per test process.
   `sys.meta_path`, panic-safe cleanup, and subprocess monkeypatch
   synchronisation.
 - [x] 2026-06-20: Ran focused and full validation gates.
-- [ ] Commit, push with upstream tracking, and create or update the draft PR.
+- [x] 2026-06-20: Committed, pushed with upstream tracking, and updated draft
+  PR #86 at <https://github.com/leynos/tei-rapporteur/pull/86>.
 
 ## Surprises & Discoveries
 
@@ -65,6 +66,11 @@ Workspace Clippy caught two local guard-shape issues during `make lint`: the
 lock guard field exists for drop timing rather than direct reads, and an
 explicitly dropped binding must not use an underscore-prefixed name. Both were
 fixed without suppressing lints.
+
+The branch push set upstream tracking on
+`origin/issue-77-property-tests-for-idempotency-and-thread-safety-invariants-in-test-support`.
+PR #86 already existed for the branch, so it was converted to draft rather
+than creating a duplicate PR.
 
 ## Decision Log
 
@@ -111,3 +117,6 @@ Validation passed:
 - `make typecheck`
 - `make test` with 456 passed tests
 - `make markdownlint`
+
+The branch now tracks the requested origin branch and the draft PR is ready for
+review at <https://github.com/leynos/tei-rapporteur/pull/86>.
