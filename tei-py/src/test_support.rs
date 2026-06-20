@@ -105,6 +105,40 @@ fn install_msgspec<'py>(
         );
     }
 }
+
+fn make_subprocess_kwargs(py: Python<'_>) -> Option<Bound<'_, PyDict>> {
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("check", true).ok()?;
+    kwargs.set_item("timeout", 30u64).ok()?;
+    Some(kwargs)
+}
+
+fn do_bootstrap(py: Python<'_>) {
+    let Some(subprocess) = py.import("subprocess").ok() else {
+        return;
+    };
+    let Some(sys) = py.import("sys").ok() else {
+        return;
+    };
+    let Some(executable) = sys.getattr("executable").ok() else {
+        return;
+    };
+    let Ok(run) = subprocess.getattr("run") else {
+        return;
+    };
+    let Some(kwargs) = make_subprocess_kwargs(py) else {
+        return;
+    };
+    run_with_kwargs(
+        &run,
+        ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
+        &kwargs,
+    );
+    let Some(install_kwargs) = make_subprocess_kwargs(py) else {
+        return;
+    };
+    install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
+}
 static MSGSPEC_INIT: Once = Once::new();
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
@@ -128,40 +162,7 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
         return Ok(());
     }
 
-    MSGSPEC_INIT.call_once_py_attached(py, || {
-        let Some(subprocess) = py.import("subprocess").ok() else {
-            return;
-        };
-        let Some(sys) = py.import("sys").ok() else {
-            return;
-        };
-        let Some(executable) = sys.getattr("executable").ok() else {
-            return;
-        };
-
-        let Ok(run) = subprocess.getattr("run") else {
-            return;
-        };
-
-        let kwargs = PyDict::new(py);
-        if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err() {
-            return;
-        }
-        run_with_kwargs(
-            &run,
-            ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
-            &kwargs,
-        );
-
-        let install_kwargs = PyDict::new(py);
-        if install_kwargs.set_item("check", true).is_err()
-            || install_kwargs.set_item("timeout", 30u64).is_err()
-        {
-            return;
-        }
-
-        install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
-    });
+    MSGSPEC_INIT.call_once_py_attached(py, || do_bootstrap(py));
 
     py.import("msgspec")?;
     Ok(())

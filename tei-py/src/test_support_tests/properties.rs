@@ -1,9 +1,14 @@
 //! Property tests for `msgspec` bootstrap idempotency and thread safety.
+//!
+//! This module uses the mocks from `bootstrap_mocks` and restoration guards
+//! from `test_helpers` to force the private bootstrap installer path without
+//! invoking real package installation. The parent `mod` includes this module
+//! alongside deterministic unit tests for the same helper surface.
 
 use super::{
     super::ensure_msgspec_installed,
     bootstrap_mocks::{remove_msgspec_from_modules, setup_bootstrap_run_counter},
-    test_helpers::restore_subprocess_run,
+    test_helpers::OwnedSubprocessRestoreGuard,
 };
 use proptest::prelude::*;
 use pyo3::Python;
@@ -30,10 +35,14 @@ proptest! {
     fn idempotency_holds_over_arbitrary_repetitions(repetitions in 1..=50u8) {
         let run_count = Arc::new(AtomicUsize::new(0));
 
-        let globals = Python::attach(|py| {
-            let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+        let (globals, patch_guard) = Python::attach(|py| {
+            let patch = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
-            g
+            (patch.globals, patch.patch_guard)
+        });
+        let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
+            globals: globals.clone_ref(py),
+            _patch_guard: patch_guard,
         });
 
         for _ in 0..usize::from(repetitions) {
@@ -41,11 +50,9 @@ proptest! {
             prop_assert!(result.is_ok());
         }
 
-        let restored_after_bootstrap = Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py)
-        })
-        .is_ok();
+        drop(restore_guard);
+
+        let restored_after_bootstrap = Python::attach(ensure_msgspec_installed).is_ok();
         prop_assert!(restored_after_bootstrap);
 
         prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
@@ -54,11 +61,15 @@ proptest! {
     #[test]
     fn no_panics_under_variable_thread_count(thread_count in 2..=32u8) {
         let run_count = Arc::new(AtomicUsize::new(0));
-        let globals = Python::attach(|py| {
-            let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
+        let (globals, patch_guard) = Python::attach(|py| {
+            let patch = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
             remove_msgspec_from_modules(py);
 
-            globals
+            (patch.globals, patch.patch_guard)
+        });
+        let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
+            globals: globals.clone_ref(py),
+            _patch_guard: patch_guard,
         });
 
         let handles: Vec<_> = (0..usize::from(thread_count))
@@ -70,11 +81,9 @@ proptest! {
             prop_assert!(result.is_ok());
         }
 
-        let restored_after_bootstrap = Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py)
-        })
-        .is_ok();
+        drop(restore_guard);
+
+        let restored_after_bootstrap = Python::attach(ensure_msgspec_installed).is_ok();
         prop_assert!(restored_after_bootstrap);
 
         prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);

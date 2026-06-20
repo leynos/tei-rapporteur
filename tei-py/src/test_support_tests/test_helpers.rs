@@ -1,17 +1,30 @@
 //! Fixtures for unit tests around low-level Python call helpers.
+//!
+//! This module provides shared setup and restoration guards for tests in
+//! `mod`, `properties`, and `bootstrap_mocks`. Its subprocess lock serialises
+//! Python global-state mutation while still allowing unrelated tests to run
+//! normally.
 
 use pyo3::{
-    Bound, Python,
+    Bound, Py, PyResult, Python,
     types::{PyAny, PyAnyMethods, PyDict},
 };
-use std::ffi::CString;
+use std::{
+    ffi::CString,
+    sync::{Mutex, MutexGuard},
+};
 
+static SUBPROCESS_PATCH_LOCK: Mutex<()> = Mutex::new(());
+
+/// Python `subprocess.run` mock plus keyword arguments for call-helper tests.
 pub(super) struct RunAndKwargs<'py> {
     pub(super) run: Bound<'py, PyAny>,
     pub(super) kwargs: Bound<'py, PyDict>,
     pub(super) globals: Bound<'py, PyDict>,
+    pub(super) patch_guard: SubprocessPatchGuard,
 }
 
+/// Shapes accepted by the private `run_with_kwargs` helper.
 #[derive(Clone, Copy)]
 pub(super) enum RunWithKwargsArgShape {
     Unit,
@@ -19,7 +32,23 @@ pub(super) enum RunWithKwargsArgShape {
     DirectPyTuple,
 }
 
+/// Lock guard held for the full lifetime of a subprocess monkeypatch.
+pub(super) struct SubprocessPatchGuard {
+    _guard: MutexGuard<'static, ()>,
+}
+
+/// Acquires the subprocess monkeypatch lock.
+pub(super) fn acquire_subprocess_patch_lock() -> SubprocessPatchGuard {
+    SubprocessPatchGuard {
+        _guard: SUBPROCESS_PATCH_LOCK
+            .lock()
+            .expect("lock subprocess patch mutex"),
+    }
+}
+
+/// Installs a recording `subprocess.run` mock for call-helper tests.
 pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
+    let patch_guard = acquire_subprocess_patch_lock();
     let globals = PyDict::new(py);
     let patch = CString::new(
         "import subprocess\n\
@@ -38,42 +67,53 @@ pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
         run,
         kwargs,
         globals,
+        patch_guard,
     }
 }
 
-pub(super) fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-    // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker
-    // if one was installed. The blocker removal is a no-op for callers that
-    // never installed it (e.g. the `run_with_kwargs` tests).
+/// Restores Python subprocess state for a previously installed mock.
+pub(super) fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResult<()> {
+    super::bootstrap_mocks::restore_msgspec_blocker(py, globals);
     let restore = CString::new(
         r"
 import subprocess
-import sys
 
 subprocess.run = _original_run
 _calls = []
-
-try:
-    sys.meta_path.remove(_bootstrap_msgspec_blocker)
-except (ValueError, NameError):
-    pass
 ",
     )
     .expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None).ok();
+    py.run(restore.as_c_str(), Some(globals), None)
 }
 
+/// Restores subprocess state for tests that remain inside one Python scope.
 pub(super) struct SubprocessRestoreGuard<'py> {
     pub(super) py: Python<'py>,
     pub(super) globals: Bound<'py, PyDict>,
+    pub(super) _patch_guard: SubprocessPatchGuard,
 }
 
 impl Drop for SubprocessRestoreGuard<'_> {
     fn drop(&mut self) {
-        restore_subprocess_run(self.py, &self.globals);
+        restore_subprocess_run(self.py, &self.globals).expect("restore subprocess.run");
     }
 }
 
+/// Restores subprocess state for property tests that leave the setup scope.
+pub(super) struct OwnedSubprocessRestoreGuard {
+    pub(super) globals: Py<PyDict>,
+    pub(super) _patch_guard: SubprocessPatchGuard,
+}
+
+impl Drop for OwnedSubprocessRestoreGuard {
+    fn drop(&mut self) {
+        Python::attach(|py| {
+            restore_subprocess_run(py, self.globals.bind(py)).expect("restore subprocess.run");
+        });
+    }
+}
+
+/// Restores `shutil.which` after tests that mock `uv` discovery.
 pub(super) struct ShutilRestoreGuard<'py> {
     pub(super) py: Python<'py>,
     pub(super) globals: Bound<'py, PyDict>,

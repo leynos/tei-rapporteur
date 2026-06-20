@@ -1,4 +1,9 @@
 //! Unit tests for Python-side test support helpers.
+//!
+//! This parent module wires together deterministic unit tests, bootstrap mocks,
+//! property tests, and shared Python monkeypatch helpers. It directly tests
+//! `run_with_kwargs`, `msgspec_available`, and `has_uv`, while sibling modules
+//! provide the reusable subprocess and import-state fixtures.
 
 mod bootstrap_mocks;
 mod properties;
@@ -14,6 +19,7 @@ use test_helpers::{
     setup_run_and_kwargs,
 };
 
+/// Verifies that supported Rust argument shapes reach Python unchanged.
 #[rstest]
 #[case::unit_tuple(RunWithKwargsArgShape::Unit)]
 #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
@@ -24,10 +30,12 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
             run,
             kwargs,
             globals,
+            patch_guard,
         } = setup_run_and_kwargs(py);
         let _restore_guard = SubprocessRestoreGuard {
             py,
             globals: globals.clone(),
+            _patch_guard: patch_guard,
         };
 
         match arg_shape {
@@ -78,6 +86,7 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
     });
 }
 
+/// Verifies that availability mirrors actual Python importability.
 #[test]
 fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
     // Call the function under test first; it may bootstrap msgspec as a
@@ -88,6 +97,7 @@ fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
     assert_eq!(reported_available, importable_after_check);
 }
 
+/// Verifies `uv` discovery against mocked `shutil.which` outcomes.
 #[rstest]
 #[case::none_means_absent("None", false)]
 #[case::path_means_present("'/usr/bin/uv'", true)]
@@ -111,6 +121,7 @@ fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] e
     });
 }
 
+/// Restores `shutil.which` after `has_uv` tests patch it.
 pub(super) fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) {
     let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
     py.run(restore.as_c_str(), Some(globals), None).ok();
