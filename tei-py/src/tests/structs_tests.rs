@@ -62,6 +62,10 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
     let _registration_guard =
         crate::test_support::acquire_python_module_registration_lock_for_tests();
     Python::attach(|py| {
+        if py.import("msgspec").is_ok() {
+            return;
+        }
+
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
             r#"

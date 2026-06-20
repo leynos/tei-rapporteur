@@ -188,8 +188,17 @@ fn text_from_content(value: &Value) -> Result<&str> {
 pub(super) fn the_div_structure_is_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    i_encode_the_constructed_document_to_a_dictionary(state)?;
-    let payload = state.dict_output()?;
+    if let Ok(error) = state.error() {
+        bail!("{error}");
+    }
+    let payload = Python::attach(|py| {
+        state.with_document(py, |document| {
+            let decoded: tei_py::Document = document.extract().map_err(|error| {
+                anyhow::anyhow!("decoded document should be a Document: {error}")
+            })?;
+            document_to_value(&decoded).context("decoded document should project to a dictionary")
+        })
+    })?;
     let div = payload
         .get("text")
         .and_then(|text| text.get("body"))
@@ -280,6 +289,8 @@ pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
 
 /// Scenario: Round-trip a div-containing `Document` through a dictionary payload.
 #[scenario(path = "tests/features/python_module.feature", index = 20)]
-pub fn round_trips_div_blocks_via_dictionary(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects state through scenario signatures"
+)]
+pub fn round_trips_div_blocks_via_dictionary(python_state: PythonModuleState) {}
