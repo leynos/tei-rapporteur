@@ -12,9 +12,10 @@ crate-type = ["cdylib", "rlib"]
 workspace = true
 
 [features]
-default = ["auto-initialize"]
+default = ["auto-initialize", "test-support"]
 auto-initialize = ["pyo3/auto-initialize"]
 extension-module = ["pyo3/extension-module"]
+test-support = []
 
 [dependencies]
 tei-core = { path = "../tei-core" }

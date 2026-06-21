@@ -2,7 +2,7 @@
 
 use super::{
     bootstrap::{has_uv, run_with_kwargs},
-    ensure_msgspec_installed, msgspec_available, python_import_state_lock,
+    ensure_msgspec_available, ensure_msgspec_installed, python_import_state_lock,
 };
 use pyo3::{
     Bound, Py, Python, pyclass, pymethods,
@@ -256,11 +256,11 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 }
 
 #[test]
-fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
+fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
     let _import_state_lock = python_import_state_lock();
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
-    let reported_available = msgspec_available();
+    let reported_available = ensure_msgspec_available();
     let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);

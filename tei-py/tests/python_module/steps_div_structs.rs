@@ -7,7 +7,7 @@ use pyo3::{Bound, prelude::*};
 use rstest_bdd_macros::{scenario, then};
 use tei_core::{BodyBlock, DivContent, Inline, TeiDocument};
 use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::msgspec_available;
+use tei_py::test_support::ensure_msgspec_available;
 use tei_serde::msgpack::from_slice;
 
 fn first_inline_text(any: &Bound<'_, PyAny>) -> Result<String> {
@@ -203,7 +203,7 @@ pub(super) fn the_div_blocks_are_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
-    if !msgspec_available() {
+    if !ensure_msgspec_available() {
         let projection: PyTeiDocument =
             from_slice(&payload).context("fallback decoding MessagePack document")?;
         let document: TeiDocument = TeiDocument::try_from(projection)

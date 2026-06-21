@@ -7,7 +7,7 @@ use serde::Deserialize;
 use super::state::{PythonModuleState, python_state};
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
 use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::try_ensure_msgspec_installed;
+use tei_py::test_support::ensure_msgspec_available;
 use tei_serde::json::Value;
 use tei_serde::msgpack::{from_slice, to_vec_named};
 
@@ -71,7 +71,7 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !try_ensure_msgspec_installed() {
+    if !ensure_msgspec_available() {
         let projection: PyTeiDocument =
             from_slice(&payload).context("fallback decoding MessagePack document")?;
         let document: TeiDocument = TeiDocument::try_from(projection)
@@ -118,7 +118,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !try_ensure_msgspec_installed() {
+    if !ensure_msgspec_available() {
         #[expect(
             dead_code,
             reason = "EpisodeCarrier is only used to trigger a missing-field decode when msgspec is unavailable."

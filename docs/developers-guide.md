@@ -147,8 +147,9 @@ The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 
 ## tei-py test-support API
 
-`tei-py/src/test_support.rs` contains the hidden-public `run_with_kwargs`
-helper used by the `msgspec` bootstrap path and UI compile tests:
+`tei-py/src/test_support/bootstrap.rs` contains the hidden-public
+`run_with_kwargs` helper used by the `msgspec` bootstrap path and UI compile
+tests:
 
 ```rust
 #[doc(hidden)]
@@ -186,14 +187,13 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_installed`, `try_ensure_msgspec_installed`, and
-`msgspec_available` are documented public exports from this module. They follow
-command/query separation: `ensure_msgspec_installed` and
-`try_ensure_msgspec_installed` may run the best-effort bootstrap command, while
-`msgspec_available` is a side-effect-free query that returns a `PyResult<bool>`
-for checking whether an already installed `msgspec` distribution satisfies
-`msgspec>=0.19,<0.20`. `ensure_msgspec_installed` guards the bootstrap with
-`Once` so concurrent callers run installation at most once.
+Only `ensure_msgspec_available` and `with_python` are documented public exports
+from this module. They are thread-safe: `ensure_msgspec_available` delegates to
+the `Once`-guarded bootstrap while attached to the Python interpreter through
+the shared import-state lock, and `with_python` acquires the same lock before
+calling `Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
+hidden-public exports used by the `msgspec` bootstrap path and UI compile
+tests.
 
 `tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
 that ordinary example tests do not cover. The test-support module contains
@@ -260,6 +260,34 @@ module registration tests use
 the embedded interpreter's module registry without racing other tests. Keep
 these helpers test-only; production code must continue to use the ordinary
 `Once`-guarded `ensure_msgspec_installed` path.
+
+### Thread safety for tests that mutate Python import state
+
+Any test that modifies `sys.modules`, installs or removes entries from
+`sys.meta_path`, or otherwise mutates the shared Python interpreter's import
+state must acquire the process-wide `python_import_state_lock()` guard before
+entering the `Python::attach` block:
+
+```rust
+let _import_state_lock = python_import_state_lock();
+Python::attach(|py| {
+    // mutate sys.modules here
+});
+```
+
+The guard is an RAII `MutexGuard<'static, ()>` backed by a process-wide
+`static Mutex`. Holding it prevents a concurrent test thread from observing a
+partially-modified module registry. Release happens automatically when the
+guard drops at the end of the enclosing scope.
+
+`python_import_state_lock()` is intentionally `pub(super)` — it is visible only
+to the `tei-py` unit-test modules under `src/tests/`. BDD integration tests
+that need the same serialisation import it directly from the `test_support`
+module re-export.
+
+If a test panics while holding the lock, the `Mutex` is poisoned. The
+implementation recovers from a poisoned state by calling
+`unwrap_or_else(|e| e.into_inner())` so subsequent tests are not blocked.
 
 ### Rust/Python test boundary patterns
 

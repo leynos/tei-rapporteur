@@ -154,11 +154,6 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     Ok(())
 }
 
-/// Reports whether `msgspec` is available to the embedded interpreter.
-///
-/// The helper calls [`ensure_msgspec_installed`] behind the GIL and returns
-/// `true` only when importing succeeds after the best-effort bootstrap.
-#[must_use]
-pub fn msgspec_available() -> bool {
+pub fn ensure_msgspec_available() -> bool {
     Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
