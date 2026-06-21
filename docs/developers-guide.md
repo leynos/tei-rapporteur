@@ -116,9 +116,9 @@ needed by the crate.
 
 `tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
 compile-time API behaviour. The harness lives in `tei-py/tests/ui.rs` and calls
-`trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`, so each Rust
-file under `tei-py/tests/ui/` must fail to compile and must have a committed
-matching `.stderr` snapshot.
+`trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`, so each Rust file
+under `tei-py/tests/ui/` must fail to compile and must have a committed matching
+`.stderr` snapshot.
 
 Use UI tests when a runtime test cannot prove a public or hidden-public Rust
 API rejects an invalid type. Name fixtures after the behaviour being guarded,
@@ -128,6 +128,11 @@ compile-fail `.rs` file, run `cargo test -p tei-py --test ui`, inspect the
 generated snapshot under `tei-py/wip/`, then move the `.stderr` file into
 `tei-py/tests/ui/` only when the compiler error demonstrates the intended
 contract.
+
+The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
+tests because `trybuild` starts a nested Cargo build. That build may be cold in
+CI or after dependency updates, so `.config/nextest.toml` allows the UI harness
+five minutes before nextest terminates it.
 
 The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 `run_with_kwargs` rejects a plain `String` because `String` does not implement
@@ -139,7 +144,7 @@ The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 helper used by the `msgspec` bootstrap path and UI compile tests:
 
 ```rust
-fn run_with_kwargs<'py, A>(
+pub fn run_with_kwargs<'py, A>(
     run: &Bound<'py, PyAny>,
     args: A,
     kwargs: &Bound<'py, PyDict>,

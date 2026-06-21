@@ -4,8 +4,9 @@
 //! `0.28.x` minor series to interact with an embedded Python interpreter.
 //! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
 //! via `subprocess.run` so Rust and Python BDD tests can import it.
-//! Only [`ensure_msgspec_installed`] and [`msgspec_available`] are exported;
-//! `run_with_kwargs`, `install_msgspec`, and `has_uv` are private details.
+//! [`ensure_msgspec_installed`] and [`msgspec_available`] are public exports.
+//! `run_with_kwargs` is a hidden-public helper for compile-fail UI tests, while
+//! `install_msgspec` and `has_uv` are private details.
 //! The bootstrap is serialized with `Once` via `OnceExt::call_once_py_attached`
 //! to prevent races when tests run in parallel.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
