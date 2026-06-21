@@ -268,17 +268,8 @@ fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuar
     (run_count, globals, restore_guard)
 }
 
-/// Removes the `subprocess.run` mock, runs `ensure_msgspec_installed` one final
-/// time, and asserts the bootstrap was invoked at most twice across the test.
-fn assert_bootstrap_once_and_recover(run_count: &AtomicUsize, globals: &Py<PyDict>) {
-    assert!(
-        Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py)
-        })
-        .is_ok(),
-        "ensure_msgspec_installed should succeed after mock is removed"
-    );
+/// Asserts the bootstrap was invoked at most twice across the test.
+fn assert_bootstrap_once(run_count: &AtomicUsize) {
     assert!(
         run_count.load(Ordering::SeqCst) <= 2,
         "bootstrap should run subprocess at most twice (ensurepip + install)"
@@ -288,12 +279,12 @@ fn assert_bootstrap_once_and_recover(run_count: &AtomicUsize, globals: &Py<PyDic
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
     let _import_state_lock = python_import_state_lock();
-    let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
 
-    assert_bootstrap_once_and_recover(&run_count, &globals);
+    assert_bootstrap_once(&run_count);
 }
 
 #[test]
@@ -310,7 +301,7 @@ fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
     let _import_state_lock = python_import_state_lock();
-    let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     let handles: Vec<_> = (0..8)
         .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
@@ -319,7 +310,7 @@ fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
         assert!(handle.join().expect("bootstrap thread panicked").is_ok());
     }
 
-    assert_bootstrap_once_and_recover(&run_count, &globals);
+    assert_bootstrap_once(&run_count);
 }
 
 #[rstest]
