@@ -4,13 +4,14 @@ use super::state::{
     PythonModuleState, construct_python_document, module_is_initialised, python_state,
 };
 use anyhow::{Context, Result};
-use pyo3::{Python, types::PyAnyMethods};
+use pyo3::types::PyAnyMethods;
 use pyo3_serde::to_pyobject;
 use rstest_bdd_macros::{given, scenario, when};
 use tei_core::{
     BodyBlock, Div, FileDesc, Head, Item, Label, List, P, TeiBody, TeiDocument, TeiHeader, TeiText,
 };
 use tei_py::projection::document_to_value;
+use tei_py::test_support::with_python;
 
 pub(super) fn div_body_document_fixture() -> Result<TeiDocument> {
     let header = TeiHeader::new(FileDesc::from_title_str("Bridgewater")?);
@@ -55,7 +56,7 @@ pub(super) fn i_construct_a_document_with_div_body_content(
 ) -> Result<()> {
     let payload = document_to_value(&div_body_document_fixture()?)
         .context("serialising div fixture to JSON should succeed")?;
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_dict")
@@ -84,7 +85,7 @@ pub(super) fn i_emit_title_markup(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let emit = module
                 .getattr("emit_title_markup")
@@ -103,7 +104,7 @@ pub(super) fn i_emit_title_markup(
 pub(super) fn i_emit_markup_from_the_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    let markup = Python::attach(|py| {
+    let markup = with_python(|py| {
         state.with_document(py, |document| {
             let markup: String = document.call_method0("emit_title_markup")?.extract()?;
             Ok::<_, anyhow::Error>(markup)

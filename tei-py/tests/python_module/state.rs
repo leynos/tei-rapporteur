@@ -9,7 +9,10 @@ use pyo3::{
 };
 use rstest::fixture;
 use std::cell::RefCell;
-use tei_py::{tei_rapporteur, test_support::ensure_msgspec_installed};
+use tei_py::{
+    tei_rapporteur,
+    test_support::{ensure_msgspec_installed, with_python},
+};
 use tei_serde::json::Value;
 
 pub(super) struct PythonModuleState {
@@ -163,7 +166,7 @@ pub(super) fn python_state() -> PythonModuleState {
 }
 
 pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let document_class = module
                 .getattr("Document")
@@ -179,7 +182,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 }
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         if ensure_msgspec_installed(py).is_err() {
             // Scenarios that require typed structs use fallback assertions
             // when the optional Python dependency cannot be bootstrapped.

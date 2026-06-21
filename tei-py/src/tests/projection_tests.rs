@@ -1,12 +1,12 @@
 //! Unit tests covering projection tagging and conversions.
 
 use crate::{
-    projection::{,
-    ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
+    projection::{
+        ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
     },
-    test_support::ensure_msgspec_installed_for_tests,
+    test_support::{ensure_msgspec_installed, with_python},
 };
-use pyo3::{Python, types::PyAnyMethods, types::PyModule};
+use pyo3::{types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
 use tei_core::{
     BodyBlock, CiteData, CiteStructure, Div, EncodingDesc, Head, Inline, P, PointerList, RefsDecl,
@@ -157,9 +157,8 @@ fn streaming_event_discriminators_remain_aligned() {
 
 #[test]
 fn streaming_events_decode_into_python_event_union() {
-    let _import_state_lock = python_import_state_lock();
-    Python::attach(|py| {
-        if ensure_msgspec_installed_for_tests(py).is_err() {
+    with_python(|py| {
+        if ensure_msgspec_installed(py).is_err() {
             return;
         }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");

@@ -2,8 +2,9 @@
 
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Result, ensure};
-use pyo3::{Python, types::PyAnyMethods};
+use pyo3::types::PyAnyMethods;
 use rstest_bdd_macros::{scenario, then, when};
+use tei_py::test_support::with_python;
 
 const _: fn() -> PythonModuleState = python_state;
 
@@ -11,7 +12,7 @@ const _: fn() -> PythonModuleState = python_state;
 pub(super) fn i_validate_the_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_document(py, |document| match document.call_method0("validate") {
             Ok(_) => Ok(()),
             Err(error) => {

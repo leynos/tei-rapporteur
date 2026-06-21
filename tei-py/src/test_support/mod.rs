@@ -11,18 +11,30 @@ pub use bootstrap::{
     RunWithKwargsArgs, ensure_msgspec_available, ensure_msgspec_installed, run_with_kwargs,
 };
 
-#[cfg(test)]
+#[cfg(feature = "test-support")]
 use std::sync::{Mutex, MutexGuard};
 
-#[cfg(test)]
+#[cfg(feature = "test-support")]
 static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
 
-#[cfg(test)]
+/// Returns an RAII guard that serialises all operations touching the embedded
+/// Python interpreter's import state (i.e. `sys.modules` or `sys.meta_path`).
+///
+/// Prefer `with_python` over calling this directly. Use this only when you need
+/// the guard to outlive a single `Python::attach` block, e.g. when testing the
+/// lock behaviour itself.
+#[cfg(feature = "test-support")]
 pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
     PYTHON_IMPORT_STATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-#[cfg(test)]
+pub fn with_python<F, R>(f: F) -> R
+where
+    F: for<'py> FnOnce(pyo3::Python<'py>) -> R,
+{
+    let _guard = python_import_state_lock();
+    pyo3::Python::attach(f)
+}
 mod tests;

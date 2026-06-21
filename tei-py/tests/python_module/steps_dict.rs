@@ -10,6 +10,7 @@ use tei_serde::json::Value;
 use tei_serde::serde_json::json;
 
 use tei_py::projection::document_to_value;
+use tei_py::test_support::with_python;
 
 const _: fn() -> PythonModuleState = python_state;
 
@@ -113,7 +114,7 @@ pub(super) fn i_decode_the_dictionary_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.dict_payload()?;
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_dict")
@@ -134,7 +135,7 @@ pub(super) fn i_decode_the_dictionary_payload(
 pub(super) fn i_encode_the_constructed_document_to_a_dictionary(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_dict")
@@ -159,7 +160,7 @@ pub(super) fn i_encode_the_constructed_document_to_a_dictionary(
 pub(super) fn i_encode_a_dictionary_without_providing_a_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_dict")
@@ -191,7 +192,7 @@ pub(super) fn the_div_structure_is_preserved(
     if let Ok(error) = state.error() {
         bail!("{error}");
     }
-    let payload = Python::attach(|py| {
+    let payload = with_python(|py| {
         state.with_document(py, |document| {
             let decoded: tei_py::Document = document.extract().map_err(|error| {
                 anyhow::anyhow!("decoded document should be a Document: {error}")

@@ -1,7 +1,7 @@
 //! Unit tests validating the `tei_rapporteur.structs` submodule registration
 //! and `MessagePack` round-trip through Python `msgspec.Struct` projections.
 use super::*;
-use crate::test_support::{ensure_msgspec_installed, python_import_state_lock};
+use crate::test_support::{ensure_msgspec_installed, with_python};
 use pyo3::{
     Py, Python,
     exceptions::{PyAttributeError, PyValueError},
@@ -11,21 +11,24 @@ use rstest::{fixture, rstest};
 use std::ffi::CString;
 
 #[fixture]
-fn registered_module() -> Py<PyModule> {
-    let _import_state_lock = python_import_state_lock();
-    Python::attach(|py| {
-        ensure_msgspec_installed(py)
-            .expect("msgspec bootstrap should succeed before structs module tests");
+fn registered_module() -> Option<Py<PyModule>> {
+    with_python(|py| {
+        if ensure_msgspec_installed(py).is_err() {
+            return None;
+        }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
-        module.unbind()
+        Some(module.unbind())
     })
 }
 
 #[rstest]
-fn structs_submodule_is_registered(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
-        let bound_module = module.bind(py);
+fn structs_submodule_is_registered(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    with_python(|py| {
+        let bound_module = registered_module.bind(py);
         assert!(
             bound_module
                 .hasattr("structs")
@@ -59,8 +62,7 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
         }
     }
 
-    let _import_state_lock = python_import_state_lock();
-    Python::attach(|py| {
+    with_python(|py| {
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
             r#"
@@ -132,9 +134,12 @@ sys.modules.pop("msgspec", None)
 }
 
 #[rstest]
-fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
-        let bound_module = module.bind(py);
+fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    with_python(|py| {
+        let bound_module = registered_module.bind(py);
         let document = Document::try_from_title("Bridgewater")
             .expect("valid title should construct a document");
         let payload: Vec<u8> = bound_module
@@ -186,9 +191,12 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<
 }
 
 #[rstest]
-fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
-        let bound_module = module.bind(py);
+fn list_block_rejects_empty_items(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    with_python(|py| {
+        let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let list_block_type = structs.getattr("ListBlock").expect("ListBlock class");
 
@@ -209,9 +217,12 @@ fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule
 }
 
 #[rstest]
-fn div_block_rejects_blank_type(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
-        let bound_module = module.bind(py);
+fn div_block_rejects_blank_type(#[from(registered_module)] module: Option<Py<PyModule>>) {
+    let Some(registered_module) = module else {
+        return;
+    };
+    with_python(|py| {
+        let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");
 

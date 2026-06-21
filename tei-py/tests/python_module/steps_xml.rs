@@ -2,9 +2,10 @@
 
 use super::state::{PythonModuleState, construct_python_document, python_state};
 use anyhow::{Context, Result};
-use pyo3::{Python, types::PyAnyMethods};
+use pyo3::types::PyAnyMethods;
 use rstest_bdd_macros::{given, scenario, when};
 use tei_core::TeiDocument;
+use tei_py::test_support::with_python;
 use tei_xml::emit_xml as emit_document_xml;
 
 const _: fn() -> PythonModuleState = python_state;
@@ -45,7 +46,7 @@ pub(super) fn i_parse_the_tei_xml_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let xml = state.xml_payload()?;
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let parser = module
                 .getattr("parse_xml")
@@ -64,7 +65,7 @@ pub(super) fn i_parse_the_tei_xml_payload(
 pub(super) fn i_emit_the_document_to_tei_xml(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let emitter = module
                 .getattr("emit_xml")

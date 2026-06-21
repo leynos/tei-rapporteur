@@ -285,10 +285,15 @@ to the `tei-py` unit-test modules under `src/tests/`. BDD integration tests
 that need the same serialisation import it directly from the `test_support`
 module re-export.
 
+Prefer `with_python(|py| { ... })` over the raw `python_import_state_lock()` +
+`Python::attach(...)` pair. `with_python` acquires the lock and attaches in one
+call, making it impossible to forget the guard. Only reach for
+`python_import_state_lock()` directly when the guard must outlive a single
+`Python::attach` block.
+
 If a test panics while holding the lock, the `Mutex` is poisoned. The
 implementation recovers from a poisoned state by calling
 `unwrap_or_else(|e| e.into_inner())` so subsequent tests are not blocked.
-
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to

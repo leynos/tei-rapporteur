@@ -7,7 +7,7 @@ use pyo3::{Bound, prelude::*};
 use rstest_bdd_macros::{scenario, then};
 use tei_core::{BodyBlock, DivContent, Inline, TeiDocument};
 use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::ensure_msgspec_available;
+use tei_py::test_support::{ensure_msgspec_available, with_python};
 use tei_serde::msgpack::from_slice;
 
 fn first_inline_text(any: &Bound<'_, PyAny>) -> Result<String> {
@@ -211,7 +211,7 @@ pub(super) fn the_div_blocks_are_preserved(
         return assert_core_div_blocks(&document);
     }
 
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let episode = decode_episode(py, &module, &payload)
                 .context("MessagePack payload should decode to an Episode")?;

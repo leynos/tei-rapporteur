@@ -7,7 +7,7 @@ use serde::Deserialize;
 use super::state::{PythonModuleState, python_state};
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
 use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::ensure_msgspec_available;
+use tei_py::test_support::{ensure_msgspec_available, with_python};
 use tei_serde::json::Value;
 use tei_serde::msgpack::{from_slice, to_vec_named};
 
@@ -84,7 +84,7 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
         return Ok(());
     }
 
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let episode = match decode_episode(py, &module, &payload) {
                 Ok(value) => value,
@@ -136,7 +136,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
         return Ok(());
     }
 
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {
             Ok(_) => Ok::<(), anyhow::Error>(()),
             Err(error) => {

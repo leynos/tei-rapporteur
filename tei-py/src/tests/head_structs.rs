@@ -2,9 +2,9 @@
 //! submodule.
 
 use super::*;
-use crate::test_support::ensure_msgspec_installed_for_tests;
+use crate::test_support::{ensure_msgspec_installed, with_python};
 use pyo3::{
-    Py, Python,
+    Py,
     exceptions::PyValueError,
     types::{PyAnyMethods, PyModule},
 };
@@ -12,9 +12,8 @@ use rstest::fixture;
 
 #[fixture]
 fn registered_module() -> Option<Py<PyModule>> {
-    let _import_state_lock = python_import_state_lock();
-    Python::attach(|py| {
-        if ensure_msgspec_installed_for_tests(py).is_err() {
+    with_python(|py| {
+        if ensure_msgspec_installed(py).is_err() {
             return None;
         }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
@@ -29,7 +28,7 @@ fn head_rejects_empty_content(#[from(registered_module)] module: Option<Py<PyMod
         return;
     };
 
-    Python::attach(|py| {
+    with_python(|py| {
         let bound_module = registered_module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let head_type = structs.getattr("Head").expect("Head class");
