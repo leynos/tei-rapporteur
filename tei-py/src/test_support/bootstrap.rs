@@ -96,6 +96,35 @@ fn install_msgspec<'py>(
     }
 }
 
+/// Constructs a `subprocess.run` keyword-argument dict with `check=True`
+/// and `timeout=30`. Returns `None` if either key cannot be set.
+fn make_subprocess_kwargs(py: Python<'_>) -> Option<Bound<'_, PyDict>> {
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("check", true).ok()?;
+    kwargs.set_item("timeout", 30u64).ok()?;
+    Some(kwargs)
+}
+
+/// Performs a best-effort `msgspec` installation inside an already-held GIL
+/// token. Returns `None` on any setup failure; callers treat absence of
+/// `msgspec` as a soft skip rather than a hard error.
+fn try_install_msgspec(py: Python<'_>) -> Option<()> {
+    let subprocess = py.import("subprocess").ok()?;
+    let sys = py.import("sys").ok()?;
+    let executable = sys.getattr("executable").ok()?;
+    let run = subprocess.getattr("run").ok()?;
+
+    let kwargs = make_subprocess_kwargs(py)?;
+    run_with_kwargs(
+        &run,
+        ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
+        &kwargs,
+    );
+
+    let install_kwargs = make_subprocess_kwargs(py)?;
+    install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
+    Some(())
+}
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
 /// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
@@ -118,38 +147,7 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     }
 
     MSGSPEC_INIT.call_once_py_attached(py, || {
-        let Some(subprocess) = py.import("subprocess").ok() else {
-            return;
-        };
-        let Some(sys) = py.import("sys").ok() else {
-            return;
-        };
-        let Some(executable) = sys.getattr("executable").ok() else {
-            return;
-        };
-
-        let Ok(run) = subprocess.getattr("run") else {
-            return;
-        };
-
-        let kwargs = PyDict::new(py);
-        if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err() {
-            return;
-        }
-        run_with_kwargs(
-            &run,
-            ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
-            &kwargs,
-        );
-
-        let install_kwargs = PyDict::new(py);
-        if install_kwargs.set_item("check", true).is_err()
-            || install_kwargs.set_item("timeout", 30u64).is_err()
-        {
-            return;
-        }
-
-        install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
+        try_install_msgspec(py);
     });
 
     py.import("msgspec")?;
