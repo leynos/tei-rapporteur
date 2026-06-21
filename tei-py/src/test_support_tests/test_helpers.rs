@@ -15,6 +15,7 @@ use std::{
 };
 
 static SUBPROCESS_PATCH_LOCK: Mutex<()> = Mutex::new(());
+static SHUTIL_PATCH_LOCK: Mutex<()> = Mutex::new(());
 
 /// Python `subprocess.run` mock plus keyword arguments for call-helper tests.
 pub(super) struct RunAndKwargs<'py> {
@@ -43,6 +44,18 @@ pub(super) fn acquire_subprocess_patch_lock() -> SubprocessPatchGuard {
         _guard: SUBPROCESS_PATCH_LOCK
             .lock()
             .expect("lock subprocess patch mutex"),
+    }
+}
+
+/// Lock guard held for the full lifetime of a `shutil.which` monkeypatch.
+pub(super) struct ShutilPatchGuard {
+    _guard: MutexGuard<'static, ()>,
+}
+
+/// Acquires the `shutil.which` monkeypatch lock.
+pub(super) fn acquire_shutil_patch_lock() -> ShutilPatchGuard {
+    ShutilPatchGuard {
+        _guard: SHUTIL_PATCH_LOCK.lock().expect("lock shutil patch mutex"),
     }
 }
 
@@ -117,6 +130,7 @@ impl Drop for OwnedSubprocessRestoreGuard {
 pub(super) struct ShutilRestoreGuard<'py> {
     pub(super) py: Python<'py>,
     pub(super) globals: Bound<'py, PyDict>,
+    pub(super) _patch_guard: ShutilPatchGuard,
 }
 
 impl Drop for ShutilRestoreGuard<'_> {

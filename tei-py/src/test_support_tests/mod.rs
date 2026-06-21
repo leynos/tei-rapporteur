@@ -1,9 +1,13 @@
 //! Unit tests for Python-side test support helpers.
 //!
 //! This parent module wires together deterministic unit tests, bootstrap mocks,
-//! property tests, and shared Python monkeypatch helpers. It directly tests
-//! `run_with_kwargs`, `msgspec_available`, and `has_uv`, while sibling modules
-//! provide the reusable subprocess and import-state fixtures.
+//! property tests, and shared Python monkeypatch helpers. `bootstrap_mocks`
+//! provides the `subprocess.run` replacement and `msgspec` import blocker used
+//! to exercise the installer path. `properties` contains the `proptest`
+//! coverage for idempotency and thread-safety invariants. `test_helpers`
+//! provides the shared fixtures and lock-backed restoration guards for tests
+//! that mutate process-wide Python state. This module directly tests
+//! `run_with_kwargs`, `msgspec_available`, and `has_uv`.
 
 mod bootstrap_mocks;
 mod properties;
@@ -16,7 +20,7 @@ use rstest::rstest;
 use std::ffi::CString;
 use test_helpers::{
     RunAndKwargs, RunWithKwargsArgShape, ShutilRestoreGuard, SubprocessRestoreGuard,
-    setup_run_and_kwargs,
+    acquire_shutil_patch_lock, setup_run_and_kwargs,
 };
 
 /// Verifies that supported Rust argument shapes reach Python unchanged.
@@ -99,22 +103,30 @@ fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
 
 /// Verifies `uv` discovery against mocked `shutil.which` outcomes.
 #[rstest]
-#[case::none_means_absent("None", false)]
-#[case::path_means_present("'/usr/bin/uv'", true)]
-fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
+#[case::none_means_absent(None, false)]
+#[case::path_means_present(Some("/usr/bin/uv"), true)]
+fn has_uv_reflects_which_return_value(
+    #[case] which_return_value: Option<&str>,
+    #[case] expected: bool,
+) {
+    let patch_guard = acquire_shutil_patch_lock();
     Python::attach(|py| {
         let globals = PyDict::new(py);
-        let patch = CString::new(format!(
+        globals
+            .set_item("_which_return", which_return_value)
+            .expect("install shutil.which return value");
+        let patch = CString::new(
             "import shutil\n\
              orig = shutil.which\n\
-             shutil.which = lambda name: {which_return_expr}\n"
-        ))
+             shutil.which = lambda name: _which_return\n",
+        )
         .expect("CString build");
         py.run(patch.as_c_str(), Some(&globals), None)
             .expect("monkeypatch shutil.which");
         let _restore_guard = ShutilRestoreGuard {
             py,
             globals: globals.clone(),
+            _patch_guard: patch_guard,
         };
 
         assert_eq!(has_uv(py), expected);
