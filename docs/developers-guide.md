@@ -294,6 +294,80 @@ call, making it impossible to forget the guard. Only reach for
 If a test panics while holding the lock, the `Mutex` is poisoned. The
 implementation recovers from a poisoned state by calling
 `unwrap_or_else(|e| e.into_inner())` so subsequent tests are not blocked.
+
+
+### Restoring `sys.modules` entries with RAII guards
+
+Any test that inserts, replaces, or removes a `sys.modules` entry must restore
+the registry to its exact pre-test state on scope exit, including panic unwind.
+Manual `del_item` or `set_item` calls in test teardown are forbidden; they are
+silently skipped when the test panics and leak state into every subsequent
+in-process test.
+
+Use an RAII guard that snapshots the entry in its constructor and restores it in
+`Drop`. The canonical pattern in `tei-py` is `RestoreStructs` in
+`tei-py/src/tests/bindings_tests.rs`:
+
+```rust
+struct RestoreStructs<'py> {
+    sys_modules: Bound<'py, pyo3::types::PyAny>,
+    previous: Option<Bound<'py, pyo3::types::PyAny>>,
+}
+
+impl<'py> RestoreStructs<'py> {
+    /// Snapshots `sys.modules["tei_rapporteur.structs"]` and removes the
+    /// entry so the test starts from a clean state.  `Drop` restores the
+    /// snapshot unconditionally on scope exit.
+    fn new(sys_modules: &Bound<'py, pyo3::types::PyAny>) -> Self {
+        let previous = sys_modules.get_item("tei_rapporteur.structs").ok();
+        sys_modules.del_item("tei_rapporteur.structs").ok();
+        Self {
+            sys_modules: sys_modules.clone(),
+            previous,
+        }
+    }
+}
+
+impl Drop for RestoreStructs<'_> {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            self.sys_modules
+                .set_item("tei_rapporteur.structs", previous)
+                .ok();
+        } else {
+            self.sys_modules.del_item("tei_rapporteur.structs").ok();
+        }
+    }
+}
+```
+
+The `Drop` implementation has two branches:
+
+- **`Some(previous)`** — the entry existed before the test; restore it.
+- **`None`** — the entry was absent before the test; delete any entry the test
+  body may have inserted, returning the registry to its original state.
+
+Call sites construct the guard via `RestoreStructs::new` and bind it to a
+`let _restore` binding. The guard drops at the end of the enclosing scope, so
+no explicit teardown call is needed:
+
+```rust
+with_python(|py| {
+    let sys_modules = py.import("sys")?.getattr("modules")?;
+    let _restore = RestoreStructs::new(&sys_modules);
+    // test body — mutate sys.modules freely here
+    Ok(())
+});
+```
+
+When introducing a similar guard for a different `sys.modules` key, apply the
+same two-branch `Drop` logic. Name the guard after the key it protects (e.g.
+`RestoreMsgspec` for `msgspec`) and follow the same `new`-constructor pattern.
+
+As per the coding guidelines: *global mutable state, lazy singletons,
+process-wide registries, and static caches require explicit justification and
+reset behaviour for tests.* An RAII guard satisfies the reset requirement
+structurally, making it impossible to forget.
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to
