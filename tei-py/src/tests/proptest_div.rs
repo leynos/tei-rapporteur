@@ -103,21 +103,9 @@ proptest! {
             .map_err(|e| TestCaseError::fail(format!("deserialisation failed: {e}")))?;
 
         prop_assert_eq!(
-            doc.title().as_str(),
-            recovered.title().as_str(),
-            "title should survive the dictionary round-trip"
-        );
-        prop_assert_eq!(
-            doc.text().body().blocks().len(),
-            recovered.text().body().blocks().len(),
-            "body block count should survive the dictionary round-trip"
-        );
-        prop_assert!(
-            matches!(
-                recovered.text().body().blocks().first(),
-                Some(BodyBlock::Div(_))
-            ),
-            "first body block should remain a Div after the dictionary round-trip"
+            doc,
+            recovered,
+            "document should survive the dictionary round-trip without data loss"
         );
     }
 
@@ -132,21 +120,9 @@ proptest! {
             .map_err(|e| TestCaseError::fail(format!("msgpack decoding failed: {e}")))?;
 
         prop_assert_eq!(
-            doc.title().as_str(),
-            recovered.title().as_str(),
-            "title should survive the MessagePack round-trip"
-        );
-        prop_assert_eq!(
-            doc.text().body().blocks().len(),
-            recovered.text().body().blocks().len(),
-            "body block count should survive the MessagePack round-trip"
-        );
-        prop_assert!(
-            matches!(
-                recovered.text().body().blocks().first(),
-                Some(BodyBlock::Div(_))
-            ),
-            "first body block should remain a Div after the MessagePack round-trip"
+            doc,
+            recovered,
+            "document should survive the MessagePack round-trip without data loss"
         );
     }
 }

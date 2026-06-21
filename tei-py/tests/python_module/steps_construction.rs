@@ -12,8 +12,6 @@ use tei_core::{
 };
 use tei_py::projection::document_to_value;
 
-const _: fn() -> PythonModuleState = python_state;
-
 pub(super) fn div_body_document_fixture() -> Result<TeiDocument> {
     let header = TeiHeader::new(FileDesc::from_title_str("Bridgewater")?);
     let mut div = Div::new("show-notes")?;
