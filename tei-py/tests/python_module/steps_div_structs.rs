@@ -221,7 +221,10 @@ pub(super) fn the_div_blocks_are_preserved(
 }
 
 /// Scenario: Round-trip a div-containing Document through the Python Episode struct.
-#[scenario(path = "tests/features/python_module.feature", index = 19)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Round-trip MessagePack via Episode struct with div blocks"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd injects the state fixture into generated step calls"

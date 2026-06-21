@@ -68,9 +68,18 @@ fn install_msgspec<'py>(
     use_uv: bool,
 ) {
     if use_uv {
-        let mut args = vec!["uv", "pip", "install"];
-        args.extend_from_slice(&UV_COMMON_FLAGS);
-        args.push(MSGSPEC_REQUIREMENT);
+        let Ok(executable_path) = executable.extract::<String>() else {
+            return;
+        };
+        let mut args = vec![
+            "uv".to_owned(),
+            "pip".to_owned(),
+            "install".to_owned(),
+            "--python".to_owned(),
+            executable_path,
+        ];
+        args.extend(UV_COMMON_FLAGS.iter().map(ToString::to_string));
+        args.push(MSGSPEC_REQUIREMENT.to_owned());
         if let Ok(args_tuple) = PyTuple::new(run.py(), args) {
             run_with_kwargs(run, (args_tuple,), kwargs);
         }

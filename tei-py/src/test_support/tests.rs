@@ -58,7 +58,7 @@ fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
     // one was installed. The blocker removal is a no-op for callers that never
     // installed it (e.g. the `run_with_kwargs` tests).
     let restore = CString::new(
-        r"
+        r#"
 import subprocess
 import sys
 
@@ -69,7 +69,17 @@ try:
     sys.meta_path.remove(_bootstrap_msgspec_blocker)
 except (ValueError, NameError):
     pass
-",
+
+try:
+    _original_msgspec
+except NameError:
+    pass
+else:
+    if _original_msgspec is _msgspec_missing:
+        sys.modules.pop("msgspec", None)
+    else:
+        sys.modules["msgspec"] = _original_msgspec
+"#,
     )
     .expect("CString build");
     py.run(restore.as_c_str(), Some(globals), None).ok();
@@ -83,6 +93,16 @@ struct SubprocessRestoreGuard<'py> {
 impl Drop for SubprocessRestoreGuard<'_> {
     fn drop(&mut self) {
         restore_subprocess_run(self.py, &self.globals);
+    }
+}
+
+struct BootstrapRestoreGuard {
+    globals: Py<PyDict>,
+}
+
+impl Drop for BootstrapRestoreGuard {
+    fn drop(&mut self) {
+        Python::attach(|py| restore_subprocess_run(py, self.globals.bind(py)));
     }
 }
 
@@ -126,6 +146,8 @@ class _BlockMsgspecBootstrap:
 
 
 _bootstrap_msgspec_blocker = _BlockMsgspecBootstrap()
+_msgspec_missing = object()
+_original_msgspec = sys.modules.get("msgspec", _msgspec_missing)
 
 _original_run = subprocess.run
 
@@ -237,6 +259,9 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
     let run_count = Arc::new(AtomicUsize::new(0));
 
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
+    let _restore_guard = BootstrapRestoreGuard {
+        globals: Python::attach(|py| globals.clone_ref(py)),
+    };
 
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
@@ -271,6 +296,9 @@ fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
     let _import_state_lock = python_import_state_lock();
     let run_count = Arc::new(AtomicUsize::new(0));
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
+    let _restore_guard = BootstrapRestoreGuard {
+        globals: Python::attach(|py| globals.clone_ref(py)),
+    };
 
     let handles: Vec<_> = (0..8)
         .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
