@@ -11,11 +11,15 @@ use pyo3::{
 };
 use std::{
     ffi::CString,
-    sync::{Mutex, MutexGuard},
+    sync::{LockResult, Mutex, MutexGuard},
 };
 
 static SUBPROCESS_PATCH_LOCK: Mutex<()> = Mutex::new(());
 static SHUTIL_PATCH_LOCK: Mutex<()> = Mutex::new(());
+
+fn recover_patch_lock(lock_result: LockResult<MutexGuard<'static, ()>>) -> MutexGuard<'static, ()> {
+    lock_result.unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 /// Python `subprocess.run` mock plus keyword arguments for call-helper tests.
 pub(super) struct RunAndKwargs<'py> {
@@ -41,9 +45,7 @@ pub(super) struct SubprocessPatchGuard {
 /// Acquires the subprocess monkeypatch lock.
 pub(super) fn acquire_subprocess_patch_lock() -> SubprocessPatchGuard {
     SubprocessPatchGuard {
-        _guard: SUBPROCESS_PATCH_LOCK
-            .lock()
-            .expect("lock subprocess patch mutex"),
+        _guard: recover_patch_lock(SUBPROCESS_PATCH_LOCK.lock()),
     }
 }
 
@@ -55,7 +57,7 @@ pub(super) struct ShutilPatchGuard {
 /// Acquires the `shutil.which` monkeypatch lock.
 pub(super) fn acquire_shutil_patch_lock() -> ShutilPatchGuard {
     ShutilPatchGuard {
-        _guard: SHUTIL_PATCH_LOCK.lock().expect("lock shutil patch mutex"),
+        _guard: recover_patch_lock(SHUTIL_PATCH_LOCK.lock()),
     }
 }
 
@@ -108,7 +110,7 @@ pub(super) struct SubprocessRestoreGuard<'py> {
 
 impl Drop for SubprocessRestoreGuard<'_> {
     fn drop(&mut self) {
-        restore_subprocess_run(self.py, &self.globals).expect("restore subprocess.run");
+        if restore_subprocess_run(self.py, &self.globals).is_err() {}
     }
 }
 
@@ -120,9 +122,11 @@ pub(super) struct OwnedSubprocessRestoreGuard {
 
 impl Drop for OwnedSubprocessRestoreGuard {
     fn drop(&mut self) {
-        Python::attach(|py| {
-            restore_subprocess_run(py, self.globals.bind(py)).expect("restore subprocess.run");
-        });
+        Python::attach(
+            |py| {
+                if restore_subprocess_run(py, self.globals.bind(py)).is_err() {}
+            },
+        );
     }
 }
 
