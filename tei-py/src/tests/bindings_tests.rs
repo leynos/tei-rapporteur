@@ -12,12 +12,28 @@ struct RestoreStructs<'py> {
     previous: Option<Bound<'py, pyo3::types::PyAny>>,
 }
 
+impl<'py> RestoreStructs<'py> {
+    /// Snapshots `sys.modules["tei_rapporteur.structs"]` and removes the entry
+    /// so the test starts from a clean state. `Drop` unconditionally restores
+    /// the snapshot on scope exit, including panic unwind.
+    fn new(sys_modules: &Bound<'py, pyo3::types::PyAny>) -> Self {
+        let previous = sys_modules.get_item("tei_rapporteur.structs").ok();
+        sys_modules.del_item("tei_rapporteur.structs").ok();
+        Self {
+            sys_modules: sys_modules.clone(),
+            previous,
+        }
+    }
+}
+
 impl Drop for RestoreStructs<'_> {
     fn drop(&mut self) {
         if let Some(previous) = self.previous.take() {
             self.sys_modules
                 .set_item("tei_rapporteur.structs", previous)
                 .ok();
+        } else {
+            self.sys_modules.del_item("tei_rapporteur.structs").ok();
         }
     }
 }
@@ -121,16 +137,9 @@ fn spoken_text_segments_requires_registered_structs_module() {
             .expect("sys should import")
             .getattr("modules")
             .expect("sys.modules should exist");
-        let previous_structs = sys_modules.get_item("tei_rapporteur.structs").ok();
-        if previous_structs.is_some() {
-            sys_modules.del_item("tei_rapporteur.structs").ok();
-        }
-        // Restore `sys.modules` on scope exit — including panic unwind — so the
-        // deletion cannot leak into other in-process tests.
-        let _restore = RestoreStructs {
-            sys_modules: sys_modules.clone(),
-            previous: previous_structs,
-        };
+        // RAII guard: snapshots and removes the entry now, restores on scope exit
+        // (including panic unwind) so the mutation cannot leak into other in-process tests.
+        let _restore = RestoreStructs::new(&sys_modules);
         let xml = concat!(
             "<TEI>",
             "<teiHeader><fileDesc><title>Example</title></fileDesc></teiHeader>",
