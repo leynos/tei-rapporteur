@@ -14,6 +14,7 @@ mod dict;
 mod div_structs;
 mod head_structs;
 mod projection_tests;
+mod proptest_div;
 mod streaming;
 mod structs_tests;
 mod validation;
