@@ -6,19 +6,29 @@
 //! normally.
 
 use pyo3::{
-    Bound, Py, PyResult, Python,
+    Bound, Py, PyErr, PyResult, Python,
     types::{PyAny, PyAnyMethods, PyDict},
 };
 use std::{
     ffi::CString,
-    sync::{LockResult, Mutex, MutexGuard},
+    io::Write,
+    sync::{Mutex, MutexGuard},
 };
 
 static SUBPROCESS_PATCH_LOCK: Mutex<()> = Mutex::new(());
 static SHUTIL_PATCH_LOCK: Mutex<()> = Mutex::new(());
 
-fn recover_patch_lock(lock_result: LockResult<MutexGuard<'static, ()>>) -> MutexGuard<'static, ()> {
-    lock_result.unwrap_or_else(std::sync::PoisonError::into_inner)
+fn handle_subprocess_restore_error(error: &PyErr) {
+    if std::thread::panicking() {
+        if writeln!(
+            std::io::stderr(),
+            "failed to restore subprocess.run during panic: {error}"
+        )
+        .is_err()
+        {}
+    } else {
+        panic!("failed to restore subprocess.run: {error}");
+    }
 }
 
 /// Python `subprocess.run` mock plus keyword arguments for call-helper tests.
@@ -45,7 +55,9 @@ pub(super) struct SubprocessPatchGuard {
 /// Acquires the subprocess monkeypatch lock.
 pub(super) fn acquire_subprocess_patch_lock() -> SubprocessPatchGuard {
     SubprocessPatchGuard {
-        _guard: recover_patch_lock(SUBPROCESS_PATCH_LOCK.lock()),
+        _guard: SUBPROCESS_PATCH_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
     }
 }
 
@@ -57,7 +69,9 @@ pub(super) struct ShutilPatchGuard {
 /// Acquires the `shutil.which` monkeypatch lock.
 pub(super) fn acquire_shutil_patch_lock() -> ShutilPatchGuard {
     ShutilPatchGuard {
-        _guard: recover_patch_lock(SHUTIL_PATCH_LOCK.lock()),
+        _guard: SHUTIL_PATCH_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
     }
 }
 
@@ -110,7 +124,9 @@ pub(super) struct SubprocessRestoreGuard<'py> {
 
 impl Drop for SubprocessRestoreGuard<'_> {
     fn drop(&mut self) {
-        if restore_subprocess_run(self.py, &self.globals).is_err() {}
+        if let Err(error) = restore_subprocess_run(self.py, &self.globals) {
+            handle_subprocess_restore_error(&error);
+        }
     }
 }
 
@@ -122,11 +138,11 @@ pub(super) struct OwnedSubprocessRestoreGuard {
 
 impl Drop for OwnedSubprocessRestoreGuard {
     fn drop(&mut self) {
-        Python::attach(
-            |py| {
-                if restore_subprocess_run(py, self.globals.bind(py)).is_err() {}
-            },
-        );
+        Python::attach(|py| {
+            if let Err(error) = restore_subprocess_run(py, self.globals.bind(py)) {
+                handle_subprocess_restore_error(&error);
+            }
+        });
     }
 }
 

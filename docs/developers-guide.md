@@ -206,6 +206,14 @@ the mocked installer runs. Keep this pattern when extending the properties:
 tests should prove the `Once`-guarded installer path executed without invoking
 real package installation or network access.
 
+Tests that monkeypatch Python process-global state must hold the relevant RAII
+guard for the full patch lifecycle. Lock acquisition must tolerate poisoning
+with `unwrap_or_else(std::sync::PoisonError::into_inner)` or equivalent so one
+failed test does not cascade into unrelated failures. Restoration guards should
+surface cleanup failures when a test is otherwise succeeding, but must check
+`std::thread::panicking()` and log to stderr instead of panicking again during
+unwind.
+
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to
