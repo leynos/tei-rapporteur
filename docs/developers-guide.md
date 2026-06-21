@@ -112,7 +112,7 @@ extension-safe linker flags without linking `libpython`. The
 can resolve the active Python configuration and apply the PyO3 cfg values
 needed by the crate.
 
-## tei-py UI compile tests
+## Tei-py UI compile tests
 
 `tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
 compile-time API behaviour. The harness lives in `tei-py/tests/ui.rs` and calls
@@ -144,13 +144,14 @@ The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 helper used by the `msgspec` bootstrap path and UI compile tests:
 
 ```rust
+#[doc(hidden)]
 pub fn run_with_kwargs<'py, A>(
     run: &Bound<'py, PyAny>,
     args: A,
     kwargs: &Bound<'py, PyDict>,
 )
 where
-    A: pyo3::call::PyCallArgs<'py>,
+    A: RunWithKwargsArgs<'py>,
 ```
 
 Any future caller must pass an argument value that implements
@@ -160,7 +161,7 @@ Any future caller must pass an argument value that implements
 one positional argument, wrap that argument in a Rust one-tuple, such as
 `(args_tuple,)`.
 
-Only `ensure_msgspec_installed` and `msgspec_available` are public exports from
-this module. They are thread-safe: `ensure_msgspec_installed` guards the
-bootstrap with `Once`, and `msgspec_available` delegates to it while attached
-to the Python interpreter.
+Only `ensure_msgspec_installed` and `msgspec_available` are documented public
+exports from this module. They are thread-safe: `ensure_msgspec_installed`
+guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
+attached to the Python interpreter.

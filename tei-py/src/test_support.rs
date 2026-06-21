@@ -27,6 +27,17 @@ use pyo3::{
 };
 use std::sync::Once;
 
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as a Python `call` argument",
+    note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
+    note = "if your type is convertible to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
+    note = "if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`"
+)]
+pub trait RunWithKwargsArgs<'py>: pyo3::call::PyCallArgs<'py> {}
+
+impl<'py, A> RunWithKwargsArgs<'py> for A where A: pyo3::call::PyCallArgs<'py> {}
+
 fn has_uv(py: Python<'_>) -> bool {
     py.import("shutil")
         .ok()
@@ -40,7 +51,7 @@ fn has_uv(py: Python<'_>) -> bool {
 #[doc(hidden)]
 pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
 where
-    A: pyo3::call::PyCallArgs<'py>,
+    A: RunWithKwargsArgs<'py>,
 {
     // Best-effort: subprocess.run may fail (e.g., missing network); the final
     // `py.import("msgspec")?` is the authoritative error path for callers.
