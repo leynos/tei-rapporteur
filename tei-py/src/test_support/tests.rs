@@ -2,7 +2,7 @@
 
 use super::{
     bootstrap::{has_uv, run_with_kwargs},
-    ensure_msgspec_available, ensure_msgspec_installed, python_import_state_lock,
+    ensure_msgspec_available, ensure_msgspec_installed, python_import_state_lock, with_python,
 };
 use pyo3::{
     Bound, Py, Python, pyclass, pymethods,
@@ -198,7 +198,7 @@ fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> Bound<'py, PyAny> {
 #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
 #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
 fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
-    Python::attach(|py| {
+    with_python(|py| {
         let RunAndKwargs {
             run,
             kwargs,
@@ -326,7 +326,7 @@ fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
 #[case::none_means_absent("None", false)]
 #[case::path_means_present("'/usr/bin/uv'", true)]
 fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
-    Python::attach(|py| {
+    with_python(|py| {
         let globals = PyDict::new(py);
         let patch = CString::new(format!(
             "import shutil\n\
