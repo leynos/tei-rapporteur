@@ -1,5 +1,6 @@
 //! Unit tests for the validate Python binding.
 
+use crate::test_support::python_import_state_lock;
 use pyo3::{
     Python,
     types::{PyAnyMethods, PyModule},
@@ -7,6 +8,7 @@ use pyo3::{
 
 #[test]
 fn validate_returns_none_for_valid_document() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
@@ -22,6 +24,7 @@ fn validate_returns_none_for_valid_document() {
 
 #[test]
 fn validate_method_is_registered_on_document() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)

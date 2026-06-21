@@ -1,7 +1,7 @@
 //! Unit tests validating the `tei_rapporteur.structs` submodule registration
 //! and `MessagePack` round-trip through Python `msgspec.Struct` projections.
 use super::*;
-use crate::test_support::ensure_msgspec_installed_for_tests;
+use crate::test_support::{ensure_msgspec_installed, python_import_state_lock};
 use pyo3::{
     Py, Python,
     exceptions::{PyAttributeError, PyValueError},
@@ -12,8 +12,9 @@ use std::ffi::CString;
 
 #[fixture]
 fn registered_module() -> Py<PyModule> {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
-        ensure_msgspec_installed_for_tests(py)
+        ensure_msgspec_installed(py)
             .expect("msgspec bootstrap should succeed before structs module tests");
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
@@ -58,14 +59,8 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
         }
     }
 
-    let _import_state_guard = crate::test_support::acquire_python_import_state_lock_for_tests();
-    let _registration_guard =
-        crate::test_support::acquire_python_module_registration_lock_for_tests();
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
-        if py.import("msgspec").is_ok() {
-            return;
-        }
-
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
             r#"
@@ -101,6 +96,8 @@ except ValueError:
 
 if "_orig_meta_path_structs_test" in globals():
     sys.meta_path = _orig_meta_path_structs_test
+
+sys.modules.pop("msgspec", None)
 "#,
         )
         .expect("inline Python should be valid");
@@ -111,7 +108,7 @@ if "_orig_meta_path_structs_test" in globals():
 
         // Register the module without calling the helper so msgspec remains absent.
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
-        crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
+        tei_rapporteur(py, &module)
             .expect("module registration should succeed even when msgspec is missing");
 
         let has_structs = module

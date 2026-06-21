@@ -12,6 +12,7 @@ use rstest::fixture;
 
 #[fixture]
 fn registered_module() -> Option<Py<PyModule>> {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         if ensure_msgspec_installed_for_tests(py).is_err() {
             return None;

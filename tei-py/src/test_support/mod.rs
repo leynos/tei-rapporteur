@@ -10,4 +10,17 @@ mod bootstrap;
 pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_installed, msgspec_available, run_with_kwargs};
 
 #[cfg(test)]
+use std::sync::{Mutex, MutexGuard};
+
+#[cfg(test)]
+static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
+    PYTHON_IMPORT_STATE_LOCK
+        .lock()
+        .expect("Python import-state test lock should not be poisoned")
+}
+
+#[cfg(test)]
 mod tests;

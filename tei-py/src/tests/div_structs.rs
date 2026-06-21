@@ -58,6 +58,7 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 
 #[test]
 fn episode_struct_decodes_div_blocks() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         ensure_msgspec_installed_for_tests(py)
             .expect("msgspec bootstrap should succeed before div block decoding test");
@@ -128,6 +129,7 @@ fn episode_struct_decodes_div_blocks() {
 
 #[test]
 fn streaming_div_events_decode_into_python_union() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         ensure_msgspec_installed_for_tests(py)
             .expect("msgspec bootstrap should succeed before div event union decoding test");

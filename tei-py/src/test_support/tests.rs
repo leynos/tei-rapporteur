@@ -2,7 +2,7 @@
 
 use super::{
     bootstrap::{has_uv, run_with_kwargs},
-    ensure_msgspec_installed, msgspec_available,
+    ensure_msgspec_installed, msgspec_available, python_import_state_lock,
 };
 use pyo3::{
     Bound, Py, Python, pyclass, pymethods,
@@ -233,6 +233,7 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
 
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
+    let _import_state_lock = python_import_state_lock();
     let run_count = Arc::new(AtomicUsize::new(0));
 
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
@@ -256,6 +257,7 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 
 #[test]
 fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
+    let _import_state_lock = python_import_state_lock();
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
     let reported_available = msgspec_available();
@@ -266,6 +268,7 @@ fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
 
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
+    let _import_state_lock = python_import_state_lock();
     let run_count = Arc::new(AtomicUsize::new(0));
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
 

@@ -1,8 +1,8 @@
 //! Unit tests covering projection tagging and conversions.
 
 use crate::{
-    projection::{
-        ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
+    projection::{,
+    ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
     },
     test_support::ensure_msgspec_installed_for_tests,
 };
@@ -157,6 +157,7 @@ fn streaming_event_discriminators_remain_aligned() {
 
 #[test]
 fn streaming_events_decode_into_python_event_union() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         if ensure_msgspec_installed_for_tests(py).is_err() {
             return;

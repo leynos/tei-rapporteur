@@ -1,11 +1,12 @@
 //! BDD scenarios for the Python-facing streaming iterator.
 
-use super::*;
 use crate::test_support::ensure_msgspec_installed_for_tests;
+use crate::test_support::{ensure_msgspec_installed, python_import_state_lock};
 use pyo3::{Python, types::PyModule};
 use pyo3_serde::from_pyobject;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
+use super::*;
 use tei_serde::json::Value;
 
 const _: &str = include_str!("../../tests/features/python_streaming.feature");
@@ -245,6 +246,7 @@ fn exhausted_after_error(#[from(state)] state: &StreamingState) {
 
 #[then("all events decode into msgspec Event instances")]
 fn events_decode(#[from(state)] state: &StreamingState) {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         if ensure_msgspec_installed_for_tests(py).is_err() {
             return;

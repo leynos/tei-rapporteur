@@ -2,6 +2,7 @@
 //! `MessagePack` exchange, and XML helpers).
 
 use super::*;
+use crate::test_support::python_import_state_lock;
 use pyo3::{
     Python,
     types::{PyAnyMethods, PyModule},
@@ -35,6 +36,7 @@ fn document_construction_rejects_blank_titles() {
 
 #[test]
 fn module_registers_python_bindings() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
@@ -60,6 +62,7 @@ fn module_registers_python_bindings() {
 
 #[test]
 fn python_function_emits_markup() {
+    let _import_state_lock = python_import_state_lock();
     Python::attach(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
