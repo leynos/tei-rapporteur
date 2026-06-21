@@ -48,13 +48,16 @@ fn has_uv(py: Python<'_>) -> bool {
         .is_some()
 }
 
+/// Calls a Python callable with positional arguments and keyword arguments.
+///
+/// This helper intentionally discards any error returned by the Python call.
+/// It is used only for best-effort setup paths where a later import check is
+/// the authoritative failure signal.
 #[doc(hidden)]
 pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
 where
     A: RunWithKwargsArgs<'py>,
 {
-    // Best-effort: subprocess.run may fail (e.g., missing network); the final
-    // `py.import("msgspec")?` is the authoritative error path for callers.
     run.call(args, Some(kwargs)).ok();
 }
 
