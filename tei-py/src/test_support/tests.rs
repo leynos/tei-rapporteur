@@ -253,31 +253,47 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
     });
 }
 
-#[test]
-fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
-    let _import_state_lock = python_import_state_lock();
+/// Sets up the `subprocess.run` monkeypatch and returns a run-call counter,
+/// the `globals` dict that owns the patch, and an RAII guard that tears it
+/// down on scope exit.
+///
+/// The caller is responsible for holding `python_import_state_lock()` for the
+/// entire duration of the test.
+fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
     let run_count = Arc::new(AtomicUsize::new(0));
-
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
-    let _restore_guard = BootstrapRestoreGuard {
+    let restore_guard = BootstrapRestoreGuard {
         globals: Python::attach(|py| globals.clone_ref(py)),
     };
+    (run_count, globals, restore_guard)
+}
 
-    assert!(Python::attach(ensure_msgspec_installed).is_ok());
-    assert!(Python::attach(ensure_msgspec_installed).is_ok());
-
+/// Removes the `subprocess.run` mock, runs `ensure_msgspec_installed` one final
+/// time, and asserts the bootstrap was invoked at most twice across the test.
+fn assert_bootstrap_once_and_recover(run_count: &AtomicUsize, globals: &Py<PyDict>) {
     assert!(
         Python::attach(|py| {
             restore_subprocess_run(py, globals.bind(py));
             ensure_msgspec_installed(py)
         })
-        .is_ok()
+        .is_ok(),
+        "ensure_msgspec_installed should succeed after mock is removed"
     );
+    assert!(
+        run_count.load(Ordering::SeqCst) <= 2,
+        "bootstrap should run subprocess at most twice (ensurepip + install)"
+    );
+}
 
-    // If `msgspec` is already importable, the bootstrap should not run. If it
-    // is absent, the `Once` guard should limit the helper to the ensurepip call
-    // plus one install attempt across both invocations.
-    assert!(run_count.load(Ordering::SeqCst) <= 2);
+#[test]
+fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
+    let _import_state_lock = python_import_state_lock();
+    let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+
+    assert!(Python::attach(ensure_msgspec_installed).is_ok());
+    assert!(Python::attach(ensure_msgspec_installed).is_ok());
+
+    assert_bootstrap_once_and_recover(&run_count, &globals);
 }
 
 #[test]
@@ -294,32 +310,16 @@ fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
     let _import_state_lock = python_import_state_lock();
-    let run_count = Arc::new(AtomicUsize::new(0));
-    let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
-    let _restore_guard = BootstrapRestoreGuard {
-        globals: Python::attach(|py| globals.clone_ref(py)),
-    };
+    let (run_count, globals, _restore_guard) = setup_bootstrap_test();
 
     let handles: Vec<_> = (0..8)
         .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
         .collect();
-
     for handle in handles {
         assert!(handle.join().expect("bootstrap thread panicked").is_ok());
     }
 
-    assert!(
-        Python::attach(|py| {
-            restore_subprocess_run(py, globals.bind(py));
-            ensure_msgspec_installed(py)
-        })
-        .is_ok()
-    );
-
-    // If `msgspec` is already importable, the bootstrap should not run. If it
-    // is absent, the `Once` guard should limit all threads to the ensurepip
-    // call plus one install attempt.
-    assert!(run_count.load(Ordering::SeqCst) <= 2);
+    assert_bootstrap_once_and_recover(&run_count, &globals);
 }
 
 #[rstest]
