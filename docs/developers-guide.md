@@ -280,10 +280,11 @@ The guard is an RAII `MutexGuard<'static, ()>` backed by a process-wide
 partially-modified module registry. Release happens automatically when the
 guard drops at the end of the enclosing scope.
 
-`python_import_state_lock()` is intentionally `pub(super)` — it is visible only
-to the `tei-py` unit-test modules under `src/tests/`. BDD integration tests
-that need the same serialisation import it directly from the `test_support`
-module re-export.
+`python_import_state_lock()` is intentionally `pub(super)` inside
+`test_support`: it is visible to sibling modules such as `test_support::tests`,
+but it is not part of the public `test_support` API and is not re-exported for
+BDD integration tests. BDD tests should use `with_python`, which is the public
+wrapper that acquires the same lock.
 
 Prefer `with_python(|py| { ... })` over the raw `python_import_state_lock()` +
 `Python::attach(...)` pair. `with_python` acquires the lock and attaches in one
@@ -294,7 +295,6 @@ call, making it impossible to forget the guard. Only reach for
 If a test panics while holding the lock, the `Mutex` is poisoned. The
 implementation recovers from a poisoned state by calling
 `unwrap_or_else(|e| e.into_inner())` so subsequent tests are not blocked.
-
 
 ### Restoring `sys.modules` entries with RAII guards
 
@@ -316,8 +316,8 @@ struct RestoreStructs<'py> {
 
 impl<'py> RestoreStructs<'py> {
     /// Snapshots `sys.modules["tei_rapporteur.structs"]` and removes the
-    /// entry so the test starts from a clean state.  `Drop` restores the
-    /// snapshot unconditionally on scope exit.
+    /// entry so the test starts from a clean state.  `Drop` restores the saved
+    /// entry when one existed, or deletes the key when it was absent.
     fn new(sys_modules: &Bound<'py, pyo3::types::PyAny>) -> Self {
         let previous = sys_modules.get_item("tei_rapporteur.structs").ok();
         sys_modules.del_item("tei_rapporteur.structs").ok();

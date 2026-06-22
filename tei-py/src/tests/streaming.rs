@@ -246,7 +246,7 @@ fn exhausted_after_error(#[from(state)] state: &StreamingState) {
 #[then("all events decode into msgspec Event instances")]
 fn events_decode(#[from(state)] state: &StreamingState) {
     if !ensure_msgspec_available() {
-        return;
+        rstest_bdd::skip!("msgspec is unavailable in this environment");
     }
 
     with_python(|py| {

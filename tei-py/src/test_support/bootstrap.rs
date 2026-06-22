@@ -144,6 +144,7 @@ fn msgspec_satisfies_requirement(py: Python<'_>) -> bool {
         .call_method1("version", ("msgspec",))
         .and_then(|version| version.extract::<String>())
         .is_ok_and(|version| version.starts_with("0.19."))
+        && py.import("msgspec").is_ok()
 }
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///

@@ -110,8 +110,8 @@ impl Drop for BootstrapRestoreGuard {
 }
 
 struct BootstrapTestGuard {
-    _import_state_lock: std::sync::MutexGuard<'static, ()>,
     _restore_guard: BootstrapRestoreGuard,
+    _import_state_lock: std::sync::MutexGuard<'static, ()>,
 }
 
 #[pyclass]
@@ -286,8 +286,8 @@ fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapTestGuard) 
     let import_state_lock = python_import_state_lock();
     let (run_count, globals, restore_guard) = setup_bootstrap_test_unlocked();
     let test_guard = BootstrapTestGuard {
-        _import_state_lock: import_state_lock,
         _restore_guard: restore_guard,
+        _import_state_lock: import_state_lock,
     };
     (run_count, globals, test_guard)
 }
