@@ -289,13 +289,18 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 
 #[test]
 fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
-    let _import_state_lock = python_import_state_lock();
+    let (run_count, _globals, _restore_guard) = {
+        let _import_state_lock = python_import_state_lock();
+        setup_bootstrap_test()
+    };
+
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
     let reported_available = ensure_msgspec_available();
     let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);
+    assert_bootstrap_once(&run_count);
 }
 
 #[test]

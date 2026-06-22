@@ -148,16 +148,22 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     Ok(())
 }
 
-/// Scenario: Round-trip a Document through the Python Episode struct.
-#[scenario(path = "tests/features/python_module.feature", index = 18)]
+/// Scenario: Round-trip `MessagePack` via the Episode struct.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Round-trip MessagePack via the Episode struct"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd injects the state fixture into generated step calls"
 )]
 pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {}
 
-/// Scenario: Surface struct decoding errors for malformed `MessagePack` payloads.
-#[scenario(path = "tests/features/python_module.feature", index = 21)]
+/// Scenario: Report msgspec errors for malformed payloads.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Report msgspec errors for malformed payloads"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd injects the state fixture into generated step calls"
