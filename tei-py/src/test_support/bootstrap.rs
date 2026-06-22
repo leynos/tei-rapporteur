@@ -2,6 +2,7 @@
 
 use pyo3::{
     Bound, PyResult, Python,
+    exceptions::PyImportError,
     sync::OnceExt,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
@@ -134,6 +135,16 @@ fn try_install_msgspec(py: Python<'_>) -> Option<()> {
     install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
     Some(())
 }
+
+fn msgspec_satisfies_requirement(py: Python<'_>) -> bool {
+    let Ok(metadata) = py.import("importlib.metadata") else {
+        return false;
+    };
+    metadata
+        .call_method1("version", ("msgspec",))
+        .and_then(|version| version.extract::<String>())
+        .is_ok_and(|version| version.starts_with("0.19."))
+}
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
 /// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
@@ -150,8 +161,8 @@ fn try_install_msgspec(py: Python<'_>) -> Option<()> {
 ///
 /// Returns a `PyErr` when importing or installing `msgspec` fails, for example
 /// when `pip` is unavailable in the embedded interpreter.
-pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
-    if py.import("msgspec").is_ok() {
+pub(super) fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
+    if msgspec_satisfies_requirement(py) {
         return Ok(());
     }
 
@@ -159,8 +170,11 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
         try_install_msgspec(py);
     });
 
-    py.import("msgspec")?;
-    Ok(())
+    if msgspec_satisfies_requirement(py) {
+        Ok(())
+    } else {
+        Err(PyImportError::new_err(MSGSPEC_REQUIREMENT))
+    }
 }
 
 /// Ensures `msgspec` is available to the embedded interpreter, running a

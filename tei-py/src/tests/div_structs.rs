@@ -1,7 +1,7 @@
 //! Tests covering Python `msgspec.Struct` support for division body blocks.
 
 use super::*;
-use crate::test_support::{ensure_msgspec_installed, with_python};
+use crate::test_support::{ensure_msgspec_available, with_python};
 use pyo3::types::{PyAnyMethods, PyDict, PyModule};
 use tei_core::{BodyBlock, Div, Head, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
 use tei_serde::msgpack::to_vec_named;
@@ -55,11 +55,11 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 
 #[test]
 fn episode_struct_decodes_div_blocks() {
-    with_python(|py| {
-        if ensure_msgspec_installed(py).is_err() {
-            return;
-        }
+    if !ensure_msgspec_available() {
+        return;
+    }
 
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -126,11 +126,11 @@ fn episode_struct_decodes_div_blocks() {
 
 #[test]
 fn streaming_div_events_decode_into_python_union() {
-    with_python(|py| {
-        if ensure_msgspec_installed(py).is_err() {
-            return;
-        }
+    if !ensure_msgspec_available() {
+        return;
+    }
 
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let structs = module.getattr("structs").expect("structs module");

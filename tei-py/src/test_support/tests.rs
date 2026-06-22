@@ -1,8 +1,9 @@
 //! Unit tests for Python-side test support helpers.
 
 use super::{
+    bootstrap::ensure_msgspec_installed,
     bootstrap::{has_uv, run_with_kwargs},
-    ensure_msgspec_available, ensure_msgspec_installed, python_import_state_lock, with_python,
+    ensure_msgspec_available, python_import_state_lock, with_python,
 };
 use pyo3::{
     Bound, Py, Python, pyclass, pymethods,
@@ -61,8 +62,10 @@ fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
         r#"
 import subprocess
 import sys
+import importlib.metadata
 
 subprocess.run = _original_run
+importlib.metadata.version = _original_metadata_version
 _calls = []
 
 try:
@@ -106,6 +109,11 @@ impl Drop for BootstrapRestoreGuard {
     }
 }
 
+struct BootstrapTestGuard {
+    _import_state_lock: std::sync::MutexGuard<'static, ()>,
+    _restore_guard: BootstrapRestoreGuard,
+}
+
 #[pyclass]
 struct BootstrapRunCounter {
     count: Arc<AtomicUsize>,
@@ -136,6 +144,7 @@ import subprocess
 import sys
 import types
 import importlib
+import importlib.metadata
 
 
 class _BlockMsgspecBootstrap:
@@ -150,6 +159,13 @@ _msgspec_missing = object()
 _original_msgspec = sys.modules.get("msgspec", _msgspec_missing)
 
 _original_run = subprocess.run
+_original_metadata_version = importlib.metadata.version
+
+
+def _mock_metadata_version(package_name):
+    if package_name == "msgspec":
+        return "0.19.99"
+    return _original_metadata_version(package_name)
 
 
 def _mock_run(*args, **kwargs):
@@ -168,6 +184,7 @@ def _mock_run(*args, **kwargs):
 
 
 subprocess.run = _mock_run
+importlib.metadata.version = _mock_metadata_version
 "#,
     )
     .expect("CString build");
@@ -253,19 +270,26 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
     });
 }
 
-/// Sets up the `subprocess.run` monkeypatch and returns a run-call counter,
-/// the `globals` dict that owns the patch, and an RAII guard that tears it
-/// down on scope exit.
-///
-/// The caller is responsible for holding `python_import_state_lock()` for the
-/// entire duration of the test.
-fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
+fn setup_bootstrap_test_unlocked() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
     let run_count = Arc::new(AtomicUsize::new(0));
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
     let restore_guard = BootstrapRestoreGuard {
         globals: Python::attach(|py| globals.clone_ref(py)),
     };
     (run_count, globals, restore_guard)
+}
+
+/// Sets up the `subprocess.run` monkeypatch and returns a run-call counter,
+/// the `globals` dict that owns the patch, and an RAII guard that tears it
+/// down on scope exit.
+fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapTestGuard) {
+    let import_state_lock = python_import_state_lock();
+    let (run_count, globals, restore_guard) = setup_bootstrap_test_unlocked();
+    let test_guard = BootstrapTestGuard {
+        _import_state_lock: import_state_lock,
+        _restore_guard: restore_guard,
+    };
+    (run_count, globals, test_guard)
 }
 
 /// Asserts the bootstrap was invoked at most twice across the test.
@@ -278,21 +302,23 @@ fn assert_bootstrap_once(run_count: &AtomicUsize) {
 
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
-    let _import_state_lock = python_import_state_lock();
     let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
+    let first_call_count = run_count.load(Ordering::SeqCst);
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
+    assert_eq!(
+        run_count.load(Ordering::SeqCst),
+        first_call_count,
+        "subsequent calls should not re-run bootstrap work"
+    );
 
     assert_bootstrap_once(&run_count);
 }
 
 #[test]
 fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
-    let (run_count, _globals, _restore_guard) = {
-        let _import_state_lock = python_import_state_lock();
-        setup_bootstrap_test()
-    };
+    let (run_count, _globals, _restore_guard) = setup_bootstrap_test_unlocked();
 
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
@@ -305,7 +331,6 @@ fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
 
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
-    let _import_state_lock = python_import_state_lock();
     let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     let handles: Vec<_> = (0..8)

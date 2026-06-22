@@ -7,9 +7,8 @@
 
 mod bootstrap;
 
-pub use bootstrap::{
-    RunWithKwargsArgs, ensure_msgspec_available, ensure_msgspec_installed, run_with_kwargs,
-};
+pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
+pub(super) use bootstrap::ensure_msgspec_installed;
 
 #[cfg(feature = "test-support")]
 use std::sync::{Mutex, MutexGuard};

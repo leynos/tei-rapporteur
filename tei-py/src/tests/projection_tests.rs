@@ -4,7 +4,7 @@ use crate::{
     projection::{
         ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
     },
-    test_support::{ensure_msgspec_installed, with_python},
+    test_support::{ensure_msgspec_available, with_python},
 };
 use pyo3::{types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
@@ -157,10 +157,11 @@ fn streaming_event_discriminators_remain_aligned() {
 
 #[test]
 fn streaming_events_decode_into_python_event_union() {
+    if !ensure_msgspec_available() {
+        return;
+    }
+
     with_python(|py| {
-        if ensure_msgspec_installed(py).is_err() {
-            return;
-        }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
             .expect("module registration should succeed");

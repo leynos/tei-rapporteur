@@ -2,7 +2,7 @@
 //! submodule.
 
 use super::*;
-use crate::test_support::{ensure_msgspec_installed, with_python};
+use crate::test_support::{ensure_msgspec_available, with_python};
 use pyo3::{
     Py,
     exceptions::PyValueError,
@@ -12,10 +12,11 @@ use rstest::fixture;
 
 #[fixture]
 fn registered_module() -> Option<Py<PyModule>> {
+    if !ensure_msgspec_available() {
+        return None;
+    }
+
     with_python(|py| {
-        if ensure_msgspec_installed(py).is_err() {
-            return None;
-        }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         Some(module.unbind())
