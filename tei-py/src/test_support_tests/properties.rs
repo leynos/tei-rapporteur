@@ -6,9 +6,12 @@
 //! alongside deterministic unit tests for the same helper surface.
 
 use super::{
-    super::ensure_msgspec_installed,
-    bootstrap_mocks::{remove_msgspec_from_modules, setup_bootstrap_run_counter},
-    test_helpers::OwnedSubprocessRestoreGuard,
+    super::{
+        acquire_msgspec_bootstrap_lock_for_tests, ensure_msgspec_installed_unlocked_for_tests,
+        force_msgspec_bootstrap_for_tests, reset_msgspec_init_for_tests,
+    },
+    bootstrap_mocks::setup_bootstrap_run_counter,
+    test_helpers::{OwnedSubprocessRestoreGuard, acquire_subprocess_patch_lock},
 };
 use proptest::prelude::*;
 use pyo3::Python;
@@ -22,58 +25,35 @@ use std::{
 
 proptest! {
     #![proptest_config(ProptestConfig {
-        // `MSGSPEC_INIT` is process-wide, so each generated case needs its own
-        // nextest process to exercise the forced bootstrap path. One case still
-        // verifies the correctness goal: a generated N drives repeated calls or
-        // spawned threads while the exact subprocess count proves the `Once`
-        // guard ran the installer once and only once.
-        cases: 1,
+        cases: 32,
         ..ProptestConfig::default()
     })]
 
     #[test]
-    fn idempotency_holds_over_arbitrary_repetitions(repetitions in 1..=50u8) {
+    fn bootstrap_invariants_hold_without_process_isolation(
+        repetitions in 1..=50u8,
+        thread_count in 2..=32u8,
+    ) {
+        let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
+        let _force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
         let run_count = Arc::new(AtomicUsize::new(0));
+        let setup_run_count = Arc::clone(&run_count);
+        let subprocess_patch_guard = acquire_subprocess_patch_lock();
 
-        let (globals, patch_guard) = Python::attach(|py| {
-            let patch = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
-            remove_msgspec_from_modules(py);
+        let (globals, restored_patch_guard) = Python::attach(move |py| {
+            py.import("msgspec")
+                .expect("msgspec should be importable for bootstrap properties");
+            let patch = setup_bootstrap_run_counter(py, setup_run_count, subprocess_patch_guard);
+            reset_msgspec_init_for_tests();
             (patch.globals, patch.patch_guard)
         });
         let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
             globals: globals.clone_ref(py),
-            _patch_guard: patch_guard,
-        });
-
-        for _ in 0..usize::from(repetitions) {
-            let result = Python::attach(ensure_msgspec_installed);
-            prop_assert!(result.is_ok());
-        }
-
-        drop(restore_guard);
-
-        let restored_after_bootstrap = Python::attach(ensure_msgspec_installed).is_ok();
-        prop_assert!(restored_after_bootstrap);
-
-        prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
-    }
-
-    #[test]
-    fn no_panics_under_variable_thread_count(thread_count in 2..=32u8) {
-        let run_count = Arc::new(AtomicUsize::new(0));
-        let (globals, patch_guard) = Python::attach(|py| {
-            let patch = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
-            remove_msgspec_from_modules(py);
-
-            (patch.globals, patch.patch_guard)
-        });
-        let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
-            globals: globals.clone_ref(py),
-            _patch_guard: patch_guard,
+            _patch_guard: restored_patch_guard,
         });
 
         let handles: Vec<_> = (0..usize::from(thread_count))
-            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
+            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed_unlocked_for_tests)))
             .collect();
 
         for handle in handles {
@@ -81,10 +61,13 @@ proptest! {
             prop_assert!(result.is_ok());
         }
 
-        drop(restore_guard);
+        for _ in 0..usize::from(repetitions) {
+            let result = Python::attach(ensure_msgspec_installed_unlocked_for_tests);
+            prop_assert!(result.is_ok());
+        }
 
-        let restored_after_bootstrap = Python::attach(ensure_msgspec_installed).is_ok();
-        prop_assert!(restored_after_bootstrap);
+        drop(restore_guard);
+        drop(bootstrap_guard);
 
         prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
     }

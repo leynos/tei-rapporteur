@@ -9,6 +9,10 @@
 //! `install_msgspec` and `has_uv` are private details.
 //! The bootstrap is serialized with `Once` via `OnceExt::call_once_py_attached`
 //! to prevent races when tests run in parallel.
+//! Bootstrap test coverage lives in the child `test_support_tests` module:
+//! `bootstrap_mocks` supplies mocked subprocess and import fixtures,
+//! `test_helpers` owns Python-state restoration guards, and `properties`
+//! exercises the idempotency and thread-safety invariants.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
 const PIP_COMMON_FLAGS: [&str; 6] = [
     "--no-input",
@@ -20,12 +24,19 @@ const PIP_COMMON_FLAGS: [&str; 6] = [
 ];
 const UV_COMMON_FLAGS: [&str; 1] = ["--quiet"];
 
+#[cfg(not(test))]
+use pyo3::sync::OnceExt;
 use pyo3::{
     Bound, PyResult, Python,
-    sync::OnceExt,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
+#[cfg(not(test))]
 use std::sync::Once;
+#[cfg(test)]
+use std::sync::{
+    Mutex, MutexGuard, TryLockError,
+    atomic::{AtomicBool, Ordering as AtomicOrdering},
+};
 
 /// Crate-owned wrapper for Python call argument diagnostics.
 ///
@@ -139,11 +150,170 @@ fn do_bootstrap(py: Python<'_>) {
     };
     install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
 }
+
+#[cfg(not(test))]
 static MSGSPEC_INIT: Once = Once::new();
+
+#[cfg(test)]
+struct ResettableMsgspecInit {
+    state: Mutex<MsgspecInitState>,
+}
+
+#[cfg(test)]
+struct RunningMsgspecInitGuard<'a> {
+    init: &'a ResettableMsgspecInit,
+    is_complete: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum MsgspecInitState {
+    Incomplete,
+    Running,
+    Complete,
+}
+
+#[cfg(test)]
+impl ResettableMsgspecInit {
+    const fn new() -> Self {
+        Self {
+            state: Mutex::new(MsgspecInitState::Incomplete),
+        }
+    }
+
+    fn call_once_py_attached<F>(&self, py: Python<'_>, bootstrap: F)
+    where
+        F: FnOnce(),
+    {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while *state == MsgspecInitState::Running {
+            drop(state);
+            py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
+            state = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        if *state == MsgspecInitState::Complete {
+            return;
+        }
+        *state = MsgspecInitState::Running;
+        drop(state);
+
+        let mut running_guard = RunningMsgspecInitGuard {
+            init: self,
+            is_complete: false,
+        };
+        bootstrap();
+        self.set_state(MsgspecInitState::Complete);
+        running_guard.is_complete = true;
+    }
+
+    fn reset(&self) {
+        self.set_state(MsgspecInitState::Incomplete);
+    }
+
+    fn set_state(&self, next_state: MsgspecInitState) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *state = next_state;
+    }
+}
+
+#[cfg(test)]
+impl Drop for RunningMsgspecInitGuard<'_> {
+    fn drop(&mut self) {
+        if !self.is_complete {
+            self.init.set_state(MsgspecInitState::Incomplete);
+        }
+    }
+}
+
+#[cfg(test)]
+static MSGSPEC_INIT: ResettableMsgspecInit = ResettableMsgspecInit::new();
+
+#[cfg(test)]
+static MSGSPEC_BOOTSTRAP_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+static FORCE_MSGSPEC_BOOTSTRAP: AtomicBool = AtomicBool::new(false);
+
+#[cfg(test)]
+static PYTHON_MODULE_REGISTRATION_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+pub(super) struct ForcedMsgspecBootstrapGuard;
+
+#[cfg(test)]
+impl Drop for ForcedMsgspecBootstrapGuard {
+    fn drop(&mut self) {
+        FORCE_MSGSPEC_BOOTSTRAP.store(false, AtomicOrdering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+pub(super) fn force_msgspec_bootstrap_for_tests() -> ForcedMsgspecBootstrapGuard {
+    FORCE_MSGSPEC_BOOTSTRAP.store(true, AtomicOrdering::SeqCst);
+    ForcedMsgspecBootstrapGuard
+}
+
+#[cfg(test)]
+fn lock_msgspec_bootstrap_for_tests() -> MutexGuard<'static, ()> {
+    MSGSPEC_BOOTSTRAP_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(test)]
+fn lock_msgspec_bootstrap_attached_for_tests(py: Python<'_>) -> MutexGuard<'static, ()> {
+    lock_attached_for_tests(py, &MSGSPEC_BOOTSTRAP_TEST_LOCK)
+}
+
+#[cfg(test)]
+fn lock_attached_for_tests(py: Python<'_>, mutex: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    loop {
+        match mutex.try_lock() {
+            Ok(guard) => return guard,
+            Err(TryLockError::Poisoned(poisoned)) => return poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => {
+                py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+pub(super) fn acquire_msgspec_bootstrap_lock_for_tests() -> MutexGuard<'static, ()> {
+    lock_msgspec_bootstrap_for_tests()
+}
+
+#[cfg(test)]
+pub(crate) fn acquire_python_module_registration_lock_for_tests() -> MutexGuard<'static, ()> {
+    PYTHON_MODULE_REGISTRATION_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(test)]
+pub(crate) fn lock_python_module_registration_attached_for_tests(
+    py: Python<'_>,
+) -> MutexGuard<'static, ()> {
+    lock_attached_for_tests(py, &PYTHON_MODULE_REGISTRATION_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(super) fn reset_msgspec_init_for_tests() {
+    MSGSPEC_INIT.reset();
+}
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
-/// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
+/// A `Once` guarded by `OnceExt::call_once_py_attached` serializes the
 /// bootstrap so only one thread runs the installer, avoiding the race
 /// reported in CI while detaching from Python when blocked.
 ///
@@ -158,7 +328,23 @@ static MSGSPEC_INIT: Once = Once::new();
 /// Returns a `PyErr` when importing or installing `msgspec` fails, for example
 /// when `pip` is unavailable in the embedded interpreter.
 pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
-    if py.import("msgspec").is_ok() {
+    #[cfg(test)]
+    {
+        let _guard = lock_msgspec_bootstrap_attached_for_tests(py);
+        ensure_msgspec_installed_inner(py)
+    }
+
+    #[cfg(not(test))]
+    ensure_msgspec_installed_inner(py)
+}
+
+fn ensure_msgspec_installed_inner(py: Python<'_>) -> PyResult<()> {
+    #[cfg(test)]
+    let should_force_bootstrap = FORCE_MSGSPEC_BOOTSTRAP.load(AtomicOrdering::SeqCst);
+    #[cfg(not(test))]
+    let should_force_bootstrap = false;
+
+    if !should_force_bootstrap && py.import("msgspec").is_ok() {
         return Ok(());
     }
 
@@ -166,6 +352,11 @@ pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
 
     py.import("msgspec")?;
     Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn ensure_msgspec_installed_unlocked_for_tests(py: Python<'_>) -> PyResult<()> {
+    ensure_msgspec_installed_inner(py)
 }
 
 /// Reports whether `msgspec` is available to the embedded interpreter.

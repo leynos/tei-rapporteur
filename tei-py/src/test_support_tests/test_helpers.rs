@@ -1,7 +1,7 @@
 //! Fixtures for unit tests around low-level Python call helpers.
 //!
 //! This module provides shared setup and restoration guards for tests in
-//! `mod`, `properties`, and `bootstrap_mocks`. Its subprocess lock serialises
+//! `mod`, `properties`, and `bootstrap_mocks`. Its subprocess lock serializes
 //! Python global-state mutation while still allowing unrelated tests to run
 //! normally.
 
@@ -76,8 +76,10 @@ pub(super) fn acquire_shutil_patch_lock() -> ShutilPatchGuard {
 }
 
 /// Installs a recording `subprocess.run` mock for call-helper tests.
-pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
-    let patch_guard = acquire_subprocess_patch_lock();
+pub(super) fn setup_run_and_kwargs(
+    py: Python<'_>,
+    patch_guard: SubprocessPatchGuard,
+) -> RunAndKwargs<'_> {
     let globals = PyDict::new(py);
     let patch = CString::new(
         "import subprocess\n\
@@ -102,7 +104,6 @@ pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
 
 /// Restores Python subprocess state for a previously installed mock.
 pub(super) fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResult<()> {
-    super::bootstrap_mocks::restore_msgspec_blocker(py, globals);
     let restore = CString::new(
         r"
 import subprocess
@@ -143,6 +144,7 @@ impl Drop for OwnedSubprocessRestoreGuard {
                 handle_subprocess_restore_error(&error);
             }
         });
+        super::super::reset_msgspec_init_for_tests();
     }
 }
 

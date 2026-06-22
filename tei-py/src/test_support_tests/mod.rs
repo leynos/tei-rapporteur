@@ -2,8 +2,8 @@
 //!
 //! This parent module wires together deterministic unit tests, bootstrap mocks,
 //! property tests, and shared Python monkeypatch helpers. `bootstrap_mocks`
-//! provides the `subprocess.run` replacement and `msgspec` import blocker used
-//! to exercise the installer path. `properties` contains the `proptest`
+//! provides the `subprocess.run` replacement used to exercise the installer
+//! path. `properties` contains the `proptest`
 //! coverage for idempotency and thread-safety invariants. `test_helpers`
 //! provides the shared fixtures and lock-backed restoration guards for tests
 //! that mutate process-wide Python state. This module directly tests
@@ -20,7 +20,7 @@ use rstest::rstest;
 use std::ffi::CString;
 use test_helpers::{
     RunAndKwargs, RunWithKwargsArgShape, ShutilRestoreGuard, SubprocessRestoreGuard,
-    acquire_shutil_patch_lock, setup_run_and_kwargs,
+    acquire_shutil_patch_lock, acquire_subprocess_patch_lock, setup_run_and_kwargs,
 };
 
 /// Verifies that supported Rust argument shapes reach Python unchanged.
@@ -29,17 +29,18 @@ use test_helpers::{
 #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
 #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
 fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
-    Python::attach(|py| {
+    let subprocess_patch_guard = acquire_subprocess_patch_lock();
+    Python::attach(move |py| {
         let RunAndKwargs {
             run,
             kwargs,
             globals,
-            patch_guard,
-        } = setup_run_and_kwargs(py);
+            patch_guard: restored_patch_guard,
+        } = setup_run_and_kwargs(py, subprocess_patch_guard);
         let _restore_guard = SubprocessRestoreGuard {
             py,
             globals: globals.clone(),
-            _patch_guard: patch_guard,
+            _patch_guard: restored_patch_guard,
         };
 
         match arg_shape {

@@ -15,8 +15,7 @@ without making network calls.
 
 ## Constraints
 
-All changes must follow the repository `AGENTS.md` instructions. The branch is
-`issue-77-property-tests-for-idempotency-and-thread-safety-invariants-in-test-support`.
+All changes must follow the repository `AGENTS.md` instructions for issue #77.
 Use `make` targets for validation. Test, lint, typecheck, and formatting
 commands must run sequentially and log through `tee` into `/tmp`. Do not
 silence warnings or lints. Keep file sizes under 400 lines. Commit only after
@@ -43,34 +42,24 @@ forced once per test process.
   `rust-unit-testing`, `rust-async-and-concurrency`, `proptest`, and
   `execplans` guidance.
 - [x] 2026-06-20: Created the leta workspace and renamed the Lody session.
-- [x] 2026-06-20: Verified the branch name already matches the requested
-  issue branch.
+- [x] 2026-06-20: Verified the review work remains scoped to issue #77.
 - [x] 2026-06-20: Refactored `ensure_msgspec_installed` by extracting
   `make_subprocess_kwargs` and `do_bootstrap`.
 - [x] 2026-06-20: Fixed still-valid test isolation findings for `_calls`,
-  `sys.meta_path`, panic-safe cleanup, and subprocess monkeypatch
-  synchronisation.
+  panic-safe cleanup, and subprocess monkeypatch synchronization.
 - [x] 2026-06-20: Ran focused and full validation gates.
-- [x] 2026-06-20: Committed, pushed with upstream tracking, and updated draft
-  PR #86 at <https://github.com/leynos/tei-rapporteur/pull/86>.
+- [x] 2026-06-20: Committed, pushed, and recorded validation evidence for
+  issue #77.
 
 ## Surprises & Discoveries
 
-The branch was already named
-`issue-77-property-tests-for-idempotency-and-thread-safety-invariants-in-test-support`,
-but no upstream branch was configured. The review finding about `_calls` is
-valid in `bootstrap_mocks.rs`: helper functions read `_calls`, while the mock
-only increments the Rust counter.
+The review finding about `_calls` is valid in `bootstrap_mocks.rs`: helper
+functions read `_calls`, while the mock only increments the Rust counter.
 
 Workspace Clippy caught two local guard-shape issues during `make lint`: the
 lock guard field exists for drop timing rather than direct reads, and an
 explicitly dropped binding must not use an underscore-prefixed name. Both were
 fixed without suppressing lints.
-
-The branch push set upstream tracking on
-`origin/issue-77-property-tests-for-idempotency-and-thread-safety-invariants-in-test-support`.
-PR #86 already existed for the branch, so it was converted to draft rather
-than creating a duplicate PR.
 
 ## Decision Log
 
@@ -105,9 +94,9 @@ output logged to `/tmp`.
 Implemented the review-feedback pass. `ensure_msgspec_installed` now delegates
 the `Once` bootstrap closure to `do_bootstrap`, reducing the inline complexity
 of the public helper. The bootstrap tests now record Python subprocess calls,
-restore the `msgspec` import blocker explicitly, keep subprocess monkeypatches
-serialised for their full lifecycle, and use RAII cleanup in the property
-tests.
+force the test bootstrap path without mutating Python import hooks, keep
+subprocess monkeypatches serialized for their full lifecycle, and use RAII
+cleanup in the property tests.
 
 Validation passed:
 
@@ -115,8 +104,7 @@ Validation passed:
 - `make check-fmt`
 - `make lint`
 - `make typecheck`
-- `make test` with 456 passed tests
+- `make test` with 455 passed tests
 - `make markdownlint`
 
-The branch now tracks the requested origin branch and the draft PR is ready for
-review at <https://github.com/leynos/tei-rapporteur/pull/86>.
+The issue #77 bootstrap property-test review pass is ready for review.

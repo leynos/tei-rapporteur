@@ -62,6 +62,8 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
         }
     }
 
+    let _registration_guard =
+        crate::test_support::acquire_python_module_registration_lock_for_tests();
     Python::attach(|py| {
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
@@ -108,7 +110,7 @@ if "_orig_meta_path_structs_test" in globals():
 
         // Register the module without calling the helper so msgspec remains absent.
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
-        tei_rapporteur(py, &module)
+        crate::bindings::py_exports::register_tei_rapporteur_module_for_tests(py, &module)
             .expect("module registration should succeed even when msgspec is missing");
 
         let has_structs = module
