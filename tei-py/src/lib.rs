@@ -37,6 +37,13 @@ mod bindings_test_support;
 pub mod projection;
 mod streaming;
 mod structs;
+/// Test-only infrastructure for Python embedding and `msgspec` bootstrapping.
+///
+/// Exposes [`test_support::ensure_msgspec_available`] and
+/// [`test_support::with_python`] to crate unit tests under `cfg(test)` and to
+/// feature-gated integration and BDD tests under `feature = "test-support"`.
+/// The module remains absent from production wheel builds.
+#[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 pub use bindings::Document;
 pub use bindings::py_exports::{

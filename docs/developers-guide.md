@@ -112,6 +112,14 @@ extension-safe linker flags without linking `libpython`. The
 can resolve the active Python configuration and apply the PyO3 cfg values
 needed by the crate.
 
+The `test-support` feature enables the `test_support` module, which provides
+`msgspec` bootstrapping, the process-wide Python import-state lock, and the
+`with_python` synchronisation helper used by unit and BDD integration tests. It
+is included in `default` features so that `cargo test` activates it
+automatically. Wheel builds pass `--no-default-features` and must not activate
+`test-support`; doing so would link test infrastructure into the production
+extension module.
+
 ## Tei-py UI compile tests
 
 `tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
