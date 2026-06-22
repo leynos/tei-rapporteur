@@ -35,7 +35,7 @@ proptest! {
         thread_count in 2..=32u8,
     ) {
         let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
-        let _force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
+        let force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
         let run_count = Arc::new(AtomicUsize::new(0));
         let setup_run_count = Arc::clone(&run_count);
         let subprocess_patch_guard = acquire_subprocess_patch_lock();
@@ -67,6 +67,7 @@ proptest! {
         }
 
         drop(restore_guard);
+        drop(force_bootstrap_guard);
         drop(bootstrap_guard);
 
         prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);

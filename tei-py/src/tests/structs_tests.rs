@@ -110,7 +110,7 @@ if "_orig_meta_path_structs_test" in globals():
 
         // Register the module without calling the helper so msgspec remains absent.
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
-        crate::bindings::py_exports::register_tei_rapporteur_module_for_tests(py, &module)
+        crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
             .expect("module registration should succeed even when msgspec is missing");
 
         let has_structs = module

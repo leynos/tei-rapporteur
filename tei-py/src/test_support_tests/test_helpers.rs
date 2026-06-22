@@ -20,12 +20,12 @@ static SHUTIL_PATCH_LOCK: Mutex<()> = Mutex::new(());
 
 fn handle_subprocess_restore_error(error: &PyErr) {
     if std::thread::panicking() {
-        if writeln!(
+        match writeln!(
             std::io::stderr(),
             "failed to restore subprocess.run during panic: {error}"
-        )
-        .is_err()
-        {}
+        ) {
+            Ok(()) | Err(_) => {}
+        }
     } else {
         panic!("failed to restore subprocess.run: {error}");
     }

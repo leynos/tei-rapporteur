@@ -352,7 +352,7 @@ pub(crate) mod py_exports {
         register_tei_rapporteur_module(py_context, py_module)
     }
 
-    fn register_tei_rapporteur_module(
+    pub(crate) fn register_tei_rapporteur_module(
         py_context: Python<'_>,
         py_module: &Bound<'_, PyModule>,
     ) -> PyResult<()> {
@@ -370,14 +370,6 @@ pub(crate) mod py_exports {
         py_module.add("__version__", env!("CARGO_PKG_VERSION"))?;
         py_module.add("__py_runtime__", py_context.version())?;
         Ok(())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn register_tei_rapporteur_module_for_tests(
-        py_context: Python<'_>,
-        py_module: &Bound<'_, PyModule>,
-    ) -> PyResult<()> {
-        register_tei_rapporteur_module(py_context, py_module)
     }
 }
 

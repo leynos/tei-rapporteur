@@ -32,6 +32,8 @@ use macros::{
 };
 
 mod bindings;
+#[cfg(test)]
+mod bindings_test_support;
 pub mod projection;
 mod streaming;
 mod structs;
