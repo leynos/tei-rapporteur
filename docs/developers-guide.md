@@ -131,8 +131,13 @@ contract.
 
 The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
 tests because `trybuild` starts a nested Cargo build. That build may be cold in
-CI or after dependency updates, so `.config/nextest.toml` allows the UI harness
-five minutes before nextest terminates it.
+CI or after dependency updates. The most common trigger in CI is
+`cargo-llvm-cov`, which redirects compiled artefacts to a separate target
+directory (e.g. `target/llvm-cov-target/`) via `--target-dir` without exporting
+that path as `CARGO_TARGET_DIR`. Trybuild's child `cargo build` therefore
+cannot reuse the instrumented artefacts and must rebuild the full dependency
+graph from scratch. `.config/nextest.toml` allows the UI harness five minutes
+before nextest terminates it.
 
 The UI harness does not mutate process environment variables. `trybuild`
 derives its nested Cargo target directory from Cargo metadata and passes that
@@ -161,8 +166,9 @@ where
 ```
 
 Any future caller must pass an argument value that implements
-`pyo3::call::PyCallArgs<'py>`. Under PyO3 0.28.3, `PyAnyMethods::call` takes
-`PyCallArgs` directly rather than accepting any value convertible through
+`RunWithKwargsArgs<'py>` — the crate-owned wrapper trait that delegates to
+PyO3's `pyo3::call::PyCallArgs<'py>`. Under PyO3 0.28.3, `PyAnyMethods::call`
+takes `PyCallArgs` directly rather than accepting any value convertible through
 `IntoPyObject<'py, Target = PyTuple>`. When the intended Python call receives
 one positional argument, wrap that argument in a Rust one-tuple, such as
 `(args_tuple,)`.
