@@ -7,8 +7,9 @@
 
 use super::{
     super::{
-        acquire_msgspec_bootstrap_lock_for_tests, ensure_msgspec_installed_unlocked_for_tests,
-        force_msgspec_bootstrap_for_tests, reset_msgspec_init_for_tests,
+        acquire_msgspec_bootstrap_lock_for_tests, ensure_msgspec_installed,
+        ensure_msgspec_installed_unlocked_for_tests, force_msgspec_bootstrap_for_tests,
+        reset_msgspec_init_for_tests,
     },
     bootstrap_mocks::setup_bootstrap_run_counter,
     test_helpers::{OwnedSubprocessRestoreGuard, acquire_subprocess_patch_lock},
@@ -34,6 +35,8 @@ proptest! {
         repetitions in 1..=50u8,
         thread_count in 2..=32u8,
     ) {
+        prop_assume!(Python::attach(|py| ensure_msgspec_installed(py).is_ok()));
+
         let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
         let force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
         let run_count = Arc::new(AtomicUsize::new(0));
@@ -41,8 +44,6 @@ proptest! {
         let subprocess_patch_guard = acquire_subprocess_patch_lock();
 
         let (globals, restored_patch_guard) = Python::attach(move |py| {
-            py.import("msgspec")
-                .expect("msgspec should be importable for bootstrap properties");
             let patch = setup_bootstrap_run_counter(py, setup_run_count, subprocess_patch_guard);
             reset_msgspec_init_for_tests();
             (patch.globals, patch.patch_guard)

@@ -1,4 +1,4 @@
-# Issue 77 Bootstrap Property Tests Review
+# Issue 77 bootstrap property tests review
 
 This ExecPlan guides the review-feedback pass for GitHub issue #77, which adds
 property-based coverage around the `tei-py` `msgspec` bootstrap helper. The
