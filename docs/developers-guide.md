@@ -176,6 +176,17 @@ keep the crate-owned trait name. When the intended Python call receives one
 positional argument, wrap that argument in a Rust one-tuple, such as
 `(args_tuple,)`.
 
+`RunWithKwargsArgs<'py>` is deliberately single-use. It exists so this crate,
+not PyO3, owns the `#[diagnostic::on_unimplemented]` message that drives the
+compile-fail snapshot. Binding `run_with_kwargs` directly to
+`pyo3::call::PyCallArgs<'py>` would make the expected stderr depend on PyO3's
+diagnostic wording, so a PyO3 minor release could silently break the committed
+snapshot without any `tei-py` API change. The diagnostic notes on
+`RunWithKwargsArgs<'py>` are therefore the source of
+`non_pycallargs_rejected.stderr`, not a copy of upstream output. Do not remove
+the wrapper unless the UI test is intentionally moved to a different
+crate-owned compile-fail boundary.
+
 Only `ensure_msgspec_installed` and `msgspec_available` are documented public
 exports from this module. They are thread-safe: `ensure_msgspec_installed`
 guards the bootstrap with `Once`, and `msgspec_available` delegates to it while

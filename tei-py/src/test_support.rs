@@ -27,6 +27,16 @@ use pyo3::{
 };
 use std::sync::Once;
 
+/// Crate-owned wrapper for Python call argument diagnostics.
+///
+/// This trait intentionally has no reuse strategy beyond `run_with_kwargs`.
+/// Its purpose is to anchor the compile-fail contract at a `tei-py` symbol so
+/// the committed trybuild snapshot is driven by this crate's
+/// `#[diagnostic::on_unimplemented]` text, not by PyO3's `PyCallArgs`
+/// diagnostic, which may change across PyO3 minor releases.
+///
+/// The notes below are the source of the expected UI-test output. Keep them in
+/// sync with `tei-py/tests/ui/non_pycallargs_rejected.stderr`.
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be used as a Python `call` argument",
