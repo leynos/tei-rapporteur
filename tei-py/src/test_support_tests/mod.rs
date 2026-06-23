@@ -7,7 +7,8 @@
 //! coverage for idempotency and thread-safety invariants. `test_helpers`
 //! provides the shared fixtures and lock-backed restoration guards for tests
 //! that mutate process-wide Python state. This module directly tests
-//! `run_with_kwargs`, `msgspec_available`, and `has_uv`.
+//! `run_with_kwargs`, `msgspec_available`, `try_ensure_msgspec_installed`, and
+//! `has_uv`.
 
 mod bootstrap_mocks;
 mod properties;
@@ -86,15 +87,14 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
     });
 }
 
-/// Verifies that availability mirrors actual Python importability.
+/// Verifies that the availability query does not bootstrap `msgspec`.
 #[test]
-fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
-    // Call the function under test first; it may bootstrap msgspec as a
-    // side-effect, so the importability check must come *after* the call.
+fn msgspec_available_reports_only_existing_requirement_satisfaction() {
     let reported_available = msgspec_available();
-    let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
+    let requirement_satisfied =
+        Python::attach(|py| msgspec_satisfies_requirement(py).unwrap_or(false));
 
-    assert_eq!(reported_available, importable_after_check);
+    assert_eq!(reported_available, requirement_satisfied);
 }
 
 /// Verifies `uv` discovery against mocked `shutil.which` outcomes.

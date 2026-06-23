@@ -186,10 +186,14 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_installed` and `msgspec_available` are documented public
-exports from this module. They are thread-safe: `ensure_msgspec_installed`
-guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
-attached to the Python interpreter.
+Only `ensure_msgspec_installed`, `try_ensure_msgspec_installed`, and
+`msgspec_available` are documented public exports from this module. They follow
+command/query separation: `ensure_msgspec_installed` and
+`try_ensure_msgspec_installed` may run the best-effort bootstrap command, while
+`msgspec_available` is a side-effect-free query that only checks whether an
+already installed `msgspec` distribution satisfies `msgspec>=0.19,<0.20`.
+`ensure_msgspec_installed` guards the bootstrap with `Once` so concurrent
+callers run installation at most once.
 
 `tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
 that ordinary example tests do not cover. The test-support module contains
@@ -220,18 +224,18 @@ The test-only coverage for this surface lives under
 `tei-py/src/test_support_tests/` and is split by responsibility:
 
 - `mod.rs` is the parent test module. It wires the submodules together and owns
-  the deterministic tests for `run_with_kwargs`, `msgspec_available`, and
-  `has_uv`.
+  the deterministic tests for `run_with_kwargs`, `msgspec_available`,
+  `try_ensure_msgspec_installed`, and `has_uv`.
 - `bootstrap_mocks.rs` owns the `subprocess.run` bootstrap mock used by the
   property tests and call-helper tests. `BootstrapRunCounter` is the
   Python-callable counter, `BootstrapRunPatch` carries the Python globals plus
   the subprocess patch lock, `setup_bootstrap_run_counter` installs the mock,
   and `recorded_call_count` / `recorded_args` inspect captured calls.
 - `test_helpers.rs` owns shared Python-state fixtures and restoration guards.
-  `RunAndKwargs` carries the mocked `run`, kwargs, globals, and lock for
-  call-helper tests. `RunWithKwargsArgShape` enumerates the supported Rust
-  argument shapes. `SubprocessPatchGuard` and `ShutilPatchGuard` serialize
-  process-global monkeypatches; acquire them with
+  `RunAndKwargs` carries the mocked `run`, kwargs, globals, and subprocess
+  restore guard for call-helper tests. `RunWithKwargsArgShape` enumerates the
+  supported Rust argument shapes. `SubprocessPatchGuard` and `ShutilPatchGuard`
+  serialize process-global monkeypatches; acquire them with
   `acquire_subprocess_patch_lock` and `acquire_shutil_patch_lock`.
   `setup_run_and_kwargs` installs the recording `subprocess.run` mock,
   `restore_subprocess_run` restores it, `SubprocessRestoreGuard` restores

@@ -1,18 +1,11 @@
 //! Test-only helpers shared across Rust unit tests and Python BDD suites.
-//! They use `PyO3`'s embedding API (`pyo3::sync::OnceExt`,
-//! `pyo3::call::PyCallArgs`, and `Bound<PyAny>`) with the supported `PyO3`
-//! `0.28.x` minor series to interact with an embedded Python interpreter.
-//! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
-//! via `subprocess.run` so Rust and Python BDD tests can import it.
-//! [`ensure_msgspec_installed`] and [`msgspec_available`] are public exports.
-//! `run_with_kwargs` is a hidden-public helper for compile-fail UI tests, while
-//! `install_msgspec` and `has_uv` are private details.
-//! The bootstrap is serialized with `Once` via `OnceExt::call_once_py_attached`
-//! to prevent races when tests run in parallel.
-//! Bootstrap test coverage lives in the child `test_support_tests` module:
-//! `bootstrap_mocks` supplies mocked subprocess and import fixtures,
-//! `test_helpers` owns Python-state restoration guards, and `properties`
-//! exercises the idempotency and thread-safety invariants.
+//! They bootstrap `msgspec>=0.19,<0.20` through `PyO3`'s embedded interpreter so
+//! tests can import it consistently. [`ensure_msgspec_installed`],
+//! [`try_ensure_msgspec_installed`], and [`msgspec_available`] are public
+//! exports; `run_with_kwargs` is hidden-public for compile-fail UI tests.
+//! Bootstrap execution is serialized with `OnceExt::call_once_py_attached`.
+//! Child `test_support_tests` modules provide subprocess mocks, Python-state
+//! restoration guards, and property coverage for bootstrap invariants.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
 const PIP_COMMON_FLAGS: [&str; 6] = [
     "--no-input",
@@ -384,13 +377,18 @@ pub(super) fn ensure_msgspec_installed_unlocked_for_tests(py: Python<'_>) -> PyR
     ensure_msgspec_installed_inner(py)
 }
 
-/// Reports whether `msgspec` is available to the embedded interpreter.
+/// Attempts to make `msgspec` available to the embedded interpreter.
+#[must_use]
+pub fn try_ensure_msgspec_installed() -> bool {
+    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
+}
+
+/// Reports whether the required `msgspec` version is already available.
 ///
-/// The helper calls [`ensure_msgspec_installed`] behind the GIL and returns
-/// `true` only when importing succeeds after the best-effort bootstrap.
+/// This query helper does not run the bootstrap installer.
 #[must_use]
 pub fn msgspec_available() -> bool {
-    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
+    Python::attach(|py| msgspec_satisfies_requirement(py).unwrap_or(false))
 }
 
 #[cfg(test)]
