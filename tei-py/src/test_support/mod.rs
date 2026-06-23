@@ -16,7 +16,7 @@ use std::sync::{Mutex, MutexGuard};
 #[cfg(feature = "test-support")]
 static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
 
-/// Returns an RAII guard that serialises all operations touching the embedded
+/// Returns an RAII guard that serializes all operations touching the embedded
 /// Python interpreter's import state (i.e. `sys.modules` or `sys.meta_path`).
 ///
 /// Prefer `with_python` over calling this directly. Use this only when you need

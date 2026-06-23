@@ -53,25 +53,26 @@ pub(super) fn has_uv(py: Python<'_>) -> bool {
 }
 
 #[doc(hidden)]
-pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
+pub fn run_with_kwargs<'py, A>(
+    run: &Bound<'py, PyAny>,
+    args: A,
+    kwargs: &Bound<'py, PyDict>,
+) -> bool
 where
     A: RunWithKwargsArgs<'py>,
 {
     // Best-effort: subprocess.run may fail (e.g., missing network); the final
     // `py.import("msgspec")?` is the authoritative error path for callers.
-    run.call(args, Some(kwargs)).ok();
+    run.call(args, Some(kwargs)).is_ok()
 }
 
-fn install_msgspec<'py>(
+pub(super) fn install_msgspec<'py>(
     run: &Bound<'py, PyAny>,
     executable: &Bound<'py, PyAny>,
     kwargs: &Bound<'py, PyDict>,
     use_uv: bool,
 ) {
-    if use_uv {
-        let Ok(executable_path) = executable.extract::<String>() else {
-            return;
-        };
+    if use_uv && let Ok(executable_path) = executable.extract::<String>() {
         let mut args = vec![
             "uv".to_owned(),
             "pip".to_owned(),
@@ -81,29 +82,31 @@ fn install_msgspec<'py>(
         ];
         args.extend(UV_COMMON_FLAGS.iter().map(ToString::to_string));
         args.push(MSGSPEC_REQUIREMENT.to_owned());
-        if let Ok(args_tuple) = PyTuple::new(run.py(), args) {
-            run_with_kwargs(run, (args_tuple,), kwargs);
+        if let Ok(args_tuple) = PyTuple::new(run.py(), args)
+            && run_with_kwargs(run, (args_tuple,), kwargs)
+        {
+            return;
         }
-    } else {
-        run_with_kwargs(
-            run,
-            ((
-                executable.clone(),
-                "-m",
-                "pip",
-                "install",
-                PIP_COMMON_FLAGS[0],
-                PIP_COMMON_FLAGS[1],
-                PIP_COMMON_FLAGS[2],
-                PIP_COMMON_FLAGS[3],
-                PIP_COMMON_FLAGS[4],
-                PIP_COMMON_FLAGS[5],
-                "--break-system-packages",
-                MSGSPEC_REQUIREMENT,
-            ),),
-            kwargs,
-        );
     }
+
+    run_with_kwargs(
+        run,
+        ((
+            executable.clone(),
+            "-m",
+            "pip",
+            "install",
+            PIP_COMMON_FLAGS[0],
+            PIP_COMMON_FLAGS[1],
+            PIP_COMMON_FLAGS[2],
+            PIP_COMMON_FLAGS[3],
+            PIP_COMMON_FLAGS[4],
+            PIP_COMMON_FLAGS[5],
+            "--break-system-packages",
+            MSGSPEC_REQUIREMENT,
+        ),),
+        kwargs,
+    );
 }
 
 /// Constructs a `subprocess.run` keyword-argument dict with `check=True`

@@ -1,7 +1,7 @@
 //! Unit tests for Python-side test support helpers.
 
 use super::{
-    bootstrap::ensure_msgspec_installed,
+    bootstrap::{ensure_msgspec_installed, install_msgspec},
     bootstrap::{has_uv, run_with_kwargs},
     ensure_msgspec_available, python_import_state_lock, with_python,
 };
@@ -62,6 +62,7 @@ fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
         r#"
 import subprocess
 import sys
+import types
 import importlib.metadata
 
 subprocess.run = _original_run
@@ -79,7 +80,7 @@ except NameError:
     pass
 else:
     if _original_msgspec is _msgspec_missing:
-        sys.modules.pop("msgspec", None)
+        sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
     else:
         sys.modules["msgspec"] = _original_msgspec
 "#,
@@ -227,7 +228,9 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
         };
 
         match arg_shape {
-            RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),
+            RunWithKwargsArgShape::Unit => {
+                run_with_kwargs(&run, (), &kwargs);
+            }
             RunWithKwargsArgShape::NestedPyTuple => {
                 let args_tuple = PyTuple::new(py, ["true"]).expect("build argument tuple");
 
@@ -270,6 +273,65 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
     });
 }
 
+#[test]
+fn install_msgspec_falls_back_to_pip_when_uv_fails() {
+    with_python(|py| {
+        let globals = PyDict::new(py);
+        let patch = CString::new(
+            r#"
+_calls = []
+
+
+def _run(args, **kwargs):
+    _calls.append(args)
+    if args[0] == "uv":
+        raise RuntimeError("uv failed")
+"#,
+        )
+        .expect("CString build");
+        py.run(patch.as_c_str(), Some(&globals), None)
+            .expect("install failing uv mock");
+        let run = globals.get_item("_run").expect("read mocked run");
+        let executable = py
+            .import("sys")
+            .expect("import sys")
+            .getattr("executable")
+            .expect("read sys.executable");
+        let kwargs = PyDict::new(py);
+
+        install_msgspec(&run, &executable, &kwargs, true);
+
+        let calls = globals.get_item("_calls").expect("read subprocess calls");
+        assert_eq!(calls.len().expect("count subprocess calls"), 2);
+        let first_call = calls.get_item(0).expect("read uv call");
+        assert_eq!(
+            first_call
+                .get_item(0)
+                .expect("read uv executable")
+                .extract::<String>()
+                .expect("extract uv executable"),
+            "uv"
+        );
+        let second_call = calls.get_item(1).expect("read pip fallback call");
+        assert_eq!(
+            second_call
+                .get_item(1)
+                .expect("read pip module flag")
+                .extract::<String>()
+                .expect("extract pip module flag"),
+            "-m"
+        );
+        assert_eq!(
+            second_call
+                .get_item(2)
+                .expect("read pip module")
+                .extract::<String>()
+                .expect("extract pip module"),
+            "pip"
+        );
+    });
+}
+
 fn setup_bootstrap_test_unlocked() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
     let run_count = Arc::new(AtomicUsize::new(0));
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
@@ -300,6 +362,10 @@ fn assert_bootstrap_once(run_count: &AtomicUsize) {
     );
 }
 
+fn ensure_msgspec_available_unlocked() -> bool {
+    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
+}
+
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
     let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
@@ -318,15 +384,23 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 
 #[test]
 fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
-    let (run_count, _globals, _restore_guard) = setup_bootstrap_test_unlocked();
+    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
-    let reported_available = ensure_msgspec_available();
+    let reported_available = ensure_msgspec_available_unlocked();
     let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);
     assert_bootstrap_once(&run_count);
+}
+
+#[test]
+fn ensure_msgspec_available_public_wrapper_smoke_test() {
+    let reported_available = ensure_msgspec_available();
+    let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
+
+    assert_eq!(reported_available, importable_after_check);
 }
 
 #[test]

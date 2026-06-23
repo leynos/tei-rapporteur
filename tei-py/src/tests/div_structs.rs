@@ -55,9 +55,10 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 
 #[test]
 fn episode_struct_decodes_div_blocks() {
-    if !ensure_msgspec_available() {
-        return;
-    }
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for div struct decoding"
+    );
 
     with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
@@ -126,9 +127,10 @@ fn episode_struct_decodes_div_blocks() {
 
 #[test]
 fn streaming_div_events_decode_into_python_union() {
-    if !ensure_msgspec_available() {
-        return;
-    }
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for div event decoding"
+    );
 
     with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
