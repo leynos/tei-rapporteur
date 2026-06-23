@@ -121,11 +121,6 @@ dependencies = [
     { name = "msgspec" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "msgspec" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "maturin" },
@@ -133,11 +128,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "msgspec", specifier = ">=0.19,<0.20" },
-    { name = "msgspec", marker = "extra == 'dev'", specifier = ">=0.19,<0.20" },
-]
-provides-extras = ["dev"]
+requires-dist = [{ name = "msgspec", specifier = ">=0.19,<0.20" }]
 
 [package.metadata.requires-dev]
 dev = [
