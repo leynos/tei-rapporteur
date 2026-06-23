@@ -139,12 +139,11 @@ pub(super) struct OwnedSubprocessRestoreGuard {
 
 impl Drop for OwnedSubprocessRestoreGuard {
     fn drop(&mut self) {
-        Python::attach(|py| {
-            if let Err(error) = restore_subprocess_run(py, self.globals.bind(py)) {
-                handle_subprocess_restore_error(&error);
-            }
-        });
+        let restore_result = Python::attach(|py| restore_subprocess_run(py, self.globals.bind(py)));
         super::super::reset_msgspec_init_for_tests();
+        if let Err(error) = restore_result {
+            handle_subprocess_restore_error(&error);
+        }
     }
 }
 
