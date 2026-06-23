@@ -8,7 +8,6 @@
 mod bootstrap;
 
 pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
-pub(super) use bootstrap::ensure_msgspec_installed;
 
 #[cfg(feature = "test-support")]
 use std::sync::{Mutex, MutexGuard};
@@ -29,6 +28,17 @@ pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Attaches to the embedded Python interpreter while holding the process-wide
+/// Python import-state lock.
+///
+/// Use this in place of `Python::attach` in test code. The lock prevents
+/// concurrent tests from racing on `sys.modules` or `sys.meta_path` mutations,
+/// eliminating intermittent `msgspec` import failures.
+///
+/// # Panics
+///
+/// Panics if called re-entrantly from within the same thread, as that would
+/// deadlock on the non-reentrant `Mutex`. Do not nest `with_python` calls.
 pub fn with_python<F, R>(f: F) -> R
 where
     F: for<'py> FnOnce(pyo3::Python<'py>) -> R,
@@ -36,4 +46,6 @@ where
     let _guard = python_import_state_lock();
     pyo3::Python::attach(f)
 }
+
+#[cfg(test)]
 mod tests;
