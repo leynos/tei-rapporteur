@@ -19,8 +19,8 @@ use pyo3::{Bound, Python, types::PyDict};
 use rstest::rstest;
 use std::ffi::CString;
 use test_helpers::{
-    RunAndKwargs, RunWithKwargsArgShape, ShutilRestoreGuard, SubprocessRestoreGuard,
-    acquire_shutil_patch_lock, acquire_subprocess_patch_lock, setup_run_and_kwargs,
+    RunAndKwargs, RunWithKwargsArgShape, ShutilRestoreGuard, acquire_shutil_patch_lock,
+    acquire_subprocess_patch_lock, setup_run_and_kwargs,
 };
 
 /// Verifies that supported Rust argument shapes reach Python unchanged.
@@ -35,13 +35,8 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
             run,
             kwargs,
             globals,
-            patch_guard: restored_patch_guard,
+            _restore_guard,
         } = setup_run_and_kwargs(py, subprocess_patch_guard);
-        let _restore_guard = SubprocessRestoreGuard {
-            py,
-            globals: globals.clone(),
-            _patch_guard: restored_patch_guard,
-        };
 
         match arg_shape {
             RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),

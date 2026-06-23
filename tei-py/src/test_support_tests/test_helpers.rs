@@ -33,10 +33,10 @@ fn handle_subprocess_restore_error(error: &PyErr) {
 
 /// Python `subprocess.run` mock plus keyword arguments for call-helper tests.
 pub(super) struct RunAndKwargs<'py> {
+    pub(super) _restore_guard: SubprocessRestoreGuard<'py>,
     pub(super) run: Bound<'py, PyAny>,
     pub(super) kwargs: Bound<'py, PyDict>,
     pub(super) globals: Bound<'py, PyDict>,
-    pub(super) patch_guard: SubprocessPatchGuard,
 }
 
 /// Shapes accepted by the private `run_with_kwargs` helper.
@@ -95,10 +95,14 @@ pub(super) fn setup_run_and_kwargs(
     let kwargs = PyDict::new(py);
 
     RunAndKwargs {
+        _restore_guard: SubprocessRestoreGuard {
+            py,
+            globals: globals.clone(),
+            _patch_guard: patch_guard,
+        },
         run,
         kwargs,
         globals,
-        patch_guard,
     }
 }
 

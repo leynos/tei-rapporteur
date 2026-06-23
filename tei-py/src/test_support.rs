@@ -28,6 +28,7 @@ const UV_COMMON_FLAGS: [&str; 1] = ["--quiet"];
 use pyo3::sync::OnceExt;
 use pyo3::{
     Bound, PyResult, Python,
+    exceptions::PyRuntimeError,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
 #[cfg(not(test))]
@@ -149,6 +150,25 @@ fn do_bootstrap(py: Python<'_>) {
         return;
     };
     install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
+}
+
+fn msgspec_satisfies_requirement(py: Python<'_>) -> PyResult<bool> {
+    py.import("msgspec")?;
+    let metadata = py.import("importlib.metadata")?;
+    let version: String = metadata.call_method1("version", ("msgspec",))?.extract()?;
+    Ok(msgspec_version_satisfies_requirement(&version))
+}
+
+fn msgspec_version_satisfies_requirement(version: &str) -> bool {
+    let mut parts = version.split('.').map(|value| {
+        value
+            .chars()
+            .take_while(std::primitive::char::is_ascii_digit)
+            .collect::<String>()
+            .parse::<u64>()
+            .ok()
+    });
+    parts.next() == Some(Some(0)) && parts.next() == Some(Some(19))
 }
 
 #[cfg(not(test))]
@@ -344,14 +364,19 @@ fn ensure_msgspec_installed_inner(py: Python<'_>) -> PyResult<()> {
     #[cfg(not(test))]
     let should_force_bootstrap = false;
 
-    if !should_force_bootstrap && py.import("msgspec").is_ok() {
+    if !should_force_bootstrap && msgspec_satisfies_requirement(py).unwrap_or(false) {
         return Ok(());
     }
 
     MSGSPEC_INIT.call_once_py_attached(py, || do_bootstrap(py));
 
-    py.import("msgspec")?;
-    Ok(())
+    if msgspec_satisfies_requirement(py)? {
+        Ok(())
+    } else {
+        Err(PyRuntimeError::new_err(format!(
+            "installed msgspec does not satisfy {MSGSPEC_REQUIREMENT}"
+        )))
+    }
 }
 
 #[cfg(test)]

@@ -133,11 +133,13 @@ The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
 tests because `trybuild` starts a nested Cargo build. In the
 `cargo llvm-cov --target-dir ...` CI path, `cargo-llvm-cov` redirects compiled
 artefacts without exporting that directory as `CARGO_TARGET_DIR` for child
-Cargo processes. The nested build therefore starts cold and can overrun the
-normal nextest limit; `trybuild` is not dropping the path. Export
-`CARGO_TARGET_DIR` before launching `cargo test` when CI needs the nested build
-to share an existing target directory. `.config/nextest.toml` therefore allows
-the UI harness five minutes before nextest terminates it.
+Cargo processes. The nested `trybuild` invocation therefore cannot see the
+coverage wrapper's target directory, starts cold, and can overrun the ordinary
+nextest timeout. Export `CARGO_TARGET_DIR` before launching `cargo test` in CI
+when the `cargo-llvm-cov` wrapper is in use; that gives the nested build the
+same target directory as the outer build. `.config/nextest.toml` allows the UI
+harness five minutes so this wrapper-specific cold-build path does not fail
+before the shared target directory workaround is applied.
 
 The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 `run_with_kwargs` rejects a plain `String` because `String` does not implement
