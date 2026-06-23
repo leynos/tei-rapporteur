@@ -1,4 +1,9 @@
 //! Div-focused `msgspec.Struct` BDD steps for the Python module.
+//!
+//! These steps bind the div round-trip scenarios in
+//! `tests/features/python_module.feature` to the shared Python module fixture.
+//! They complement the Rust unit tests by asserting that BDD payloads preserve
+//! div content through the public Python `Episode` struct path.
 
 use super::state::{PythonModuleState, python_state};
 use super::steps_structs::decode_episode;

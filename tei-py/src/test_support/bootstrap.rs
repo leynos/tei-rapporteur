@@ -1,4 +1,10 @@
 //! `msgspec` bootstrap helpers for embedded Python tests.
+//!
+//! This private module backs the parent `test_support` API used by Rust unit
+//! tests and Python BDD integration tests. It centralizes the embedded
+//! interpreter bootstrap path so callers can ask the parent module to make
+//! `msgspec` available without duplicating subprocess, version, or import-state
+//! checks in individual tests.
 
 use pyo3::{
     Bound, PyResult, Python,

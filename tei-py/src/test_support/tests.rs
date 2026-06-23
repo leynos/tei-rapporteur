@@ -1,13 +1,26 @@
 //! Unit tests for Python-side test support helpers.
+//!
+//! This module validates the private bootstrap machinery behind
+//! `test_support`, including subprocess invocation shapes, `uv`/`pip`
+//! fallback behaviour, and the import-state locking contract exposed through
+//! the parent module's public helpers.
 
+mod shutil_mocks;
+mod subprocess_mocks;
+
+use self::shutil_mocks::ShutilRestoreGuard;
+use self::subprocess_mocks::{
+    BootstrapRestoreGuard, RunAndKwargs, SubprocessRestoreGuard, recorded_args,
+    recorded_call_count, setup_bootstrap_run_counter, setup_run_and_kwargs,
+};
 use super::{
     bootstrap::{ensure_msgspec_installed, install_msgspec},
     bootstrap::{has_uv, run_with_kwargs},
     ensure_msgspec_available, python_import_state_lock, with_python,
 };
 use pyo3::{
-    Bound, Py, Python, pyclass, pymethods,
-    types::{PyAny, PyAnyMethods, PyDict, PyTuple},
+    Py, Python,
+    types::{PyAnyMethods, PyDict, PyTuple},
 };
 use rstest::rstest;
 use std::{
@@ -19,12 +32,6 @@ use std::{
     thread,
 };
 
-struct RunAndKwargs<'py> {
-    run: Bound<'py, PyAny>,
-    kwargs: Bound<'py, PyDict>,
-    globals: Bound<'py, PyDict>,
-}
-
 #[derive(Clone, Copy)]
 enum RunWithKwargsArgShape {
     Unit,
@@ -32,183 +39,9 @@ enum RunWithKwargsArgShape {
     DirectPyTuple,
 }
 
-fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
-    let globals = PyDict::new(py);
-    let patch = CString::new(
-        "import subprocess\n\
-         _original_run = subprocess.run\n\
-         _calls = []\n\
-         subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
-    )
-    .expect("CString build");
-    py.run(patch.as_c_str(), Some(&globals), None)
-        .expect("monkeypatch subprocess.run");
-    let subprocess = py.import("subprocess").expect("import subprocess");
-    let run = subprocess.getattr("run").expect("get subprocess.run");
-    let kwargs = PyDict::new(py);
-
-    RunAndKwargs {
-        run,
-        kwargs,
-        globals,
-    }
-}
-
-fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-    // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker if
-    // one was installed. The blocker removal is a no-op for callers that never
-    // installed it (e.g. the `run_with_kwargs` tests).
-    let restore = CString::new(
-        r#"
-import subprocess
-import sys
-import types
-import importlib.metadata
-
-subprocess.run = _original_run
-importlib.metadata.version = _original_metadata_version
-_calls = []
-
-try:
-    sys.meta_path.remove(_bootstrap_msgspec_blocker)
-except (ValueError, NameError):
-    pass
-
-try:
-    _original_msgspec
-except NameError:
-    pass
-else:
-    if _original_msgspec is _msgspec_missing:
-        sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
-    else:
-        sys.modules["msgspec"] = _original_msgspec
-"#,
-    )
-    .expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None).ok();
-}
-
-struct SubprocessRestoreGuard<'py> {
-    py: Python<'py>,
-    globals: Bound<'py, PyDict>,
-}
-
-impl Drop for SubprocessRestoreGuard<'_> {
-    fn drop(&mut self) {
-        restore_subprocess_run(self.py, &self.globals);
-    }
-}
-
-struct BootstrapRestoreGuard {
-    globals: Py<PyDict>,
-}
-
-impl Drop for BootstrapRestoreGuard {
-    fn drop(&mut self) {
-        Python::attach(|py| restore_subprocess_run(py, self.globals.bind(py)));
-    }
-}
-
 struct BootstrapTestGuard {
     _restore_guard: BootstrapRestoreGuard,
     _import_state_lock: std::sync::MutexGuard<'static, ()>,
-}
-
-#[pyclass]
-struct BootstrapRunCounter {
-    count: Arc<AtomicUsize>,
-}
-
-#[pymethods]
-impl BootstrapRunCounter {
-    fn __call__(&self, _args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) {
-        self.count.fetch_add(1, Ordering::SeqCst);
-    }
-}
-
-fn setup_bootstrap_run_counter(py: Python<'_>, count: Arc<AtomicUsize>) -> Py<PyDict> {
-    let globals = PyDict::new(py);
-    globals
-        .set_item(
-            "_counter",
-            Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
-        )
-        .expect("install run counter");
-    // Count bootstrap subprocess calls without forcing a process-wide import
-    // failure. When `msgspec` is already installed the helper should
-    // short-circuit cleanly; when it is absent the mocked installer satisfies
-    // the final import without touching the network.
-    let patch = CString::new(
-        r#"
-import subprocess
-import sys
-import types
-import importlib
-import importlib.metadata
-
-
-class _BlockMsgspecBootstrap:
-    def find_spec(self, fullname, path=None, target=None):
-        if fullname == "msgspec" or fullname.startswith("msgspec."):
-            raise ModuleNotFoundError("msgspec blocked for bootstrap test", name="msgspec")
-        return None
-
-
-_bootstrap_msgspec_blocker = _BlockMsgspecBootstrap()
-_msgspec_missing = object()
-_original_msgspec = sys.modules.get("msgspec", _msgspec_missing)
-
-_original_run = subprocess.run
-_original_metadata_version = importlib.metadata.version
-
-
-def _mock_metadata_version(package_name):
-    if package_name == "msgspec":
-        return "0.19.99"
-    return _original_metadata_version(package_name)
-
-
-def _mock_run(*args, **kwargs):
-    _counter(args, kwargs)
-    try:
-        sys.meta_path.remove(_bootstrap_msgspec_blocker)
-    except ValueError:
-        pass
-    try:
-        sys.modules["msgspec"] = importlib.import_module("msgspec")
-    except ModuleNotFoundError:
-        sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
-    finally:
-        if _bootstrap_msgspec_blocker not in sys.meta_path:
-            sys.meta_path.insert(0, _bootstrap_msgspec_blocker)
-
-
-subprocess.run = _mock_run
-importlib.metadata.version = _mock_metadata_version
-"#,
-    )
-    .expect("CString build");
-    py.run(patch.as_c_str(), Some(&globals), None)
-        .expect("monkeypatch subprocess.run");
-
-    globals.unbind()
-}
-
-fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
-    globals
-        .get_item("_calls")
-        .expect("read recorded subprocess.run calls")
-        .len()
-        .expect("count recorded subprocess.run calls")
-}
-
-fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> Bound<'py, PyAny> {
-    let expr = CString::new("_calls[0][0]").expect("CString build");
-    globals
-        .py()
-        .eval(expr.as_c_str(), Some(globals), None)
-        .expect("read recorded subprocess.run positional arguments")
 }
 
 #[rstest]
@@ -222,10 +55,7 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
             kwargs,
             globals,
         } = setup_run_and_kwargs(py);
-        let _restore_guard = SubprocessRestoreGuard {
-            py,
-            globals: globals.clone(),
-        };
+        let _restore_guard = SubprocessRestoreGuard::new(py, globals.clone());
 
         match arg_shape {
             RunWithKwargsArgShape::Unit => {
@@ -335,9 +165,7 @@ def _run(args, **kwargs):
 fn setup_bootstrap_test_unlocked() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
     let run_count = Arc::new(AtomicUsize::new(0));
     let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
-    let restore_guard = BootstrapRestoreGuard {
-        globals: Python::attach(|py| globals.clone_ref(py)),
-    };
+    let restore_guard = BootstrapRestoreGuard::new(Python::attach(|py| globals.clone_ref(py)));
     (run_count, globals, restore_guard)
 }
 
@@ -398,7 +226,7 @@ fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
 #[test]
 fn ensure_msgspec_available_public_wrapper_smoke_test() {
     let reported_available = ensure_msgspec_available();
-    let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
+    let importable_after_check = with_python(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);
 }
@@ -431,27 +259,8 @@ fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] e
         .expect("CString build");
         py.run(patch.as_c_str(), Some(&globals), None)
             .expect("monkeypatch shutil.which");
-        let _restore_guard = ShutilRestoreGuard {
-            py,
-            globals: globals.clone(),
-        };
+        let _restore_guard = ShutilRestoreGuard::new(py, globals.clone());
 
         assert_eq!(has_uv(py), expected);
     });
-}
-
-fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-    let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None).ok();
-}
-
-struct ShutilRestoreGuard<'py> {
-    py: Python<'py>,
-    globals: Bound<'py, PyDict>,
-}
-
-impl Drop for ShutilRestoreGuard<'_> {
-    fn drop(&mut self) {
-        restore_shutil_which(self.py, &self.globals);
-    }
 }
