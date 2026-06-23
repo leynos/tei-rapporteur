@@ -376,6 +376,7 @@ As per the coding guidelines: *global mutable state, lazy singletons,
 process-wide registries, and static caches require explicit justification and
 reset behaviour for tests.* An RAII guard satisfies the reset requirement
 structurally, making it impossible to forget.
+
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to
