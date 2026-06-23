@@ -173,3 +173,29 @@ Only `ensure_msgspec_installed` and `msgspec_available` are documented public
 exports from this module. They are thread-safe: `ensure_msgspec_installed`
 guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
 attached to the Python interpreter.
+
+### Rust/Python test boundary patterns
+
+The `msgspec` bootstrap path anchors shared state to
+`static MSGSPEC_INIT: Once`. Use `OnceExt::call_once_py_attached` for this
+implicit serialisation rather than adding `#[serial]` to every test that
+touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
+guard ensures exactly one thread runs the installer, and `OnceExt` releases the
+Python GIL while blocked threads wait. The
+`ensure_msgspec_installed_is_safe_under_concurrent_access` test validates the
+contract directly: it starts eight threads, expects `subprocess.run` to be
+called exactly twice, once for `ensurepip` and once for the `msgspec` install,
+and relies on `Once`'s internal atomics instead of test-framework
+serialisation. Reserve `#[serial]` for cases where separate test functions must
+exclude multiple distinct statics or process-global side effects; the single
+`Once` owns the whole `msgspec` bootstrap critical section.
+
+Tests that monkeypatch Python standard-library functions must bind restoration
+to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
+`ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
+token and globals dictionary, then delegate their `Drop` implementation to the
+existing restore function. This guarantees cleanup during panic unwinding, which
+a final manual `restore_*` call at the end of a test body cannot provide. Name
+future guards after what they undo, compose multiple guards in one scope when a
+test patches multiple globals, and rely on reverse declaration order to mirror a
+conventional `try`/`finally` stack.
