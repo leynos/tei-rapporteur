@@ -252,9 +252,12 @@ fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] e
     with_python(|py| {
         let globals = PyDict::new(py);
         let patch = CString::new(format!(
-            "import shutil\n\
-             orig = shutil.which\n\
-             shutil.which = lambda name: {which_return_expr}\n"
+            concat!(
+                "import shutil\n",
+                "orig = shutil.which\n",
+                "shutil.which = lambda name: {which_return_expr}\n",
+            ),
+            which_return_expr = which_return_expr,
         ))
         .expect("CString build");
         py.run(patch.as_c_str(), Some(&globals), None)

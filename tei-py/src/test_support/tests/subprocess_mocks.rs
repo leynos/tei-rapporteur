@@ -24,12 +24,12 @@ pub(super) struct RunAndKwargs<'py> {
 
 pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
     let globals = PyDict::new(py);
-    let patch = CString::new(
-        "import subprocess\n\
-         _original_run = subprocess.run\n\
-         _calls = []\n\
-         subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
-    )
+    let patch = CString::new(concat!(
+        "import subprocess\n",
+        "_original_run = subprocess.run\n",
+        "_calls = []\n",
+        "subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
+    ))
     .expect("CString build");
     py.run(patch.as_c_str(), Some(&globals), None)
         .expect("monkeypatch subprocess.run");
