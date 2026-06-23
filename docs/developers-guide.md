@@ -196,7 +196,7 @@ attached to the Python interpreter.
 
 The `msgspec` bootstrap path anchors shared state to
 `static MSGSPEC_INIT: Once`. Use `OnceExt::call_once_py_attached` for this
-implicit serialisation rather than adding `#[serial]` to every test that
+implicit serialization rather than adding `#[serial]` to every test that
 touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
 guard ensures exactly one thread runs the installer, and `OnceExt` releases the
 Python GIL while blocked threads wait. The
@@ -204,7 +204,7 @@ Python GIL while blocked threads wait. The
 contract directly: it starts eight threads, expects `subprocess.run` to be
 called exactly twice, once for `ensurepip` and once for the `msgspec` install,
 and relies on `Once`'s internal atomics instead of test-framework
-serialisation. Reserve `#[serial]` for cases where separate test functions must
+serialization. Reserve `#[serial]` for cases where separate test functions must
 exclude multiple distinct statics or process-global side effects; the single
 `Once` owns the whole `msgspec` bootstrap critical section.
 
