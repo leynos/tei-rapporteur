@@ -4,12 +4,26 @@
 //! the Python teardown guard colocated with the specific process-wide monkeypatch
 //! it restores.
 
-use pyo3::{Bound, Python, types::PyDict};
+use pyo3::{
+    Bound, Python,
+    types::{PyAnyMethods, PyDict},
+};
 use std::ffi::CString;
 
 fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) {
     let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None).ok();
+    if let Err(error) = py.run(restore.as_c_str(), Some(globals), None)
+        && let Ok(stderr) = py.import("sys").and_then(|sys| sys.getattr("stderr"))
+    {
+        stderr
+            .call_method1(
+                "write",
+                (format!(
+                    "failed to restore shutil.which monkeypatch: {error}\n"
+                ),),
+            )
+            .ok();
+    }
 }
 
 pub(super) struct ShutilRestoreGuard<'py> {

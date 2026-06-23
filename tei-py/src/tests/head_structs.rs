@@ -17,6 +17,10 @@ fn registered_module() -> Option<Py<PyModule>> {
     }
 
     with_python(|py| {
+        if py.import("msgspec").is_err() {
+            return None;
+        }
+
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         Some(module.unbind())

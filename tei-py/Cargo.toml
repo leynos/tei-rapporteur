@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 workspace = true
 
 [features]
-default = ["auto-initialize", "test-support"]
+default = ["auto-initialize"]
 auto-initialize = ["pyo3/auto-initialize"]
 extension-module = ["pyo3/extension-module"]
 test-support = []
@@ -37,3 +37,7 @@ trybuild = "1"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.28.3", features = ["resolve-config"] }
+
+[[test]]
+name = "ui"
+required-features = ["test-support"]

@@ -114,28 +114,40 @@ pub(super) fn i_emit_markup_from_the_document(
     Ok(())
 }
 
-#[scenario(path = "tests/features/python_module.feature", index = 0)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Construct a Document from a valid title"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn constructs_a_document(python_state: PythonModuleState) {}
 
-#[scenario(path = "tests/features/python_module.feature", index = 1)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject blank titles in the Python constructor"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn rejects_blank_titles(python_state: PythonModuleState) {}
 
-#[scenario(path = "tests/features/python_module.feature", index = 2)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Emit title markup via the Python helper"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn emits_title_markup(python_state: PythonModuleState) {}
 
-#[scenario(path = "tests/features/python_module.feature", index = 3)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Document method escapes XML special characters"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"

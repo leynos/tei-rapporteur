@@ -203,7 +203,7 @@ fn assert_core_div_blocks(document: &TeiDocument) -> Result<()> {
     assert_core_list(nested_list(child_div)?)
 }
 
-#[then("the DivBlock, nested DivBlock, ListBlock, and Item are preserved")]
+#[then("the DivBlock, nested DivBlock, ListBlock, Item, and Label text are preserved")]
 pub(super) fn the_div_blocks_are_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {

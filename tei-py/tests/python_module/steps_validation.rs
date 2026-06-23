@@ -35,7 +35,10 @@ pub(super) fn validation_succeeds(#[from(python_state)] state: &PythonModuleStat
 }
 
 /// Scenario: Validate a well-formed Document.
-#[scenario(path = "tests/features/python_module.feature", index = 22)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Validate a well-formed Document"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
@@ -43,7 +46,10 @@ pub(super) fn validation_succeeds(#[from(python_state)] state: &PythonModuleStat
 pub fn validates_well_formed_document(python_state: PythonModuleState) {}
 
 /// Scenario: Reject Documents with duplicate xml:id values.
-#[scenario(path = "tests/features/python_module.feature", index = 23)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject Documents with duplicate xml:id values"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
@@ -51,7 +57,10 @@ pub fn validates_well_formed_document(python_state: PythonModuleState) {}
 pub fn rejects_duplicate_identifiers(python_state: PythonModuleState) {}
 
 /// Scenario: Reject Documents with unknown speaker references.
-#[scenario(path = "tests/features/python_module.feature", index = 24)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject Documents with unknown speaker references"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"

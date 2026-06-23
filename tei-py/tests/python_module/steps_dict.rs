@@ -185,7 +185,7 @@ fn text_from_content(value: &Value) -> Result<&str> {
         .context("value should include first inline text")
 }
 
-#[then("the div structure is preserved")]
+#[then("the div structure and label text are preserved")]
 pub(super) fn the_div_structure_is_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
@@ -289,7 +289,10 @@ pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
 }
 
 /// Scenario: Round-trip a div-containing `Document` through a dictionary payload.
-#[scenario(path = "tests/features/python_module.feature", index = 20)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Round-trip dictionary payload with div blocks"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd injects state through scenario signatures"
