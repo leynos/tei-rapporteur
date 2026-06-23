@@ -4,8 +4,9 @@
 //! `0.28.x` minor series to interact with an embedded Python interpreter.
 //! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
 //! via `subprocess.run` so Rust and Python BDD tests can import it.
-//! Only [`ensure_msgspec_installed`] and [`msgspec_available`] are exported;
-//! `run_with_kwargs`, `install_msgspec`, and `has_uv` are private details.
+//! [`ensure_msgspec_installed`] and [`msgspec_available`] are public exports.
+//! `run_with_kwargs` is a hidden-public helper for compile-fail UI tests, while
+//! `install_msgspec` and `has_uv` are private details.
 //! The bootstrap is serialized with `Once` via `OnceExt::call_once_py_attached`
 //! to prevent races when tests run in parallel.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
@@ -26,6 +27,27 @@ use pyo3::{
 };
 use std::sync::Once;
 
+/// Crate-owned wrapper for Python call argument diagnostics.
+///
+/// This trait intentionally has no reuse strategy beyond `run_with_kwargs`.
+/// Its purpose is to anchor the compile-fail contract at a `tei-py` symbol so
+/// the committed trybuild snapshot is driven by this crate's
+/// `#[diagnostic::on_unimplemented]` text, not by PyO3's `PyCallArgs`
+/// diagnostic, which may change across PyO3 minor releases.
+///
+/// The notes below are the source of the expected UI-test output. Keep them in
+/// sync with `tei-py/tests/ui/non_pycallargs_rejected.stderr`.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used as a Python `call` argument",
+    note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
+    note = "if your type is convertible to `PyTuple` via `IntoPyObject`, call `<arg>.into_pyobject(py)` manually",
+    note = "if you meant to pass the type as a single argument, wrap it in a 1-tuple, `(<arg>,)`"
+)]
+pub trait RunWithKwargsArgs<'py>: pyo3::call::PyCallArgs<'py> {}
+
+impl<'py, A> RunWithKwargsArgs<'py> for A where A: pyo3::call::PyCallArgs<'py> {}
+
 fn has_uv(py: Python<'_>) -> bool {
     py.import("shutil")
         .ok()
@@ -36,12 +58,16 @@ fn has_uv(py: Python<'_>) -> bool {
         .is_some()
 }
 
-fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
+/// Calls a Python callable with positional arguments and keyword arguments.
+///
+/// This helper intentionally discards any error returned by the Python call.
+/// It is used only for best-effort setup paths where a later import check is
+/// the authoritative failure signal.
+#[doc(hidden)]
+pub fn run_with_kwargs<'py, A>(run: &Bound<'py, PyAny>, args: A, kwargs: &Bound<'py, PyDict>)
 where
-    A: pyo3::call::PyCallArgs<'py>,
+    A: RunWithKwargsArgs<'py>,
 {
-    // Best-effort: subprocess.run may fail (e.g., missing network); the final
-    // `py.import("msgspec")?` is the authoritative error path for callers.
     run.call(args, Some(kwargs)).ok();
 }
 

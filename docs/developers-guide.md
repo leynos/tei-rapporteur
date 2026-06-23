@@ -112,29 +112,105 @@ extension-safe linker flags without linking `libpython`. The
 can resolve the active Python configuration and apply the PyO3 cfg values
 needed by the crate.
 
+## Tei-py UI compile tests
+
+`tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
+compile-time API behaviour. The harness lives in `tei-py/tests/ui.rs` and calls
+`trybuild::TestCases::new().compile_fail("tests/ui/*.rs")`, so each Rust file
+under `tei-py/tests/ui/` must fail to compile and must have a committed matching
+`.stderr` snapshot.
+
+Use UI tests when a runtime test cannot prove a public or hidden-public Rust
+API rejects an invalid type. Name fixtures after the behaviour being guarded,
+for example `non_pycallargs_rejected.rs`, and commit the generated
+`non_pycallargs_rejected.stderr` beside it. To add a fixture, create the
+compile-fail `.rs` file, run `cargo test -p tei-py --test ui`, inspect the
+generated snapshot under `tei-py/wip/`, then move the `.stderr` file into
+`tei-py/tests/ui/` only when the compiler error demonstrates the intended
+contract.
+
+The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
+tests because `trybuild` starts a nested Cargo build. In the
+`cargo llvm-cov --target-dir ...` CI path, `cargo-llvm-cov` redirects compiled
+artefacts without exporting that directory as `CARGO_TARGET_DIR` for child
+Cargo processes. The nested build therefore starts cold and can overrun the
+normal nextest limit; `trybuild` is not dropping the path. Export
+`CARGO_TARGET_DIR` before launching `cargo test` when CI needs the nested build
+to share an existing target directory. `.config/nextest.toml` therefore allows
+the UI harness five minutes before nextest terminates it.
+
+The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
+`run_with_kwargs` rejects a plain `String` because `String` does not implement
+`RunWithKwargsArgs<'py>`.
+
 ## tei-py test-support API
 
-`tei-py/src/test_support.rs` contains the private `run_with_kwargs` helper used
-by the `msgspec` bootstrap path:
+`tei-py/src/test_support.rs` contains the hidden-public `run_with_kwargs`
+helper used by the `msgspec` bootstrap path and UI compile tests:
 
 ```rust
-fn run_with_kwargs<'py, A>(
+#[doc(hidden)]
+pub fn run_with_kwargs<'py, A>(
     run: &Bound<'py, PyAny>,
     args: A,
     kwargs: &Bound<'py, PyDict>,
 )
 where
-    A: pyo3::call::PyCallArgs<'py>,
+    A: RunWithKwargsArgs<'py>,
 ```
 
+`run_with_kwargs` is `#[doc(hidden)] pub` rather than `pub(crate)` because
+trybuild compiles each `tests/ui/*.rs` fixture as an **independent external
+crate**; `pub(crate)` items are invisible to external crates, so the fixture's
+`use tei_py::test_support::run_with_kwargs` would fail to resolve without full
+`pub` visibility. `#[doc(hidden)]` suppresses the item from rustdoc so it does
+not appear as a documented stable API.
+
 Any future caller must pass an argument value that implements
-`pyo3::call::PyCallArgs<'py>`. Under PyO3 0.28.3, `PyAnyMethods::call` takes
-`PyCallArgs` directly rather than accepting any value convertible through
-`IntoPyObject<'py, Target = PyTuple>`. When the intended Python call receives
-one positional argument, wrap that argument in a Rust one-tuple, such as
+`RunWithKwargsArgs<'py>`. That wrapper delegates to PyO3's `PyCallArgs` bound
+used by `PyAnyMethods::call`, so the helper stays hidden-public while the docs
+keep the crate-owned trait name. When the intended Python call receives one
+positional argument, wrap that argument in a Rust one-tuple, such as
 `(args_tuple,)`.
 
-Only `ensure_msgspec_installed` and `msgspec_available` are public exports from
-this module. They are thread-safe: `ensure_msgspec_installed` guards the
-bootstrap with `Once`, and `msgspec_available` delegates to it while attached
-to the Python interpreter.
+`RunWithKwargsArgs<'py>` is deliberately single-use. It exists so this crate,
+not PyO3, owns the `#[diagnostic::on_unimplemented]` message that drives the
+compile-fail snapshot. Binding `run_with_kwargs` directly to
+`pyo3::call::PyCallArgs<'py>` would make the expected stderr depend on PyO3's
+diagnostic wording, so a PyO3 minor release could silently break the committed
+snapshot without any `tei-py` API change. The diagnostic notes on
+`RunWithKwargsArgs<'py>` are therefore the source of
+`non_pycallargs_rejected.stderr`, not a copy of upstream output. Do not remove
+the wrapper unless the UI test is intentionally moved to a different
+crate-owned compile-fail boundary.
+
+Only `ensure_msgspec_installed` and `msgspec_available` are documented public
+exports from this module. They are thread-safe: `ensure_msgspec_installed`
+guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
+attached to the Python interpreter.
+
+### Rust/Python test boundary patterns
+
+The `msgspec` bootstrap path anchors shared state to
+`static MSGSPEC_INIT: Once`. Use `OnceExt::call_once_py_attached` for this
+implicit serialization rather than adding `#[serial]` to every test that
+touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
+guard ensures exactly one thread runs the installer, and `OnceExt` releases the
+Python GIL while blocked threads wait. The
+`ensure_msgspec_installed_is_safe_under_concurrent_access` test validates the
+contract directly: it starts eight threads, expects `subprocess.run` to be
+called exactly twice, once for `ensurepip` and once for the `msgspec` install,
+and relies on `Once`'s internal atomics instead of test-framework
+serialization. Reserve `#[serial]` for cases where separate test functions must
+exclude multiple distinct statics or process-global side effects; the single
+`Once` owns the whole `msgspec` bootstrap critical section.
+
+Tests that monkeypatch Python standard-library functions must bind restoration
+to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
+`ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
+token and globals dictionary, then delegate their `Drop` implementation to the
+existing restore function. This guarantees cleanup during panic unwinding, which
+a final manual `restore_*` call at the end of a test body cannot provide. Name
+future guards after what they undo, compose multiple guards in one scope when a
+test patches multiple globals, and rely on reverse declaration order to mirror a
+conventional `try`/`finally` stack.
