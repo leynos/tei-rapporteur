@@ -162,6 +162,13 @@ where
     A: RunWithKwargsArgs<'py>,
 ```
 
+`run_with_kwargs` is `#[doc(hidden)] pub` rather than `pub(crate)` because
+trybuild compiles each `tests/ui/*.rs` fixture as an **independent external
+crate**; `pub(crate)` items are invisible to external crates, so the fixture's
+`use tei_py::test_support::run_with_kwargs` would fail to resolve without full
+`pub` visibility. `#[doc(hidden)]` suppresses the item from rustdoc so it does
+not appear as a documented stable API.
+
 Any future caller must pass an argument value that implements
 `RunWithKwargsArgs<'py>`. That wrapper delegates to PyO3's `PyCallArgs` bound
 used by `PyAnyMethods::call`, so the helper stays hidden-public while the docs
