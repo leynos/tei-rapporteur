@@ -130,14 +130,11 @@ generated snapshot under `tei-py/wip/`, then move the `.stderr` file into
 contract.
 
 The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
-tests because `trybuild` starts a nested Cargo build. That build may be cold in
-CI or after dependency updates. The most common trigger in CI is
-`cargo-llvm-cov`, which redirects compiled artefacts to a separate target
-directory (e.g. `target/llvm-cov-target/`) via `--target-dir` without exporting
-that path as `CARGO_TARGET_DIR`. Trybuild's child `cargo build` therefore
-cannot reuse the instrumented artefacts and must rebuild the full dependency
-graph from scratch. `.config/nextest.toml` allows the UI harness five minutes
-before nextest terminates it.
+tests because `trybuild` starts a nested Cargo build. In the
+`cargo llvm-cov --target-dir ...` CI path, that child build does not inherit the
+redirected target directory, so it rebuilds cold and can overrun the normal
+nextest limit. `.config/nextest.toml` therefore allows the UI harness five
+minutes before nextest terminates it.
 
 The UI harness does not mutate process environment variables. `trybuild`
 derives its nested Cargo target directory from Cargo metadata and passes that
@@ -147,7 +144,7 @@ share an existing target directory, set `CARGO_TARGET_DIR` before launching
 
 The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 `run_with_kwargs` rejects a plain `String` because `String` does not implement
-`pyo3::call::PyCallArgs<'py>`.
+`RunWithKwargsArgs<'py>`.
 
 ## tei-py test-support API
 
@@ -166,11 +163,10 @@ where
 ```
 
 Any future caller must pass an argument value that implements
-`RunWithKwargsArgs<'py>` — the crate-owned wrapper trait that delegates to
-PyO3's `pyo3::call::PyCallArgs<'py>`. Under PyO3 0.28.3, `PyAnyMethods::call`
-takes `PyCallArgs` directly rather than accepting any value convertible through
-`IntoPyObject<'py, Target = PyTuple>`. When the intended Python call receives
-one positional argument, wrap that argument in a Rust one-tuple, such as
+`RunWithKwargsArgs<'py>`. That wrapper delegates to PyO3's `PyCallArgs` bound
+used by `PyAnyMethods::call`, so the helper stays hidden-public while the docs
+keep the crate-owned trait name. When the intended Python call receives one
+positional argument, wrap that argument in a Rust one-tuple, such as
 `(args_tuple,)`.
 
 Only `ensure_msgspec_installed` and `msgspec_available` are documented public
