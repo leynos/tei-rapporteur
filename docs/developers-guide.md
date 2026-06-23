@@ -214,6 +214,48 @@ surface cleanup failures when a test is otherwise succeeding, but must check
 `std::thread::panicking()` and log to stderr instead of panicking again during
 unwind.
 
+The test-only coverage for this surface lives under
+`tei-py/src/test_support_tests/` and is split by responsibility:
+
+- `mod.rs` is the parent test module. It wires the submodules together and owns
+  the deterministic tests for `run_with_kwargs`, `msgspec_available`, and
+  `has_uv`.
+- `bootstrap_mocks.rs` owns the `subprocess.run` bootstrap mock used by the
+  property tests and call-helper tests. `BootstrapRunCounter` is the
+  Python-callable counter, `BootstrapRunPatch` carries the Python globals plus
+  the subprocess patch lock, `setup_bootstrap_run_counter` installs the mock,
+  and `recorded_call_count` / `recorded_args` inspect captured calls.
+- `test_helpers.rs` owns shared Python-state fixtures and restoration guards.
+  `RunAndKwargs` carries the mocked `run`, kwargs, globals, and lock for
+  call-helper tests. `RunWithKwargsArgShape` enumerates the supported Rust
+  argument shapes. `SubprocessPatchGuard` and `ShutilPatchGuard` serialize
+  process-global monkeypatches; acquire them with
+  `acquire_subprocess_patch_lock` and `acquire_shutil_patch_lock`.
+  `setup_run_and_kwargs` installs the recording `subprocess.run` mock,
+  `restore_subprocess_run` restores it, `SubprocessRestoreGuard` restores
+  within one Python attachment, `OwnedSubprocessRestoreGuard` restores after
+  property setup has left its attachment scope, and `ShutilRestoreGuard`
+  restores `shutil.which`.
+- `properties.rs` owns the `proptest` coverage for the bootstrap invariants. It
+  checks `msgspec` importability once before entering the generated-case loop,
+  then combines generated sequential repetitions and generated thread counts in
+  one process so the resettable test bootstrap state does not depend on nextest
+  process isolation.
+
+The parent `test_support.rs` module also exposes narrow `#[cfg(test)]` helper
+APIs to those submodules. `force_msgspec_bootstrap_for_tests` returns a
+`ForcedMsgspecBootstrapGuard` that makes
+`ensure_msgspec_installed_unlocked_for_tests` enter the installer path even when
+`msgspec` is importable. `acquire_msgspec_bootstrap_lock_for_tests` serializes
+resettable bootstrap-state access, and `reset_msgspec_init_for_tests` returns
+the test-only bootstrap state to `Incomplete` between generated cases. Python
+module registration tests use
+`acquire_python_module_registration_lock_for_tests` or
+`lock_python_module_registration_attached_for_tests` when they need to mutate
+the embedded interpreter's module registry without racing other tests. Keep
+these helpers test-only; production code must continue to use the ordinary
+`Once`-guarded `ensure_msgspec_installed` path.
+
 ### Rust/Python test boundary patterns
 
 The `msgspec` bootstrap path anchors shared state to
@@ -234,8 +276,8 @@ Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
 `ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
 token and globals dictionary, then delegate their `Drop` implementation to the
-existing restore function. This guarantees cleanup during panic unwinding, which
-a final manual `restore_*` call at the end of a test body cannot provide. Name
-future guards after what they undo, compose multiple guards in one scope when a
-test patches multiple globals, and rely on reverse declaration order to mirror a
-conventional `try`/`finally` stack.
+existing restore function. This guarantees cleanup during panic unwinding,
+which a final manual `restore_*` call at the end of a test body cannot provide.
+Name future guards after what they undo, compose multiple guards in one scope
+when a test patches multiple globals, and rely on reverse declaration order to
+mirror a conventional `try`/`finally` stack.
