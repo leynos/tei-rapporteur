@@ -7,9 +7,8 @@
 
 use super::{
     super::{
-        acquire_msgspec_bootstrap_lock_for_tests, ensure_msgspec_installed,
-        ensure_msgspec_installed_unlocked_for_tests, force_msgspec_bootstrap_for_tests,
-        reset_msgspec_init_for_tests,
+        acquire_msgspec_bootstrap_lock_for_tests, ensure_msgspec_installed_unlocked_for_tests,
+        force_msgspec_bootstrap_for_tests, reset_msgspec_init_for_tests,
     },
     bootstrap_mocks::setup_bootstrap_run_counter,
     test_helpers::{OwnedSubprocessRestoreGuard, acquire_subprocess_patch_lock},
@@ -35,7 +34,7 @@ proptest! {
         repetitions in 1..=50u8,
         thread_count in 2..=32u8,
     ) {
-        prop_assume!(Python::attach(|py| ensure_msgspec_installed(py).is_ok()));
+        prop_assume!(Python::attach(|py| py.import("msgspec").is_ok()));
 
         let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
         let force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
