@@ -17,7 +17,7 @@ tei-core = { path = "../tei-core", features = ["json-schema"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-jsonschema = "0.37.4"
+jsonschema = "0.46.2"
 proptest = { workspace = true }
 rstest = { workspace = true }
 rstest-bdd = { workspace = true }
