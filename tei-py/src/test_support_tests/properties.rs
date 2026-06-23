@@ -23,53 +23,62 @@ use std::{
     thread,
 };
 
-proptest! {
-    #![proptest_config(ProptestConfig {
-        cases: 32,
-        ..ProptestConfig::default()
-    })]
-
-    #[test]
-    fn bootstrap_invariants_hold_without_process_isolation(
-        repetitions in 1..=50u8,
-        thread_count in 2..=32u8,
-    ) {
-        prop_assume!(Python::attach(|py| py.import("msgspec").is_ok()));
-
-        let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
-        let force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
-        let run_count = Arc::new(AtomicUsize::new(0));
-        let setup_run_count = Arc::clone(&run_count);
-        let subprocess_patch_guard = acquire_subprocess_patch_lock();
-
-        let (globals, restored_patch_guard) = Python::attach(move |py| {
-            let patch = setup_bootstrap_run_counter(py, setup_run_count, subprocess_patch_guard);
-            reset_msgspec_init_for_tests();
-            (patch.globals, patch.patch_guard)
-        });
-        let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
-            globals: globals.clone_ref(py),
-            _patch_guard: restored_patch_guard,
-        });
-
-        let handles: Vec<_> = (0..usize::from(thread_count))
-            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed_unlocked_for_tests)))
-            .collect();
-
-        for handle in handles {
-            let result = handle.join().expect("bootstrap thread panicked");
-            prop_assert!(result.is_ok());
-        }
-
-        for _ in 0..usize::from(repetitions) {
-            let result = Python::attach(ensure_msgspec_installed_unlocked_for_tests);
-            prop_assert!(result.is_ok());
-        }
-
-        drop(restore_guard);
-        drop(force_bootstrap_guard);
-        drop(bootstrap_guard);
-
-        prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
+#[test]
+fn bootstrap_invariants_hold_without_process_isolation() {
+    // Check msgspec availability once before entering the proptest loop.
+    // Using prop_assume! inside the loop would cause all 1024 cases to be
+    // rejected in environments where msgspec is absent, hitting proptest's
+    // global-reject ceiling and aborting the runner.
+    if !Python::attach(|py| py.import("msgspec").is_ok()) {
+        return;
     }
+
+    proptest!(
+        ProptestConfig {
+            cases: 32,
+            ..ProptestConfig::default()
+        },
+        |(repetitions in 1..=50u8, thread_count in 2..=32u8)| {
+            let bootstrap_guard = acquire_msgspec_bootstrap_lock_for_tests();
+            let force_bootstrap_guard = force_msgspec_bootstrap_for_tests();
+            let run_count = Arc::new(AtomicUsize::new(0));
+            let setup_run_count = Arc::clone(&run_count);
+            let subprocess_patch_guard = acquire_subprocess_patch_lock();
+
+            let (globals, restored_patch_guard) = Python::attach(move |py| {
+                let patch =
+                    setup_bootstrap_run_counter(py, setup_run_count, subprocess_patch_guard);
+                reset_msgspec_init_for_tests();
+                (patch.globals, patch.patch_guard)
+            });
+            let restore_guard = Python::attach(|py| OwnedSubprocessRestoreGuard {
+                globals: globals.clone_ref(py),
+                _patch_guard: restored_patch_guard,
+            });
+
+            let handles: Vec<_> = (0..usize::from(thread_count))
+                .map(|_| {
+                    thread::spawn(move || {
+                        Python::attach(ensure_msgspec_installed_unlocked_for_tests)
+                    })
+                })
+                .collect();
+
+            for handle in handles {
+                let result = handle.join().expect("bootstrap thread panicked");
+                prop_assert!(result.is_ok());
+            }
+
+            for _ in 0..usize::from(repetitions) {
+                let result = Python::attach(ensure_msgspec_installed_unlocked_for_tests);
+                prop_assert!(result.is_ok());
+            }
+
+            drop(restore_guard);
+            drop(force_bootstrap_guard);
+            drop(bootstrap_guard);
+
+            prop_assert_eq!(run_count.load(Ordering::SeqCst), 2);
+        }
+    );
 }
