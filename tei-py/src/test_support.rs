@@ -152,7 +152,7 @@ fn do_bootstrap(py: Python<'_>) {
 }
 
 #[cfg(not(test))]
-static MSGSPEC_INIT: ResettableMsgspecInit = ResettableMsgspecInit::new();
+static MSGSPEC_INIT: Once = Once::new();
 
 #[cfg(test)]
 struct ResettableMsgspecInit {
