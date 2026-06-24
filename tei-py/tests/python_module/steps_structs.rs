@@ -121,15 +121,14 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     if !ensure_msgspec_available() {
         #[derive(Debug, Deserialize)]
         struct EpisodeCarrier {
-            header: Value,
-            text: Value,
+            #[serde(rename = "header")]
+            _header: Value,
+            #[serde(rename = "text")]
+            _text: Value,
         }
 
-        match from_slice::<EpisodeCarrier>(&payload) {
-            Ok(carrier) => {
-                let _ = (&carrier.header, &carrier.text);
-            }
-            Err(error) => state.store_error(error.to_string()),
+        if let Err(error) = from_slice::<EpisodeCarrier>(&payload) {
+            state.store_error(error.to_string());
         }
 
         return Ok(());

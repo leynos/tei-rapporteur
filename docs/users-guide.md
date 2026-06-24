@@ -178,9 +178,12 @@ round-tripping through XML or untyped dictionaries:
 ```python
 import msgspec
 import tei_rapporteur as tei
+from pathlib import Path
 from tei_rapporteur.structs import DivBlock, Episode, Item, Label, ListBlock
 
-payload = tei.to_msgpack(tei.parse_xml(open("episode.tei.xml", encoding="utf-8").read()))
+tei_xml = Path("episode.tei.xml").read_text(encoding="utf-8")
+document = tei.parse_xml(tei_xml)
+payload = tei.to_msgpack(document)
 episode = msgspec.msgpack.decode(payload, type=Episode)
 
 body_block = episode.text.body.blocks[0]
