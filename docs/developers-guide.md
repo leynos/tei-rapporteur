@@ -190,10 +190,10 @@ Only `ensure_msgspec_installed`, `try_ensure_msgspec_installed`, and
 `msgspec_available` are documented public exports from this module. They follow
 command/query separation: `ensure_msgspec_installed` and
 `try_ensure_msgspec_installed` may run the best-effort bootstrap command, while
-`msgspec_available` is a side-effect-free query that only checks whether an
-already installed `msgspec` distribution satisfies `msgspec>=0.19,<0.20`.
-`ensure_msgspec_installed` guards the bootstrap with `Once` so concurrent
-callers run installation at most once.
+`msgspec_available` is a side-effect-free query that returns a `PyResult<bool>`
+for checking whether an already installed `msgspec` distribution satisfies
+`msgspec>=0.19,<0.20`. `ensure_msgspec_installed` guards the bootstrap with
+`Once` so concurrent callers run installation at most once.
 
 `tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
 that ordinary example tests do not cover. The test-support module contains
@@ -205,10 +205,9 @@ property tests for two behaviours:
   panic, and the `Once` guard must still restrict bootstrap execution.
 
 The property tests reuse the `subprocess.run` monkeypatch in
-`setup_bootstrap_run_counter`. That monkeypatch blocks direct `msgspec` imports
-through `sys.meta_path`, forcing the bootstrap path even when `msgspec` is
-installed on the host interpreter, then registers a stub `msgspec` module after
-the mocked installer runs. Keep this pattern when extending the properties:
+`setup_bootstrap_run_counter`. That fixture patches `subprocess.run` and
+records each call made to it; it does not alter Python import hooks or
+synthesize a `msgspec` module. Keep this pattern when extending the properties:
 tests should prove the `Once`-guarded installer path executed without invoking
 real package installation or network access.
 
@@ -270,13 +269,13 @@ implicit serialization rather than adding `#[serial]` to every test that
 touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
 guard ensures exactly one thread runs the installer, and `OnceExt` releases the
 Python GIL while blocked threads wait. The
-`ensure_msgspec_installed_is_safe_under_concurrent_access` test validates the
-contract directly: it starts eight threads, expects `subprocess.run` to be
-called exactly twice, once for `ensurepip` and once for the `msgspec` install,
-and relies on `Once`'s internal atomics instead of test-framework
-serialization. Reserve `#[serial]` for cases where separate test functions must
-exclude multiple distinct statics or process-global side effects; the single
-`Once` owns the whole `msgspec` bootstrap critical section.
+`bootstrap_invariants_hold_without_process_isolation` property validates the
+contract across generated cases: it checks sequential repetitions in `1..=50`
+and concurrent callers with thread counts in `2..=32`, then expects
+`subprocess.run` to be called exactly twice, once for `ensurepip` and once for
+the `msgspec` install. Reserve `#[serial]` for cases where separate test
+functions must exclude multiple distinct statics or process-global side
+effects; the single `Once` owns the whole `msgspec` bootstrap critical section.
 
 Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and

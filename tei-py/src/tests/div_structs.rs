@@ -1,7 +1,7 @@
 //! Tests covering Python `msgspec.Struct` support for division body blocks.
 
 use super::*;
-use crate::test_support::ensure_msgspec_installed;
+use crate::test_support::ensure_msgspec_installed_for_tests;
 use pyo3::{
     Python,
     types::{PyAnyMethods, PyDict, PyModule},
@@ -59,7 +59,7 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 #[test]
 fn episode_struct_decodes_div_blocks() {
     Python::attach(|py| {
-        if ensure_msgspec_installed(py).is_err() {
+        if ensure_msgspec_installed_for_tests(py).is_err() {
             return;
         }
 
@@ -130,7 +130,7 @@ fn episode_struct_decodes_div_blocks() {
 #[test]
 fn streaming_div_events_decode_into_python_union() {
     Python::attach(|py| {
-        if ensure_msgspec_installed(py).is_err() {
+        if ensure_msgspec_installed_for_tests(py).is_err() {
             return;
         }
 

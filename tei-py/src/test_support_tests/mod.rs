@@ -90,11 +90,34 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
 /// Verifies that the availability query does not bootstrap `msgspec`.
 #[test]
 fn msgspec_available_reports_only_existing_requirement_satisfaction() {
+    let _guard = acquire_subprocess_patch_lock();
     let reported_available = msgspec_available();
-    let requirement_satisfied =
-        Python::attach(|py| msgspec_satisfies_requirement(py).unwrap_or(false));
+    let requirement_satisfied = Python::attach(msgspec_satisfies_requirement);
 
-    assert_eq!(reported_available, requirement_satisfied);
+    assert_eq!(reported_available.is_ok(), requirement_satisfied.is_ok());
+    assert_eq!(
+        reported_available.unwrap_or(false),
+        requirement_satisfied.unwrap_or(false)
+    );
+}
+
+/// Verifies accepted and rejected `msgspec` version shapes.
+#[rstest]
+#[case::minor_only("0.19", true)]
+#[case::patch_release("0.19.0", true)]
+#[case::older_minor("0.18.9", false)]
+#[case::newer_minor("0.20.0", false)]
+#[case::release_candidate("0.19rc1", false)]
+#[case::patch_release_candidate("0.19.0rc1", false)]
+#[case::dev_release("0.19.dev0", false)]
+#[case::alpha_release("0.19a1", false)]
+#[case::beta_release("0.19b1", false)]
+#[case::post_release("0.19.post1", false)]
+fn msgspec_version_requirement_rejects_non_final_releases(
+    #[case] version: &str,
+    #[case] expected: bool,
+) {
+    assert_eq!(msgspec_version_satisfies_requirement(version), expected);
 }
 
 /// Verifies `uv` discovery against mocked `shutil.which` outcomes.

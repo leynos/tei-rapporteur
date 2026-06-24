@@ -66,6 +66,12 @@ Use one static mutex around the full `subprocess.run` monkeypatch lifecycle.
 Locking only during setup and restore would still allow overlapping tests to
 observe each other's patched state.
 
+Defer Kani harnesses for this bootstrap path. The behaviour under review crosses
+`pyo3::sync::OnceExt::call_once_py_attached` and the embedded Python
+interpreter, so a useful proof would need a broader abstraction around PyO3 or
+upstream instrumentation rather than a small local harness around the test
+helper.
+
 ## Implementation Plan
 
 First, make the mechanical production refactor requested by review:

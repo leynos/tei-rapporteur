@@ -1,6 +1,6 @@
 //! Integration-style tests for the `PyO3` bindings that require module wiring.
 
-use crate::test_support::ensure_msgspec_installed;
+use crate::test_support::ensure_msgspec_installed_for_tests;
 use pyo3::types::{PyAnyMethods, PyList};
 use pyo3::{Bound, Python, types::PyModule};
 
@@ -23,7 +23,7 @@ impl Drop for RestoreStructs<'_> {
 }
 
 fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
-    if ensure_msgspec_installed(py).is_err() {
+    if ensure_msgspec_installed_for_tests(py).is_err() {
         return None;
     }
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
@@ -113,7 +113,7 @@ fn spoken_text_segments_return_msgspec_structs() {
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
     Python::attach(|py| {
-        if ensure_msgspec_installed(py).is_err() {
+        if ensure_msgspec_installed_for_tests(py).is_err() {
             return;
         }
         let sys_modules = py

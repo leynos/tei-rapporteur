@@ -1,11 +1,7 @@
 //! Test-only helpers shared across Rust unit tests and Python BDD suites.
 //! They bootstrap `msgspec>=0.19,<0.20` through `PyO3`'s embedded interpreter so
-//! tests can import it consistently. [`ensure_msgspec_installed`],
-//! [`try_ensure_msgspec_installed`], and [`msgspec_available`] are public
-//! exports; `run_with_kwargs` is hidden-public for compile-fail UI tests.
-//! Bootstrap execution is serialized with `OnceExt::call_once_py_attached`.
-//! Child `test_support_tests` modules provide subprocess mocks, Python-state
-//! restoration guards, and property coverage for bootstrap invariants.
+//! tests can import it consistently. Public helpers install, command-check, or
+//! query `msgspec`; hidden test modules provide mocks and property coverage.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
 const PIP_COMMON_FLAGS: [&str; 6] = [
     "--no-input",
@@ -153,6 +149,13 @@ fn msgspec_satisfies_requirement(py: Python<'_>) -> PyResult<bool> {
 }
 
 fn msgspec_version_satisfies_requirement(version: &str) -> bool {
+    if version
+        .bytes()
+        .any(|value| !value.is_ascii_digit() && value != b'.')
+    {
+        return false;
+    }
+
     let mut parts = version.split('.').map(|value| {
         value
             .chars()
@@ -330,24 +333,16 @@ pub(super) fn reset_msgspec_init_for_tests() {
 /// bootstrap so only one thread runs the installer, avoiding the race
 /// reported in CI while detaching from Python when blocked.
 ///
-/// The helper bootstraps `pip` via `ensurepip` when necessary and performs a
-/// best-effort installation of `msgspec>=0.19,<0.20`. It is thread-safe:
-/// install attempts run at most once even when tests execute in parallel. It
-/// returns an error only when importing `msgspec` still fails after the
-/// attempted install.
+/// The helper performs a best-effort installation of `msgspec>=0.19,<0.20`.
+/// It is thread-safe: install attempts run at most once even when tests execute
+/// in parallel.
 ///
 /// # Errors
 ///
 /// Returns a `PyErr` when importing or installing `msgspec` fails, for example
-/// when `pip` is unavailable in the embedded interpreter.
+/// when `pip` is unavailable in the embedded interpreter. Also returns a
+/// `PyErr` when the imported version does not satisfy `msgspec>=0.19,<0.20`.
 pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
-    #[cfg(test)]
-    {
-        let _guard = lock_msgspec_bootstrap_attached_for_tests(py);
-        ensure_msgspec_installed_inner(py)
-    }
-
-    #[cfg(not(test))]
     ensure_msgspec_installed_inner(py)
 }
 
@@ -373,6 +368,12 @@ fn ensure_msgspec_installed_inner(py: Python<'_>) -> PyResult<()> {
 }
 
 #[cfg(test)]
+pub(crate) fn ensure_msgspec_installed_for_tests(py: Python<'_>) -> PyResult<()> {
+    let _guard = lock_msgspec_bootstrap_attached_for_tests(py);
+    ensure_msgspec_installed_inner(py)
+}
+
+#[cfg(test)]
 pub(super) fn ensure_msgspec_installed_unlocked_for_tests(py: Python<'_>) -> PyResult<()> {
     ensure_msgspec_installed_inner(py)
 }
@@ -386,9 +387,12 @@ pub fn try_ensure_msgspec_installed() -> bool {
 /// Reports whether the required `msgspec` version is already available.
 ///
 /// This query helper does not run the bootstrap installer.
-#[must_use]
-pub fn msgspec_available() -> bool {
-    Python::attach(|py| msgspec_satisfies_requirement(py).unwrap_or(false))
+///
+/// # Errors
+///
+/// Returns a `PyErr` when Python importability or package metadata lookup fails.
+pub fn msgspec_available() -> PyResult<bool> {
+    Python::attach(msgspec_satisfies_requirement)
 }
 
 #[cfg(test)]
