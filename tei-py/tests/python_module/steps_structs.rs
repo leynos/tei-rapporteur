@@ -119,18 +119,17 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     let payload = state.msgpack_payload()?;
 
     if !ensure_msgspec_available() {
-        #[expect(
-            dead_code,
-            reason = "EpisodeCarrier is only used to trigger a missing-field decode when msgspec is unavailable."
-        )]
         #[derive(Debug, Deserialize)]
         struct EpisodeCarrier {
             header: Value,
             text: Value,
         }
 
-        if let Err(error) = from_slice::<EpisodeCarrier>(&payload) {
-            state.store_error(error.to_string());
+        match from_slice::<EpisodeCarrier>(&payload) {
+            Ok(carrier) => {
+                let _ = (&carrier.header, &carrier.text);
+            }
+            Err(error) => state.store_error(error.to_string()),
         }
 
         return Ok(());

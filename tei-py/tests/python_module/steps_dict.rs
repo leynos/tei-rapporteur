@@ -192,12 +192,24 @@ pub(super) fn the_div_structure_is_preserved(
     if let Ok(error) = state.error() {
         bail!("{error}");
     }
+    let expected_payload = state.dict_payload()?;
     let payload = with_python(|py| {
-        state.with_document(py, |document| {
-            let decoded: tei_py::Document = document.extract().map_err(|error| {
-                anyhow::anyhow!("decoded document should be a Document: {error}")
-            })?;
-            document_to_value(&decoded).context("decoded document should project to a dictionary")
+        state.with_module(py, |module| {
+            let encoder = module
+                .getattr("to_dict")
+                .context("to_dict must be registered")?;
+            state.with_document(py, |document| {
+                let actual_payload: Value = from_pyobject(
+                    encoder
+                        .call1((document,))
+                        .context("decoded document should encode to a dictionary")?,
+                )?;
+                ensure!(
+                    actual_payload == expected_payload,
+                    "decoded dictionary payload should match encoded dictionary payload"
+                );
+                Ok::<_, anyhow::Error>(actual_payload)
+            })
         })
     })?;
     let div = payload

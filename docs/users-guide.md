@@ -172,6 +172,27 @@ Structural body content is exposed through tagged unions:
 chapter markers, guest-bio sections, and sponsor-read sections can be modelled
 without flattening the hierarchy into paragraphs.
 
+Typed `msgspec` decoding lets callers inspect nested divisions without first
+round-tripping through XML or untyped dictionaries:
+
+```python
+import msgspec
+import tei_rapporteur as tei
+from tei_rapporteur.structs import DivBlock, Episode, Item, Label, ListBlock
+
+payload = tei.to_msgpack(tei.parse_xml(open("episode.tei.xml", encoding="utf-8").read()))
+episode = msgspec.msgpack.decode(payload, type=Episode)
+
+body_block = episode.text.body.blocks[0]
+if isinstance(body_block, DivBlock):
+    print(body_block.div_type)
+    for child in body_block.content:
+        if isinstance(child, ListBlock):
+            first_item = child.items[0]
+            if isinstance(first_item, Item) and isinstance(first_item.label, Label):
+                print(first_item.label.content[0].value)
+```
+
 Citation metadata is split along TEI-native boundaries. Canonical citation
 declarations live under `header.encoding_desc.refs_decl`, utterance-local
 provenance stays on `Utterance`, and many-to-many overlays live in the optional
