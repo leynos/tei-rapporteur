@@ -269,13 +269,16 @@ implicit serialization rather than adding `#[serial]` to every test that
 touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
 guard ensures exactly one thread runs the installer, and `OnceExt` releases the
 Python GIL while blocked threads wait. The
-`bootstrap_invariants_hold_without_process_isolation` property validates the
-contract across generated cases: it checks sequential repetitions in `1..=50`
-and concurrent callers with thread counts in `2..=32`, then expects
-`subprocess.run` to be called exactly twice, once for `ensurepip` and once for
-the `msgspec` install. Reserve `#[serial]` for cases where separate test
-functions must exclude multiple distinct statics or process-global side
-effects; the single `Once` owns the whole `msgspec` bootstrap critical section.
+`bootstrap_invariants_hold_without_process_isolation` property test in
+`test_support_tests/properties.rs` validates the contract directly. Over a
+generated thread count (2–32) and a generated repetition count (1–50) it
+expects `subprocess.run` to be called exactly twice across both the concurrent
+and sequential phases — once for `ensurepip` and once for the `msgspec`
+install — confirming that `Once` restricts the installer to a single run
+regardless of how many callers race or how many sequential calls follow.
+Reserve `#[serial]` for cases where separate test functions must exclude
+multiple distinct statics or process-global side effects; the single `Once`
+owns the whole `msgspec` bootstrap critical section.
 
 Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
