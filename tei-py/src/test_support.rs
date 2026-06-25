@@ -252,15 +252,14 @@ impl Drop for RunningMsgspecInitGuard<'_> {
 
 #[cfg(test)]
 static MSGSPEC_INIT: ResettableMsgspecInit = ResettableMsgspecInit::new();
-
 #[cfg(test)]
 static MSGSPEC_BOOTSTRAP_TEST_LOCK: Mutex<()> = Mutex::new(());
-
 #[cfg(test)]
 static FORCE_MSGSPEC_BOOTSTRAP: AtomicBool = AtomicBool::new(false);
-
 #[cfg(test)]
 static PYTHON_MODULE_REGISTRATION_TEST_LOCK: Mutex<()> = Mutex::new(());
+#[cfg(test)]
+static PYTHON_IMPORT_STATE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
 pub(super) struct ForcedMsgspecBootstrapGuard;
@@ -279,15 +278,10 @@ pub(super) fn force_msgspec_bootstrap_for_tests() -> ForcedMsgspecBootstrapGuard
 }
 
 #[cfg(test)]
-fn lock_msgspec_bootstrap_for_tests() -> MutexGuard<'static, ()> {
-    MSGSPEC_BOOTSTRAP_TEST_LOCK
+fn lock_for_tests(mutex: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    mutex
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-#[cfg(test)]
-fn lock_msgspec_bootstrap_attached_for_tests(py: Python<'_>) -> MutexGuard<'static, ()> {
-    lock_attached_for_tests(py, &MSGSPEC_BOOTSTRAP_TEST_LOCK)
 }
 
 #[cfg(test)]
@@ -305,14 +299,17 @@ fn lock_attached_for_tests(py: Python<'_>, mutex: &'static Mutex<()>) -> MutexGu
 
 #[cfg(test)]
 pub(super) fn acquire_msgspec_bootstrap_lock_for_tests() -> MutexGuard<'static, ()> {
-    lock_msgspec_bootstrap_for_tests()
+    lock_for_tests(&MSGSPEC_BOOTSTRAP_TEST_LOCK)
 }
 
 #[cfg(test)]
 pub(crate) fn acquire_python_module_registration_lock_for_tests() -> MutexGuard<'static, ()> {
-    PYTHON_MODULE_REGISTRATION_TEST_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    lock_for_tests(&PYTHON_MODULE_REGISTRATION_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(crate) fn acquire_python_import_state_lock_for_tests() -> MutexGuard<'static, ()> {
+    lock_for_tests(&PYTHON_IMPORT_STATE_TEST_LOCK)
 }
 
 #[cfg(test)]
@@ -369,7 +366,7 @@ fn ensure_msgspec_installed_inner(py: Python<'_>) -> PyResult<()> {
 
 #[cfg(test)]
 pub(crate) fn ensure_msgspec_installed_for_tests(py: Python<'_>) -> PyResult<()> {
-    let _guard = lock_msgspec_bootstrap_attached_for_tests(py);
+    let _guard = lock_attached_for_tests(py, &MSGSPEC_BOOTSTRAP_TEST_LOCK);
     ensure_msgspec_installed_inner(py)
 }
 

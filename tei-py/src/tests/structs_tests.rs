@@ -58,6 +58,7 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
         }
     }
 
+    let _import_state_guard = crate::test_support::acquire_python_import_state_lock_for_tests();
     let _registration_guard =
         crate::test_support::acquire_python_module_registration_lock_for_tests();
     Python::attach(|py| {
