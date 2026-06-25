@@ -195,14 +195,14 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_available` and `with_python` are documented public
-exports from this module. They are thread-safe:
-`ensure_msgspec_available` delegates to the `Once`-guarded bootstrap while
-attached to the Python interpreter through the shared import-state lock, and
-`with_python` acquires the same lock before calling `Python::attach`.
-`run_with_kwargs` and `RunWithKwargsArgs` are hidden-public bootstrap helpers:
-the `msgspec` installer path uses them to call `subprocess.run`, and UI
-compile tests use them to lock down the crate-owned argument diagnostic.
+Only `ensure_msgspec_available` and `with_python` are documented public exports
+from this module. They are thread-safe: `ensure_msgspec_available` delegates to
+the `Once`-guarded bootstrap while attached to the Python interpreter through
+the shared import-state lock, and `with_python` acquires the same lock before
+calling `Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
+hidden-public bootstrap helpers: the `msgspec` installer path uses them to call
+`subprocess.run`, and UI compile tests use them to lock down the crate-owned
+argument diagnostic.
 
 The test-only coverage for this surface lives in
 `tei-py/src/test_support/tests.rs` and the colocated
@@ -349,8 +349,8 @@ Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
 `ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
 token and globals dictionary, then delegate their `Drop` implementation to the
-existing restore function. This guarantees cleanup during panic unwinding, which
-a final manual `restore_*` call at the end of a test body cannot provide. Name
-future guards after what they undo, compose multiple guards in one scope when a
-test patches multiple globals, and rely on reverse declaration order to mirror a
-conventional `try`/`finally` stack.
+existing restore function. This guarantees cleanup during panic unwinding,
+which a final manual `restore_*` call at the end of a test body cannot provide.
+Name future guards after what they undo, compose multiple guards in one scope
+when a test patches multiple globals, and rely on reverse declaration order to
+mirror a conventional `try`/`finally` stack.

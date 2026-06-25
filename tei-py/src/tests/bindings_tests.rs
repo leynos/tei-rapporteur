@@ -40,7 +40,7 @@ impl Drop for RestoreStructs<'_> {
 
 fn registered_module(py: Python<'_>) -> Bound<'_, PyModule> {
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-    crate::bindings::py_exports::tei_rapporteur(py, &module)
+    crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
         .expect("module registration should succeed");
     module
 }

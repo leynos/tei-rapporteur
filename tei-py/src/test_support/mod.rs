@@ -9,11 +9,15 @@ mod bootstrap;
 
 pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
 
+#[cfg(test)]
+use std::sync::TryLockError;
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::{Mutex, MutexGuard};
 
 #[cfg(any(test, feature = "test-support"))]
 static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
+#[cfg(test)]
+static PYTHON_MODULE_REGISTRATION_LOCK: Mutex<()> = Mutex::new(());
 
 /// Returns an RAII guard that serializes all operations touching the embedded
 /// Python interpreter's import state (i.e. `sys.modules` or `sys.meta_path`).
@@ -26,6 +30,29 @@ pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
     PYTHON_IMPORT_STATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(test)]
+fn lock_attached_for_tests(
+    py: pyo3::Python<'_>,
+    mutex: &'static Mutex<()>,
+) -> MutexGuard<'static, ()> {
+    loop {
+        match mutex.try_lock() {
+            Ok(guard) => return guard,
+            Err(TryLockError::Poisoned(poisoned)) => return poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => {
+                py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn lock_python_module_registration_attached_for_tests(
+    py: pyo3::Python<'_>,
+) -> MutexGuard<'static, ()> {
+    lock_attached_for_tests(py, &PYTHON_MODULE_REGISTRATION_LOCK)
 }
 
 /// Attaches to the embedded Python interpreter while holding the process-wide

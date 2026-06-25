@@ -1,10 +1,10 @@
 //! Steps covering the `msgspec.Struct` projections exposed to Python.
 
+use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
 use pyo3::{Bound, prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
 use serde::Deserialize;
-use super::state::{PythonModuleState, python_state};
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
 use tei_py::projection::PyTeiDocument;
 use tei_py::test_support::{ensure_msgspec_available, with_python};
@@ -65,6 +65,8 @@ pub(super) fn decode_episode<'py>(
         .context("decode function should exist")?
         .call((payload,), Some(&kwargs))?)
 }
+
+#[when("I convert the MessagePack payload to an Episode and retitle it \"{title}\"")]
 pub(super) fn i_convert_payload_to_episode_and_retitle(
     #[from(python_state)] state: &PythonModuleState,
     title: String,
