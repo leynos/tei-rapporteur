@@ -133,11 +133,13 @@ The default nextest profile gives `tei-py::ui` a longer timeout than ordinary
 tests because `trybuild` starts a nested Cargo build. In the
 `cargo llvm-cov --target-dir ...` CI path, `cargo-llvm-cov` redirects compiled
 artefacts without exporting that directory as `CARGO_TARGET_DIR` for child
-Cargo processes. The nested build therefore starts cold and can overrun the
-normal nextest limit; `trybuild` is not dropping the path. Export
-`CARGO_TARGET_DIR` before launching `cargo test` when CI needs the nested build
-to share an existing target directory. `.config/nextest.toml` therefore allows
-the UI harness five minutes before nextest terminates it.
+Cargo processes. The nested `trybuild` invocation therefore cannot see the
+coverage wrapper's target directory, starts cold, and can overrun the ordinary
+nextest timeout. Export `CARGO_TARGET_DIR` before launching `cargo test` in CI
+when the `cargo-llvm-cov` wrapper is in use; that gives the nested build the
+same target directory as the outer build. `.config/nextest.toml` allows the UI
+harness five minutes so this wrapper-specific cold-build path does not fail
+before the shared target directory workaround is applied.
 
 The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 `run_with_kwargs` rejects a plain `String` because `String` does not implement
@@ -184,10 +186,80 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_installed` and `msgspec_available` are documented public
-exports from this module. They are thread-safe: `ensure_msgspec_installed`
-guards the bootstrap with `Once`, and `msgspec_available` delegates to it while
-attached to the Python interpreter.
+Only `ensure_msgspec_installed`, `try_ensure_msgspec_installed`, and
+`msgspec_available` are documented public exports from this module. They follow
+command/query separation: `ensure_msgspec_installed` and
+`try_ensure_msgspec_installed` may run the best-effort bootstrap command, while
+`msgspec_available` is a side-effect-free query that returns a `PyResult<bool>`
+for checking whether an already installed `msgspec` distribution satisfies
+`msgspec>=0.19,<0.20`. `ensure_msgspec_installed` guards the bootstrap with
+`Once` so concurrent callers run installation at most once.
+
+`tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
+that ordinary example tests do not cover. The test-support module contains
+property tests for two behaviours:
+
+- idempotency: `ensure_msgspec_installed` must return a consistent successful
+  result over a generated number of repeated calls.
+- thread safety: concurrent callers over a generated thread count must not
+  panic, and the `Once` guard must still restrict bootstrap execution.
+
+The property tests reuse the `subprocess.run` monkeypatch in
+`setup_bootstrap_run_counter`. That fixture patches `subprocess.run` and
+records each call made to it; it does not alter Python import hooks or
+synthesize a `msgspec` module. Keep this pattern when extending the properties:
+tests should prove the `Once`-guarded installer path executed without invoking
+real package installation or network access.
+
+Tests that monkeypatch Python process-global state must hold the relevant RAII
+guard for the full patch lifecycle. Lock acquisition must tolerate poisoning
+with `unwrap_or_else(std::sync::PoisonError::into_inner)` or equivalent so one
+failed test does not cascade into unrelated failures. Restoration guards should
+surface cleanup failures when a test is otherwise succeeding, but must check
+`std::thread::panicking()` and log to stderr instead of panicking again during
+unwind.
+
+The test-only coverage for this surface lives under
+`tei-py/src/test_support_tests/` and is split by responsibility:
+
+- `mod.rs` is the parent test module. It wires the submodules together and owns
+  the deterministic tests for `run_with_kwargs`, `msgspec_available`,
+  `try_ensure_msgspec_installed`, and `has_uv`.
+- `bootstrap_mocks.rs` owns the `subprocess.run` bootstrap mock used by the
+  property tests and call-helper tests. `BootstrapRunCounter` is the
+  Python-callable counter, `BootstrapRunPatch` carries the Python globals plus
+  the subprocess patch lock, `setup_bootstrap_run_counter` installs the mock,
+  and `recorded_call_count` / `recorded_args` inspect captured calls.
+- `test_helpers.rs` owns shared Python-state fixtures and restoration guards.
+  `RunAndKwargs` carries the mocked `run`, kwargs, globals, and subprocess
+  restore guard for call-helper tests. `RunWithKwargsArgShape` enumerates the
+  supported Rust argument shapes. `SubprocessPatchGuard` and `ShutilPatchGuard`
+  serialize process-global monkeypatches; acquire them with
+  `acquire_subprocess_patch_lock` and `acquire_shutil_patch_lock`.
+  `setup_run_and_kwargs` installs the recording `subprocess.run` mock,
+  `restore_subprocess_run` restores it, `SubprocessRestoreGuard` restores
+  within one Python attachment, `OwnedSubprocessRestoreGuard` restores after
+  property setup has left its attachment scope, and `ShutilRestoreGuard`
+  restores `shutil.which`.
+- `properties.rs` owns the `proptest` coverage for the bootstrap invariants. It
+  checks `msgspec` importability once before entering the generated-case loop,
+  then combines generated sequential repetitions and generated thread counts in
+  one process so the resettable test bootstrap state does not depend on nextest
+  process isolation.
+
+The parent `test_support.rs` module also exposes narrow `#[cfg(test)]` helper
+APIs to those submodules. `force_msgspec_bootstrap_for_tests` returns a
+`ForcedMsgspecBootstrapGuard` that makes
+`ensure_msgspec_installed_unlocked_for_tests` enter the installer path even when
+`msgspec` is importable. `acquire_msgspec_bootstrap_lock_for_tests` serializes
+resettable bootstrap-state access, and `reset_msgspec_init_for_tests` returns
+the test-only bootstrap state to `Incomplete` between generated cases. Python
+module registration tests use
+`acquire_python_module_registration_lock_for_tests` or
+`lock_python_module_registration_attached_for_tests` when they need to mutate
+the embedded interpreter's module registry without racing other tests. Keep
+these helpers test-only; production code must continue to use the ordinary
+`Once`-guarded `ensure_msgspec_installed` path.
 
 ### Rust/Python test boundary patterns
 
@@ -197,20 +269,23 @@ implicit serialization rather than adding `#[serial]` to every test that
 touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
 guard ensures exactly one thread runs the installer, and `OnceExt` releases the
 Python GIL while blocked threads wait. The
-`ensure_msgspec_installed_is_safe_under_concurrent_access` test validates the
-contract directly: it starts eight threads, expects `subprocess.run` to be
-called exactly twice, once for `ensurepip` and once for the `msgspec` install,
-and relies on `Once`'s internal atomics instead of test-framework
-serialization. Reserve `#[serial]` for cases where separate test functions must
-exclude multiple distinct statics or process-global side effects; the single
-`Once` owns the whole `msgspec` bootstrap critical section.
+`bootstrap_invariants_hold_without_process_isolation` property test in
+`test_support_tests/properties.rs` validates the contract directly. Over a
+generated thread count (2–32) and a generated repetition count (1–50) it
+expects `subprocess.run` to be called exactly twice across both the concurrent
+and sequential phases — once for `ensurepip` and once for the `msgspec`
+install — confirming that `Once` restricts the installer to a single run
+regardless of how many callers race or how many sequential calls follow.
+Reserve `#[serial]` for cases where separate test functions must exclude
+multiple distinct statics or process-global side effects; the single `Once`
+owns the whole `msgspec` bootstrap critical section.
 
 Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
 `ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
 token and globals dictionary, then delegate their `Drop` implementation to the
-existing restore function. This guarantees cleanup during panic unwinding, which
-a final manual `restore_*` call at the end of a test body cannot provide. Name
-future guards after what they undo, compose multiple guards in one scope when a
-test patches multiple globals, and rely on reverse declaration order to mirror a
-conventional `try`/`finally` stack.
+existing restore function. This guarantees cleanup during panic unwinding,
+which a final manual `restore_*` call at the end of a test body cannot provide.
+Name future guards after what they undo, compose multiple guards in one scope
+when a test patches multiple globals, and rely on reverse declaration order to
+mirror a conventional `try`/`finally` stack.

@@ -1,14 +1,7 @@
 //! Test-only helpers shared across Rust unit tests and Python BDD suites.
-//! They use `PyO3`'s embedding API (`pyo3::sync::OnceExt`,
-//! `pyo3::call::PyCallArgs`, and `Bound<PyAny>`) with the supported `PyO3`
-//! `0.28.x` minor series to interact with an embedded Python interpreter.
-//! Their primary job is bootstrapping `msgspec>=0.19,<0.20` with `uv` or `pip`
-//! via `subprocess.run` so Rust and Python BDD tests can import it.
-//! [`ensure_msgspec_installed`] and [`msgspec_available`] are public exports.
-//! `run_with_kwargs` is a hidden-public helper for compile-fail UI tests, while
-//! `install_msgspec` and `has_uv` are private details.
-//! The bootstrap is serialized with `Once` via `OnceExt::call_once_py_attached`
-//! to prevent races when tests run in parallel.
+//! They bootstrap `msgspec>=0.19,<0.20` through `PyO3`'s embedded interpreter so
+//! tests can import it consistently. Public helpers install, command-check, or
+//! query `msgspec`; hidden test modules provide mocks and property coverage.
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
 const PIP_COMMON_FLAGS: [&str; 6] = [
     "--no-input",
@@ -20,12 +13,20 @@ const PIP_COMMON_FLAGS: [&str; 6] = [
 ];
 const UV_COMMON_FLAGS: [&str; 1] = ["--quiet"];
 
+#[cfg(not(test))]
+use pyo3::sync::OnceExt;
 use pyo3::{
     Bound, PyResult, Python,
-    sync::OnceExt,
+    exceptions::PyRuntimeError,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
+#[cfg(not(test))]
 use std::sync::Once;
+#[cfg(test)]
+use std::sync::{
+    Mutex, MutexGuard, TryLockError,
+    atomic::{AtomicBool, Ordering as AtomicOrdering},
+};
 
 /// Crate-owned wrapper for Python call argument diagnostics.
 ///
@@ -105,420 +106,292 @@ fn install_msgspec<'py>(
         );
     }
 }
+
+fn make_subprocess_kwargs(py: Python<'_>) -> Option<Bound<'_, PyDict>> {
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("check", true).ok()?;
+    kwargs.set_item("timeout", 30u64).ok()?;
+    Some(kwargs)
+}
+
+fn do_bootstrap(py: Python<'_>) {
+    let Some(subprocess) = py.import("subprocess").ok() else {
+        return;
+    };
+    let Some(sys) = py.import("sys").ok() else {
+        return;
+    };
+    let Some(executable) = sys.getattr("executable").ok() else {
+        return;
+    };
+    let Ok(run) = subprocess.getattr("run") else {
+        return;
+    };
+    let Some(kwargs) = make_subprocess_kwargs(py) else {
+        return;
+    };
+    run_with_kwargs(
+        &run,
+        ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
+        &kwargs,
+    );
+    let Some(install_kwargs) = make_subprocess_kwargs(py) else {
+        return;
+    };
+    install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
+}
+
+fn msgspec_satisfies_requirement(py: Python<'_>) -> PyResult<bool> {
+    py.import("msgspec")?;
+    let metadata = py.import("importlib.metadata")?;
+    let version: String = metadata.call_method1("version", ("msgspec",))?.extract()?;
+    Ok(msgspec_version_satisfies_requirement(&version))
+}
+
+fn msgspec_version_satisfies_requirement(version: &str) -> bool {
+    if version
+        .bytes()
+        .any(|value| !value.is_ascii_digit() && value != b'.')
+    {
+        return false;
+    }
+
+    let mut parts = version.split('.').map(|value| {
+        value
+            .chars()
+            .take_while(std::primitive::char::is_ascii_digit)
+            .collect::<String>()
+            .parse::<u64>()
+            .ok()
+    });
+    parts.next() == Some(Some(0)) && parts.next() == Some(Some(19))
+}
+
+#[cfg(not(test))]
 static MSGSPEC_INIT: Once = Once::new();
+
+#[cfg(test)]
+struct ResettableMsgspecInit {
+    state: Mutex<MsgspecInitState>,
+}
+
+#[cfg(test)]
+struct RunningMsgspecInitGuard<'a> {
+    init: &'a ResettableMsgspecInit,
+    is_complete: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum MsgspecInitState {
+    Incomplete,
+    Running,
+    Complete,
+}
+
+#[cfg(test)]
+impl ResettableMsgspecInit {
+    const fn new() -> Self {
+        Self {
+            state: Mutex::new(MsgspecInitState::Incomplete),
+        }
+    }
+
+    fn call_once_py_attached<F>(&self, py: Python<'_>, bootstrap: F)
+    where
+        F: FnOnce(),
+    {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while *state == MsgspecInitState::Running {
+            drop(state);
+            py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
+            state = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        if *state == MsgspecInitState::Complete {
+            return;
+        }
+        *state = MsgspecInitState::Running;
+        drop(state);
+
+        let mut running_guard = RunningMsgspecInitGuard {
+            init: self,
+            is_complete: false,
+        };
+        bootstrap();
+        self.set_state(MsgspecInitState::Complete);
+        running_guard.is_complete = true;
+    }
+
+    fn reset(&self) {
+        self.set_state(MsgspecInitState::Incomplete);
+    }
+
+    fn set_state(&self, next_state: MsgspecInitState) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *state = next_state;
+    }
+}
+
+#[cfg(test)]
+impl Drop for RunningMsgspecInitGuard<'_> {
+    fn drop(&mut self) {
+        if !self.is_complete {
+            self.init.set_state(MsgspecInitState::Incomplete);
+        }
+    }
+}
+
+#[cfg(test)]
+static MSGSPEC_INIT: ResettableMsgspecInit = ResettableMsgspecInit::new();
+#[cfg(test)]
+static MSGSPEC_BOOTSTRAP_TEST_LOCK: Mutex<()> = Mutex::new(());
+#[cfg(test)]
+static FORCE_MSGSPEC_BOOTSTRAP: AtomicBool = AtomicBool::new(false);
+#[cfg(test)]
+static PYTHON_MODULE_REGISTRATION_TEST_LOCK: Mutex<()> = Mutex::new(());
+#[cfg(test)]
+static PYTHON_IMPORT_STATE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+pub(super) struct ForcedMsgspecBootstrapGuard;
+
+#[cfg(test)]
+impl Drop for ForcedMsgspecBootstrapGuard {
+    fn drop(&mut self) {
+        FORCE_MSGSPEC_BOOTSTRAP.store(false, AtomicOrdering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+pub(super) fn force_msgspec_bootstrap_for_tests() -> ForcedMsgspecBootstrapGuard {
+    FORCE_MSGSPEC_BOOTSTRAP.store(true, AtomicOrdering::SeqCst);
+    ForcedMsgspecBootstrapGuard
+}
+
+#[cfg(test)]
+fn lock_for_tests(mutex: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(test)]
+fn lock_attached_for_tests(py: Python<'_>, mutex: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    loop {
+        match mutex.try_lock() {
+            Ok(guard) => return guard,
+            Err(TryLockError::Poisoned(poisoned)) => return poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => {
+                py.detach(|| std::thread::sleep(std::time::Duration::from_millis(1)));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+pub(super) fn acquire_msgspec_bootstrap_lock_for_tests() -> MutexGuard<'static, ()> {
+    lock_for_tests(&MSGSPEC_BOOTSTRAP_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(crate) fn acquire_python_module_registration_lock_for_tests() -> MutexGuard<'static, ()> {
+    lock_for_tests(&PYTHON_MODULE_REGISTRATION_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(crate) fn acquire_python_import_state_lock_for_tests() -> MutexGuard<'static, ()> {
+    lock_for_tests(&PYTHON_IMPORT_STATE_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(crate) fn lock_python_module_registration_attached_for_tests(
+    py: Python<'_>,
+) -> MutexGuard<'static, ()> {
+    lock_attached_for_tests(py, &PYTHON_MODULE_REGISTRATION_TEST_LOCK)
+}
+
+#[cfg(test)]
+pub(super) fn reset_msgspec_init_for_tests() {
+    MSGSPEC_INIT.reset();
+}
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
-/// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
+/// A `Once` guarded by `OnceExt::call_once_py_attached` serializes the
 /// bootstrap so only one thread runs the installer, avoiding the race
 /// reported in CI while detaching from Python when blocked.
 ///
-/// The helper bootstraps `pip` via `ensurepip` when necessary and performs a
-/// best-effort installation of `msgspec>=0.19,<0.20`. It is thread-safe:
-/// install attempts run at most once even when tests execute in parallel. It
-/// returns an error only when importing `msgspec` still fails after the
-/// attempted install.
+/// The helper performs a best-effort installation of `msgspec>=0.19,<0.20`.
+/// It is thread-safe: install attempts run at most once even when tests execute
+/// in parallel.
 ///
 /// # Errors
 ///
 /// Returns a `PyErr` when importing or installing `msgspec` fails, for example
-/// when `pip` is unavailable in the embedded interpreter.
+/// when `pip` is unavailable in the embedded interpreter. Also returns a
+/// `PyErr` when the imported version does not satisfy `msgspec>=0.19,<0.20`.
 pub fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
-    if py.import("msgspec").is_ok() {
+    ensure_msgspec_installed_inner(py)
+}
+
+fn ensure_msgspec_installed_inner(py: Python<'_>) -> PyResult<()> {
+    #[cfg(test)]
+    let should_force_bootstrap = FORCE_MSGSPEC_BOOTSTRAP.load(AtomicOrdering::SeqCst);
+    #[cfg(not(test))]
+    let should_force_bootstrap = false;
+
+    if !should_force_bootstrap && msgspec_satisfies_requirement(py).unwrap_or(false) {
         return Ok(());
     }
 
-    MSGSPEC_INIT.call_once_py_attached(py, || {
-        let Some(subprocess) = py.import("subprocess").ok() else {
-            return;
-        };
-        let Some(sys) = py.import("sys").ok() else {
-            return;
-        };
-        let Some(executable) = sys.getattr("executable").ok() else {
-            return;
-        };
+    MSGSPEC_INIT.call_once_py_attached(py, || do_bootstrap(py));
 
-        let Ok(run) = subprocess.getattr("run") else {
-            return;
-        };
-
-        let kwargs = PyDict::new(py);
-        if kwargs.set_item("check", true).is_err() || kwargs.set_item("timeout", 30u64).is_err() {
-            return;
-        }
-        run_with_kwargs(
-            &run,
-            ((executable.clone(), "-m", "ensurepip", "--upgrade"),),
-            &kwargs,
-        );
-
-        let install_kwargs = PyDict::new(py);
-        if install_kwargs.set_item("check", true).is_err()
-            || install_kwargs.set_item("timeout", 30u64).is_err()
-        {
-            return;
-        }
-
-        install_msgspec(&run, &executable, &install_kwargs, has_uv(py));
-    });
-
-    py.import("msgspec")?;
-    Ok(())
-}
-
-/// Reports whether `msgspec` is available to the embedded interpreter.
-///
-/// The helper calls [`ensure_msgspec_installed`] behind the GIL and returns
-/// `true` only when importing succeeds after the best-effort bootstrap.
-#[must_use]
-pub fn msgspec_available() -> bool {
-    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
+    if msgspec_satisfies_requirement(py)? {
+        Ok(())
+    } else {
+        Err(PyRuntimeError::new_err(format!(
+            "installed msgspec does not satisfy {MSGSPEC_REQUIREMENT}"
+        )))
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    //! Unit tests for Python-side test support helpers.
-
-    use super::*;
-    use pyo3::{pyclass, pymethods};
-    use rstest::rstest;
-    use std::{
-        ffi::CString,
-        sync::{
-            Arc,
-            atomic::{AtomicUsize, Ordering},
-        },
-        thread,
-    };
-
-    struct RunAndKwargs<'py> {
-        run: Bound<'py, PyAny>,
-        kwargs: Bound<'py, PyDict>,
-        globals: Bound<'py, PyDict>,
-    }
-
-    #[derive(Clone, Copy)]
-    enum RunWithKwargsArgShape {
-        Unit,
-        NestedPyTuple,
-        DirectPyTuple,
-    }
-
-    fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
-        let globals = PyDict::new(py);
-        let patch = CString::new(
-            "import subprocess\n\
-             _original_run = subprocess.run\n\
-             _calls = []\n\
-             subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
-        )
-        .expect("CString build");
-        py.run(patch.as_c_str(), Some(&globals), None)
-            .expect("monkeypatch subprocess.run");
-        let subprocess = py.import("subprocess").expect("import subprocess");
-        let run = subprocess.getattr("run").expect("get subprocess.run");
-        let kwargs = PyDict::new(py);
-
-        RunAndKwargs {
-            run,
-            kwargs,
-            globals,
-        }
-    }
-
-    fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-        // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker
-        // if one was installed. The blocker removal is a no-op for callers that
-        // never installed it (e.g. the `run_with_kwargs` tests).
-        let restore = CString::new(
-            r"
-import subprocess
-import sys
-
-subprocess.run = _original_run
-_calls = []
-
-try:
-    sys.meta_path.remove(_bootstrap_msgspec_blocker)
-except (ValueError, NameError):
-    pass
-",
-        )
-        .expect("CString build");
-        py.run(restore.as_c_str(), Some(globals), None).ok();
-    }
-
-    struct SubprocessRestoreGuard<'py> {
-        py: Python<'py>,
-        globals: Bound<'py, PyDict>,
-    }
-
-    impl Drop for SubprocessRestoreGuard<'_> {
-        fn drop(&mut self) {
-            restore_subprocess_run(self.py, &self.globals);
-        }
-    }
-
-    #[pyclass]
-    struct BootstrapRunCounter {
-        count: Arc<AtomicUsize>,
-    }
-
-    #[pymethods]
-    impl BootstrapRunCounter {
-        fn __call__(&self, _args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) {
-            self.count.fetch_add(1, Ordering::SeqCst);
-        }
-    }
-
-    fn setup_bootstrap_run_counter(py: Python<'_>, count: Arc<AtomicUsize>) -> pyo3::Py<PyDict> {
-        let globals = PyDict::new(py);
-        globals
-            .set_item(
-                "_counter",
-                pyo3::Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
-            )
-            .expect("install run counter");
-        // Force the bootstrap to actually run, then count and satisfy it:
-        //   * a `meta_path` blocker makes `import msgspec` fail, so
-        //     `ensure_msgspec_installed` cannot short-circuit and must enter the
-        //     `Once`-guarded installer (even if msgspec is installed on disk);
-        //   * the mocked `subprocess.run` counts each call and registers an
-        //     importable stub `msgspec` module, so the installer's final
-        //     `import msgspec` resolves without network access.
-        // The counter therefore proves the installer path executed, and the
-        // assertions fail if the bootstrap is ever skipped. Each test runs in
-        // its own process under nextest, so the process-wide `Once` is fresh and
-        // no cross-test reset seam or mutex is required.
-        let patch = CString::new(
-            r#"
-import subprocess
-import sys
-import types
-
-
-class _BlockMsgspecBootstrap:
-    def find_spec(self, fullname, path=None, target=None):
-        if fullname == "msgspec" or fullname.startswith("msgspec."):
-            raise ModuleNotFoundError("msgspec blocked for bootstrap test", name="msgspec")
-        return None
-
-
-_bootstrap_msgspec_blocker = _BlockMsgspecBootstrap()
-sys.meta_path.insert(0, _bootstrap_msgspec_blocker)
-
-_original_run = subprocess.run
-
-
-def _mock_run(*args, **kwargs):
-    _counter(args, kwargs)
-    sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
-
-
-subprocess.run = _mock_run
-"#,
-        )
-        .expect("CString build");
-        py.run(patch.as_c_str(), Some(&globals), None)
-            .expect("monkeypatch subprocess.run");
-
-        globals.unbind()
-    }
-
-    fn remove_msgspec_from_modules(py: Python<'_>) {
-        let remove =
-            CString::new("import sys\nsys.modules.pop('msgspec', None)\n").expect("CString build");
-        py.run(remove.as_c_str(), None, None)
-            .expect("remove msgspec from sys.modules");
-    }
-
-    fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
-        globals
-            .get_item("_calls")
-            .expect("read recorded subprocess.run calls")
-            .len()
-            .expect("count recorded subprocess.run calls")
-    }
-
-    fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> Bound<'py, PyAny> {
-        let expr = CString::new("_calls[0][0]").expect("CString build");
-        globals
-            .py()
-            .eval(expr.as_c_str(), Some(globals), None)
-            .expect("read recorded subprocess.run positional arguments")
-    }
-
-    #[rstest]
-    #[case::unit_tuple(RunWithKwargsArgShape::Unit)]
-    #[case::one_tuple_of_pytuple(RunWithKwargsArgShape::NestedPyTuple)]
-    #[case::bound_pytuple(RunWithKwargsArgShape::DirectPyTuple)]
-    fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargsArgShape) {
-        Python::attach(|py| {
-            let RunAndKwargs {
-                run,
-                kwargs,
-                globals,
-            } = setup_run_and_kwargs(py);
-            let _restore_guard = SubprocessRestoreGuard {
-                py,
-                globals: globals.clone(),
-            };
-
-            match arg_shape {
-                RunWithKwargsArgShape::Unit => run_with_kwargs(&run, (), &kwargs),
-                RunWithKwargsArgShape::NestedPyTuple => {
-                    let args_tuple = PyTuple::new(py, ["true"]).expect("build argument tuple");
-
-                    run_with_kwargs(&run, (args_tuple,), &kwargs);
-                }
-                RunWithKwargsArgShape::DirectPyTuple => {
-                    let args_tuple = PyTuple::new(py, [["true"]]).expect("build subprocess args");
-
-                    run_with_kwargs(&run, args_tuple, &kwargs);
-                }
-            }
-
-            let call_count = recorded_call_count(&globals);
-
-            assert_eq!(call_count, 1);
-
-            let args = recorded_args(&globals);
-            match arg_shape {
-                RunWithKwargsArgShape::Unit => {
-                    assert_eq!(args.len().expect("count positional arguments"), 0);
-                }
-                RunWithKwargsArgShape::NestedPyTuple => {
-                    let first_arg = args.get_item(0).expect("read first positional argument");
-                    assert_eq!(
-                        first_arg
-                            .extract::<(String,)>()
-                            .expect("extract nested tuple argument"),
-                        ("true".to_owned(),)
-                    );
-                }
-                RunWithKwargsArgShape::DirectPyTuple => {
-                    assert_eq!(args.len().expect("count positional arguments"), 1);
-                    let first_arg = args.get_item(0).expect("read first positional argument");
-                    assert_eq!(
-                        first_arg
-                            .extract::<Vec<String>>()
-                            .expect("extract direct list argument"),
-                        vec!["true".to_owned()]
-                    );
-                }
-            }
-        });
-    }
-
-    #[test]
-    fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
-        let run_count = Arc::new(AtomicUsize::new(0));
-
-        let globals = Python::attach(|py| {
-            let g = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
-            remove_msgspec_from_modules(py);
-            g
-        });
-
-        assert!(Python::attach(ensure_msgspec_installed).is_ok());
-        assert!(Python::attach(ensure_msgspec_installed).is_ok());
-
-        assert!(
-            Python::attach(|py| {
-                restore_subprocess_run(py, globals.bind(py));
-                ensure_msgspec_installed(py)
-            })
-            .is_ok()
-        );
-
-        // The blocker forces the installer to run exactly once: subprocess.run
-        // is invoked for ensurepip and for the msgspec install. Asserting the
-        // exact count proves the bootstrap path executed (it would be 0 if
-        // skipped) and that the `Once` guard prevented a second bootstrap across
-        // both repeated calls.
-        assert_eq!(run_count.load(Ordering::SeqCst), 2);
-    }
-
-    #[test]
-    fn msgspec_available_reports_true_only_when_msgspec_is_importable() {
-        // Call the function under test first; it may bootstrap msgspec as a
-        // side-effect, so the importability check must come *after* the call.
-        let reported_available = msgspec_available();
-        let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
-
-        assert_eq!(reported_available, importable_after_check);
-    }
-
-    #[test]
-    fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
-        let run_count = Arc::new(AtomicUsize::new(0));
-        let globals = Python::attach(|py| {
-            let globals = setup_bootstrap_run_counter(py, Arc::clone(&run_count));
-            remove_msgspec_from_modules(py);
-
-            globals
-        });
-
-        let handles: Vec<_> = (0..8)
-            .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
-            .collect();
-
-        for handle in handles {
-            assert!(handle.join().expect("bootstrap thread panicked").is_ok());
-        }
-
-        assert!(
-            Python::attach(|py| {
-                restore_subprocess_run(py, globals.bind(py));
-                ensure_msgspec_installed(py)
-            })
-            .is_ok()
-        );
-
-        // The blocker forces the installer to run, and the `Once` guard fires
-        // exactly once across all threads, making exactly two subprocess.run
-        // calls (ensurepip + msgspec install). The exact count proves the
-        // bootstrap path executed rather than being skipped.
-        assert_eq!(run_count.load(Ordering::SeqCst), 2);
-    }
-
-    #[rstest]
-    #[case::none_means_absent("None", false)]
-    #[case::path_means_present("'/usr/bin/uv'", true)]
-    fn has_uv_reflects_which_return_value(#[case] which_return_expr: &str, #[case] expected: bool) {
-        Python::attach(|py| {
-            let globals = PyDict::new(py);
-            let patch = CString::new(format!(
-                "import shutil\n\
-                 orig = shutil.which\n\
-                 shutil.which = lambda name: {which_return_expr}\n"
-            ))
-            .expect("CString build");
-            py.run(patch.as_c_str(), Some(&globals), None)
-                .expect("monkeypatch shutil.which");
-            let _restore_guard = ShutilRestoreGuard {
-                py,
-                globals: globals.clone(),
-            };
-
-            assert_eq!(has_uv(py), expected);
-        });
-    }
-
-    fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) {
-        let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-        py.run(restore.as_c_str(), Some(globals), None).ok();
-    }
-
-    struct ShutilRestoreGuard<'py> {
-        py: Python<'py>,
-        globals: Bound<'py, PyDict>,
-    }
-
-    impl Drop for ShutilRestoreGuard<'_> {
-        fn drop(&mut self) {
-            restore_shutil_which(self.py, &self.globals);
-        }
-    }
+pub(crate) fn ensure_msgspec_installed_for_tests(py: Python<'_>) -> PyResult<()> {
+    let _guard = lock_attached_for_tests(py, &MSGSPEC_BOOTSTRAP_TEST_LOCK);
+    ensure_msgspec_installed_inner(py)
 }
+
+#[cfg(test)]
+pub(super) fn ensure_msgspec_installed_unlocked_for_tests(py: Python<'_>) -> PyResult<()> {
+    ensure_msgspec_installed_inner(py)
+}
+
+/// Attempts to make `msgspec` available to the embedded interpreter.
+#[must_use]
+pub fn try_ensure_msgspec_installed() -> bool {
+    Python::attach(|py| ensure_msgspec_installed(py).is_ok())
+}
+
+/// Reports whether the required `msgspec` version is already available.
+///
+/// This query helper does not run the bootstrap installer.
+///
+/// # Errors
+///
+/// Returns a `PyErr` when Python importability or package metadata lookup fails.
+pub fn msgspec_available() -> PyResult<bool> {
+    Python::attach(msgspec_satisfies_requirement)
+}
+
+#[cfg(test)]
+#[path = "test_support_tests/mod.rs"]
+mod tests;

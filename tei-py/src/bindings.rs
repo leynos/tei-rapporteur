@@ -345,6 +345,17 @@ pub(crate) mod py_exports {
     /// interpreter rejects one of the additions.
     #[pymodule]
     pub fn tei_rapporteur(py_context: Python<'_>, py_module: &Bound<'_, PyModule>) -> PyResult<()> {
+        #[cfg(test)]
+        let _registration_guard =
+            crate::test_support::lock_python_module_registration_attached_for_tests(py_context);
+
+        register_tei_rapporteur_module(py_context, py_module)
+    }
+
+    pub(crate) fn register_tei_rapporteur_module(
+        py_context: Python<'_>,
+        py_module: &Bound<'_, PyModule>,
+    ) -> PyResult<()> {
         py_module.add_class::<Document>()?;
         py_module.add_function(wrap_pyfunction!(emit_title_markup_py, py_module)?)?;
         py_module.add_function(wrap_pyfunction!(from_msgpack, py_module)?)?;

@@ -1,6 +1,6 @@
 //! Integration-style tests for the `PyO3` bindings that require module wiring.
 
-use crate::test_support::ensure_msgspec_installed;
+use crate::test_support::ensure_msgspec_installed_for_tests;
 use pyo3::types::{PyAnyMethods, PyList};
 use pyo3::{Bound, Python, types::PyModule};
 
@@ -22,22 +22,19 @@ impl Drop for RestoreStructs<'_> {
     }
 }
 
-fn registered_module(py: Python<'_>) -> Option<Bound<'_, PyModule>> {
-    if ensure_msgspec_installed(py).is_err() {
-        return None;
-    }
+fn registered_module(py: Python<'_>) -> Bound<'_, PyModule> {
+    ensure_msgspec_installed_for_tests(py)
+        .expect("msgspec bootstrap should succeed before binding module tests");
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
     crate::bindings::py_exports::tei_rapporteur(py, &module)
         .expect("module registration should succeed");
-    Some(module)
+    module
 }
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
     Python::attach(|py| {
-        let Some(module) = registered_module(py) else {
-            return;
-        };
+        let module = registered_module(py);
 
         let to_dict = module
             .getattr("to_dict")
@@ -53,9 +50,7 @@ fn to_dict_rejects_non_document_inputs() {
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
     Python::attach(|py| {
-        let Some(module) = registered_module(py) else {
-            return;
-        };
+        let module = registered_module(py);
         let extractor = module
             .getattr("spoken_text_segments")
             .expect("spoken_text_segments should be registered");
@@ -113,9 +108,8 @@ fn spoken_text_segments_return_msgspec_structs() {
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
     Python::attach(|py| {
-        if ensure_msgspec_installed(py).is_err() {
-            return;
-        }
+        ensure_msgspec_installed_for_tests(py)
+            .expect("msgspec bootstrap should succeed before structs-module failure test");
         let sys_modules = py
             .import("sys")
             .expect("sys should import")
