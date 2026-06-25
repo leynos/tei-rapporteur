@@ -9,10 +9,10 @@ mod bootstrap;
 
 pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 use std::sync::{Mutex, MutexGuard};
 
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
 
 /// Returns an RAII guard that serializes all operations touching the embedded
@@ -21,7 +21,7 @@ static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
 /// Prefer `with_python` over calling this directly. Use this only when you need
 /// the guard to outlive a single `Python::attach` block, e.g. when testing the
 /// lock behaviour itself.
-#[cfg(feature = "test-support")]
+#[cfg(any(test, feature = "test-support"))]
 pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
     PYTHON_IMPORT_STATE_LOCK
         .lock()
