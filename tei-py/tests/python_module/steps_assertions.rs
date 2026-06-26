@@ -1,5 +1,6 @@
 //! Assertion helpers used by the behaviour-driven scenarios.
 
+#[expect(unused_imports, reason = "rstest-bdd binds the fixture by name")]
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result, ensure};
 use pyo3::types::PyAnyMethods;
@@ -8,8 +9,6 @@ use tei_core::TeiDocument;
 use tei_py::test_support::with_python;
 use tei_serde::json::Value;
 use tei_xml::emit_xml as emit_document_xml;
-
-const _: fn() -> PythonModuleState = python_state;
 
 fn assert_document_title(state: &PythonModuleState, expected: &str) -> Result<()> {
     with_python(|py| {

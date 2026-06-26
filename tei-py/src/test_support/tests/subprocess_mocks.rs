@@ -5,7 +5,7 @@
 //! import-state mutations contained during those assertions.
 
 use pyo3::{
-    Bound, Py, Python, pyclass, pymethods,
+    Bound, Py, PyResult, Python, pyclass, pymethods,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
 use std::{
@@ -44,7 +44,7 @@ pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
     }
 }
 
-fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) {
+fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResult<()> {
     // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker if
     // one was installed. The blocker removal is a no-op for callers that never
     // installed it (e.g. the `run_with_kwargs` tests).
@@ -55,8 +55,14 @@ import sys
 import importlib.metadata
 
 subprocess.run = _original_run
-importlib.metadata.version = _original_metadata_version
 _calls = []
+
+try:
+    _original_metadata_version
+except NameError:
+    pass
+else:
+    importlib.metadata.version = _original_metadata_version
 
 try:
     sys.meta_path.remove(_bootstrap_msgspec_blocker)
@@ -75,7 +81,24 @@ else:
 "#,
     )
     .expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None).ok();
+    py.run(restore.as_c_str(), Some(globals), None)
+}
+
+fn report_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {
+    if std::thread::panicking() {
+        if let Ok(stderr) = py.import("sys").and_then(|sys| sys.getattr("stderr")) {
+            stderr
+                .call_method1(
+                    "write",
+                    (format!(
+                        "failed to restore subprocess.run monkeypatch: {error}\n"
+                    ),),
+                )
+                .ok();
+        }
+    } else {
+        panic!("failed to restore subprocess.run monkeypatch: {error}");
+    }
 }
 
 pub(super) struct SubprocessRestoreGuard<'py> {
@@ -91,7 +114,9 @@ impl<'py> SubprocessRestoreGuard<'py> {
 
 impl Drop for SubprocessRestoreGuard<'_> {
     fn drop(&mut self) {
-        restore_subprocess_run(self.py, &self.globals);
+        if let Err(error) = restore_subprocess_run(self.py, &self.globals) {
+            report_restore_failure(self.py, &error);
+        }
     }
 }
 
@@ -107,7 +132,11 @@ impl BootstrapRestoreGuard {
 
 impl Drop for BootstrapRestoreGuard {
     fn drop(&mut self) {
-        Python::attach(|py| restore_subprocess_run(py, self.globals.bind(py)));
+        Python::attach(|py| {
+            if let Err(error) = restore_subprocess_run(py, self.globals.bind(py)) {
+                report_restore_failure(py, &error);
+            }
+        });
     }
 }
 

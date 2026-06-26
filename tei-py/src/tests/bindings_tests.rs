@@ -47,10 +47,6 @@ fn registered_module(py: Python<'_>) -> Bound<'_, PyModule> {
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
-    if !ensure_msgspec_available() {
-        return;
-    }
-
     with_python(|py| {
         let module = registered_module(py);
 
@@ -67,9 +63,10 @@ fn to_dict_rejects_non_document_inputs() {
 
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
-    if !ensure_msgspec_available() {
-        return;
-    }
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for spoken text struct tests"
+    );
 
     with_python(|py| {
         let module = registered_module(py);
@@ -129,9 +126,10 @@ fn spoken_text_segments_return_msgspec_structs() {
 
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
-    if !ensure_msgspec_available() {
-        return;
-    }
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for missing structs-module test"
+    );
 
     with_python(|py| {
         let sys_modules = py

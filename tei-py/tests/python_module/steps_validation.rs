@@ -6,8 +6,6 @@ use pyo3::types::PyAnyMethods;
 use rstest_bdd_macros::{scenario, then, when};
 use tei_py::test_support::with_python;
 
-const _: fn() -> PythonModuleState = python_state;
-
 #[when("I validate the constructed Document")]
 pub(super) fn i_validate_the_document(
     #[from(python_state)] state: &PythonModuleState,

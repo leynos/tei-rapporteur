@@ -9,5 +9,7 @@ pub(crate) fn register_tei_rapporteur_module_for_tests(
     py_context: Python<'_>,
     py_module: &Bound<'_, PyModule>,
 ) -> PyResult<()> {
+    let _registration_guard =
+        crate::test_support::lock_python_module_registration_attached_for_tests(py_context);
     crate::bindings::py_exports::register_tei_rapporteur_module(py_context, py_module)
 }

@@ -157,9 +157,10 @@ fn streaming_event_discriminators_remain_aligned() {
 
 #[test]
 fn streaming_events_decode_into_python_event_union() {
-    if !ensure_msgspec_available() {
-        return;
-    }
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for streaming event union decoding"
+    );
 
     with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");

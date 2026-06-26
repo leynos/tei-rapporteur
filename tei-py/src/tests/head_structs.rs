@@ -11,30 +11,26 @@ use pyo3::{
 use rstest::fixture;
 
 #[fixture]
-fn registered_module() -> Option<Py<PyModule>> {
-    if !ensure_msgspec_available() {
-        return None;
-    }
+fn registered_module() -> Py<PyModule> {
+    assert!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for Head struct tests"
+    );
 
     with_python(|py| {
-        if py.import("msgspec").is_err() {
-            return None;
-        }
+        py.import("msgspec")
+            .expect("msgspec should import after bootstrap");
 
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
-        Some(module.unbind())
+        module.unbind()
     })
 }
 
 #[rstest::rstest]
-fn head_rejects_empty_content(#[from(registered_module)] module: Option<Py<PyModule>>) {
-    let Some(registered_module) = module else {
-        return;
-    };
-
+fn head_rejects_empty_content(#[from(registered_module)] module: Py<PyModule>) {
     with_python(|py| {
-        let bound_module = registered_module.bind(py);
+        let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let head_type = structs.getattr("Head").expect("Head class");
 
