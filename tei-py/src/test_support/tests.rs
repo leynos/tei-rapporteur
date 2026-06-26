@@ -233,15 +233,23 @@ fn ensure_msgspec_available_public_wrapper_smoke_test() {
 
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
-    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
+    let run_count = Arc::new(AtomicUsize::new(0));
+    let globals = with_python(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
+    let restore_guard = BootstrapRestoreGuard::new(with_python(|py| globals.clone_ref(py)));
 
+    // Same-thread `Python::attach` calls in lock-held helpers stay direct, but
+    // spawned threads do not inherit that guard and must use `with_python`.
     let handles: Vec<_> = (0..8)
-        .map(|_| thread::spawn(move || Python::attach(ensure_msgspec_installed)))
+        .map(|_| thread::spawn(move || with_python(ensure_msgspec_installed)))
         .collect();
-    for handle in handles {
-        assert!(handle.join().expect("bootstrap thread panicked").is_ok());
-    }
+    let results: Vec<_> = handles.into_iter().map(thread::JoinHandle::join).collect();
 
+    let _import_state_lock = python_import_state_lock();
+    drop(restore_guard);
+
+    for result in results {
+        assert!(result.expect("bootstrap thread panicked").is_ok());
+    }
     assert_bootstrap_once(&run_count);
 }
 
