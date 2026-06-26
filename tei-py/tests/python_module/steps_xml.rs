@@ -8,8 +8,6 @@ use tei_core::TeiDocument;
 use tei_py::test_support::with_python;
 use tei_xml::emit_xml as emit_document_xml;
 
-const _: fn() -> PythonModuleState = python_state;
-
 #[given("I provide TEI XML titled \"{title}\"")]
 pub(super) fn i_provide_tei_xml_titled(
     #[from(python_state)] state: &PythonModuleState,

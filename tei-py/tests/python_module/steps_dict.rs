@@ -12,8 +12,6 @@ use tei_serde::serde_json::json;
 use tei_py::projection::document_to_value;
 use tei_py::test_support::with_python;
 
-const _: fn() -> PythonModuleState = python_state;
-
 #[given("I provide a dictionary payload titled \"{title}\"")]
 pub(super) fn i_provide_a_dictionary_payload(
     #[from(python_state)] state: &PythonModuleState,

@@ -9,8 +9,6 @@ use tei_py::test_support::with_python;
 use tei_serde::msgpack::to_vec_named;
 use tei_serde::serde_json::json;
 
-const _: fn() -> PythonModuleState = python_state;
-
 #[given("I encode a MessagePack document titled \"{title}\"")]
 pub(super) fn i_encode_a_messagepack_document(
     #[from(python_state)] state: &PythonModuleState,

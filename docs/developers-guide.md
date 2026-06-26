@@ -114,11 +114,12 @@ needed by the crate.
 
 The `test-support` feature enables the `test_support` module, which provides
 `msgspec` bootstrapping, the process-wide Python import-state lock, and the
-`with_python` synchronisation helper used by unit and BDD integration tests. It
-is included in `default` features so that `cargo test` activates it
-automatically. Wheel builds pass `--no-default-features` and must not activate
-`test-support`; doing so would link test infrastructure into the production
-extension module.
+`with_python` synchronisation helper used by unit and BDD integration tests.
+The feature is opt-in: integration test targets that import
+`tei_py::test_support` must run with `--features test-support` or declare
+`required-features = ["test-support"]`. Wheel builds pass
+`--no-default-features` and must not activate `test-support`; doing so would
+link test infrastructure into the production extension module.
 
 ## Tei-py UI compile tests
 
