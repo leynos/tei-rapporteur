@@ -11,7 +11,7 @@ use rstest::fixture;
 use std::cell::RefCell;
 use tei_py::{
     tei_rapporteur,
-    test_support::{ensure_msgspec_available, with_python},
+    test_support::{bootstrap_msgspec, with_python},
 };
 use tei_serde::json::Value;
 
@@ -191,7 +191,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
     // Scenarios that require typed structs use fallback assertions when the
     // optional Python dependency cannot be bootstrapped.
-    let _msgspec_available = ensure_msgspec_available();
+    let _msgspec_bootstrapped = bootstrap_msgspec();
 
     with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur")?;

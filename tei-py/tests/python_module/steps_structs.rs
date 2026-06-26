@@ -6,7 +6,7 @@ use pyo3::{Bound, prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
 use tei_core::{FileDesc, TeiDocument, TeiHeader};
 use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::{ensure_msgspec_available, with_python};
+use tei_py::test_support::{bootstrap_msgspec, with_python};
 use tei_serde::msgpack::{from_slice, to_vec_named};
 
 fn retitle_document(document: &TeiDocument, title: &str) -> Result<TeiDocument> {
@@ -71,7 +71,7 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !ensure_msgspec_available() {
+    if !bootstrap_msgspec() {
         let projection: PyTeiDocument =
             from_slice(&payload).context("fallback decoding MessagePack document")?;
         let document: TeiDocument = TeiDocument::try_from(projection)
@@ -119,7 +119,7 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     let payload = state.msgpack_payload()?;
 
     anyhow::ensure!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for Episode decoding tests"
     );
 

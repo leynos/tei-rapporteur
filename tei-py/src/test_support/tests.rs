@@ -16,7 +16,7 @@ use self::subprocess_mocks::{
 use super::{
     bootstrap::{ensure_msgspec_installed, install_msgspec},
     bootstrap::{has_uv, run_with_kwargs},
-    ensure_msgspec_available, python_import_state_lock, with_python,
+    bootstrap_msgspec, python_import_state_lock, with_python,
 };
 use pyo3::{
     Py, Python,
@@ -190,7 +190,7 @@ fn assert_bootstrap_once(run_count: &AtomicUsize) {
     );
 }
 
-fn ensure_msgspec_available_unlocked() -> bool {
+fn bootstrap_msgspec_unlocked() -> bool {
     Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
 
@@ -211,12 +211,12 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 }
 
 #[test]
-fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
+fn bootstrap_msgspec_reports_true_only_when_msgspec_is_importable() {
     let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
 
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
-    let reported_available = ensure_msgspec_available_unlocked();
+    let reported_available = bootstrap_msgspec_unlocked();
     let importable_after_check = Python::attach(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);
@@ -224,8 +224,8 @@ fn ensure_msgspec_available_reports_true_only_when_msgspec_is_importable() {
 }
 
 #[test]
-fn ensure_msgspec_available_public_wrapper_smoke_test() {
-    let reported_available = ensure_msgspec_available();
+fn bootstrap_msgspec_public_wrapper_smoke_test() {
+    let reported_available = bootstrap_msgspec();
     let importable_after_check = with_python(|py| py.import("msgspec").is_ok());
 
     assert_eq!(reported_available, importable_after_check);

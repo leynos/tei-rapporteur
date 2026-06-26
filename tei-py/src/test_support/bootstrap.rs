@@ -187,14 +187,14 @@ pub(super) fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     }
 }
 
-/// Ensures `msgspec` is available to the embedded interpreter, running a
-/// best-effort bootstrap if it is not already importable.
+/// Bootstraps `msgspec` for the embedded interpreter when it is not already
+/// importable.
 ///
 /// Returns `true` only when importing succeeds after the bootstrap attempt.
-/// The function attaches to the Python interpreter through the shared
-/// import-state lock; callers must not hold the GIL or that lock when calling
-/// it.
+/// This helper may run subprocess installers and mutate Python import state,
+/// so it attaches to the Python interpreter through the shared import-state
+/// lock; callers must not hold the GIL or that lock when calling it.
 #[must_use]
-pub fn ensure_msgspec_available() -> bool {
+pub fn bootstrap_msgspec() -> bool {
     super::with_python(|py| ensure_msgspec_installed(py).is_ok())
 }

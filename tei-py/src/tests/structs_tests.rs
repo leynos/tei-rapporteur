@@ -1,7 +1,7 @@
 //! Unit tests validating the `tei_rapporteur.structs` submodule registration
 //! and `MessagePack` round-trip through Python `msgspec.Struct` projections.
 use super::*;
-use crate::test_support::{ensure_msgspec_available, with_python};
+use crate::test_support::{bootstrap_msgspec, with_python};
 use pyo3::{
     Py, Python,
     exceptions::{PyAttributeError, PyValueError},
@@ -44,7 +44,7 @@ impl Drop for RestoreImportsGuard<'_> {
 #[fixture]
 fn registered_module() -> Py<PyModule> {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for structs module tests"
     );
 

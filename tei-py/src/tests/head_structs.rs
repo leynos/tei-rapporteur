@@ -2,7 +2,7 @@
 //! submodule.
 
 use super::*;
-use crate::test_support::{ensure_msgspec_available, with_python};
+use crate::test_support::{bootstrap_msgspec, with_python};
 use pyo3::{
     Py,
     exceptions::PyValueError,
@@ -13,7 +13,7 @@ use rstest::fixture;
 #[fixture]
 fn registered_module() -> Py<PyModule> {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for Head struct tests"
     );
 

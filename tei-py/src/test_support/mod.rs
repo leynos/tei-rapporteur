@@ -7,7 +7,7 @@
 
 mod bootstrap;
 
-pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
+pub use bootstrap::{RunWithKwargsArgs, bootstrap_msgspec, run_with_kwargs};
 
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::TryLockError;

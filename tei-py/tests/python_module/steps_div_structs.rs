@@ -10,7 +10,7 @@ use super::steps_structs::decode_episode;
 use anyhow::{Context, Result, ensure};
 use pyo3::{Bound, prelude::*};
 use rstest_bdd_macros::{scenario, then};
-use tei_py::test_support::{ensure_msgspec_available, with_python};
+use tei_py::test_support::{bootstrap_msgspec, with_python};
 
 fn first_inline_text(any: &Bound<'_, PyAny>) -> Result<String> {
     any.getattr("content")
@@ -171,7 +171,7 @@ pub(super) fn the_div_blocks_are_preserved(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
     ensure!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for Episode div round-trip tests"
     );
 

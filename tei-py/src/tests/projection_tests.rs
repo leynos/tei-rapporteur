@@ -4,7 +4,7 @@ use crate::{
     projection::{
         ProjectionError, PyInline, document_to_value, py_event_from_core, value_to_document,
     },
-    test_support::{ensure_msgspec_available, with_python},
+    test_support::{bootstrap_msgspec, with_python},
 };
 use pyo3::{types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
@@ -158,7 +158,7 @@ fn streaming_event_discriminators_remain_aligned() {
 #[test]
 fn streaming_events_decode_into_python_event_union() {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for streaming event union decoding"
     );
 

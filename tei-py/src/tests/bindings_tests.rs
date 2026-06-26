@@ -1,6 +1,6 @@
 //! Integration-style tests for the `PyO3` bindings that require module wiring.
 
-use crate::test_support::{ensure_msgspec_available, with_python};
+use crate::test_support::{bootstrap_msgspec, with_python};
 use pyo3::types::{PyAnyMethods, PyList};
 use pyo3::{Bound, PyResult, Python, exceptions::PyKeyError, types::PyModule};
 
@@ -96,7 +96,7 @@ fn to_dict_rejects_non_document_inputs() {
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for spoken text struct tests"
     );
 
@@ -159,7 +159,7 @@ fn spoken_text_segments_return_msgspec_structs() {
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for missing structs-module test"
     );
 

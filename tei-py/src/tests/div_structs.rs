@@ -1,7 +1,7 @@
 //! Tests covering Python `msgspec.Struct` support for division body blocks.
 
 use super::*;
-use crate::test_support::{ensure_msgspec_available, with_python};
+use crate::test_support::{bootstrap_msgspec, with_python};
 use pyo3::types::{PyAnyMethods, PyDict, PyModule};
 use tei_core::{BodyBlock, Div, Head, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
 use tei_serde::msgpack::to_vec_named;
@@ -56,7 +56,7 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 #[test]
 fn episode_struct_decodes_div_blocks() {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for div struct decoding"
     );
 
@@ -128,7 +128,7 @@ fn episode_struct_decodes_div_blocks() {
 #[test]
 fn streaming_div_events_decode_into_python_union() {
     assert!(
-        ensure_msgspec_available(),
+        bootstrap_msgspec(),
         "msgspec bootstrap should succeed for div event decoding"
     );
 

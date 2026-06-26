@@ -196,11 +196,13 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_available` and `with_python` are documented public exports
-from this module. They are thread-safe: `ensure_msgspec_available` delegates to
+Only `bootstrap_msgspec` and `with_python` are documented public exports
+from this module. They are thread-safe: `bootstrap_msgspec` delegates to
 the `Once`-guarded bootstrap while attached to the Python interpreter through
-the shared import-state lock, and `with_python` acquires the same lock before
-calling `Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
+the shared import-state lock. It may run subprocess installers and mutate
+Python import state, so treat it as a bootstrap command rather than a pure
+availability query. `with_python` acquires the same lock before calling
+`Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
 hidden-public bootstrap helpers: the `msgspec` installer path uses them to call
 `subprocess.run`, and UI compile tests use them to lock down the crate-owned
 argument diagnostic.
