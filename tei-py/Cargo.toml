@@ -39,5 +39,10 @@ trybuild = "1"
 pyo3-build-config = { version = "0.28.3", features = ["resolve-config"] }
 
 [[test]]
+name = "python_module"
+path = "tests/python_module.rs"
+required-features = ["test-support"]
+
+[[test]]
 name = "ui"
 required-features = ["test-support"]
