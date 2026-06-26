@@ -89,6 +89,8 @@ fn structs_submodule_is_not_registered_when_msgspec_missing() {
 import sys
 
 _orig_meta_path_structs_test = list(sys.meta_path)
+_orig_msgspec_structs_missing = object()
+_orig_msgspec_structs_test = sys.modules.get("msgspec", _orig_msgspec_structs_missing)
 
 class _BlockMsgspecImport:
     def find_spec(self, fullname, path=None, target=None):
@@ -119,7 +121,11 @@ except ValueError:
 if "_orig_meta_path_structs_test" in globals():
     sys.meta_path = _orig_meta_path_structs_test
 
-sys.modules.pop("msgspec", None)
+if "_orig_msgspec_structs_test" in globals():
+    if _orig_msgspec_structs_test is _orig_msgspec_structs_missing:
+        sys.modules.pop("msgspec", None)
+    else:
+        sys.modules["msgspec"] = _orig_msgspec_structs_test
 "#,
         )
         .expect("inline Python should be valid");

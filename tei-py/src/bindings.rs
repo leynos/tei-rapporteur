@@ -350,7 +350,7 @@ pub(crate) mod py_exports {
     /// interpreter rejects one of the additions.
     #[pymodule]
     pub fn tei_rapporteur(py_context: Python<'_>, py_module: &Bound<'_, PyModule>) -> PyResult<()> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         let _registration_guard =
             crate::test_support::lock_python_module_registration_attached_for_tests(py_context);
 

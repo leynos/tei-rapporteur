@@ -10,10 +10,7 @@ use super::steps_structs::decode_episode;
 use anyhow::{Context, Result, ensure};
 use pyo3::{Bound, prelude::*};
 use rstest_bdd_macros::{scenario, then};
-use tei_core::{BodyBlock, DivContent, Inline, TeiDocument};
-use tei_py::projection::PyTeiDocument;
 use tei_py::test_support::{ensure_msgspec_available, with_python};
-use tei_serde::msgpack::from_slice;
 
 fn first_inline_text(any: &Bound<'_, PyAny>) -> Result<String> {
     any.getattr("content")
@@ -168,124 +165,15 @@ fn assert_decoded_div_blocks(module: &Bound<'_, PyAny>, episode: &Bound<'_, PyAn
     assert_decoded_list_item(&list_block, &types)
 }
 
-fn core_inline_text(content: &[Inline]) -> Result<&str> {
-    match content
-        .first()
-        .context("content should include inline text")?
-    {
-        Inline::Text(value) => Ok(value.as_str()),
-        _ => anyhow::bail!("expected first inline node to be text"),
-    }
-}
-
-fn root_div(document: &TeiDocument) -> Result<&tei_core::Div> {
-    let block = document
-        .text()
-        .body()
-        .blocks()
-        .first()
-        .context("document should contain a body block")?;
-
-    match block {
-        BodyBlock::Div(div) => Ok(div),
-        _ => anyhow::bail!("top-level body block should be a division"),
-    }
-}
-
-fn nested_div(div: &tei_core::Div) -> Result<&tei_core::Div> {
-    match div
-        .content()
-        .get(1)
-        .context("document should contain a nested division")?
-    {
-        DivContent::Div(d) => Ok(d),
-        _ => anyhow::bail!("second division content item should be a nested division"),
-    }
-}
-
-fn nested_list(div: &tei_core::Div) -> Result<&tei_core::List> {
-    match div
-        .content()
-        .first()
-        .context("nested division should contain a list")?
-    {
-        DivContent::List(l) => Ok(l),
-        _ => anyhow::bail!("nested division content should be a list"),
-    }
-}
-
-fn assert_core_root_div(div: &tei_core::Div) -> Result<()> {
-    ensure!(
-        div.div_type() == "show-notes",
-        "division type should survive"
-    );
-    ensure!(
-        div.subtype() == Some("chapter-markers"),
-        "division subtype should survive"
-    );
-    ensure!(
-        div.head()
-            .map(|head| core_inline_text(head.content()))
-            .transpose()?
-            == Some("Chapter markers"),
-        "division head should survive"
-    );
-    Ok(())
-}
-
-fn assert_core_nested_div(nested_div: &tei_core::Div) -> Result<()> {
-    ensure!(
-        nested_div
-            .head()
-            .map(|head| core_inline_text(head.content()))
-            .transpose()?
-            == Some("Guest bios"),
-        "nested division head should survive"
-    );
-    Ok(())
-}
-
-fn assert_core_list(list: &tei_core::List) -> Result<()> {
-    let item = list
-        .items()
-        .first()
-        .context("list should contain an item")?;
-    ensure!(
-        item.label()
-            .map(|label| core_inline_text(label.content()))
-            .transpose()?
-            == Some("1."),
-        "list item label should survive"
-    );
-    ensure!(
-        core_inline_text(item.content())? == "Transcript",
-        "list item content should survive"
-    );
-
-    Ok(())
-}
-
-fn assert_core_div_blocks(document: &TeiDocument) -> Result<()> {
-    let div = root_div(document)?;
-    assert_core_root_div(div)?;
-
-    let child_div = nested_div(div)?;
-    assert_core_nested_div(child_div)?;
-    assert_core_list(nested_list(child_div)?)
-}
-
 #[then("the DivBlock, nested DivBlock, ListBlock, Item, and Label text are preserved")]
 pub(super) fn the_div_blocks_are_preserved(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
-    if !ensure_msgspec_available() {
-        let projection: PyTeiDocument =
-            from_slice(&payload).context("fallback decoding MessagePack document")?;
-        let document: TeiDocument = TeiDocument::try_from(projection)
-            .context("projection should convert to TeiDocument")?;
-        return assert_core_div_blocks(&document);
-    }
+    ensure!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for Episode div round-trip tests"
+    );
 
     with_python(|py| {
         state.with_module(py, |module| {

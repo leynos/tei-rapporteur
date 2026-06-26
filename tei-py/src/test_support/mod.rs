@@ -9,14 +9,14 @@ mod bootstrap;
 
 pub use bootstrap::{RunWithKwargsArgs, ensure_msgspec_available, run_with_kwargs};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 use std::sync::TryLockError;
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::{Mutex, MutexGuard};
 
 #[cfg(any(test, feature = "test-support"))]
 static PYTHON_IMPORT_STATE_LOCK: Mutex<()> = Mutex::new(());
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 static PYTHON_MODULE_REGISTRATION_LOCK: Mutex<()> = Mutex::new(());
 
 /// Returns an RAII guard that serializes all operations touching the embedded
@@ -32,7 +32,7 @@ pub(super) fn python_import_state_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 fn lock_attached_for_tests(
     py: pyo3::Python<'_>,
     mutex: &'static Mutex<()>,
@@ -48,7 +48,7 @@ fn lock_attached_for_tests(
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn lock_python_module_registration_attached_for_tests(
     py: pyo3::Python<'_>,
 ) -> MutexGuard<'static, ()> {

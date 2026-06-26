@@ -271,7 +271,10 @@ pub(super) fn the_div_structure_is_preserved(
 }
 
 /// Scenario: Decode a `Document` from a dictionary payload.
-#[scenario(path = "tests/features/python_module.feature", index = 13)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Decode a Document from a dictionary payload"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
@@ -279,31 +282,43 @@ pub(super) fn the_div_structure_is_preserved(
 pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {}
 
 /// Scenario: Reject dictionary payloads missing required fields.
-#[scenario(path = "tests/features/python_module.feature", index = 14)]
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject dictionary payloads missing required fields"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn rejects_incomplete_dictionary_payloads(python_state: PythonModuleState) {}
 
-/// Scenario: Reject dictionary payloads with invalid titles.
-#[scenario(path = "tests/features/python_module.feature", index = 15)]
+/// Scenario: Reject dictionary payloads with blank titles.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject dictionary payloads with blank titles"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn rejects_blank_titles_in_dictionary_payloads(python_state: PythonModuleState) {}
 
-/// Scenario: Encode a constructed `Document` to a dictionary.
-#[scenario(path = "tests/features/python_module.feature", index = 16)]
+/// Scenario: Encode a `Document` to a dictionary payload.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Encode a Document to a dictionary payload"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"
 )]
 pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {}
 
-/// Scenario: Surface errors when `to_dict` is called without a `Document`.
-#[scenario(path = "tests/features/python_module.feature", index = 17)]
+/// Scenario: Reject `to_dict` when a `Document` is not provided.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject to_dict when a Document is not provided"
+)]
 #[expect(
     unused_variables,
     reason = "rstest-bdd matches scenario fixtures by parameter name"

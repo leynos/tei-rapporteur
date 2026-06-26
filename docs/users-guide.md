@@ -190,10 +190,12 @@ body_block = episode.text.body.blocks[0]
 if isinstance(body_block, DivBlock):
     print(body_block.div_type)
     for child in body_block.content:
-        if isinstance(child, ListBlock):
-            first_item = child.items[0]
-            if isinstance(first_item, Item) and isinstance(first_item.label, Label):
-                print(first_item.label.content[0].value)
+        if isinstance(child, DivBlock):
+            for nested in child.content:
+                if isinstance(nested, ListBlock):
+                    first_item = nested.items[0]
+                    if isinstance(first_item, Item) and isinstance(first_item.label, Label):
+                        print(first_item.label.content[0].value)
 ```
 
 Citation metadata is split along TEI-native boundaries. Canonical citation
