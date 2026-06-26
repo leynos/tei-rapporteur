@@ -2,7 +2,33 @@
 
 use crate::test_support::{ensure_msgspec_available, with_python};
 use pyo3::types::{PyAnyMethods, PyList};
-use pyo3::{Bound, Python, types::PyModule};
+use pyo3::{Bound, PyResult, Python, exceptions::PyKeyError, types::PyModule};
+
+fn report_import_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {
+    if std::thread::panicking() {
+        if let Ok(stderr) = py.import("sys").and_then(|sys| sys.getattr("stderr")) {
+            stderr
+                .call_method1(
+                    "write",
+                    (format!(
+                        "failed to restore tei_rapporteur.structs module: {error}\n"
+                    ),),
+                )
+                .ok();
+        }
+        return;
+    }
+
+    panic!("failed to restore tei_rapporteur.structs module: {error}");
+}
+
+fn ignore_missing_structs_module(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {
+    if error.is_instance_of::<PyKeyError>(py) {
+        Ok(())
+    } else {
+        Err(error)
+    }
+}
 
 /// Restores `sys.modules["tei_rapporteur.structs"]` on drop so a test that
 /// deletes it cannot leak that mutation into other in-process tests, even on
@@ -28,12 +54,18 @@ impl<'py> RestoreStructs<'py> {
 
 impl Drop for RestoreStructs<'_> {
     fn drop(&mut self) {
-        if let Some(previous) = self.previous.take() {
+        let py = self.sys_modules.py();
+        let restore_result = if let Some(previous) = self.previous.take() {
             self.sys_modules
                 .set_item("tei_rapporteur.structs", previous)
-                .ok();
         } else {
-            self.sys_modules.del_item("tei_rapporteur.structs").ok();
+            self.sys_modules
+                .del_item("tei_rapporteur.structs")
+                .or_else(|error| ignore_missing_structs_module(py, error))
+        };
+
+        if let Err(error) = restore_result {
+            report_import_restore_failure(py, &error);
         }
     }
 }

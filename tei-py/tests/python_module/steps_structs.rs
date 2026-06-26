@@ -118,13 +118,10 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !ensure_msgspec_available() {
-        if let Err(error) = from_slice::<PyTeiDocument>(&payload) {
-            state.store_error(error.to_string());
-        }
-
-        return Ok(());
-    }
+    anyhow::ensure!(
+        ensure_msgspec_available(),
+        "msgspec bootstrap should succeed for Episode decoding tests"
+    );
 
     with_python(|py| {
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {

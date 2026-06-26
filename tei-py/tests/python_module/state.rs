@@ -160,6 +160,13 @@ impl PythonModuleState {
     }
 }
 
+#[cfg_attr(
+    not(feature = "test-support"),
+    expect(
+        dead_code,
+        reason = "rstest-bdd resolves this fixture by parameter name"
+    )
+)]
 #[fixture]
 pub(super) fn python_state() -> PythonModuleState {
     PythonModuleState::default()
