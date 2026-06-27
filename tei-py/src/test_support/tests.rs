@@ -194,6 +194,20 @@ fn bootstrap_msgspec_unlocked() -> bool {
     Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
 
+fn force_msgspec_bootstrap_path(globals: &Py<PyDict>) {
+    Python::attach(|py| {
+        let patch = CString::new(concat!(
+            "import sys\n",
+            "sys.modules.pop('msgspec', None)\n",
+            "if _bootstrap_msgspec_blocker not in sys.meta_path:\n",
+            "    sys.meta_path.insert(0, _bootstrap_msgspec_blocker)\n",
+        ))
+        .expect("CString build");
+        py.run(patch.as_c_str(), Some(globals.bind(py)), None)
+            .expect("force msgspec bootstrap path");
+    });
+}
+
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
     let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
@@ -208,6 +222,33 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
     );
 
     assert_bootstrap_once(&run_count);
+}
+
+#[test]
+fn mocked_bootstrap_scopes_reset_one_shot_state() {
+    {
+        let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+        force_msgspec_bootstrap_path(&globals);
+
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
+        assert!(
+            run_count.load(Ordering::SeqCst) > 0,
+            "first mocked scope should run bootstrap subprocesses"
+        );
+        assert_bootstrap_once(&run_count);
+    }
+
+    {
+        let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+        force_msgspec_bootstrap_path(&globals);
+
+        assert!(Python::attach(ensure_msgspec_installed).is_ok());
+        assert!(
+            run_count.load(Ordering::SeqCst) > 0,
+            "second mocked scope should run after reset"
+        );
+        assert_bootstrap_once(&run_count);
+    }
 }
 
 #[test]

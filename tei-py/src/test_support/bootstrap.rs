@@ -6,12 +6,16 @@
 //! `msgspec` available without duplicating subprocess, version, or import-state
 //! checks in individual tests.
 
+#[cfg(not(test))]
+use pyo3::sync::OnceExt;
 use pyo3::{
     Bound, PyResult, Python,
     exceptions::PyImportError,
-    sync::OnceExt,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
+#[cfg(test)]
+use std::sync::Mutex;
+#[cfg(not(test))]
 use std::sync::Once;
 
 const MSGSPEC_REQUIREMENT: &str = "msgspec>=0.19,<0.20";
@@ -25,7 +29,10 @@ const PIP_COMMON_FLAGS: [&str; 6] = [
 ];
 const UV_COMMON_FLAGS: [&str; 1] = ["--quiet"];
 
+#[cfg(not(test))]
 static MSGSPEC_INIT: Once = Once::new();
+#[cfg(test)]
+static MSGSPEC_INIT: Mutex<bool> = Mutex::new(false);
 
 /// Crate-owned wrapper for Python call argument diagnostics.
 ///
@@ -155,6 +162,33 @@ fn msgspec_satisfies_requirement(py: Python<'_>) -> bool {
         .is_ok_and(|version| version.starts_with("0.19."))
         && py.import("msgspec").is_ok()
 }
+
+#[cfg(not(test))]
+fn bootstrap_msgspec_once(py: Python<'_>) {
+    MSGSPEC_INIT.call_once_py_attached(py, || {
+        try_install_msgspec(py);
+    });
+}
+
+#[cfg(test)]
+fn bootstrap_msgspec_once(py: Python<'_>) {
+    let mut initialized = MSGSPEC_INIT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if !*initialized {
+        try_install_msgspec(py);
+        *initialized = true;
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn reset_msgspec_bootstrap_for_tests() {
+    let mut initialized = MSGSPEC_INIT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *initialized = false;
+}
+
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
 /// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
@@ -176,9 +210,7 @@ pub(super) fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
         return Ok(());
     }
 
-    MSGSPEC_INIT.call_once_py_attached(py, || {
-        try_install_msgspec(py);
-    });
+    bootstrap_msgspec_once(py);
 
     if msgspec_satisfies_requirement(py) {
         Ok(())

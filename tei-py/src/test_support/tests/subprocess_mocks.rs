@@ -4,6 +4,7 @@
 //! Python mocks and RAII guards that keep process-wide subprocess and
 //! import-state mutations contained during those assertions.
 
+use super::super::bootstrap::reset_msgspec_bootstrap_for_tests;
 use pyo3::{
     Bound, Py, PyResult, Python, pyclass, pymethods,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
@@ -133,11 +134,12 @@ impl BootstrapRestoreGuard {
 
 impl Drop for BootstrapRestoreGuard {
     fn drop(&mut self) {
-        Python::attach(|py| {
-            if let Err(error) = restore_subprocess_run(py, self.globals.bind(py)) {
-                report_restore_failure(py, &error);
-            }
-        });
+        Python::attach(
+            |py| match restore_subprocess_run(py, self.globals.bind(py)) {
+                Ok(()) => reset_msgspec_bootstrap_for_tests(),
+                Err(error) => report_restore_failure(py, &error),
+            },
+        );
     }
 }
 
