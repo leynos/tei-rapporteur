@@ -4,42 +4,7 @@ use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
 use pyo3::{Bound, prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
-use tei_core::{FileDesc, TeiDocument, TeiHeader};
-use tei_py::projection::PyTeiDocument;
 use tei_py::test_support::{bootstrap_msgspec, with_python};
-use tei_serde::msgpack::{from_slice, to_vec_named};
-
-fn retitle_document(document: &TeiDocument, title: &str) -> Result<TeiDocument> {
-    let old_header = document.header().clone();
-    let old_file_desc = old_header.file_desc().clone();
-
-    let mut new_file_desc =
-        FileDesc::from_title_str(title).context("fallback title must be valid")?;
-
-    if let Some(series) = old_file_desc.series() {
-        new_file_desc = new_file_desc.with_series(series);
-    }
-
-    if let Some(synopsis) = old_file_desc.synopsis() {
-        new_file_desc = new_file_desc.with_synopsis(synopsis);
-    }
-
-    let mut header = TeiHeader::new(new_file_desc);
-
-    if let Some(profile) = old_header.profile_desc().cloned() {
-        header = header.with_profile_desc(profile);
-    }
-
-    if let Some(encoding) = old_header.encoding_desc().cloned() {
-        header = header.with_encoding_desc(encoding);
-    }
-
-    if let Some(revision) = old_header.revision_desc().cloned() {
-        header = header.with_revision_desc(revision);
-    }
-
-    Ok(TeiDocument::new(header, document.text().clone()))
-}
 
 pub(super) fn decode_episode<'py>(
     py: Python<'py>,
@@ -71,18 +36,10 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !bootstrap_msgspec() {
-        let projection: PyTeiDocument =
-            from_slice(&payload).context("fallback decoding MessagePack document")?;
-        let document: TeiDocument = TeiDocument::try_from(projection)
-            .context("projection should convert to TeiDocument")?;
-        let retitled = retitle_document(&document, title.as_str())?;
-        let projection_updated = PyTeiDocument::from(&retitled);
-        let updated_payload =
-            to_vec_named(&projection_updated).context("fallback encoding updated document")?;
-        state.store_msgpack_payload(updated_payload);
-        return Ok(());
-    }
+    anyhow::ensure!(
+        bootstrap_msgspec(),
+        "msgspec bootstrap should succeed for Episode retitle tests"
+    );
 
     with_python(|py| {
         state.with_module(py, |module| {
