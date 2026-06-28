@@ -4,7 +4,7 @@ use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
 use pyo3::{Bound, prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
-use tei_py::test_support::{bootstrap_msgspec, with_python};
+use tei_py::test_support::{bootstrap_msgspec_attached, with_python};
 
 pub(super) fn decode_episode<'py>(
     py: Python<'py>,
@@ -36,12 +36,11 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    anyhow::ensure!(
-        bootstrap_msgspec(),
-        "msgspec bootstrap should succeed for Episode retitle tests"
-    );
-
     with_python(|py| {
+        anyhow::ensure!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for Episode retitle tests"
+        );
         state.with_module(py, |module| {
             let episode = match decode_episode(py, &module, &payload) {
                 Ok(value) => value,
@@ -75,12 +74,11 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    anyhow::ensure!(
-        bootstrap_msgspec(),
-        "msgspec bootstrap should succeed for Episode decoding tests"
-    );
-
     with_python(|py| {
+        anyhow::ensure!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for Episode decoding tests"
+        );
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {
             Ok(_) => Ok::<(), anyhow::Error>(()),
             Err(error) => {

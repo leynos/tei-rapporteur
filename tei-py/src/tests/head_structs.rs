@@ -2,7 +2,7 @@
 //! submodule.
 
 use super::*;
-use crate::test_support::{bootstrap_msgspec, with_python};
+use crate::test_support::{bootstrap_msgspec_attached, with_python};
 use pyo3::{
     Py,
     exceptions::PyValueError,
@@ -12,12 +12,11 @@ use rstest::fixture;
 
 #[fixture]
 fn registered_module() -> Py<PyModule> {
-    assert!(
-        bootstrap_msgspec(),
-        "msgspec bootstrap should succeed for Head struct tests"
-    );
-
     with_python(|py| {
+        assert!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for Head struct tests"
+        );
         py.import("msgspec")
             .expect("msgspec should import after bootstrap");
 

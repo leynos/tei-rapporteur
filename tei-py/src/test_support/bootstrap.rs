@@ -159,8 +159,58 @@ fn msgspec_satisfies_requirement(py: Python<'_>) -> bool {
     metadata
         .call_method1("version", ("msgspec",))
         .and_then(|version| version.extract::<String>())
-        .is_ok_and(|version| version.starts_with("0.19."))
+        .is_ok_and(|version| msgspec_version_satisfies_requirement(&version))
         && py.import("msgspec").is_ok()
+}
+
+pub(super) fn msgspec_version_satisfies_requirement(version: &str) -> bool {
+    let Some((release, suffix)) = pep440_release_segments(version) else {
+        return false;
+    };
+    if !is_allowed_pep440_suffix(suffix) {
+        return false;
+    }
+    compare_release(&release, &[0, 19]).is_ge() && compare_release(&release, &[0, 20]).is_lt()
+}
+
+fn pep440_release_segments(version: &str) -> Option<(Vec<u64>, &str)> {
+    let normalized = version
+        .trim()
+        .trim_start_matches(['v', 'V'])
+        .split_once('!')
+        .map_or_else(|| version.trim(), |(_, release)| release);
+    let release_end = normalized
+        .find(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
+        .unwrap_or(normalized.len());
+    let (release_text, suffix) = normalized.split_at(release_end);
+    let release = release_text.trim_matches('.');
+    let parts: Option<Vec<_>> = release
+        .split('.')
+        .map(|part| part.parse::<u64>().ok())
+        .collect();
+    parts
+        .filter(|segments| !segments.is_empty())
+        .map(|segments| (segments, suffix))
+}
+
+fn is_allowed_pep440_suffix(suffix: &str) -> bool {
+    suffix.is_empty()
+        || suffix.starts_with('+')
+        || suffix.starts_with(".post")
+        || suffix.starts_with("post")
+}
+
+fn compare_release(actual: &[u64], expected: &[u64]) -> std::cmp::Ordering {
+    let len = actual.len().max(expected.len());
+    for index in 0..len {
+        let actual_part = actual.get(index).copied().unwrap_or_default();
+        let expected_part = expected.get(index).copied().unwrap_or_default();
+        match actual_part.cmp(&expected_part) {
+            std::cmp::Ordering::Equal => {}
+            ordering => return ordering,
+        }
+    }
+    std::cmp::Ordering::Equal
 }
 
 #[cfg(not(test))]
@@ -217,6 +267,12 @@ pub(super) fn ensure_msgspec_installed(py: Python<'_>) -> PyResult<()> {
     } else {
         Err(PyImportError::new_err(MSGSPEC_REQUIREMENT))
     }
+}
+
+/// Bootstraps `msgspec` for callers that already hold the shared Python lock.
+#[must_use]
+pub fn bootstrap_msgspec_attached(py: Python<'_>) -> bool {
+    ensure_msgspec_installed(py).is_ok()
 }
 
 /// Bootstraps `msgspec` for the embedded interpreter when it is not already

@@ -15,7 +15,7 @@ use self::subprocess_mocks::{
 };
 use super::{
     bootstrap::{ensure_msgspec_installed, install_msgspec},
-    bootstrap::{has_uv, run_with_kwargs},
+    bootstrap::{has_uv, msgspec_version_satisfies_requirement, run_with_kwargs},
     bootstrap_msgspec, python_import_state_lock, with_python,
 };
 use pyo3::{
@@ -160,6 +160,23 @@ def _run(args, **kwargs):
             "pip"
         );
     });
+}
+
+#[rstest]
+#[case::minor_only("0.19", true)]
+#[case::patch_release("0.19.0", true)]
+#[case::patch_update("0.19.7", true)]
+#[case::local_version("0.19.0+local", true)]
+#[case::post_release("0.19.post1", true)]
+#[case::older_minor("0.18.9", false)]
+#[case::newer_minor("0.20.0", false)]
+#[case::release_candidate("0.19rc1", false)]
+#[case::dev_release("0.19.dev0", false)]
+fn msgspec_version_requirement_matches_declared_range(
+    #[case] version: &str,
+    #[case] expected: bool,
+) {
+    assert_eq!(msgspec_version_satisfies_requirement(version), expected);
 }
 
 fn setup_bootstrap_test_unlocked() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {

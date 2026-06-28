@@ -53,7 +53,6 @@ fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResu
         r#"
 import subprocess
 import sys
-import types
 import importlib.metadata
 
 subprocess.run = _original_run
@@ -77,7 +76,7 @@ except NameError:
     pass
 else:
     if _original_msgspec is _msgspec_missing:
-        sys.modules.setdefault("msgspec", types.ModuleType("msgspec"))
+        sys.modules.pop("msgspec", None)
     else:
         sys.modules["msgspec"] = _original_msgspec
 "#,
