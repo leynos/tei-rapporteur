@@ -174,11 +174,10 @@ pub(super) fn msgspec_version_satisfies_requirement(version: &str) -> bool {
 }
 
 fn pep440_release_segments(version: &str) -> Option<(Vec<u64>, &str)> {
-    let normalized = version
-        .trim()
-        .trim_start_matches(['v', 'V'])
+    let stripped = version.trim().trim_start_matches(['v', 'V']);
+    let normalized = stripped
         .split_once('!')
-        .map_or_else(|| version.trim(), |(_, release)| release);
+        .map_or(stripped, |(_, release)| release);
     let release_end = normalized
         .find(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
         .unwrap_or(normalized.len());

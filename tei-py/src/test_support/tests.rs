@@ -164,6 +164,7 @@ def _run(args, **kwargs):
 
 #[rstest]
 #[case::minor_only("0.19", true)]
+#[case::v_prefixed("v0.19", true)]
 #[case::patch_release("0.19.0", true)]
 #[case::patch_update("0.19.7", true)]
 #[case::local_version("0.19.0+local", true)]
