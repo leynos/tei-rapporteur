@@ -39,12 +39,24 @@ static MSGSPEC_INIT: Mutex<bool> = Mutex::new(false);
 /// This trait intentionally has no reuse strategy beyond `run_with_kwargs`.
 /// Its purpose is to anchor the compile-fail contract at a `tei-py` symbol so
 /// the committed trybuild snapshot is driven by this crate's
-/// `#[diagnostic::on_unimplemented]` text, not by PyO3's `PyCallArgs`
-/// diagnostic, which may change across PyO3 minor releases.
+/// `#[diagnostic::on_unimplemented]` text, not by `PyO3`'s `PyCallArgs`
+/// diagnostic, which may change across `PyO3` minor releases.
 ///
 /// The notes below are the source of the expected UI-test output. Keep them in
 /// sync with `tei-py/tests/ui/non_pycallargs_rejected.stderr`.
-#[doc(hidden)]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tei_py::test_support::RunWithKwargsArgs;
+///
+/// fn accepts_python_call_args<'py, A>(args: A)
+/// where
+///     A: RunWithKwargsArgs<'py>,
+/// {
+///     let _args = args;
+/// }
+/// ```
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be used as a Python `call` argument",
     note = "`PyCallArgs` is implemented for Rust tuples, `Bound<'py, PyTuple>` and `Py<PyTuple>`",
@@ -65,7 +77,28 @@ pub(super) fn has_uv(py: Python<'_>) -> bool {
         .is_some()
 }
 
-#[doc(hidden)]
+/// Calls a Python `subprocess.run` replacement with explicit keyword arguments.
+///
+/// The helper returns `true` when Python accepts and executes the call. It is
+/// used by the `msgspec` bootstrap tests to exercise the same argument shapes
+/// as the installer path while preserving `tei-py`'s custom compile-time
+/// diagnostics for unsupported call arguments.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use pyo3::{Python, types::PyDict};
+/// use tei_py::test_support::run_with_kwargs;
+///
+/// Python::attach(|py| {
+///     let subprocess = py.import("subprocess").expect("import subprocess");
+///     let run = subprocess.getattr("run").expect("get subprocess.run");
+///     let kwargs = PyDict::new(py);
+///     kwargs.set_item("check", true).expect("set check");
+///
+///     assert!(run_with_kwargs(&run, (("python", "--version"),), &kwargs));
+/// });
+/// ```
 pub fn run_with_kwargs<'py, A>(
     run: &Bound<'py, PyAny>,
     args: A,
