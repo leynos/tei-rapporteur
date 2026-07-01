@@ -5,14 +5,14 @@ into distinct phases, steps, and tasks. The plan follows an incremental
 approach, beginning with the core Rust library and progressively adding the
 Python interface and advanced features.
 
-## Phase 1: Core Rust Library Implementation
+## 1. Core Rust Library Implementation
 
 This phase establishes the foundational Rust crates, providing a robust,
 standalone library for parsing, manipulating, and emitting the profiled TEI P5
 subset. The primary outcome is a functional Rust API, independent of any Python
 integration.
 
-### Step 1.1: Project Scaffolding and Workspace Setup
+### 1.1. Project Scaffolding and Workspace Setup
 
 This step creates the monorepo structure that will house all crates and
 configuration, ensuring a clean separation of concerns from the outset.
@@ -27,7 +27,7 @@ configuration, ensuring a clean separation of concerns from the outset.
       `tei-core`).
 - [x] Set up the root `.gitignore` file to handle workspace and build artefacts.
 
-### Step 1.2: Core Data Model (`tei-core`)
+### 1.2. Core Data Model (`tei-core`)
 
 This step implements the canonical data structures in pure Rust, representing
 the TEI Episodic Profile as defined in the design document.
@@ -47,7 +47,7 @@ the TEI Episodic Profile as defined in the design document.
 - [x] Achieve 95% unit test coverage for all data model invariants and business
       logic within `tei-core`.
 
-### Step 1.3: XML Serialization and Deserialization (`tei-xml`)
+### 1.3. XML Serialization and Deserialization (`tei-xml`)
 
 This step provides the I/O functionality, enabling the conversion between
 in-memory Rust structs and TEI XML strings.
@@ -63,7 +63,7 @@ in-memory Rust structs and TEI XML strings.
 - [x] Ensure tests cover namespace handling and normalization of insignificant
       whitespace.
 
-### Step 1.4: Behaviour-Driven Testing Infrastructure
+### 1.4. Behaviour-Driven Testing Infrastructure
 
 This step keeps the behaviour-driven suites aligned with the upstream tooling
 used to drive the TEI fixtures.
@@ -75,13 +75,13 @@ used to drive the TEI fixtures.
       coupling by binding `validation.feature` scenarios by name instead
       (`#34`).
 
-## Phase 2: Python Integration
+## 2. Python Integration
 
 This phase focuses on building the Python interface, making the core Rust
 functionality accessible to Python developers through an ergonomic,
 high-performance wrapper.
 
-### Step 2.1: Python Wrapper Crate (`tei-py`)
+### 2.1. Python Wrapper Crate (`tei-py`)
 
 This step sets up the PyO3 crate and defines the Python module structure.
 
@@ -95,7 +95,7 @@ This step sets up the PyO3 crate and defines the Python module structure.
       struct.
 - [x] Implement basic CI workflow steps to build and install the Python wheel.
 
-### Step 2.2: FFI Data Exchange and API Implementation
+### 2.2. FFI Data Exchange and API Implementation
 
 _Status:_ XML bindings completed on 21 November 2025; dictionary helpers
 completed on 24 November 2025.
@@ -122,7 +122,7 @@ prioritizing efficient data transfer.
       throughput rates from those fields rather than expecting additional
       throughput counters in the library.
 
-### Step 2.3: Python-Side Definitions and Packaging
+### 2.3. Python-Side Definitions and Packaging
 
 This step defines the Python user experience, including the data classes and
 package distribution.
@@ -136,12 +136,12 @@ package distribution.
 - [x] Write Python-level integration tests that cover the full workflow: XML ->
       `Document` -> `Episode` struct -> modify -> `Document` -> XML.
 
-## Phase 3: Validation and Advanced Features
+## 3. Validation and Advanced Features
 
 This phase enhances the library with robust validation, formalizes
 serialization formats, and introduces advanced capabilities.
 
-### Step 3.1: Data Integrity and Validation
+### 3.1. Data Integrity and Validation
 
 This step implements the internal and external validation strategies to
 guarantee data correctness.
@@ -158,7 +158,7 @@ guarantee data correctness.
 - [x] Add a CI step that validates all test XML outputs against the generated
       Relax NG schema using an external tool like `jing`.
 
-### Step 3.2: Formalized Serialization (`tei-serde`)
+### 3.2. Formalized Serialization (`tei-serde`)
 
 This step modularizes the JSON and MessagePack logic into a dedicated crate.
 
@@ -171,7 +171,7 @@ This step modularizes the JSON and MessagePack logic into a dedicated crate.
 - [x] Implement property-based tests to verify round-trip integrity between TEI
       XML, Rust structs, and JSON representations.
 
-### Step 3.3: Streaming Parser
+### 3.3. Streaming Parser
 
 This step outlines the implementation of the experimental pull-parser interface
 for handling very large documents.
@@ -184,7 +184,7 @@ for handling very large documents.
 - [x] Write performance benchmarks comparing the memory and time usage of the
       full-document parser versus the streaming parser for large TEI files.
 
-### Step 3.4: Structural body elements
+### 3.4. Structural body elements
 
 This step extends the episodic profile beyond a flat body so that show notes
 and chaptered material can retain their structure across Rust, XML, schema, and
