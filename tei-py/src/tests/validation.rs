@@ -1,13 +1,11 @@
 //! Unit tests for the validate Python binding.
 
-use pyo3::{
-    Python,
-    types::{PyAnyMethods, PyModule},
-};
+use crate::test_support::with_python;
+use pyo3::types::{PyAnyMethods, PyModule};
 
 #[test]
 fn validate_returns_none_for_valid_document() {
-    Python::attach(|py| {
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
             .expect("module registration should succeed");
@@ -22,7 +20,7 @@ fn validate_returns_none_for_valid_document() {
 
 #[test]
 fn validate_method_is_registered_on_document() {
-    Python::attach(|py| {
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)
             .expect("module registration should succeed");

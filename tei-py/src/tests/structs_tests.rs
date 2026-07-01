@@ -1,7 +1,7 @@
 //! Unit tests validating the `tei_rapporteur.structs` submodule registration
 //! and `MessagePack` round-trip through Python `msgspec.Struct` projections.
 use super::*;
-use crate::test_support::ensure_msgspec_installed_for_tests;
+use crate::test_support::with_python;
 use pyo3::{
     Py, Python,
     exceptions::{PyAttributeError, PyValueError},
@@ -10,20 +10,45 @@ use pyo3::{
 use rstest::{fixture, rstest};
 use std::ffi::CString;
 
+fn report_import_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {
+    if std::thread::panicking() {
+        if let Ok(stderr) = py.import("sys").and_then(|sys| sys.getattr("stderr")) {
+            stderr
+                .call_method1(
+                    "write",
+                    (format!(
+                        "failed to restore msgspec import blocker: {error}\n"
+                    ),),
+                )
+                .ok();
+        }
+        return;
+    }
+
+    panic!("failed to restore msgspec import blocker: {error}");
+}
+
+struct RestoreImportsGuard<'py> {
+    py: Python<'py>,
+    script: CString,
+}
+
+impl Drop for RestoreImportsGuard<'_> {
+    fn drop(&mut self) {
+        if let Err(error) = self.py.run(self.script.as_c_str(), None, None) {
+            report_import_restore_failure(self.py, &error);
+        }
+    }
+}
+
 #[fixture]
 fn registered_module() -> Py<PyModule> {
-    Python::attach(|py| {
-        ensure_msgspec_installed_for_tests(py)
-            .expect("msgspec bootstrap should succeed before structs module tests");
-        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-        tei_rapporteur(py, &module).expect("module registration");
-        module.unbind()
-    })
+    registered_structs_module("msgspec bootstrap should succeed for structs module tests")
 }
 
 #[rstest]
 fn structs_submodule_is_registered(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
+    with_python(|py| {
         let bound_module = module.bind(py);
         assert!(
             bound_module
@@ -48,26 +73,15 @@ fn structs_submodule_is_registered(#[from(registered_module)] module: Py<PyModul
 fn structs_submodule_is_not_registered_when_msgspec_missing() {
     // Restores the import machinery on scope exit — including panic unwind —
     // so the msgspec blocker can never leak into other in-process tests.
-    struct RestoreImportsGuard<'py> {
-        py: Python<'py>,
-        script: CString,
-    }
-    impl Drop for RestoreImportsGuard<'_> {
-        fn drop(&mut self) {
-            self.py.run(self.script.as_c_str(), None, None).ok();
-        }
-    }
-
-    let _import_state_guard = crate::test_support::acquire_python_import_state_lock_for_tests();
-    let _registration_guard =
-        crate::test_support::acquire_python_module_registration_lock_for_tests();
-    Python::attach(|py| {
+    with_python(|py| {
         // Block msgspec imports for the duration of this test.
         let block_msgspec = CString::new(
             r#"
 import sys
 
 _orig_meta_path_structs_test = list(sys.meta_path)
+_orig_msgspec_structs_missing = object()
+_orig_msgspec_structs_test = sys.modules.get("msgspec", _orig_msgspec_structs_missing)
 
 class _BlockMsgspecImport:
     def find_spec(self, fullname, path=None, target=None):
@@ -97,6 +111,12 @@ except ValueError:
 
 if "_orig_meta_path_structs_test" in globals():
     sys.meta_path = _orig_meta_path_structs_test
+
+if "_orig_msgspec_structs_test" in globals():
+    if _orig_msgspec_structs_test is _orig_msgspec_structs_missing:
+        sys.modules.pop("msgspec", None)
+    else:
+        sys.modules["msgspec"] = _orig_msgspec_structs_test
 "#,
         )
         .expect("inline Python should be valid");
@@ -107,7 +127,7 @@ if "_orig_meta_path_structs_test" in globals():
 
         // Register the module without calling the helper so msgspec remains absent.
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation should succeed");
-        crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
+        tei_rapporteur(py, &module)
             .expect("module registration should succeed even when msgspec is missing");
 
         let has_structs = module
@@ -132,7 +152,7 @@ if "_orig_meta_path_structs_test" in globals():
 
 #[rstest]
 fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
+    with_python(|py| {
         let bound_module = module.bind(py);
         let document = Document::try_from_title("Bridgewater")
             .expect("valid title should construct a document");
@@ -186,7 +206,7 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<
 
 #[rstest]
 fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
+    with_python(|py| {
         let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let list_block_type = structs.getattr("ListBlock").expect("ListBlock class");
@@ -209,7 +229,7 @@ fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule
 
 #[rstest]
 fn div_block_rejects_blank_type(#[from(registered_module)] module: Py<PyModule>) {
-    Python::attach(|py| {
+    with_python(|py| {
         let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
         let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");

@@ -5,10 +5,9 @@ use anyhow::{Context, Result, bail};
 use pyo3::{prelude::*, types::PyBytes};
 use rstest_bdd_macros::{given, scenario, when};
 use tei_core::TeiDocument;
+use tei_py::test_support::with_python;
 use tei_serde::msgpack::to_vec_named;
 use tei_serde::serde_json::json;
-
-const _: fn() -> PythonModuleState = python_state;
 
 #[given("I encode a MessagePack document titled \"{title}\"")]
 pub(super) fn i_encode_a_messagepack_document(
@@ -51,7 +50,7 @@ pub(super) fn i_decode_the_messagepack_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_msgpack")
@@ -70,7 +69,7 @@ pub(super) fn i_decode_the_messagepack_payload(
 pub(super) fn i_encode_the_document_to_messagepack(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_msgpack")
@@ -94,7 +93,7 @@ pub(super) fn i_encode_the_document_to_messagepack(
 pub(super) fn i_encode_messagepack_without_a_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_msgpack")
@@ -111,30 +110,40 @@ pub(super) fn i_encode_messagepack_without_a_document(
 
 /// Scenario: Deserialize a `Document` from `MessagePack` bytes.
 #[scenario(path = "tests/features/python_module.feature", index = 4)]
-pub fn decodes_messagepack_documents(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn decodes_messagepack_documents(python_state: PythonModuleState) {}
 
 /// Scenario: Reject invalid `MessagePack` payloads during decoding.
 #[scenario(path = "tests/features/python_module.feature", index = 5)]
-pub fn rejects_invalid_messagepack_payloads(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_invalid_messagepack_payloads(python_state: PythonModuleState) {}
 
 /// Scenario: Reject `MessagePack` payloads missing required fields.
 #[scenario(path = "tests/features/python_module.feature", index = 6)]
-pub fn rejects_missing_field_messagepack_payloads(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_missing_field_messagepack_payloads(python_state: PythonModuleState) {}
 
 /// Scenario: Encode a constructed `Document` into `MessagePack` bytes.
 #[scenario(path = "tests/features/python_module.feature", index = 7)]
-pub fn encodes_documents_to_messagepack(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn encodes_documents_to_messagepack(python_state: PythonModuleState) {}
 
 /// Scenario: Surface errors when `to_msgpack` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 8)]
-pub fn rejects_to_msgpack_without_document(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_to_msgpack_without_document(python_state: PythonModuleState) {}

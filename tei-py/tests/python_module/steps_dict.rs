@@ -1,17 +1,16 @@
 //! Dictionary-based steps and scenarios for the Python module.
 
 use super::state::{PythonModuleState, python_state};
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use pyo3::prelude::*;
 use pyo3_serde::{from_pyobject, to_pyobject};
-use rstest_bdd_macros::{given, scenario, when};
+use rstest_bdd_macros::{given, scenario, then, when};
 use tei_core::{P, ProfileDesc, TeiDocument, Utterance};
 use tei_serde::json::Value;
 use tei_serde::serde_json::json;
 
 use tei_py::projection::document_to_value;
-
-const _: fn() -> PythonModuleState = python_state;
+use tei_py::test_support::with_python;
 
 #[given("I provide a dictionary payload titled \"{title}\"")]
 pub(super) fn i_provide_a_dictionary_payload(
@@ -113,7 +112,7 @@ pub(super) fn i_decode_the_dictionary_payload(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = state.dict_payload()?;
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let decoder = module
                 .getattr("from_dict")
@@ -134,7 +133,7 @@ pub(super) fn i_decode_the_dictionary_payload(
 pub(super) fn i_encode_the_constructed_document_to_a_dictionary(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_dict")
@@ -159,7 +158,7 @@ pub(super) fn i_encode_the_constructed_document_to_a_dictionary(
 pub(super) fn i_encode_a_dictionary_without_providing_a_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let encoder = module
                 .getattr("to_dict")
@@ -174,32 +173,163 @@ pub(super) fn i_encode_a_dictionary_without_providing_a_document(
     Ok(())
 }
 
-/// Scenario: Decode a `Document` from a dictionary payload.
-#[scenario(path = "tests/features/python_module.feature", index = 13)]
-pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {
-    let _ = python_state;
+fn text_from_content(value: &Value) -> Result<&str> {
+    value
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.first())
+        .and_then(|inline| inline.get("value"))
+        .and_then(Value::as_str)
+        .context("value should include first inline text")
 }
+
+#[then("the div structure and label text are preserved")]
+pub(super) fn the_div_structure_is_preserved(
+    #[from(python_state)] state: &PythonModuleState,
+) -> Result<()> {
+    if let Ok(error) = state.error() {
+        bail!("{error}");
+    }
+    let expected_payload = state.dict_payload()?;
+    let payload = with_python(|py| {
+        state.with_module(py, |module| {
+            let encoder = module
+                .getattr("to_dict")
+                .context("to_dict must be registered")?;
+            state.with_document(py, |document| {
+                let actual_payload: Value = from_pyobject(
+                    encoder
+                        .call1((document,))
+                        .context("decoded document should encode to a dictionary")?,
+                )?;
+                ensure!(
+                    actual_payload == expected_payload,
+                    "decoded dictionary payload should match encoded dictionary payload"
+                );
+                Ok::<_, anyhow::Error>(actual_payload)
+            })
+        })
+    })?;
+    let div = payload
+        .get("text")
+        .and_then(|text| text.get("body"))
+        .and_then(|body| body.get("blocks"))
+        .and_then(Value::as_array)
+        .and_then(|blocks| blocks.first())
+        .context("dictionary payload should contain a body division")?;
+
+    ensure!(
+        div.get("type").and_then(Value::as_str) == Some("div"),
+        "top-level body block should be a division"
+    );
+    ensure!(
+        div.get("div_type").and_then(Value::as_str) == Some("show-notes"),
+        "division type should survive dictionary round-trip"
+    );
+    ensure!(
+        div.get("subtype").and_then(Value::as_str) == Some("chapter-markers"),
+        "division subtype should survive dictionary round-trip"
+    );
+    ensure!(
+        div.get("head").map(text_from_content).transpose()? == Some("Chapter markers"),
+        "division head should survive dictionary round-trip"
+    );
+
+    let nested_div = div
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.get(1))
+        .context("dictionary payload should contain a nested division")?;
+    ensure!(
+        nested_div.get("type").and_then(Value::as_str) == Some("div"),
+        "nested block should be a division"
+    );
+    ensure!(
+        nested_div.get("head").map(text_from_content).transpose()? == Some("Guest bios"),
+        "nested division head should survive dictionary round-trip"
+    );
+
+    let item = nested_div
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.first())
+        .and_then(|list| list.get("items"))
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .context("dictionary payload should contain a list item")?;
+    ensure!(
+        item.get("label").map(text_from_content).transpose()? == Some("1."),
+        "list item label should survive dictionary round-trip"
+    );
+    ensure!(
+        text_from_content(item)? == "Transcript",
+        "list item content should survive dictionary round-trip"
+    );
+    Ok(())
+}
+
+/// Scenario: Decode a `Document` from a dictionary payload.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Decode a Document from a dictionary payload"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn decodes_dictionary_payloads(python_state: PythonModuleState) {}
 
 /// Scenario: Reject dictionary payloads missing required fields.
-#[scenario(path = "tests/features/python_module.feature", index = 14)]
-pub fn rejects_incomplete_dictionary_payloads(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject dictionary payloads missing required fields"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_incomplete_dictionary_payloads(python_state: PythonModuleState) {}
 
-/// Scenario: Reject dictionary payloads with invalid titles.
-#[scenario(path = "tests/features/python_module.feature", index = 15)]
-pub fn rejects_blank_titles_in_dictionary_payloads(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+/// Scenario: Reject dictionary payloads with blank titles.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject dictionary payloads with blank titles"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_blank_titles_in_dictionary_payloads(python_state: PythonModuleState) {}
 
-/// Scenario: Encode a constructed `Document` to a dictionary.
-#[scenario(path = "tests/features/python_module.feature", index = 16)]
-pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+/// Scenario: Encode a `Document` to a dictionary payload.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Encode a Document to a dictionary payload"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn encodes_documents_to_dictionaries(python_state: PythonModuleState) {}
 
-/// Scenario: Surface errors when `to_dict` is called without a `Document`.
-#[scenario(path = "tests/features/python_module.feature", index = 17)]
-pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+/// Scenario: Reject `to_dict` when a `Document` is not provided.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject to_dict when a Document is not provided"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_to_dict_without_document(python_state: PythonModuleState) {}
+
+/// Scenario: Round-trip a div-containing `Document` through a dictionary payload.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Round-trip dictionary payload with div blocks"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects state through scenario signatures"
+)]
+pub fn round_trips_div_blocks_via_dictionary(python_state: PythonModuleState) {}

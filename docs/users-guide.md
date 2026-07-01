@@ -11,27 +11,27 @@ available today and how to exercise it.
   paragraphs (`P`), utterances with optional speaker references, and structural
   divisions (`Div`) containing paragraphs, utterances, lists (`List`/`Item`,
   where each `Item` may carry an optional inline `Label`), and nested
-  subdivisions. Each `Div` keeps a required `@type`
-  (`DivType`), an optional `@subtype`, an optional `@xml:id`, and an optional
-  `Head` wrapper for a single leading `<head>` element in the Episodic profile.
-  Each block stores a sequence of `Inline` nodes, allowing clients to mix plain
-  text with emphasized `<hi>` spans and `<pause/>` cues without hand-rolling
-  XML. Plain strings flow through `P::from_text_segments`,
-  `Utterance::from_text_segments`, `Item::from_text_segments`,
-  `Label::from_text`, and `Head::from_text`; the older `new` constructors
-  remain as deprecated shims for existing callers where applicable.
-  `TeiDocument` now exposes `validate()` to enforce document-wide rules: it
-  rejects duplicate `xml:id` values across annotation systems, paragraphs,
-  utterances, divisions, lists, and items, including nested divisions, and
-  ensures utterance speakers appear in the profile cast when it exists. An
-  empty cast still counts as declared, so every `who` fails until the speakers
-  are populated, whereas the absence of a cast allows speaker references, so
-  drafts can be validated incrementally. Identifier checks span the header as
-  well, catching clashes between annotation systems and body blocks. Violations
-  surface as `TeiError::Validation`. Utterances and list items now also carry
-  local provenance and citation attributes where applicable, and XML
-  deserialization remains strict for `<u>` and `<item>`: misspelt or
-  unsupported attributes are rejected instead of being silently discarded.
+  subdivisions. Each `Div` keeps a required `@type` (`DivType`), an optional
+  `@subtype`, an optional `@xml:id`, and an optional `Head` wrapper for a
+  single leading `<head>` element in the Episodic profile. Each block stores a
+  sequence of `Inline` nodes, allowing clients to mix plain text with emphasized
+  `<hi>` spans and `<pause/>` cues without hand-rolling XML. Plain strings
+  flow through `P::from_text_segments`, `Utterance::from_text_segments`,
+  `Item::from_text_segments`, `Label::from_text`, and `Head::from_text`; the
+  older `new` constructors remain as deprecated shims for existing callers
+  where applicable. `TeiDocument` now exposes `validate()` to enforce
+  document-wide rules: it rejects duplicate `xml:id` values across annotation
+  systems, paragraphs, utterances, divisions, lists, and items, including
+  nested divisions, and ensures utterance speakers appear in the profile cast
+  when it exists. An empty cast still counts as declared, so every `who` fails
+  until the speakers are populated, whereas the absence of a cast allows
+  speaker references, so drafts can be validated incrementally. Identifier
+  checks span the header as well, catching clashes between annotation systems
+  and body blocks. Violations surface as `TeiError::Validation`. Utterances and
+  list items now also carry local provenance and citation attributes where
+  applicable, and XML deserialization remains strict for `<u>` and `<item>`:
+  misspelt or unsupported attributes are rejected instead of being silently
+  discarded.
 - `tei-xml` depends on the core crate and now covers both directions of XML
   flow. `serialize_document_title(raw_title)` still emits a `<title>` snippet,
   `parse_xml(xml)` wraps `quick-xml` to materialize full `TeiDocument` values,
@@ -171,6 +171,32 @@ Structural body content is exposed through tagged unions:
 `subtype`, optional `head`, optional `xml_id`, and recursive `content`, so
 chapter markers, guest-bio sections, and sponsor-read sections can be modelled
 without flattening the hierarchy into paragraphs.
+
+Typed `msgspec` decoding lets callers inspect nested divisions without first
+round-tripping through XML or untyped dictionaries:
+
+```python
+import msgspec
+import tei_rapporteur as tei
+from pathlib import Path
+from tei_rapporteur.structs import DivBlock, Episode, Item, Label, ListBlock
+
+tei_xml = Path("episode.tei.xml").read_text(encoding="utf-8")
+document = tei.parse_xml(tei_xml)
+payload = tei.to_msgpack(document)
+episode = msgspec.msgpack.decode(payload, type=Episode)
+
+body_block = episode.text.body.blocks[0]
+if isinstance(body_block, DivBlock):
+    print(body_block.div_type)
+    for child in body_block.content:
+        if isinstance(child, DivBlock):
+            for nested in child.content:
+                if isinstance(nested, ListBlock):
+                    first_item = nested.items[0]
+                    if isinstance(first_item, Item) and isinstance(first_item.label, Label):
+                        print(first_item.label.content[0].value)
+```
 
 Citation metadata is split along TEI-native boundaries. Canonical citation
 declarations live under `header.encoding_desc.refs_decl`, utterance-local

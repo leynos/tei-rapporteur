@@ -1,8 +1,8 @@
 //! BDD scenarios for the Python-facing streaming iterator.
 
 use super::*;
-use crate::test_support::ensure_msgspec_installed_for_tests;
-use pyo3::{Python, types::PyModule};
+use crate::test_support::{bootstrap_msgspec_attached, with_python};
+use pyo3::types::PyModule;
 use pyo3_serde::from_pyobject;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
@@ -64,7 +64,7 @@ fn parse_with_iterator(state: &mut StreamingState) {
     };
     let mut iterator = crate::streaming::iter_parse_py(xml);
 
-    Python::attach(|py| {
+    with_python(|py| {
         loop {
             match iterator.__next__(py) {
                 Ok(Some(obj)) => {
@@ -245,9 +245,9 @@ fn exhausted_after_error(#[from(state)] state: &StreamingState) {
 
 #[then("all events decode into msgspec Event instances")]
 fn events_decode(#[from(state)] state: &StreamingState) {
-    Python::attach(|py| {
-        if ensure_msgspec_installed_for_tests(py).is_err() {
-            return;
+    with_python(|py| {
+        if !bootstrap_msgspec_attached(py) {
+            rstest_bdd::skip!("msgspec is unavailable in this environment");
         }
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         crate::bindings::py_exports::tei_rapporteur(py, &module)

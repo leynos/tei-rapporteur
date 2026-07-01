@@ -1,8 +1,34 @@
 //! Integration-style tests for the `PyO3` bindings that require module wiring.
 
-use crate::test_support::ensure_msgspec_installed_for_tests;
+use crate::test_support::{bootstrap_msgspec_attached, with_python};
 use pyo3::types::{PyAnyMethods, PyList};
-use pyo3::{Bound, Python, types::PyModule};
+use pyo3::{Bound, PyResult, Python, exceptions::PyKeyError, types::PyModule};
+
+fn report_import_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {
+    if std::thread::panicking() {
+        if let Ok(stderr) = py.import("sys").and_then(|sys| sys.getattr("stderr")) {
+            stderr
+                .call_method1(
+                    "write",
+                    (format!(
+                        "failed to restore tei_rapporteur.structs module: {error}\n"
+                    ),),
+                )
+                .ok();
+        }
+        return;
+    }
+
+    panic!("failed to restore tei_rapporteur.structs module: {error}");
+}
+
+fn ignore_missing_structs_module(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {
+    if error.is_instance_of::<PyKeyError>(py) {
+        Ok(())
+    } else {
+        Err(error)
+    }
+}
 
 /// Restores `sys.modules["tei_rapporteur.structs"]` on drop so a test that
 /// deletes it cannot leak that mutation into other in-process tests, even on
@@ -12,28 +38,48 @@ struct RestoreStructs<'py> {
     previous: Option<Bound<'py, pyo3::types::PyAny>>,
 }
 
+impl<'py> RestoreStructs<'py> {
+    /// Snapshots `sys.modules["tei_rapporteur.structs"]` and removes the entry
+    /// so the test starts from a clean state. `Drop` unconditionally restores
+    /// the snapshot on scope exit, including panic unwind.
+    fn new(sys_modules: &Bound<'py, pyo3::types::PyAny>) -> Self {
+        let previous = sys_modules.get_item("tei_rapporteur.structs").ok();
+        sys_modules.del_item("tei_rapporteur.structs").ok();
+        Self {
+            sys_modules: sys_modules.clone(),
+            previous,
+        }
+    }
+}
+
 impl Drop for RestoreStructs<'_> {
     fn drop(&mut self) {
-        if let Some(previous) = self.previous.take() {
+        let py = self.sys_modules.py();
+        let restore_result = if let Some(previous) = self.previous.take() {
             self.sys_modules
                 .set_item("tei_rapporteur.structs", previous)
-                .ok();
+        } else {
+            self.sys_modules
+                .del_item("tei_rapporteur.structs")
+                .or_else(|error| ignore_missing_structs_module(py, error))
+        };
+
+        if let Err(error) = restore_result {
+            report_import_restore_failure(py, &error);
         }
     }
 }
 
 fn registered_module(py: Python<'_>) -> Bound<'_, PyModule> {
-    ensure_msgspec_installed_for_tests(py)
-        .expect("msgspec bootstrap should succeed before binding module tests");
     let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-    crate::bindings::py_exports::tei_rapporteur(py, &module)
+    crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
         .expect("module registration should succeed");
     module
 }
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
-    Python::attach(|py| {
+    with_python(|py| {
         let module = registered_module(py);
 
         let to_dict = module
@@ -49,7 +95,11 @@ fn to_dict_rejects_non_document_inputs() {
 
 #[test]
 fn spoken_text_segments_return_msgspec_structs() {
-    Python::attach(|py| {
+    with_python(|py| {
+        assert!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for spoken text struct tests"
+        );
         let module = registered_module(py);
         let extractor = module
             .getattr("spoken_text_segments")
@@ -107,24 +157,19 @@ fn spoken_text_segments_return_msgspec_structs() {
 
 #[test]
 fn spoken_text_segments_requires_registered_structs_module() {
-    Python::attach(|py| {
-        ensure_msgspec_installed_for_tests(py)
-            .expect("msgspec bootstrap should succeed before structs-module failure test");
+    with_python(|py| {
+        assert!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for missing structs-module test"
+        );
         let sys_modules = py
             .import("sys")
             .expect("sys should import")
             .getattr("modules")
             .expect("sys.modules should exist");
-        let previous_structs = sys_modules.get_item("tei_rapporteur.structs").ok();
-        if previous_structs.is_some() {
-            sys_modules.del_item("tei_rapporteur.structs").ok();
-        }
-        // Restore `sys.modules` on scope exit — including panic unwind — so the
-        // deletion cannot leak into other in-process tests.
-        let _restore = RestoreStructs {
-            sys_modules: sys_modules.clone(),
-            previous: previous_structs,
-        };
+        // RAII guard: snapshots and removes the entry now, restores on scope exit
+        // (including panic unwind) so the mutation cannot leak into other in-process tests.
+        let _restore = RestoreStructs::new(&sys_modules);
         let xml = concat!(
             "<TEI>",
             "<teiHeader><fileDesc><title>Example</title></fileDesc></teiHeader>",

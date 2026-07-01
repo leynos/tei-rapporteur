@@ -2,8 +2,9 @@
 //! `MessagePack` exchange, and XML helpers).
 
 use super::*;
+use crate::test_support::{bootstrap_msgspec_attached, with_python};
 use pyo3::{
-    Python,
+    Py,
     types::{PyAnyMethods, PyModule},
 };
 use tei_serde::msgpack::to_vec_named;
@@ -14,10 +15,23 @@ mod dict;
 mod div_structs;
 mod head_structs;
 mod projection_tests;
+mod proptest_div;
 mod streaming;
 mod structs_tests;
 mod validation;
 mod xml;
+
+fn registered_structs_module(bootstrap_failure: &str) -> Py<PyModule> {
+    with_python(|py| {
+        assert!(bootstrap_msgspec_attached(py), "{bootstrap_failure}");
+        py.import("msgspec")
+            .expect("msgspec should import after bootstrap");
+
+        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
+        tei_rapporteur(py, &module).expect("module registration");
+        module.unbind()
+    })
+}
 
 #[test]
 fn document_construction_trims_titles() {
@@ -34,7 +48,7 @@ fn document_construction_rejects_blank_titles() {
 
 #[test]
 fn module_registers_python_bindings() {
-    Python::attach(|py| {
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -59,7 +73,7 @@ fn module_registers_python_bindings() {
 
 #[test]
 fn python_function_emits_markup() {
-    Python::attach(|py| {
+    with_python(|py| {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let emit = module

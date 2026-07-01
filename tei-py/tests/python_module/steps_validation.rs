@@ -2,16 +2,15 @@
 
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Result, ensure};
-use pyo3::{Python, types::PyAnyMethods};
+use pyo3::types::PyAnyMethods;
 use rstest_bdd_macros::{scenario, then, when};
-
-const _: fn() -> PythonModuleState = python_state;
+use tei_py::test_support::with_python;
 
 #[when("I validate the constructed Document")]
 pub(super) fn i_validate_the_document(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_document(py, |document| match document.call_method0("validate") {
             Ok(_) => Ok(()),
             Err(error) => {
@@ -34,19 +33,34 @@ pub(super) fn validation_succeeds(#[from(python_state)] state: &PythonModuleStat
 }
 
 /// Scenario: Validate a well-formed Document.
-#[scenario(path = "tests/features/python_module.feature", index = 20)]
-pub fn validates_well_formed_document(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Validate a well-formed Document"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn validates_well_formed_document(python_state: PythonModuleState) {}
 
 /// Scenario: Reject Documents with duplicate xml:id values.
-#[scenario(path = "tests/features/python_module.feature", index = 21)]
-pub fn rejects_duplicate_identifiers(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject Documents with duplicate xml:id values"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_duplicate_identifiers(python_state: PythonModuleState) {}
 
 /// Scenario: Reject Documents with unknown speaker references.
-#[scenario(path = "tests/features/python_module.feature", index = 22)]
-pub fn rejects_unknown_speakers(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Reject Documents with unknown speaker references"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd matches scenario fixtures by parameter name"
+)]
+pub fn rejects_unknown_speakers(python_state: PythonModuleState) {}

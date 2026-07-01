@@ -112,6 +112,15 @@ extension-safe linker flags without linking `libpython`. The
 can resolve the active Python configuration and apply the PyO3 cfg values
 needed by the crate.
 
+The `test-support` feature enables the `test_support` module, which provides
+`msgspec` bootstrapping, the process-wide Python import-state lock, and the
+`with_python` synchronization helper used by unit and BDD integration tests.
+The feature is opt-in: integration test targets that import
+`tei_py::test_support` must run with `--features test-support` or declare
+`required-features = ["test-support"]`. Wheel builds pass
+`--no-default-features` and must not activate `test-support`; doing so would
+link test infrastructure into the production extension module.
+
 ## Tei-py UI compile tests
 
 `tei-py` uses `trybuild` as a dev-dependency for UI tests that assert
@@ -147,8 +156,9 @@ The first fixture, `tei-py/tests/ui/non_pycallargs_rejected.rs`, verifies that
 
 ## tei-py test-support API
 
-`tei-py/src/test_support.rs` contains the hidden-public `run_with_kwargs`
-helper used by the `msgspec` bootstrap path and UI compile tests:
+`tei-py/src/test_support/bootstrap.rs` contains the hidden-public
+`run_with_kwargs` helper used by the `msgspec` bootstrap path and UI compile
+tests:
 
 ```rust
 #[doc(hidden)]
@@ -186,30 +196,25 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `ensure_msgspec_installed`, `try_ensure_msgspec_installed`, and
-`msgspec_available` are documented public exports from this module. They follow
-command/query separation: `ensure_msgspec_installed` and
-`try_ensure_msgspec_installed` may run the best-effort bootstrap command, while
-`msgspec_available` is a side-effect-free query that returns a `PyResult<bool>`
-for checking whether an already installed `msgspec` distribution satisfies
-`msgspec>=0.19,<0.20`. `ensure_msgspec_installed` guards the bootstrap with
-`Once` so concurrent callers run installation at most once.
+Only `bootstrap_msgspec` and `with_python` are documented public exports
+from this module. They are thread-safe: `bootstrap_msgspec` delegates to
+the `Once`-guarded bootstrap while attached to the Python interpreter through
+the shared import-state lock. It may run subprocess installers and mutate
+Python import state, so treat it as a bootstrap command rather than a pure
+availability query. `with_python` acquires the same lock before calling
+`Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
+hidden-public bootstrap helpers: the `msgspec` installer path uses them to call
+`subprocess.run`, and UI compile tests use them to lock down the crate-owned
+argument diagnostic.
 
-`tei-py` uses its `proptest` dev-dependency to protect the bootstrap invariants
-that ordinary example tests do not cover. The test-support module contains
-property tests for two behaviours:
-
-- idempotency: `ensure_msgspec_installed` must return a consistent successful
-  result over a generated number of repeated calls.
-- thread safety: concurrent callers over a generated thread count must not
-  panic, and the `Once` guard must still restrict bootstrap execution.
-
-The property tests reuse the `subprocess.run` monkeypatch in
-`setup_bootstrap_run_counter`. That fixture patches `subprocess.run` and
-records each call made to it; it does not alter Python import hooks or
-synthesize a `msgspec` module. Keep this pattern when extending the properties:
-tests should prove the `Once`-guarded installer path executed without invoking
-real package installation or network access.
+The test-only coverage for this surface lives in
+`tei-py/src/test_support/tests.rs` and the colocated
+`tei-py/src/test_support/tests/` submodules. The parent test module owns the
+deterministic checks for subprocess invocation shapes, `uv`/`pip` fallback
+behaviour, availability reporting, and the import-state locking contract.
+`subprocess_mocks.rs` owns the `subprocess.run` monkeypatch and restoration
+guards, while `shutil_mocks.rs` owns the `shutil.which` restore guard used by
+`has_uv` tests.
 
 Tests that monkeypatch Python process-global state must hold the relevant RAII
 guard for the full patch lifecycle. Lock acquisition must tolerate poisoning
@@ -219,47 +224,113 @@ surface cleanup failures when a test is otherwise succeeding, but must check
 `std::thread::panicking()` and log to stderr instead of panicking again during
 unwind.
 
-The test-only coverage for this surface lives under
-`tei-py/src/test_support_tests/` and is split by responsibility:
+### Thread safety for tests that mutate Python import state
 
-- `mod.rs` is the parent test module. It wires the submodules together and owns
-  the deterministic tests for `run_with_kwargs`, `msgspec_available`,
-  `try_ensure_msgspec_installed`, and `has_uv`.
-- `bootstrap_mocks.rs` owns the `subprocess.run` bootstrap mock used by the
-  property tests and call-helper tests. `BootstrapRunCounter` is the
-  Python-callable counter, `BootstrapRunPatch` carries the Python globals plus
-  the subprocess patch lock, `setup_bootstrap_run_counter` installs the mock,
-  and `recorded_call_count` / `recorded_args` inspect captured calls.
-- `test_helpers.rs` owns shared Python-state fixtures and restoration guards.
-  `RunAndKwargs` carries the mocked `run`, kwargs, globals, and subprocess
-  restore guard for call-helper tests. `RunWithKwargsArgShape` enumerates the
-  supported Rust argument shapes. `SubprocessPatchGuard` and `ShutilPatchGuard`
-  serialize process-global monkeypatches; acquire them with
-  `acquire_subprocess_patch_lock` and `acquire_shutil_patch_lock`.
-  `setup_run_and_kwargs` installs the recording `subprocess.run` mock,
-  `restore_subprocess_run` restores it, `SubprocessRestoreGuard` restores
-  within one Python attachment, `OwnedSubprocessRestoreGuard` restores after
-  property setup has left its attachment scope, and `ShutilRestoreGuard`
-  restores `shutil.which`.
-- `properties.rs` owns the `proptest` coverage for the bootstrap invariants. It
-  checks `msgspec` importability once before entering the generated-case loop,
-  then combines generated sequential repetitions and generated thread counts in
-  one process so the resettable test bootstrap state does not depend on nextest
-  process isolation.
+Any test that modifies `sys.modules`, installs or removes entries from
+`sys.meta_path`, or otherwise mutates the shared Python interpreter's import
+state must acquire the process-wide `python_import_state_lock()` guard before
+entering the `Python::attach` block:
 
-The parent `test_support.rs` module also exposes narrow `#[cfg(test)]` helper
-APIs to those submodules. `force_msgspec_bootstrap_for_tests` returns a
-`ForcedMsgspecBootstrapGuard` that makes
-`ensure_msgspec_installed_unlocked_for_tests` enter the installer path even when
-`msgspec` is importable. `acquire_msgspec_bootstrap_lock_for_tests` serializes
-resettable bootstrap-state access, and `reset_msgspec_init_for_tests` returns
-the test-only bootstrap state to `Incomplete` between generated cases. Python
-module registration tests use
-`acquire_python_module_registration_lock_for_tests` or
-`lock_python_module_registration_attached_for_tests` when they need to mutate
-the embedded interpreter's module registry without racing other tests. Keep
-these helpers test-only; production code must continue to use the ordinary
-`Once`-guarded `ensure_msgspec_installed` path.
+```rust
+let _import_state_lock = python_import_state_lock();
+Python::attach(|py| {
+    // mutate sys.modules here
+});
+```
+
+The guard is an RAII `MutexGuard<'static, ()>` backed by a process-wide
+`static Mutex`. Holding it prevents a concurrent test thread from observing a
+partially-modified module registry. Release happens automatically when the
+guard drops at the end of the enclosing scope.
+
+`python_import_state_lock()` is intentionally `pub(super)` inside
+`test_support`: it is visible to sibling modules such as `test_support::tests`,
+but it is not part of the public `test_support` API and is not re-exported for
+BDD integration tests. BDD tests should use `with_python`, which is the public
+wrapper that acquires the same lock.
+
+Prefer `with_python(|py| { ... })` over the raw `python_import_state_lock()` +
+`Python::attach(...)` pair. `with_python` acquires the lock and attaches in one
+call, making it impossible to forget the guard. Only reach for
+`python_import_state_lock()` directly when the guard must outlive a single
+`Python::attach` block.
+
+If a test panics while holding the lock, the `Mutex` is poisoned. The
+implementation recovers from a poisoned state by calling
+`unwrap_or_else(|e| e.into_inner())` so subsequent tests are not blocked.
+
+### Restoring `sys.modules` entries with RAII guards
+
+Any test that inserts, replaces, or removes a `sys.modules` entry must restore
+the registry to its exact pre-test state on scope exit, including panic unwind.
+Manual `del_item` or `set_item` calls in test teardown are forbidden; they are
+silently skipped when the test panics and leak state into every subsequent
+in-process test.
+
+Use an RAII guard that snapshots the entry in its constructor and restores it in
+`Drop`. The canonical pattern in `tei-py` is `RestoreStructs` in
+`tei-py/src/tests/bindings_tests.rs`:
+
+```rust
+struct RestoreStructs<'py> {
+    sys_modules: Bound<'py, pyo3::types::PyAny>,
+    previous: Option<Bound<'py, pyo3::types::PyAny>>,
+}
+
+impl<'py> RestoreStructs<'py> {
+    /// Snapshots `sys.modules["tei_rapporteur.structs"]` and removes the
+    /// entry so the test starts from a clean state.  `Drop` restores the saved
+    /// entry when one existed, or deletes the key when it was absent.
+    fn new(sys_modules: &Bound<'py, pyo3::types::PyAny>) -> Self {
+        let previous = sys_modules.get_item("tei_rapporteur.structs").ok();
+        sys_modules.del_item("tei_rapporteur.structs").ok();
+        Self {
+            sys_modules: sys_modules.clone(),
+            previous,
+        }
+    }
+}
+
+impl Drop for RestoreStructs<'_> {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            self.sys_modules
+                .set_item("tei_rapporteur.structs", previous)
+                .ok();
+        } else {
+            self.sys_modules.del_item("tei_rapporteur.structs").ok();
+        }
+    }
+}
+```
+
+The `Drop` implementation has two branches:
+
+- **`Some(previous)`** — the entry existed before the test; restore it.
+- **`None`** — the entry was absent before the test; delete any entry the test
+  body may have inserted, returning the registry to its original state.
+
+Call sites construct the guard via `RestoreStructs::new` and bind it to a
+`let _restore` binding. The guard drops at the end of the enclosing scope, so
+no explicit teardown call is needed:
+
+```rust
+with_python(|py| {
+    let sys_modules = py.import("sys")?.getattr("modules")?;
+    let _restore = RestoreStructs::new(&sys_modules);
+    // test body — mutate sys.modules freely here
+    Ok(())
+});
+```
+
+When introducing a similar guard for a different `sys.modules` key, apply the
+same two-branch `Drop` logic. Name the guard after the key it protects (e.g.
+`RestoreMsgspec` for `msgspec`) and follow the same `new`-constructor pattern.
+
+As per the coding guidelines: *global mutable state, lazy singletons,
+process-wide registries, and static caches require explicit justification and
+reset behaviour for tests.* An RAII guard satisfies the reset requirement
+structurally, making it impossible to forget.
 
 ### Rust/Python test boundary patterns
 
@@ -269,13 +340,10 @@ implicit serialization rather than adding `#[serial]` to every test that
 touches Python or wrapping the bootstrap in an external `Mutex`. The `Once`
 guard ensures exactly one thread runs the installer, and `OnceExt` releases the
 Python GIL while blocked threads wait. The
-`bootstrap_invariants_hold_without_process_isolation` property test in
-`test_support_tests/properties.rs` validates the contract directly. Over a
-generated thread count (2–32) and a generated repetition count (1–50) it
-expects `subprocess.run` to be called exactly twice across both the concurrent
-and sequential phases — once for `ensurepip` and once for the `msgspec`
-install — confirming that `Once` restricts the installer to a single run
-regardless of how many callers race or how many sequential calls follow.
+`ensure_msgspec_installed_is_safe_under_concurrent_access` test validates the
+contract directly: it starts eight threads and asserts an upper bound on
+`subprocess.run` calls so the bootstrap can tolerate short-circuiting,
+best-effort retries, and concurrent execution without becoming order brittle.
 Reserve `#[serial]` for cases where separate test functions must exclude
 multiple distinct statics or process-global side effects; the single `Once`
 owns the whole `msgspec` bootstrap critical section.

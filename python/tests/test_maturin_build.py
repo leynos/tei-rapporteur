@@ -44,7 +44,6 @@ EXPECTED_WHEEL_SNAPSHOT = {
         "name": "tei-rapporteur",
         "requires_dist": [
             "msgspec>=0.19,<0.20",
-            "msgspec>=0.19,<0.20 ; extra == 'dev'",
         ],
         "requires_python": ">=3.11",
         "version": "0.1.0",

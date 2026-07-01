@@ -9,7 +9,10 @@ use pyo3::{
 };
 use rstest::fixture;
 use std::cell::RefCell;
-use tei_py::tei_rapporteur;
+use tei_py::{
+    tei_rapporteur,
+    test_support::{bootstrap_msgspec_attached, with_python},
+};
 use tei_serde::json::Value;
 
 pub(super) struct PythonModuleState {
@@ -157,13 +160,20 @@ impl PythonModuleState {
     }
 }
 
+#[cfg_attr(
+    not(feature = "test-support"),
+    expect(
+        dead_code,
+        reason = "rstest-bdd resolves this fixture by parameter name"
+    )
+)]
 #[fixture]
 pub(super) fn python_state() -> PythonModuleState {
     PythonModuleState::default()
 }
 
 pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
         state.with_module(py, |module| {
             let document_class = module
                 .getattr("Document")
@@ -179,7 +189,10 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
 }
 
 pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
-    Python::attach(|py| {
+    with_python(|py| {
+        // Scenarios that require typed structs assert on bootstrap outcomes in
+        // their own steps; ordinary module setup keeps the dependency best-effort.
+        let _msgspec_bootstrapped = bootstrap_msgspec_attached(py);
         let module = PyModule::new(py, "tei_rapporteur")?;
         tei_rapporteur(py, &module)?;
         state.set_module(module.unbind());

@@ -2,50 +2,11 @@
 
 use super::state::{PythonModuleState, python_state};
 use anyhow::{Context, Result};
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{Bound, prelude::*, types::PyDict};
 use rstest_bdd_macros::{scenario, when};
-use serde::Deserialize;
-use tei_core::{FileDesc, TeiDocument, TeiHeader};
-use tei_py::projection::PyTeiDocument;
-use tei_py::test_support::try_ensure_msgspec_installed;
-use tei_serde::json::Value;
-use tei_serde::msgpack::{from_slice, to_vec_named};
+use tei_py::test_support::{bootstrap_msgspec_attached, with_python};
 
-const _: fn() -> PythonModuleState = python_state;
-
-fn retitle_document(document: &TeiDocument, title: &str) -> Result<TeiDocument> {
-    let old_header = document.header().clone();
-    let old_file_desc = old_header.file_desc().clone();
-
-    let mut new_file_desc =
-        FileDesc::from_title_str(title).context("fallback title must be valid")?;
-
-    if let Some(series) = old_file_desc.series() {
-        new_file_desc = new_file_desc.with_series(series);
-    }
-
-    if let Some(synopsis) = old_file_desc.synopsis() {
-        new_file_desc = new_file_desc.with_synopsis(synopsis);
-    }
-
-    let mut header = TeiHeader::new(new_file_desc);
-
-    if let Some(profile) = old_header.profile_desc().cloned() {
-        header = header.with_profile_desc(profile);
-    }
-
-    if let Some(encoding) = old_header.encoding_desc().cloned() {
-        header = header.with_encoding_desc(encoding);
-    }
-
-    if let Some(revision) = old_header.revision_desc().cloned() {
-        header = header.with_revision_desc(revision);
-    }
-
-    Ok(TeiDocument::new(header, document.text().clone()))
-}
-
-fn decode_episode<'py>(
+pub(super) fn decode_episode<'py>(
     py: Python<'py>,
     module: &Bound<'py, PyAny>,
     payload: &[u8],
@@ -75,20 +36,11 @@ pub(super) fn i_convert_payload_to_episode_and_retitle(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !try_ensure_msgspec_installed() {
-        let projection: PyTeiDocument =
-            from_slice(&payload).context("fallback decoding MessagePack document")?;
-        let document: TeiDocument = TeiDocument::try_from(projection)
-            .context("projection should convert to TeiDocument")?;
-        let retitled = retitle_document(&document, title.as_str())?;
-        let projection_updated = PyTeiDocument::from(&retitled);
-        let updated_payload =
-            to_vec_named(&projection_updated).context("fallback encoding updated document")?;
-        state.store_msgpack_payload(updated_payload);
-        return Ok(());
-    }
-
-    Python::attach(|py| {
+    with_python(|py| {
+        anyhow::ensure!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for Episode retitle tests"
+        );
         state.with_module(py, |module| {
             let episode = match decode_episode(py, &module, &payload) {
                 Ok(value) => value,
@@ -122,25 +74,11 @@ pub(super) fn i_decode_the_payload_to_an_episode(
 ) -> Result<()> {
     let payload = state.msgpack_payload()?;
 
-    if !try_ensure_msgspec_installed() {
-        #[expect(
-            dead_code,
-            reason = "EpisodeCarrier is only used to trigger a missing-field decode when msgspec is unavailable."
-        )]
-        #[derive(Debug, Deserialize)]
-        struct EpisodeCarrier {
-            header: Value,
-            text: Value,
-        }
-
-        if let Err(error) = from_slice::<EpisodeCarrier>(&payload) {
-            state.store_error(error.to_string());
-        }
-
-        return Ok(());
-    }
-
-    Python::attach(|py| {
+    with_python(|py| {
+        anyhow::ensure!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for Episode decoding tests"
+        );
         state.with_module(py, |module| match decode_episode(py, &module, &payload) {
             Ok(_) => Ok::<(), anyhow::Error>(()),
             Err(error) => {
@@ -152,14 +90,24 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     Ok(())
 }
 
-/// Scenario: Round-trip a Document through the Python Episode struct.
-#[scenario(path = "tests/features/python_module.feature", index = 18)]
-pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+/// Scenario: Round-trip `MessagePack` via the Episode struct.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Round-trip MessagePack via the Episode struct"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects the state fixture into generated step calls"
+)]
+pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {}
 
-/// Scenario: Surface struct decoding errors for malformed `MessagePack` payloads.
-#[scenario(path = "tests/features/python_module.feature", index = 19)]
-pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {
-    let _ = python_state;
-}
+/// Scenario: Report msgspec errors for malformed payloads.
+#[scenario(
+    path = "tests/features/python_module.feature",
+    name = "Report msgspec errors for malformed payloads"
+)]
+#[expect(
+    unused_variables,
+    reason = "rstest-bdd injects the state fixture into generated step calls"
+)]
+pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {}

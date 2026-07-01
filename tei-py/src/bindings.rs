@@ -200,11 +200,12 @@ pub(crate) mod py_exports {
         /// ```
         /// use tei_py::{Document, from_msgpack, to_msgpack};
         ///
-        /// let source = Document::try_from_title("Wolf 359")?;
+        /// let source = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
         /// let payload = to_msgpack(&source)?;
         /// let document = from_msgpack(&payload)?;
         /// assert_eq!(document.title(), "Wolf 359");
-        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// # Ok::<(), pyo3::PyErr>(())
         /// ```
         fn from_msgpack(bytes: &[u8]) -> Document using document_from_msgpack,
         "invalid MessagePack payload: {error}"
@@ -222,11 +223,12 @@ pub(crate) mod py_exports {
         /// ```
         /// use tei_py::{Document, to_msgpack, from_msgpack};
         ///
-        /// let document = Document::try_from_title("Wolf 359")?;
+        /// let document = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
         /// let payload = to_msgpack(&document)?;
         /// let decoded = from_msgpack(&payload)?;
         /// assert_eq!(decoded.title(), "Wolf 359");
-        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// # Ok::<(), pyo3::PyErr>(())
         /// ```
         fn to_msgpack(document: &Document) -> Vec<u8> => document_to_msgpack,
         "MessagePack encoding failed: {error}"
@@ -269,7 +271,8 @@ pub(crate) mod py_exports {
         /// ```
         /// use tei_py::{Document, emit_xml};
         ///
-        /// let document = Document::try_from_title("Wolf 359")?;
+        /// let document = Document::try_from_title("Wolf 359")
+        ///     .expect("fixture title should validate");
         /// let xml = emit_xml(&document)?;
         /// assert!(xml.contains("<title>Wolf 359</title>"));
         /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -291,7 +294,8 @@ pub(crate) mod py_exports {
     /// use tei_py::{Document, from_dict, to_dict};
     ///
     /// Python::attach(|py| {
-    ///     let document = Document::try_from_title("Wolf 359")?;
+    ///     let document = Document::try_from_title("Wolf 359")
+    ///         .expect("fixture title should validate");
     ///     let payload = to_dict(py, &document)?;
     ///     let round_tripped = from_dict(payload)?;
     ///     assert_eq!(round_tripped.title(), "Wolf 359");
@@ -320,7 +324,8 @@ pub(crate) mod py_exports {
     /// use tei_py::{Document, to_dict};
     ///
     /// Python::attach(|py| {
-    ///     let document = Document::try_from_title("Bridgewater")?;
+    ///     let document = Document::try_from_title("Bridgewater")
+    ///         .expect("fixture title should validate");
     ///     let payload = to_dict(py, &document)?;
     ///     let title: String = payload
     ///         .get_item("header")?
@@ -345,7 +350,7 @@ pub(crate) mod py_exports {
     /// interpreter rejects one of the additions.
     #[pymodule]
     pub fn tei_rapporteur(py_context: Python<'_>, py_module: &Bound<'_, PyModule>) -> PyResult<()> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         let _registration_guard =
             crate::test_support::lock_python_module_registration_attached_for_tests(py_context);
 

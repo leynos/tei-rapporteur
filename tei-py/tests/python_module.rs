@@ -14,6 +14,8 @@ mod steps_assertions;
 mod steps_construction;
 #[path = "python_module/steps_dict.rs"]
 mod steps_dict;
+#[path = "python_module/steps_div_structs.rs"]
+mod steps_div_structs;
 #[path = "python_module/steps_msgpack.rs"]
 mod steps_msgpack;
 #[path = "python_module/steps_structs.rs"]

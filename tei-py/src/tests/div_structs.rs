@@ -1,11 +1,8 @@
 //! Tests covering Python `msgspec.Struct` support for division body blocks.
 
 use super::*;
-use crate::test_support::ensure_msgspec_installed_for_tests;
-use pyo3::{
-    Python,
-    types::{PyAnyMethods, PyDict, PyModule},
-};
+use crate::test_support::{bootstrap_msgspec_attached, with_python};
+use pyo3::types::{PyAnyMethods, PyDict, PyModule};
 use tei_core::{BodyBlock, Div, Head, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
 use tei_serde::msgpack::to_vec_named;
 use tei_xml::streaming::TeiEvent;
@@ -58,10 +55,11 @@ fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
 
 #[test]
 fn episode_struct_decodes_div_blocks() {
-    Python::attach(|py| {
-        ensure_msgspec_installed_for_tests(py)
-            .expect("msgspec bootstrap should succeed before div block decoding test");
-
+    with_python(|py| {
+        assert!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for div struct decoding"
+        );
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
@@ -128,10 +126,11 @@ fn episode_struct_decodes_div_blocks() {
 
 #[test]
 fn streaming_div_events_decode_into_python_union() {
-    Python::attach(|py| {
-        ensure_msgspec_installed_for_tests(py)
-            .expect("msgspec bootstrap should succeed before div event union decoding test");
-
+    with_python(|py| {
+        assert!(
+            bootstrap_msgspec_attached(py),
+            "msgspec bootstrap should succeed for div event decoding"
+        );
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
         let structs = module.getattr("structs").expect("structs module");

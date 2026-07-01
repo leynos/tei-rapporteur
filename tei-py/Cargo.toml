@@ -15,6 +15,7 @@ workspace = true
 default = ["auto-initialize"]
 auto-initialize = ["pyo3/auto-initialize"]
 extension-module = ["pyo3/extension-module"]
+test-support = []
 
 [dependencies]
 tei-core = { path = "../tei-core" }
@@ -36,3 +37,12 @@ trybuild = "1"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.28.3", features = ["resolve-config"] }
+
+[[test]]
+name = "python_module"
+path = "tests/python_module.rs"
+required-features = ["test-support"]
+
+[[test]]
+name = "ui"
+required-features = ["test-support"]
