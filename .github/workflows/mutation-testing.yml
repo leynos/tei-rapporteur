@@ -1,0 +1,48 @@
+name: Mutation testing
+
+# Thin caller of the shared mutation-testing reusable workflow; caller
+# guide: leynos/shared-actions docs/mutation-cargo-workflow.md.
+# Scheduled runs mutate only files changed within the detection window;
+# manual dispatch runs mutate everything, fanned out across shards. To
+# test a branch, select it in the Actions "Run workflow" control.
+
+on:
+  schedule:
+    - cron: "5 9 * * *" # Daily, 09:05 UTC
+  workflow_dispatch:
+
+# Default the token to no scopes; the job opts in explicitly.
+permissions: {}
+
+# Serialize runs per ref: a dispatch during a scheduled run (or vice
+# versa) queues rather than racing. Runs are informational, so queued
+# runs wait instead of cancelling.
+concurrency:
+  group: mutation-testing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    permissions:
+      contents: read
+      id-token: write # OIDC workflow-source resolution
+    uses: leynos/shared-actions/.github/workflows/mutation-cargo.yml@47aea18960d24f33aedc4782ec6b73e365418313
+    with:
+      # Workspace crates live in root-level directories, not crates/;
+      # tei-test-helpers is excluded from mutation so it is omitted
+      # from change detection too.
+      paths: "tei-core/,tei-serde/,tei-xml/,tei-py/"
+      # Test scaffolding, fixture generators, and benchmark helpers
+      # whose survivors would be noise: the tei-test-helpers fixture
+      # crate, tei-py's Python-embedding test support (compiled in
+      # under --all-features via the test-support feature), tei-xml's
+      # fixture builders and generator/benchmark binaries, and
+      # tei-serde's schema-snapshot generator binary.
+      exclude-globs: "tei-test-helpers/**,tei-py/src/bindings_test_support.rs,tei-py/src/test_support/**,tei-py/src/test_support_tests/**,tei-xml/src/fixtures/**,tei-xml/src/streaming/helpers_tests.rs,tei-xml/src/bin/**,tei-serde/src/bin/**,tei-xml/examples/**"
+      # Match the CI baseline (`make test` runs nextest with
+      # --workspace --all-targets --all-features): feature-gated tests
+      # must run against mutants, and --test-workspace=true makes
+      # cargo-mutants run the whole workspace's tests per mutant so
+      # crates covered by dependent crates' suites do not report false
+      # survivors.
+      extra-args: "--all-features --test-workspace=true"
