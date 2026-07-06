@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml json-schema
+.PHONY: help all clean test build release lint fmt check-fmt typecheck markdownlint nixie validate-xml json-schema test-workflow-contracts
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -37,6 +37,9 @@ fmt: ## Format Rust and Markdown sources
 
 check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
+
+test-workflow-contracts: ## Validate the mutation-testing caller contract
+	uv run --no-project --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
 
 typecheck: ## Typecheck all workspace crates
 	RUSTFLAGS="-D warnings" $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)

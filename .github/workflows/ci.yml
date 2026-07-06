@@ -43,6 +43,8 @@ jobs:
           python-version: '3.11'
       - name: Install uv
         uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244  # v7.1.4
+      - name: Workflow contract tests
+        run: make test-workflow-contracts
       - name: Install maturin
         env:
           # Keep in sync with pyproject.toml.
