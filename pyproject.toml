@@ -28,6 +28,7 @@ dev = [
     "pytest>=9.1.1,<10.0",
     # Keep in sync with .github/workflows/ci.yml.
     "maturin==1.13.3",
+    "pyyaml>=6",
 ]
 
 [tool.maturin]
