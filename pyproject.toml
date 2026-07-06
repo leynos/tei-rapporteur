@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = { text = "ISC" }
 authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
 dependencies = [
-    "msgspec>=0.19,<0.20",
+    "msgspec>=0.21.1,<0.22",
 ]
 classifiers = [
     "Programming Language :: Python",
