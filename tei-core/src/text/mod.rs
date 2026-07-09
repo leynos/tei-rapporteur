@@ -177,19 +177,17 @@ impl TeiText {
 mod tests {
     //! Unit tests for TEI text construction helpers.
 
-    use super::{BodyBlock, P, TeiBody, TeiText, Utterance};
+    use super::{BodyBlock, BodyContentError, P, TeiBody, TeiText, Utterance};
     use rstest::{fixture, rstest};
 
     #[fixture]
-    fn sample_paragraph() -> P {
+    fn sample_paragraph() -> Result<P, BodyContentError> {
         P::from_text_segments(["Intro paragraph"])
-            .unwrap_or_else(|error| panic!("valid paragraph: {error}"))
     }
 
     #[fixture]
-    fn sample_utterance() -> Utterance {
+    fn sample_utterance() -> Result<Utterance, BodyContentError> {
         Utterance::from_text_segments(Some("host"), ["Greetings"])
-            .unwrap_or_else(|error| panic!("valid utterance: {error}"))
     }
 
     #[test]
@@ -224,7 +222,12 @@ mod tests {
     }
 
     #[rstest]
-    fn convenience_helpers_delegate_to_body(sample_paragraph: P, sample_utterance: Utterance) {
+    fn convenience_helpers_delegate_to_body(
+        #[from(sample_paragraph)] paragraph_res: Result<P, BodyContentError>,
+        #[from(sample_utterance)] utterance_res: Result<Utterance, BodyContentError>,
+    ) {
+        let sample_paragraph = paragraph_res.expect("valid paragraph");
+        let sample_utterance = utterance_res.expect("valid utterance");
         let mut text = TeiText::empty();
         text.push_paragraph(sample_paragraph.clone())
             .push_utterance(sample_utterance.clone());
@@ -239,7 +242,12 @@ mod tests {
     }
 
     #[rstest]
-    fn extend_forwards_to_body(sample_paragraph: P, sample_utterance: Utterance) {
+    fn extend_forwards_to_body(
+        #[from(sample_paragraph)] paragraph_res: Result<P, BodyContentError>,
+        #[from(sample_utterance)] utterance_res: Result<Utterance, BodyContentError>,
+    ) {
+        let sample_paragraph = paragraph_res.expect("valid paragraph");
+        let sample_utterance = utterance_res.expect("valid utterance");
         let mut text = TeiText::empty();
         text.extend([BodyBlock::Paragraph(sample_paragraph.clone())])
             .push_utterance(sample_utterance.clone());

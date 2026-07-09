@@ -177,37 +177,27 @@ mod tests {
         element
     }
 
-    fn record_file_desc(recorder: &mut HeaderRecorder, title: &[u8]) {
-        recorder
-            .record_start("fileDesc", &element("fileDesc"))
-            .expect("fileDesc starts");
-        recorder
-            .record_start("title", &element("title"))
-            .expect("title starts");
+    fn record_file_desc(recorder: &mut HeaderRecorder, title: &[u8]) -> Result<(), TeiError> {
+        recorder.record_start("fileDesc", &element("fileDesc"))?;
+        recorder.record_start("title", &element("title"))?;
         recorder.record_raw_text(title);
-        recorder.record_end("title").expect("title ends");
-        recorder.record_end("fileDesc").expect("fileDesc ends");
+        recorder.record_end("title")?;
+        recorder.record_end("fileDesc")?;
+        Ok(())
     }
 
     fn record_encoding_desc_with_cite_structure(
         recorder: &mut HeaderRecorder,
         cite_match: &str,
         cite_property: &str,
-    ) {
+    ) -> Result<(), TeiError> {
         let cite_structure = start_element_with_attr("citeStructure", "match", cite_match);
         let cite_data = start_element_with_attr("citeData", "property", cite_property);
-        recorder
-            .record_start("encodingDesc", &element("encodingDesc"))
-            .expect("encodingDesc starts");
-        recorder
-            .record_start("refsDecl", &element("refsDecl"))
-            .expect("refsDecl starts");
-        recorder
-            .record_start("citeStructure", &cite_structure)
-            .expect("citeStructure starts");
-        recorder
-            .record_empty("citeData", &cite_data)
-            .expect("citeData is recorded");
+        recorder.record_start("encodingDesc", &element("encodingDesc"))?;
+        recorder.record_start("refsDecl", &element("refsDecl"))?;
+        recorder.record_start("citeStructure", &cite_structure)?;
+        recorder.record_empty("citeData", &cite_data)?;
+        Ok(())
     }
 
     #[test]
@@ -259,7 +249,7 @@ mod tests {
         recorder
             .record_start(TEI_HEADER, &element(TEI_HEADER))
             .expect("first teiHeader starts");
-        record_file_desc(&mut recorder, b"First");
+        record_file_desc(&mut recorder, b"First").expect("fileDesc records");
         recorder
             .record_end(TEI_HEADER)
             .expect("first teiHeader validates");
@@ -338,8 +328,9 @@ mod tests {
         recorder
             .record_start(TEI_HEADER, &element(TEI_HEADER))
             .expect("teiHeader starts");
-        record_file_desc(&mut recorder, b"Spoken Fixture");
-        record_encoding_desc_with_cite_structure(&mut recorder, "A&<>", "speaker");
+        record_file_desc(&mut recorder, b"Spoken Fixture").expect("fileDesc records");
+        record_encoding_desc_with_cite_structure(&mut recorder, "A&<>", "speaker")
+            .expect("encodingDesc records");
 
         assert!(
             std::str::from_utf8(&recorder.xml)
@@ -366,8 +357,9 @@ mod tests {
         recorder
             .record_start(TEI_HEADER, &element(TEI_HEADER))
             .expect("teiHeader starts");
-        record_file_desc(&mut recorder, b"Spoken Fixture");
-        record_encoding_desc_with_cite_structure(&mut recorder, "//u", "speaker");
+        record_file_desc(&mut recorder, b"Spoken Fixture").expect("fileDesc records");
+        record_encoding_desc_with_cite_structure(&mut recorder, "//u", "speaker")
+            .expect("encodingDesc records");
 
         assert_eq!(recorder.depth, 4);
         assert!(!recorder.is_validated());

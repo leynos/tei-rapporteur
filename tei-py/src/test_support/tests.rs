@@ -19,7 +19,7 @@ use super::{
     bootstrap_msgspec, python_import_state_lock, with_python,
 };
 use pyo3::{
-    Py, Python,
+    Py, PyResult, Python,
     types::{PyAnyMethods, PyDict, PyTuple},
 };
 use rstest::rstest;
@@ -212,7 +212,7 @@ fn bootstrap_msgspec_unlocked() -> bool {
     Python::attach(|py| ensure_msgspec_installed(py).is_ok())
 }
 
-fn force_msgspec_bootstrap_path(globals: &Py<PyDict>) {
+fn force_msgspec_bootstrap_path(globals: &Py<PyDict>) -> PyResult<()> {
     Python::attach(|py| {
         let patch = CString::new(concat!(
             "import sys\n",
@@ -220,10 +220,11 @@ fn force_msgspec_bootstrap_path(globals: &Py<PyDict>) {
             "if _bootstrap_msgspec_blocker not in sys.meta_path:\n",
             "    sys.meta_path.insert(0, _bootstrap_msgspec_blocker)\n",
         ))
-        .expect("CString build");
+        .map_err(|error| {
+            pyo3::exceptions::PyValueError::new_err(format!("CString build failed: {error}"))
+        })?;
         py.run(patch.as_c_str(), Some(globals.bind(py)), None)
-            .expect("force msgspec bootstrap path");
-    });
+    })
 }
 
 #[test]
@@ -246,7 +247,7 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 fn mocked_bootstrap_scopes_reset_one_shot_state() {
     {
         let (run_count, globals, _restore_guard) = setup_bootstrap_test();
-        force_msgspec_bootstrap_path(&globals);
+        force_msgspec_bootstrap_path(&globals).expect("force msgspec bootstrap path");
 
         assert!(Python::attach(ensure_msgspec_installed).is_ok());
         assert!(
@@ -258,7 +259,7 @@ fn mocked_bootstrap_scopes_reset_one_shot_state() {
 
     {
         let (run_count, globals, _restore_guard) = setup_bootstrap_test();
-        force_msgspec_bootstrap_path(&globals);
+        force_msgspec_bootstrap_path(&globals).expect("force msgspec bootstrap path");
 
         assert!(Python::attach(ensure_msgspec_installed).is_ok());
         assert!(

@@ -41,8 +41,7 @@ fn example_document() -> TeiDocument {
 
     let mut span = Span::new();
     span.set_target(PointerList::new(["#p1"]).expect("pointer list should validate"));
-    let mut span_group =
-        SpanGroup::new("citation").unwrap_or_else(|error| panic!("group kind: {error}"));
+    let mut span_group = SpanGroup::new("citation").expect("group kind should validate");
     span_group.add_span(span);
     let mut stand_off = StandOff::new();
     stand_off.add_span_group(span_group);
@@ -220,15 +219,15 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
     );
     let stand_off = round_tripped
         .stand_off()
-        .unwrap_or_else(|| panic!("standOff should survive projection"));
+        .expect("standOff should survive projection");
     let first_group = stand_off
         .span_groups()
         .first()
-        .unwrap_or_else(|| panic!("standOff should contain a span group"));
+        .expect("standOff should contain a span group");
     let first_span = first_group
         .spans()
         .first()
-        .unwrap_or_else(|| panic!("span group should contain a span"));
+        .expect("span group should contain a span");
     assert_eq!(
         first_span.target().map(tei_core::PointerList::to_strings),
         Some(vec![String::from("#p1")]),
@@ -239,11 +238,11 @@ fn round_trip_document_to_value_and_back_preserves_core_structure() {
         .header()
         .encoding_desc()
         .and_then(|encoding| encoding.refs_decl())
-        .unwrap_or_else(|| panic!("refsDecl should survive projection"));
+        .expect("refsDecl should survive projection");
     let cite_structure = refs_decl
         .cite_structures()
         .first()
-        .unwrap_or_else(|| panic!("refsDecl should contain a citeStructure"));
+        .expect("refsDecl should contain a citeStructure");
     assert_eq!(
         cite_structure.match_expr(),
         "//u[@xml:id]",

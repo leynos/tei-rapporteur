@@ -271,7 +271,7 @@ impl<R: BufRead> TeiPullParser<R> {
 
     /// Finishes parsing a div and emits a `BodyBlock` event.
     pub(super) fn finish_div(&mut self) -> Result<Option<TeiEvent>, TeiError> {
-        if let ParserState::InDiv {
+        let ParserState::InDiv {
             div_type,
             subtype,
             id,
@@ -279,24 +279,34 @@ impl<R: BufRead> TeiPullParser<R> {
             parent_div,
             content,
         } = &mut self.state
-        {
-            let div = build_div(
-                RawDivAttrs {
-                    div_type: std::mem::take(div_type),
-                    subtype: subtype.take(),
-                    id: id.take(),
-                    head: head.take(),
-                },
-                std::mem::take(content),
-            )?;
-            if let Some(parent_state) = parent_div.take() {
-                self.state = push_nested_div(parent_state, div)?;
-                return Ok(None);
-            }
-            self.state = ParserState::InBody;
-            return Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))));
+        else {
+            return Ok(None);
+        };
+        let div = build_div(
+            RawDivAttrs {
+                div_type: std::mem::take(div_type),
+                subtype: subtype.take(),
+                id: id.take(),
+                head: head.take(),
+            },
+            std::mem::take(content),
+        )?;
+        let parent = parent_div.take();
+        self.attach_finished_div(parent, div)
+    }
+
+    /// Attaches a finished div to its parent, or emits it as a body block.
+    fn attach_finished_div(
+        &mut self,
+        parent: Option<Box<ParserState>>,
+        div: tei_core::Div,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if let Some(parent_state) = parent {
+            self.state = push_nested_div(parent_state, div)?;
+            return Ok(None);
         }
-        Ok(None)
+        self.state = ParserState::InBody;
+        Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
     }
 
     /// Handles body end elements.

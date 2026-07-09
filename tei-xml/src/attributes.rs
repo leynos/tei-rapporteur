@@ -87,6 +87,7 @@ pub(crate) fn extract_normalized_attribute(
 
 #[cfg(test)]
 mod tests {
+    //! Tests for normalized attribute extraction.
     use proptest::prelude::*;
     use quick_xml::events::BytesStart;
     use rstest::{fixture, rstest};
@@ -140,8 +141,7 @@ mod tests {
     ) {
         let element = element_fixture(content);
         let error = extract_normalized_attribute(&element, name)
-            .err()
-            .unwrap_or_else(|| panic!("attribute extraction should fail"));
+            .expect_err("attribute extraction should fail");
 
         assert!(error.to_string().contains(expected_error));
     }

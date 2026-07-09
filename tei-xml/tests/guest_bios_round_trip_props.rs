@@ -5,15 +5,13 @@ use proptest::prelude::*;
 use tei_core::{BodyBlock, Div, FileDesc, Item, Label, List, PointerList, TeiHeader, TeiText};
 use tei_xml::{emit_xml, parse_xml};
 
-fn external_pointer() -> impl Strategy<Value = String> {
-    prop_oneof![
-        prop::string::string_regex("urn:[a-z]{2,8}:[a-z0-9\\-]{1,20}:[a-z0-9]{8,16}")
-            .unwrap_or_else(|error| panic!("URN pointer regex should compile: {error}")),
-        prop::string::string_regex("tag:[a-z0-9.\\-]{3,30},[0-9]{4}:[a-z0-9\\-]{1,20}")
-            .unwrap_or_else(|error| panic!("tag pointer regex should compile: {error}")),
-        prop::string::string_regex("https://[a-z]{3,10}\\.[a-z]{2,6}/[a-z0-9/\\-]{1,30}")
-            .unwrap_or_else(|error| panic!("HTTPS pointer regex should compile: {error}")),
+fn external_pointer() -> Result<BoxedStrategy<String>, Box<prop::string::Error>> {
+    Ok(prop_oneof![
+        prop::string::string_regex("urn:[a-z]{2,8}:[a-z0-9\\-]{1,20}:[a-z0-9]{8,16}")?,
+        prop::string::string_regex("tag:[a-z0-9.\\-]{3,30},[0-9]{4}:[a-z0-9\\-]{1,20}")?,
+        prop::string::string_regex("https://[a-z]{3,10}\\.[a-z]{2,6}/[a-z0-9/\\-]{1,30}")?,
     ]
+    .boxed())
 }
 
 fn document_with_guest_bios_corresp(corresp: &str) -> anyhow::Result<tei_core::TeiDocument> {
@@ -49,7 +47,7 @@ mod guest_bios_round_trip_props {
 
     proptest! {
         #[test]
-        fn guest_bio_external_corresp_survives_round_trip(pointer in external_pointer()) {
+        fn guest_bio_external_corresp_survives_round_trip(pointer in external_pointer().expect("external pointer regexes should compile")) {
             let document = prop_result(document_with_guest_bios_corresp(&pointer))?;
             let emitted = prop_result(emit_xml(&document).context("guest-bios TEI should emit"))?;
             let expected_corresp = format!("corresp=\"{pointer}\"");

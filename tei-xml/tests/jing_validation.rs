@@ -40,31 +40,24 @@ fn run_fixture_validation(
     temp_dir: &TempDir,
     name: &str,
     builder: fn() -> Result<tei_core::TeiDocument, tei_core::TeiError>,
-) {
-    let doc = builder().unwrap_or_else(|error| {
-        panic!("{name} fixture should build: {error}");
-    });
+) -> Result<(), String> {
+    let doc = builder().map_err(|error| format!("{name} fixture should build: {error}"))?;
 
-    let xml = emit_xml(&doc).unwrap_or_else(|error| {
-        panic!("{name} fixture should emit XML: {error}");
-    });
+    let xml = emit_xml(&doc).map_err(|error| format!("{name} fixture should emit XML: {error}"))?;
 
     let namespaced_xml = add_tei_namespace(&xml);
     let xml_path = temp_dir.path().join(format!("{name}.xml"));
-    std::fs::write(&xml_path, &namespaced_xml).unwrap_or_else(|error| {
-        panic!("failed to write {name}.xml: {error}");
-    });
+    std::fs::write(&xml_path, &namespaced_xml)
+        .map_err(|error| format!("failed to write {name}.xml: {error}"))?;
 
     let schema_path = temp_dir.path().join("tei-episodic-profile.rng");
     if !schema_path.exists() {
-        write_relax_ng_schema(&schema_path).unwrap_or_else(|error| {
-            panic!("failed to write schema: {error}");
-        });
+        write_relax_ng_schema(&schema_path)
+            .map_err(|error| format!("failed to write schema: {error}"))?;
     }
 
-    run_jing(&schema_path, &xml_path).unwrap_or_else(|error| {
-        panic!("{name} fixture should validate: {error}");
-    });
+    run_jing(&schema_path, &xml_path)
+        .map_err(|error| format!("{name} fixture should validate: {error}"))
 }
 
 /// Macro to skip jing tests when jing is not available.
@@ -91,7 +84,7 @@ fn validates_fixture(
 ) {
     require_jing!();
     let temp_dir = tempfile::tempdir().expect("temp dir should be created");
-    run_fixture_validation(&temp_dir, name, builder);
+    run_fixture_validation(&temp_dir, name, builder).expect("fixture should validate");
 }
 
 #[test]

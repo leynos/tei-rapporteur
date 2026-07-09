@@ -36,10 +36,14 @@ fn division_fixture() -> TeiDocument {
 }
 
 fn text_value(any: &pyo3::Bound<'_, pyo3::PyAny>, attr: &str) -> String {
-    any.getattr(attr)
-        .unwrap_or_else(|error| panic!("{attr} should exist: {error}"))
-        .extract()
-        .unwrap_or_else(|error| panic!("{attr} should be a string: {error}"))
+    let value = match any.getattr(attr) {
+        Ok(value) => value,
+        Err(error) => panic!("{attr} should exist: {error}"),
+    };
+    match value.extract() {
+        Ok(text) => text,
+        Err(error) => panic!("{attr} should be a string: {error}"),
+    }
 }
 
 fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {

@@ -31,75 +31,82 @@ fn element_with_attrs(
     el
 }
 
-fn assert_utterance_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-    let attrs = extract_utterance_attrs(element).expect("failed to extract utterance attrs");
-    for (field, value) in expected {
-        let actual = match *field {
-            "xml:id" => attrs.id.as_deref(),
-            "n" => attrs.n.as_deref(),
-            "who" => attrs.who.as_deref(),
-            "source" => attrs.source.as_deref(),
-            "resp" => attrs.resp.as_deref(),
-            "cert" => attrs.cert.as_deref(),
-            "corresp" => attrs.corresp.as_deref(),
-            "ana" => attrs.ana.as_deref(),
-            other => panic!("unknown utterance field: {other}"),
-        };
-        assert_eq!(actual, *value, "unexpected utterance @{field}");
-    }
+macro_rules! assert_utterance_attrs {
+    ($element:expr, $expected:expr) => {{
+        let attrs = extract_utterance_attrs($element).expect("failed to extract utterance attrs");
+        for (field, value) in $expected {
+            let actual = match *field {
+                "xml:id" => attrs.id.as_deref(),
+                "n" => attrs.n.as_deref(),
+                "who" => attrs.who.as_deref(),
+                "source" => attrs.source.as_deref(),
+                "resp" => attrs.resp.as_deref(),
+                "cert" => attrs.cert.as_deref(),
+                "corresp" => attrs.corresp.as_deref(),
+                "ana" => attrs.ana.as_deref(),
+                other => panic!("unknown utterance field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected utterance @{field}");
+        }
+    }};
 }
 
-fn assert_div_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-    let attrs = extract_div_attrs(element, None).expect("failed to extract div attrs");
-    for (field, value) in expected {
-        let actual = match *field {
-            "type" => Some(attrs.div_type.as_str()),
-            "subtype" => attrs.subtype.as_deref(),
-            "xml:id" => attrs.id.as_deref(),
-            "head" => attrs.head.as_ref().map(|_| "<head>"),
-            other => panic!("unknown div field: {other}"),
-        };
-        assert_eq!(actual, *value, "unexpected div @{field}");
-    }
+macro_rules! assert_div_attrs {
+    ($element:expr, $expected:expr) => {{
+        let attrs = extract_div_attrs($element, None).expect("failed to extract div attrs");
+        for (field, value) in $expected {
+            let actual = match *field {
+                "type" => Some(attrs.div_type.as_str()),
+                "subtype" => attrs.subtype.as_deref(),
+                "xml:id" => attrs.id.as_deref(),
+                "head" => attrs.head.as_ref().map(|_| "<head>"),
+                other => panic!("unknown div field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected div @{field}");
+        }
+    }};
 }
 
-fn assert_item_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-    let attrs = extract_item_attrs(element, None).expect("failed to extract item attrs");
-    for (field, value) in expected {
-        let actual = match *field {
-            "xml:id" => attrs.id.as_deref(),
-            "n" => attrs.n.as_deref(),
-            "corresp" => attrs.corresp.as_deref(),
-            "label" => attrs.label.as_ref().map(|_| "<label>"),
-            other => panic!("unknown item field: {other}"),
-        };
-        assert_eq!(actual, *value, "unexpected item @{field}");
-    }
+macro_rules! assert_item_attrs {
+    ($element:expr, $expected:expr) => {{
+        let attrs = extract_item_attrs($element, None).expect("failed to extract item attrs");
+        for (field, value) in $expected {
+            let actual = match *field {
+                "xml:id" => attrs.id.as_deref(),
+                "n" => attrs.n.as_deref(),
+                "corresp" => attrs.corresp.as_deref(),
+                "label" => attrs.label.as_ref().map(|_| "<label>"),
+                other => panic!("unknown item field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected item @{field}");
+        }
+    }};
 }
 
-fn assert_pause_attrs(element: &BytesStart<'_>, expected: &[(&str, Option<&str>)]) {
-    let (dur, pause_type) = extract_pause_attrs(element).expect("failed to extract pause attrs");
-    for (field, value) in expected {
-        let actual = match *field {
-            "dur" => dur.as_deref(),
-            "type" => pause_type.as_deref(),
-            other => panic!("unknown pause field: {other}"),
-        };
-        assert_eq!(actual, *value, "unexpected pause @{field}");
-    }
+macro_rules! assert_pause_attrs {
+    ($element:expr, $expected:expr) => {{
+        let (dur, pause_type) =
+            extract_pause_attrs($element).expect("failed to extract pause attrs");
+        for (field, value) in $expected {
+            let actual = match *field {
+                "dur" => dur.as_deref(),
+                "type" => pause_type.as_deref(),
+                other => panic!("unknown pause field: {other}"),
+            };
+            assert_eq!(actual, *value, "unexpected pause @{field}");
+        }
+    }};
 }
 
-fn assert_attrs_for(
-    helper: HelperKind,
-    element: &BytesStart<'_>,
-    expected: &[(&str, Option<&str>)],
-) {
-    match helper {
-        HelperKind::Utterance => assert_utterance_attrs(element, expected),
-        HelperKind::Div => assert_div_attrs(element, expected),
-        HelperKind::Item => assert_item_attrs(element, expected),
-        HelperKind::Pause => assert_pause_attrs(element, expected),
-    }
+macro_rules! assert_attrs_for {
+    ($helper:expr, $element:expr, $expected:expr) => {{
+        match $helper {
+            HelperKind::Utterance => assert_utterance_attrs!($element, $expected),
+            HelperKind::Div => assert_div_attrs!($element, $expected),
+            HelperKind::Item => assert_item_attrs!($element, $expected),
+            HelperKind::Pause => assert_pause_attrs!($element, $expected),
+        }
+    }};
 }
 
 #[rstest]
@@ -204,7 +211,7 @@ fn helper_attrs_match_expected_fields(
     element: BytesStart<'static>,
 ) {
     let _ = input;
-    assert_attrs_for(helper, &element, expected);
+    assert_attrs_for!(helper, &element, expected);
 }
 
 #[rstest]

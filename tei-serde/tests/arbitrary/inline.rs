@@ -107,6 +107,7 @@ pub fn has_visible_content_slice(inlines: &[Inline]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for inline content strategies.
     use super::*;
     use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 

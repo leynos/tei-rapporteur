@@ -2,7 +2,10 @@
 
 use std::time::Instant;
 
-use quick_xml::{Reader, events::BytesStart, events::Event};
+use quick_xml::{
+    Reader,
+    events::{BytesCData, BytesRef, BytesStart, BytesText, Event},
+};
 use tei_core::{SpokenTextSegment, TeiError};
 
 use self::{
@@ -127,32 +130,41 @@ impl<'a> SpokenTextParser<'a> {
                 self.header.record_end(&name)?;
                 self.handle_end(&name)
             }
-            Event::Text(text) => {
-                self.header.record_raw_text(text.as_ref());
-                let value = text
-                    .decode()
-                    .map_err(|error| TeiError::xml(error.to_string()))?
-                    .into_owned();
-                self.push_text(&value);
-                Ok(())
-            }
-            Event::CData(cdata) => {
-                self.header.record_cdata(cdata.as_ref());
-                let value = std::str::from_utf8(cdata.as_ref())
-                    .map_err(|error| TeiError::xml(format!("invalid UTF-8 in CDATA: {error}")))?;
-                self.push_text(value);
-                Ok(())
-            }
-            Event::GeneralRef(reference) => {
-                self.header.record_general_ref(reference.as_ref());
-                let value = resolve_entity_ref(&reference)?;
-                self.push_text(&value);
-                Ok(())
-            }
+            Event::Text(text) => self.handle_text_event(&text),
+            Event::CData(cdata) => self.handle_cdata_event(&cdata),
+            Event::GeneralRef(reference) => self.handle_general_ref_event(&reference),
             Event::Decl(_) | Event::PI(_) | Event::Comment(_) | Event::DocType(_) | Event::Eof => {
                 Ok(())
             }
         }
+    }
+
+    /// Records and pushes decoded character data.
+    fn handle_text_event(&mut self, text: &BytesText<'_>) -> Result<(), TeiError> {
+        self.header.record_raw_text(text.as_ref());
+        let value = text
+            .decode()
+            .map_err(|error| TeiError::xml(error.to_string()))?
+            .into_owned();
+        self.push_text(&value);
+        Ok(())
+    }
+
+    /// Records and pushes CDATA content after validating its encoding.
+    fn handle_cdata_event(&mut self, cdata: &BytesCData<'_>) -> Result<(), TeiError> {
+        self.header.record_cdata(cdata.as_ref());
+        let value = std::str::from_utf8(cdata.as_ref())
+            .map_err(|error| TeiError::xml(format!("invalid UTF-8 in CDATA: {error}")))?;
+        self.push_text(value);
+        Ok(())
+    }
+
+    /// Records and resolves a general entity reference.
+    fn handle_general_ref_event(&mut self, reference: &BytesRef<'_>) -> Result<(), TeiError> {
+        self.header.record_general_ref(reference.as_ref());
+        let value = resolve_entity_ref(reference)?;
+        self.push_text(&value);
+        Ok(())
     }
 
     fn handle_start(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {

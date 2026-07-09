@@ -194,19 +194,15 @@ mod tests {
     use super::*;
     use crate::text::body::Item;
 
-    fn sample_list() -> List {
-        let item = Item::from_text_segments(["List item"])
-            .unwrap_or_else(|error| panic!("valid item: {error}"));
-        List::new([item]).unwrap_or_else(|error| panic!("valid list: {error}"))
+    fn sample_list() -> Result<List, BodyContentError> {
+        let item = Item::from_text_segments(["List item"])?;
+        List::new([item])
     }
 
-    fn sample_child_div() -> Div {
-        let mut child_div =
-            Div::new("guest-bios").unwrap_or_else(|error| panic!("valid child div: {error}"));
-        child_div.set_head(
-            Head::from_text("Guests").unwrap_or_else(|error| panic!("valid head: {error}")),
-        );
-        child_div
+    fn sample_child_div() -> Result<Div, BodyContentError> {
+        let mut child_div = Div::new("guest-bios")?;
+        child_div.set_head(Head::from_text("Guests")?);
+        Ok(child_div)
     }
 
     fn div_content_kinds(div: &Div) -> Vec<&'static str> {
@@ -315,8 +311,8 @@ mod tests {
             .unwrap_or_else(|error| panic!("valid utterance: {error}"));
         div.push_utterance(utterance);
 
-        div.push_list(sample_list());
-        div.push_div(sample_child_div());
+        div.push_list(sample_list().expect("valid list"));
+        div.push_div(sample_child_div().expect("valid child div"));
         assert_eq!(div_content_kinds(&div), vec!["p", "u", "list", "div"]);
         assert!(!div.is_empty());
     }

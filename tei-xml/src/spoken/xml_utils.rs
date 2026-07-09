@@ -62,6 +62,7 @@ pub(crate) fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, Tei
 
 #[cfg(test)]
 mod tests {
+    //! Tests for XML parsing utilities.
     use quick_xml::events::BytesStart;
 
     use super::{extract_attribute, extract_xml_id};

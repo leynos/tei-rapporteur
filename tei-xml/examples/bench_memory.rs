@@ -31,14 +31,17 @@ use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
 use tei_xml::parse_xml;
 use tei_xml::streaming::{TeiEvent, TeiPullParser};
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mode = args.get(1).map_or("help", String::as_str);
 
     match mode {
         "streaming" => run_streaming_parser(),
         "full" => run_full_parser(),
-        _ => print_usage(),
+        _ => {
+            print_usage();
+            Ok(())
+        }
     }
 }
 
@@ -56,21 +59,16 @@ fn status(message: &str) {
 /// Writes generated XML to a temporary file then parses from it, ensuring peak
 /// RSS measurement reflects only streaming parser memory usage (not the XML
 /// string).
-#[expect(
-    clippy::expect_used,
-    reason = "Measurement tool: panicking on fixture errors is appropriate"
-)]
-fn run_streaming_parser() {
+fn run_streaming_parser() -> Result<(), Box<dyn std::error::Error>> {
     status("Generating very large benchmark fixture to temporary file…");
-    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
-        .expect("fixture generation should succeed");
+    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)?;
     let xml_len = xml.len();
 
     // Write to temp file and drop the XML string to free memory before parsing
     // Include PID in filename to avoid conflicts with concurrent runs
     let temp_path =
         std::env::temp_dir().join(format!("bench_memory_fixture_{}.xml", std::process::id()));
-    fs::write(&temp_path, &xml).expect("temp file write should succeed");
+    fs::write(&temp_path, &xml)?;
     drop(xml);
 
     status(&format!(
@@ -79,13 +77,13 @@ fn run_streaming_parser() {
     ));
 
     status("Parsing with streaming parser from file…");
-    let file = fs::File::open(&temp_path).expect("temp file open should succeed");
+    let file = fs::File::open(&temp_path)?;
     let reader = BufReader::new(file);
     let parser = TeiPullParser::new(reader);
     let mut block_count = 0;
 
     for result in parser {
-        let tei_event = result.expect("benchmark fixture should parse");
+        let tei_event = result?;
         if matches!(tei_event, TeiEvent::BodyBlock(_)) {
             block_count += 1;
         }
@@ -97,24 +95,21 @@ fn run_streaming_parser() {
     status(&format!(
         "Streaming parser processed {block_count} body blocks"
     ));
+    Ok(())
 }
 
 /// Runs the full document parser and counts body blocks.
-#[expect(
-    clippy::expect_used,
-    reason = "Measurement tool: panicking on fixture errors is appropriate"
-)]
-fn run_full_parser() {
+fn run_full_parser() -> Result<(), Box<dyn std::error::Error>> {
     status("Generating very large benchmark fixture…");
-    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)
-        .expect("fixture generation should succeed");
+    let xml = generate_benchmark_xml(&BenchFixtureConfig::VERY_LARGE)?;
     status(&format!("Generated {} bytes of XML", xml.len()));
 
     status("Parsing with full document parser…");
-    let document = parse_xml(&xml).expect("benchmark fixture should parse");
+    let document = parse_xml(&xml)?;
 
     let block_count = document.text().body().blocks().len();
     status(&format!("Full parser loaded {block_count} body blocks"));
+    Ok(())
 }
 
 /// Prints usage information.

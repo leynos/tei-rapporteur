@@ -8,6 +8,7 @@ use tei_core::{
     AnnotationSystem, EncodingDesc, FileDesc, ProfileDesc, RevisionChange, RevisionDesc, TeiHeader,
 };
 
+use super::ExpectValid;
 use super::primitives::{
     annotation_id_strategy, document_title_strategy, language_tag_strategy, speaker_strategy,
     text_segment_strategy,
@@ -21,8 +22,8 @@ pub fn file_desc_strategy() -> impl Strategy<Value = FileDesc> {
         proptest::option::of(text_segment_strategy()),
     )
         .prop_map(|(title, series, synopsis)| {
-            let mut fd = FileDesc::from_title_str(&title)
-                .unwrap_or_else(|error| panic!("generated title should be valid: {error}"));
+            let mut fd =
+                FileDesc::from_title_str(&title).expect_valid("generated title should be valid");
             if let Some(s) = series {
                 fd = fd.with_series(s);
             }
@@ -47,12 +48,10 @@ pub fn profile_desc_strategy() -> impl Strategy<Value = Option<ProfileDesc>> {
                 pd = pd.with_synopsis(s);
             }
             for s in speakers {
-                pd.add_speaker(&s)
-                    .unwrap_or_else(|error| panic!("speaker should validate: {error}"));
+                pd.add_speaker(&s).expect_valid("speaker should validate");
             }
             for l in languages {
-                pd.add_language(&l)
-                    .unwrap_or_else(|error| panic!("language should validate: {error}"));
+                pd.add_language(&l).expect_valid("language should validate");
             }
             pd
         })
@@ -74,7 +73,7 @@ pub fn encoding_desc_strategy() -> impl Strategy<Value = Option<EncodingDesc>> {
             for (id, desc) in systems {
                 let description = desc.unwrap_or_default();
                 let sys = AnnotationSystem::new(&id, &description)
-                    .unwrap_or_else(|error| panic!("annotation system should validate: {error}"));
+                    .expect_valid("annotation system should validate");
                 ed.add_annotation_system(sys);
             }
             ed
@@ -97,7 +96,7 @@ pub fn revision_desc_strategy() -> impl Strategy<Value = Option<RevisionDesc>> {
             for (desc, resp) in changes {
                 let resp_str = resp.as_deref().unwrap_or("");
                 let change = RevisionChange::new(&desc, resp_str)
-                    .unwrap_or_else(|error| panic!("revision change should validate: {error}"));
+                    .expect_valid("revision change should validate");
                 rd.add_change(change);
             }
             rd
@@ -130,6 +129,7 @@ pub fn tei_header_strategy() -> impl Strategy<Value = TeiHeader> {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for header strategies.
     use super::*;
     use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 

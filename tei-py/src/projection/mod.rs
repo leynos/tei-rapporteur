@@ -252,27 +252,33 @@ impl From<Inline> for PyInline {
 fn inline_from_py(inline_value: PyInline) -> Result<Inline, TeiError> {
     match inline_value {
         PyInline::Text { value } => Ok(Inline::Text(value)),
-        PyInline::Hi { rend, content } => {
-            let converted_values: Result<Vec<Inline>, TeiError> =
-                content.into_iter().map(inline_from_py).collect();
-            let converted_inlines = converted_values?;
-            let hi = match rend {
-                Some(r) => tei_core::Hi::try_with_rend(r, converted_inlines)?,
-                None => tei_core::Hi::try_new(converted_inlines)?,
-            };
-            Ok(Inline::Hi(hi))
-        }
-        PyInline::Pause { dur, kind } => {
-            let mut pause = Pause::new();
-            if let Some(duration) = dur {
-                pause.set_duration(duration);
-            }
-            if let Some(classification) = kind {
-                pause.set_kind(classification);
-            }
-            Ok(Inline::Pause(pause))
-        }
+        PyInline::Hi { rend, content } => hi_from_py(rend, content),
+        PyInline::Pause { dur, kind } => Ok(pause_from_py(dur, kind)),
     }
+}
+
+/// Converts a projected highlight into a core `Inline::Hi`.
+fn hi_from_py(rend: Option<String>, content: Vec<PyInline>) -> Result<Inline, TeiError> {
+    let converted_values: Result<Vec<Inline>, TeiError> =
+        content.into_iter().map(inline_from_py).collect();
+    let converted_inlines = converted_values?;
+    let hi = match rend {
+        Some(r) => tei_core::Hi::try_with_rend(r, converted_inlines)?,
+        None => tei_core::Hi::try_new(converted_inlines)?,
+    };
+    Ok(Inline::Hi(hi))
+}
+
+/// Converts a projected pause into a core `Inline::Pause`.
+fn pause_from_py(dur: Option<String>, kind: Option<String>) -> Inline {
+    let mut pause = Pause::new();
+    if let Some(duration) = dur {
+        pause.set_duration(duration);
+    }
+    if let Some(classification) = kind {
+        pause.set_kind(classification);
+    }
+    Inline::Pause(pause)
 }
 
 /// Converts a core TEI document into a projection `Value` for Python exchange.

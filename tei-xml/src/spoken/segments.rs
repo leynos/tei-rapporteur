@@ -189,6 +189,7 @@ impl ActiveSegment {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for spoken segment parsing.
     use quick_xml::events::BytesStart;
 
     use super::*;
