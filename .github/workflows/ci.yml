@@ -16,8 +16,10 @@ jobs:
       WHITAKER_INSTALLER_VERSION: '0.2.5'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@2b09d10192627fd6e1034e7c12625dd266b45503
+        uses: leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
       - name: Format
         run: make check-fmt
       - name: Markdown lint
@@ -48,10 +50,11 @@ jobs:
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac
+        uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
         with:
-          output-path: coverage.xml
-          format: cobertura
+          output-path: lcov.info
+          format: lcov
+          with-ratchet: 'true'
       - name: Install jing for XML validation
         run: sudo apt-get update && sudo apt-get install -y jing
       - name: Validate XML fixtures against Relax NG schema
@@ -105,12 +108,17 @@ jobs:
         run: |
           python -c "import tei_rapporteur as tr; print(f'Version: {tr.__version__}'); assert hasattr(tr, 'Document'), 'Document class not exported'; assert hasattr(tr, 'emit_title_markup'), 'emit_title_markup missing'"
           echo "SMOKE_TEST_PASSED"
-      - name: Upload coverage data to CodeScene
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@feeb29c2be7b343cb62b0ffcb1cca176eb5b4db9
-        with:
-          format: cobertura
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+      # `cs-coverage upload` (the shared action's default mode) is only
+      # accepted by CodeScene for analysed branches, typically main, so
+      # it cannot run from a pull-request head; coverage-main.yml
+      # uploads on push to main instead. The `mode: check` changed-line
+      # gate is deliberately not wired in yet: CodeScene project 72456
+      # has no coverage-gates configuration, so `cs-coverage check`
+      # fails every run with "HTTP call succeeded, but the received
+      # project-config isn't valid. Lacks the gates configuration." — a
+      # CodeScene-side per-project setting, not a CI defect (see
+      # ddlint#287 and chutoro#156 for the same failure on other
+      # projects). Add the check step in a fast-follow PR once
+      # coverage-main.yml has uploaded to main at least once and the
+      # gate is confirmed to resolve, or once CodeScene confirms the
+      # project's coverage gate is enabled.
