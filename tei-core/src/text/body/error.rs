@@ -1,3 +1,4 @@
+//! Error types for body text construction and validation.
 use thiserror::Error;
 
 /// Error raised when TEI body content fails validation.

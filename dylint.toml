@@ -1,0 +1,29 @@
+# Whitaker Dylint suite configuration.
+#
+# `no_std_fs_operations` exclusions. The workspace's only ambient filesystem
+# use is deliberate: schema and fixture generation write caller-supplied
+# output paths so external validation tooling (jing) can consume them. See
+# leynos/netsuke#410 for the estate precedent.
+[no_std_fs_operations]
+excluded_crates = [
+    # tei-xml's only std::fs use is `schema.rs`, whose public helper writes
+    # the embedded Relax NG schema to a caller-supplied path for fixture
+    # generation and external validation.
+    "tei_xml",
+    # Fixture-generation binary: writes XML fixtures to a target directory.
+    "generate_fixtures",
+    # Schema snapshot binary: writes JSON Schema snapshots into the repo.
+    "generate_json_schema",
+    # tei-serde's snapshot tests read the committed JSON Schema snapshot from
+    # the repository to detect drift.
+    "tei_serde",
+    # Memory measurement example: stages a large fixture in a temporary file
+    # so peak RSS reflects only parser memory.
+    "bench_memory",
+    # Integration tests that stage fixtures on disk for the external jing
+    # validator and for file-based benchmark harness checks.
+    "jing_validation",
+    "benchmark_fixtures_behaviour",
+    # Behaviour test that reads the generated schema back from disk.
+    "schema_behaviour",
+]

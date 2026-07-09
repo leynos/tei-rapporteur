@@ -109,20 +109,22 @@ impl<R: BufRead> TeiPullParser<R> {
             let event = match self.reader.read_event_into(&mut buf) {
                 Ok(event) => event,
                 Err(error) => {
-                    self.state = ParserState::Error;
-                    return Some(Err(TeiError::xml(error.to_string())));
+                    return Some(Err(self.fail_with(TeiError::xml(error.to_string()))));
                 }
             };
 
             match self.handle_event(&event) {
                 Ok(Some(tei_event)) => return Some(Ok(tei_event)),
                 Ok(None) => {}
-                Err(error) => {
-                    self.state = ParserState::Error;
-                    return Some(Err(error));
-                }
+                Err(error) => return Some(Err(self.fail_with(error))),
             }
         }
+    }
+
+    /// Moves the parser into the error state and returns the error unchanged.
+    fn fail_with(&mut self, error: TeiError) -> TeiError {
+        self.state = ParserState::Error;
+        error
     }
 
     /// Handles a single XML event, potentially yielding a domain event.

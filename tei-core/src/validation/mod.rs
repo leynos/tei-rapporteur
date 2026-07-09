@@ -208,45 +208,39 @@ mod tests {
     };
 
     #[fixture]
-    fn document_with_stand_off() -> TeiDocument {
-        let header = TeiHeader::new(
-            FileDesc::from_title_str("Fixture").unwrap_or_else(|error| panic!("title: {error}")),
-        );
-        let mut utterance = Utterance::from_text_segments(Some("host"), ["Hello"])
-            .unwrap_or_else(|error| panic!("utterance: {error}"));
-        utterance
-            .set_id("u1")
-            .unwrap_or_else(|error| panic!("utterance id: {error}"));
+    fn document_with_stand_off() -> Result<TeiDocument, Box<dyn std::error::Error>> {
+        let header = TeiHeader::new(FileDesc::from_title_str("Fixture")?);
+        let mut utterance = Utterance::from_text_segments(Some("host"), ["Hello"])?;
+        utterance.set_id("u1")?;
 
         let mut span = Span::new();
-        span.set_id("sp1")
-            .unwrap_or_else(|error| panic!("span id: {error}"));
-        span.set_target(
-            PointerList::new(["#u1"]).unwrap_or_else(|error| panic!("target pointers: {error}")),
-        );
-        span.set_cert(Certainty::new("high").unwrap_or_else(|error| panic!("certainty: {error}")));
-        span.set_from(Pointer::new("#u1").unwrap_or_else(|error| panic!("from pointer: {error}")));
+        span.set_id("sp1")?;
+        span.set_target(PointerList::new(["#u1"])?);
+        span.set_cert(Certainty::new("high")?);
+        span.set_from(Pointer::new("#u1")?);
 
-        let mut span_group =
-            SpanGroup::new("citation").unwrap_or_else(|error| panic!("group kind: {error}"));
-        span_group
-            .set_id("grp1")
-            .unwrap_or_else(|error| panic!("group id: {error}"));
+        let mut span_group = SpanGroup::new("citation")?;
+        span_group.set_id("grp1")?;
         span_group.add_span(span);
 
         let mut stand_off = StandOff::new();
         stand_off.add_span_group(span_group);
 
-        TeiDocument::new(
+        Ok(TeiDocument::new(
             header,
             TeiText::new(TeiBody::new([BodyBlock::Utterance(utterance)])),
         )
-        .with_stand_off(stand_off)
+        .with_stand_off(stand_off))
     }
 
     #[rstest]
-    fn accepts_resolved_stand_off_pointers(document_with_stand_off: TeiDocument) {
-        let document = document_with_stand_off;
+    fn accepts_resolved_stand_off_pointers(
+        #[from(document_with_stand_off)] document_res: Result<
+            TeiDocument,
+            Box<dyn std::error::Error>,
+        >,
+    ) {
+        let document = document_res.expect("fixture document");
         assert!(validate_document(&document).is_ok());
     }
 
@@ -279,14 +273,19 @@ mod tests {
     }
 
     #[rstest]
-    fn rejects_unresolved_internal_pointers(document_with_stand_off: TeiDocument) {
-        let mut document = document_with_stand_off;
+    fn rejects_unresolved_internal_pointers(
+        #[from(document_with_stand_off)] document_res: Result<
+            TeiDocument,
+            Box<dyn std::error::Error>,
+        >,
+    ) {
+        let mut document = document_res.expect("fixture document");
         let stand_off = document
             .stand_off_mut()
-            .unwrap_or_else(|| panic!("document should contain standOff"));
+            .expect("document should contain standOff");
         let group = stand_off
             .find_span_group_mut("grp1")
-            .unwrap_or_else(|| panic!("span group should exist"));
+            .expect("span group should exist");
         let mut span = Span::new();
         span.set_target(
             PointerList::new(["#missing"])

@@ -50,6 +50,7 @@ pub fn valid_text_only_tei_document_strategy() -> impl Strategy<Value = TeiDocum
 
 #[cfg(test)]
 mod tests {
+    //! Tests for document strategies.
     use super::*;
     use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 

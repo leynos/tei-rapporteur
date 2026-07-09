@@ -11,6 +11,31 @@ pub mod inline;
 pub mod primitives;
 pub mod text;
 
+/// Extension trait that unwraps fallible constructions inside proptest
+/// strategy pipelines.
+///
+/// Strategy composition closures cannot propagate `Result`, so a malformed
+/// regex or an invalid generated value aborts the test with a descriptive
+/// panic instead.
+pub trait ExpectValid {
+    /// The success value produced on unwrap.
+    type Value;
+
+    /// Unwraps the value, panicking with `context` on failure.
+    fn expect_valid(self, context: &str) -> Self::Value;
+}
+
+impl<T, E: std::fmt::Display> ExpectValid for Result<T, E> {
+    type Value = T;
+
+    fn expect_valid(self, context: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => panic!("{context}: {error}"),
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod test_utils {
     //! Shared test utilities for strategy validation.
@@ -18,6 +43,8 @@ pub mod test_utils {
     use proptest::prelude::*;
     use proptest::strategy::ValueTree;
     use proptest::test_runner::TestRunner;
+
+    use super::ExpectValid;
 
     /// Generates values from a strategy and validates each with the given predicate.
     ///
@@ -33,7 +60,7 @@ pub mod test_utils {
         for _ in 0..20 {
             let value = strategy
                 .new_tree(&mut runner)
-                .unwrap_or_else(|error| panic!("strategy should generate values: {error}"))
+                .expect_valid("strategy should generate values")
                 .current();
             assert!(validator(&value), "invalid value: {value:?}");
         }

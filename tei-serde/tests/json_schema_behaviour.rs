@@ -338,49 +338,34 @@ pub fn rejects_hi_nodes_with_unknown_properties(
     expect_validated_state(result, "json schema");
 }
 
-fn structural_document() -> TeiDocument {
-    let mut item = Item::from_text_segments(["Reference"])
-        .unwrap_or_else(|error| panic!("item should validate: {error}"));
-    item.set_label(
-        Label::from_text("1.").unwrap_or_else(|error| panic!("label should validate: {error}")),
-    );
-    let list = List::new([item]).unwrap_or_else(|error| panic!("list should validate: {error}"));
-    let mut child =
-        Div::new("segment").unwrap_or_else(|error| panic!("child div should validate: {error}"));
+fn structural_document() -> Result<TeiDocument> {
+    let mut item = Item::from_text_segments(["Reference"]).context("item should validate")?;
+    item.set_label(Label::from_text("1.").context("label should validate")?);
+    let list = List::new([item]).context("list should validate")?;
+    let mut child = Div::new("segment").context("child div should validate")?;
     child
         .set_subtype("guest-bio")
-        .unwrap_or_else(|error| panic!("child subtype should validate: {error}"));
-    child.set_head(
-        Head::from_text("Guest bios")
-            .unwrap_or_else(|error| panic!("head should validate: {error}")),
-    );
+        .context("child subtype should validate")?;
+    child.set_head(Head::from_text("Guest bios").context("head should validate")?);
     child.push_utterance(
         Utterance::from_text_segments(Some("host"), ["Meet our guest"])
-            .unwrap_or_else(|error| panic!("utterance should validate: {error}")),
+            .context("utterance should validate")?,
     );
     child.push_list(list);
 
-    let mut div =
-        Div::new("show-notes").unwrap_or_else(|error| panic!("div should validate: {error}"));
+    let mut div = Div::new("show-notes").context("div should validate")?;
     div.set_subtype("chapter-markers")
-        .unwrap_or_else(|error| panic!("subtype should validate: {error}"));
-    div.set_head(
-        Head::from_text("Chapter markers")
-            .unwrap_or_else(|error| panic!("head should validate: {error}")),
-    );
-    div.push_paragraph(
-        P::from_text_segments(["Intro"])
-            .unwrap_or_else(|error| panic!("paragraph should validate: {error}")),
-    );
+        .context("subtype should validate")?;
+    div.set_head(Head::from_text("Chapter markers").context("head should validate")?);
+    div.push_paragraph(P::from_text_segments(["Intro"]).context("paragraph should validate")?);
     div.push_div(child);
 
-    TeiDocument::new(
+    Ok(TeiDocument::new(
         TeiHeader::new(
-            tei_core::FileDesc::from_title_str("fixture")
-                .unwrap_or_else(|error| panic!("title should validate: {error}")),
+            tei_core::FileDesc::from_title_str("fixture").context("title should validate")?,
         ),
         TeiText::new(TeiBody::new([BodyBlock::Div(div)])),
-    )
+    ))
 }
 
 fn schema_has_variant(
@@ -568,7 +553,7 @@ fn assert_instance_shape(instance: &serde_json::Value) -> Result<()> {
 
 #[test]
 fn schema_includes_structural_body_definitions() -> Result<()> {
-    let document = structural_document();
+    let document = structural_document()?;
     let schema = tei_serde::schema::tei_document_schema().to_value();
     let validator = compile_validator(&schema)?;
     let instance =

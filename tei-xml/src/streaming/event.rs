@@ -120,18 +120,17 @@ impl TeiEvent {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for streaming parser events.
     use super::*;
     use rstest::rstest;
-    use tei_core::{FileDesc, P};
+    use tei_core::{BodyContentError, DocumentTitleError, FileDesc, P};
 
-    fn test_header() -> TeiHeader {
-        let file_desc = FileDesc::from_title_str("Test").expect("valid title");
-        TeiHeader::new(file_desc)
+    fn test_header() -> Result<TeiHeader, DocumentTitleError> {
+        Ok(TeiHeader::new(FileDesc::from_title_str("Test")?))
     }
 
-    fn test_body_block() -> BodyBlock {
-        let paragraph = P::from_text_segments(["Hello"]).expect("valid paragraph");
-        BodyBlock::Paragraph(paragraph)
+    fn test_body_block() -> Result<BodyBlock, BodyContentError> {
+        Ok(BodyBlock::Paragraph(P::from_text_segments(["Hello"])?))
     }
 
     /// Predicate expectations encoded as (`is_start`, `is_header`, `is_body`, `is_end`).
@@ -139,8 +138,8 @@ mod tests {
 
     #[rstest]
     #[case::document_start(TeiEvent::DocumentStart, (true, false, false, false))]
-    #[case::header(TeiEvent::Header(test_header()), (false, true, false, false))]
-    #[case::body_block(TeiEvent::BodyBlock(test_body_block()), (false, false, true, false))]
+    #[case::header(TeiEvent::Header(test_header().expect("valid header")), (false, true, false, false))]
+    #[case::body_block(TeiEvent::BodyBlock(test_body_block().expect("valid body block")), (false, false, true, false))]
     #[case::document_end(TeiEvent::DocumentEnd, (false, false, false, true))]
     fn event_predicates(#[case] event: TeiEvent, #[case] expected: PredicateExpectation) {
         let (is_start, is_header, is_body, is_end) = expected;
@@ -152,7 +151,7 @@ mod tests {
 
     #[test]
     fn header_accessor() {
-        let header = test_header();
+        let header = test_header().expect("valid header");
         let event = TeiEvent::Header(header.clone());
         assert_eq!(event.as_header(), Some(&header));
         assert!(TeiEvent::DocumentStart.as_header().is_none());
@@ -160,7 +159,7 @@ mod tests {
 
     #[test]
     fn body_block_accessor() {
-        let block = test_body_block();
+        let block = test_body_block().expect("valid body block");
         let event = TeiEvent::BodyBlock(block.clone());
         assert_eq!(event.as_body_block(), Some(&block));
         assert!(TeiEvent::DocumentStart.as_body_block().is_none());

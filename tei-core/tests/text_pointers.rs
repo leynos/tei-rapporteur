@@ -1,23 +1,26 @@
 //! Integration tests for pointer and certainty wrappers.
 
 use rstest::{fixture, rstest};
-use tei_core::{Certainty, CertaintyValidationError, Pointer, PointerList};
+use tei_core::{
+    Certainty, CertaintyValidationError, Pointer, PointerList, PointerListValidationError,
+};
 use tei_serde::json;
 
 #[fixture]
-fn pointer_list_attr() -> PointerList {
+fn pointer_list_attr() -> Result<PointerList, PointerListValidationError> {
     PointerList::new(["#u1", "https://example.test/source"])
-        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"))
 }
 
 #[fixture]
-fn pointer_list_internal_refs() -> PointerList {
+fn pointer_list_internal_refs() -> Result<PointerList, PointerListValidationError> {
     PointerList::new(["#u1", "#u2"])
-        .unwrap_or_else(|error| panic!("pointer list should validate: {error}"))
 }
 
 #[rstest]
-fn pointer_list_round_trips_as_attribute_text(pointer_list_attr: PointerList) {
+fn pointer_list_round_trips_as_attribute_text(
+    #[from(pointer_list_attr)] pointer_list_res: Result<PointerList, PointerListValidationError>,
+) {
+    let pointer_list_attr = pointer_list_res.expect("pointer list should validate");
     let serialized =
         json::to_string(&pointer_list_attr).expect("failed to serialize PointerList to JSON");
     assert_eq!(serialized, "\"#u1 https://example.test/source\"");
@@ -28,7 +31,13 @@ fn pointer_list_round_trips_as_attribute_text(pointer_list_attr: PointerList) {
 }
 
 #[rstest]
-fn borrowed_pointer_list_is_directly_iterable(pointer_list_internal_refs: PointerList) {
+fn borrowed_pointer_list_is_directly_iterable(
+    #[from(pointer_list_internal_refs)] pointer_list_res: Result<
+        PointerList,
+        PointerListValidationError,
+    >,
+) {
+    let pointer_list_internal_refs = pointer_list_res.expect("pointer list should validate");
     let collected: Vec<&str> = (&pointer_list_internal_refs)
         .into_iter()
         .map(Pointer::as_str)

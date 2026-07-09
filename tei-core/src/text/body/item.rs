@@ -254,8 +254,8 @@ mod tests {
     use rstest::{fixture, rstest};
 
     #[fixture]
-    fn sample_item() -> Item {
-        Item::from_text_segments(["Sample item content"]).expect("item should be valid")
+    fn sample_item() -> Result<Item, BodyContentError> {
+        Item::from_text_segments(["Sample item content"])
     }
 
     #[test]
@@ -283,7 +283,8 @@ mod tests {
     }
 
     #[rstest]
-    fn item_set_id_round_trips(mut sample_item: Item) {
+    fn item_set_id_round_trips(#[from(sample_item)] item_res: Result<Item, BodyContentError>) {
+        let mut sample_item = item_res.expect("valid item");
         sample_item.set_id("item1").expect("id should be valid");
         assert_eq!(sample_item.id().map(XmlId::as_str), Some("item1"));
         sample_item.clear_id();
@@ -291,13 +292,15 @@ mod tests {
     }
 
     #[rstest]
-    fn item_set_n_attribute(mut sample_item: Item) {
+    fn item_set_n_attribute(#[from(sample_item)] item_res: Result<Item, BodyContentError>) {
+        let mut sample_item = item_res.expect("valid item");
         sample_item.set_n("1").expect("n should be valid");
         assert_eq!(sample_item.n(), Some("1"));
     }
 
     #[rstest]
-    fn item_set_corresp_attribute(mut sample_item: Item) {
+    fn item_set_corresp_attribute(#[from(sample_item)] item_res: Result<Item, BodyContentError>) {
+        let mut sample_item = item_res.expect("valid item");
         let corresp =
             PointerList::new(["#guest1", "#guest2"]).expect("pointer list should be valid");
         sample_item.set_corresp(corresp.clone());
@@ -305,7 +308,8 @@ mod tests {
     }
 
     #[rstest]
-    fn item_set_label(mut sample_item: Item) {
+    fn item_set_label(#[from(sample_item)] item_res: Result<Item, BodyContentError>) {
+        let mut sample_item = item_res.expect("valid item");
         let label = Label::from_text("Link:").expect("label should be valid");
         sample_item.set_label(label.clone());
         assert_eq!(sample_item.label(), Some(&label));

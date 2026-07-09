@@ -285,6 +285,7 @@ pub fn fixture_builders() -> Vec<NamedFixture> {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for XML fixture generation.
     use super::*;
 
     #[test]

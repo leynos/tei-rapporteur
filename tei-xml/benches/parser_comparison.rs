@@ -24,6 +24,18 @@ use tei_xml::fixtures::{BenchFixtureConfig, generate_benchmark_xml};
 use tei_xml::parse_xml;
 use tei_xml::streaming::TeiPullParser;
 
+/// Unwraps a benchmark prerequisite, aborting with context on failure.
+///
+/// Benchmark fixtures are pre-validated, and Criterion's closures cannot
+/// propagate errors, so a failure indicates an implementation bug and
+/// panics with a descriptive message.
+fn expect_bench<T, E: std::fmt::Display>(result: Result<T, E>, context: &str) -> T {
+    match result {
+        Ok(value) => value,
+        Err(error) => panic!("{context}: {error}"),
+    }
+}
+
 /// Benchmark configurations with their names and settings.
 const BENCHMARK_CONFIGS: &[(&str, BenchFixtureConfig)] = &[
     ("small", BenchFixtureConfig::SMALL),
@@ -39,18 +51,20 @@ struct BenchFixtures {
 }
 
 impl BenchFixtures {
-    #[expect(
-        clippy::expect_used,
-        reason = "Benchmark fixtures must be valid; generation failure indicates implementation bug"
-    )]
     fn new() -> Self {
         Self {
-            small: generate_benchmark_xml(&BenchFixtureConfig::SMALL)
-                .expect("small fixture should generate"),
-            medium: generate_benchmark_xml(&BenchFixtureConfig::MEDIUM)
-                .expect("medium fixture should generate"),
-            large: generate_benchmark_xml(&BenchFixtureConfig::LARGE)
-                .expect("large fixture should generate"),
+            small: expect_bench(
+                generate_benchmark_xml(&BenchFixtureConfig::SMALL),
+                "small fixture should generate",
+            ),
+            medium: expect_bench(
+                generate_benchmark_xml(&BenchFixtureConfig::MEDIUM),
+                "medium fixture should generate",
+            ),
+            large: expect_bench(
+                generate_benchmark_xml(&BenchFixtureConfig::LARGE),
+                "large fixture should generate",
+            ),
         }
     }
 
@@ -65,14 +79,10 @@ impl BenchFixtures {
 }
 
 /// Consumes all events from a streaming parser.
-#[expect(
-    clippy::expect_used,
-    reason = "Benchmark fixtures are pre-validated; parsing failure indicates implementation bug"
-)]
 fn consume_streaming_events(xml: &str) {
     let parser = TeiPullParser::from_str(xml);
     for event in parser {
-        black_box(event.expect("benchmark fixture should parse"));
+        black_box(expect_bench(event, "benchmark fixture should parse"));
     }
 }
 
@@ -80,10 +90,6 @@ fn consume_streaming_events(xml: &str) {
 ///
 /// This measures the time to parse a complete TEI document into a `TeiDocument`
 /// structure. The entire document is loaded into memory.
-#[expect(
-    clippy::expect_used,
-    reason = "Benchmark fixtures are pre-validated; parsing failure indicates implementation bug"
-)]
 fn bench_full_document_parser(c: &mut Criterion) {
     let fixtures = BenchFixtures::new();
     let mut group = c.benchmark_group("full_document_parse");
@@ -98,7 +104,10 @@ fn bench_full_document_parser(c: &mut Criterion) {
             &fixture_xml,
             |bencher, input| {
                 bencher.iter(|| {
-                    black_box(parse_xml(black_box(input)).expect("benchmark fixture should parse"))
+                    black_box(expect_bench(
+                        parse_xml(black_box(input)),
+                        "benchmark fixture should parse",
+                    ))
                 });
             },
         );
@@ -137,10 +146,6 @@ fn bench_streaming_parser(c: &mut Criterion) {
 ///
 /// This group makes it easy to compare the performance characteristics of
 /// each parser at the same document size.
-#[expect(
-    clippy::expect_used,
-    reason = "Benchmark fixtures are pre-validated; parsing failure indicates implementation bug"
-)]
 fn bench_parser_comparison(c: &mut Criterion) {
     let fixtures = BenchFixtures::new();
     let mut group = c.benchmark_group("parser_comparison");
@@ -157,7 +162,10 @@ fn bench_parser_comparison(c: &mut Criterion) {
             &fixture_xml,
             |bencher, input| {
                 bencher.iter(|| {
-                    black_box(parse_xml(black_box(input)).expect("benchmark fixture should parse"))
+                    black_box(expect_bench(
+                        parse_xml(black_box(input)),
+                        "benchmark fixture should parse",
+                    ))
                 });
             },
         );

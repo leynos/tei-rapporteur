@@ -23,6 +23,7 @@ use tei_core::{
     Utterance,
 };
 
+use super::ExpectValid;
 use super::inline::{
     has_visible_content, has_visible_content_slice, inline_strategy, text_only_inline_strategy,
 };
@@ -34,11 +35,10 @@ where
     S: Strategy<Value = Vec<Inline>>,
 {
     (proptest::option::of(xml_id_strategy()), content_strategy).prop_map(|(id, content)| {
-        let mut p = P::from_inline(content)
-            .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
+        let mut p = P::from_inline(content).expect_valid("generated content should be valid");
         if let Some(id_value) = id {
             p.set_id(id_value)
-                .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+                .expect_valid("generated id should be valid");
         }
         p
     })
@@ -56,10 +56,10 @@ where
     )
         .prop_map(|(id, speaker, content)| {
             let mut u = Utterance::from_inline(speaker.as_deref(), content)
-                .unwrap_or_else(|error| panic!("generated content should be valid: {error}"));
+                .expect_valid("generated content should be valid");
             if let Some(id_value) = id {
                 u.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+                    .expect_valid("generated id should be valid");
             }
             u
         })
@@ -144,8 +144,7 @@ where
     S: Strategy<Value = Vec<Inline>>,
 {
     content_strategy.prop_map(|content| {
-        Label::new(content)
-            .unwrap_or_else(|error| panic!("generated label content should be valid: {error}"))
+        Label::new(content).expect_valid("generated label content should be valid")
     })
 }
 
@@ -170,15 +169,15 @@ where
         content_strategy,
     )
         .prop_map(|(id, n, corresp_ids, label, content)| {
-            let mut item = Item::new(content)
-                .unwrap_or_else(|error| panic!("generated item content should be valid: {error}"));
+            let mut item =
+                Item::new(content).expect_valid("generated item content should be valid");
             if let Some(id_value) = id {
                 item.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+                    .expect_valid("generated id should be valid");
             }
             if let Some(n_value) = n {
                 item.set_n(n_value)
-                    .unwrap_or_else(|error| panic!("generated @n should be valid: {error}"));
+                    .expect_valid("generated @n should be valid");
             }
             if let Some(corresp_values) = corresp_ids {
                 let corresp = PointerList::new(
@@ -186,7 +185,7 @@ where
                         .into_iter()
                         .map(|pointer_id| format!("#{pointer_id}")),
                 )
-                .unwrap_or_else(|error| panic!("generated @corresp should be valid: {error}"));
+                .expect_valid("generated @corresp should be valid");
                 item.set_corresp(corresp);
             }
             if let Some(label_value) = label {
@@ -205,11 +204,10 @@ where
         prop::collection::vec(item_strategy, 1..=4),
     )
         .prop_map(|(id, items)| {
-            let mut list = List::new(items)
-                .unwrap_or_else(|error| panic!("generated list items should be valid: {error}"));
+            let mut list = List::new(items).expect_valid("generated list items should be valid");
             if let Some(id_value) = id {
                 list.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+                    .expect_valid("generated id should be valid");
             }
             list
         })
@@ -239,8 +237,7 @@ where
     S: Strategy<Value = Vec<Inline>>,
 {
     content_strategy.prop_map(|content| {
-        Head::new(content)
-            .unwrap_or_else(|error| panic!("generated head content should be valid: {error}"))
+        Head::new(content).expect_valid("generated head content should be valid")
     })
 }
 
@@ -260,15 +257,14 @@ where
         content_strategy,
     )
         .prop_map(|(id, div_type, subtype, head, content)| {
-            let mut div = Div::new(div_type)
-                .unwrap_or_else(|error| panic!("generated div type should be valid: {error}"));
+            let mut div = Div::new(div_type).expect_valid("generated div type should be valid");
             if let Some(id_value) = id {
                 div.set_id(id_value)
-                    .unwrap_or_else(|error| panic!("generated id should be valid: {error}"));
+                    .expect_valid("generated id should be valid");
             }
             if let Some(subtype_value) = subtype {
                 div.set_subtype(subtype_value)
-                    .unwrap_or_else(|error| panic!("generated subtype should be valid: {error}"));
+                    .expect_valid("generated subtype should be valid");
             }
             if let Some(head_value) = head {
                 div.set_head(head_value);
@@ -347,63 +343,5 @@ fn text_only_div_strategy() -> impl Strategy<Value = Div> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
-
-    fn label_is_valid(label: &Label) -> bool {
-        has_visible_content_slice(label.content())
-    }
-
-    fn head_is_valid(head: &Head) -> bool {
-        has_visible_content_slice(head.content())
-    }
-
-    fn item_is_valid(item: &Item) -> bool {
-        has_visible_content_slice(item.content()) && item.label().is_none_or(label_is_valid)
-    }
-
-    fn list_is_valid(list: &List) -> bool {
-        !list.items().is_empty() && list.items().iter().all(item_is_valid)
-    }
-
-    fn div_is_valid(div: &Div) -> bool {
-        !div.div_type().trim().is_empty()
-            && div
-                .subtype()
-                .is_none_or(|subtype| !subtype.trim().is_empty())
-            && div.head().is_none_or(head_is_valid)
-            && div.content().iter().all(|content| match content {
-                DivContent::Paragraph(paragraph) => has_visible_content_slice(paragraph.content()),
-                DivContent::Utterance(utterance) => has_visible_content_slice(utterance.content()),
-                DivContent::List(list) => list_is_valid(list),
-                DivContent::Div(nested_div) => div_is_valid(nested_div),
-            })
-    }
-
-    #[test]
-    fn paragraph_strategy_produces_valid_paragraphs() {
-        assert_strategy_produces_valid_values(paragraph_strategy(), |paragraph| {
-            has_visible_content_slice(paragraph.content())
-        });
-    }
-
-    #[test]
-    fn utterance_strategy_produces_valid_utterances() {
-        assert_strategy_produces_valid_values(utterance_strategy(), |utterance| {
-            has_visible_content_slice(utterance.content())
-        });
-    }
-
-    #[test]
-    fn tei_body_strategy_produces_valid_bodies() {
-        assert_strategy_produces_valid_values(tei_body_strategy(), |body| {
-            // Bodies can be empty, but any blocks must be valid
-            body.blocks().iter().all(|block| match block {
-                BodyBlock::Paragraph(p) => has_visible_content_slice(p.content()),
-                BodyBlock::Utterance(u) => has_visible_content_slice(u.content()),
-                BodyBlock::Div(div) => div_is_valid(div),
-            })
-        });
-    }
-}
+#[path = "text_tests.rs"]
+mod tests;

@@ -276,21 +276,18 @@ pub(crate) fn generate_text_content(index: usize, target_words: usize, block_typ
     clippy::integer_division_remainder_used,
     reason = "Modulo is intentional for cycling through arrays"
 )]
-#[expect(
-    clippy::expect_used,
-    reason = "Modulo guarantees index is within bounds after empty check"
-)]
 fn select_from_array<'a>(array: &'a [&'a str], index: usize) -> &'a str {
     if array.is_empty() {
         return "";
     }
-    array
-        .get(index % array.len())
-        .expect("modulo guarantees valid index")
+    // Modulo guarantees the index is within bounds after the empty check, so
+    // the fallback is unreachable in practice.
+    array.get(index % array.len()).copied().unwrap_or("")
 }
 
 #[cfg(test)]
 mod tests {
+    //! Tests for benchmark fixture generation.
     use rstest::rstest;
 
     use super::*;

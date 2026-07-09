@@ -4,6 +4,7 @@
 //! by the underlying types (non-empty after trimming, no interior whitespace
 //! for identifiers, etc.).
 
+use super::ExpectValid;
 use proptest::prelude::*;
 
 /// Generates non-empty strings suitable for `DocumentTitle`.
@@ -13,7 +14,7 @@ use proptest::prelude::*;
 /// characters after trimming.
 pub fn document_title_strategy() -> impl Strategy<Value = String> {
     proptest::string::string_regex("[A-Za-z][A-Za-z0-9 ]{0,50}")
-        .unwrap_or_else(|error| panic!("document_title_strategy: invalid regex: {error}"))
+        .expect_valid("document_title_strategy: invalid regex")
         .prop_filter("must not trim to empty", |s| !s.trim().is_empty())
 }
 
@@ -23,7 +24,7 @@ pub fn document_title_strategy() -> impl Strategy<Value = String> {
 /// or underscore, followed by letters, digits, underscores, or hyphens.
 pub fn xml_id_strategy() -> impl Strategy<Value = String> {
     proptest::string::string_regex("[a-zA-Z_][a-zA-Z0-9_-]{0,20}")
-        .unwrap_or_else(|error| panic!("xml_id_strategy: invalid regex: {error}"))
+        .expect_valid("xml_id_strategy: invalid regex")
 }
 
 /// Generates non-empty speaker names.
@@ -32,7 +33,7 @@ pub fn xml_id_strategy() -> impl Strategy<Value = String> {
 /// alphanumeric characters and spaces. The result is guaranteed non-empty.
 pub fn speaker_strategy() -> impl Strategy<Value = String> {
     proptest::string::string_regex("[A-Za-z][A-Za-z0-9 ]{0,30}")
-        .unwrap_or_else(|error| panic!("speaker_strategy: invalid regex: {error}"))
+        .expect_valid("speaker_strategy: invalid regex")
         .prop_filter("must not trim to empty", |s| !s.trim().is_empty())
 }
 
@@ -42,7 +43,7 @@ pub fn speaker_strategy() -> impl Strategy<Value = String> {
 /// spaces. The result is guaranteed to contain visible characters.
 pub fn text_segment_strategy() -> impl Strategy<Value = String> {
     proptest::string::string_regex("[A-Za-z][A-Za-z0-9 ,.!?'-]{0,100}")
-        .unwrap_or_else(|error| panic!("text_segment_strategy: invalid regex: {error}"))
+        .expect_valid("text_segment_strategy: invalid regex")
         .prop_filter("must contain visible text", |s| !s.trim().is_empty())
 }
 
@@ -111,6 +112,7 @@ pub fn rend_strategy() -> impl Strategy<Value = String> {
 
 #[cfg(test)]
 mod tests {
+    //! Tests for primitive value strategies.
     use super::*;
     use crate::arbitrary::test_utils::assert_strategy_produces_valid_values;
 
