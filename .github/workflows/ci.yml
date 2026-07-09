@@ -52,8 +52,12 @@ jobs:
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
         with:
-          output-path: lcov.info
-          format: lcov
+          # The shared action detects this repository as a mixed
+          # Rust-and-Python project (root Cargo.toml plus root
+          # pyproject.toml), and mixed projects only support the merged
+          # cobertura format.
+          output-path: coverage.xml
+          format: cobertura
           with-ratchet: 'true'
       - name: Install jing for XML validation
         run: sudo apt-get update && sudo apt-get install -y jing
