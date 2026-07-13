@@ -22,9 +22,11 @@ WORKFLOW_PATH = (
 )
 
 #: The commit SHA of the shared-actions revision adopted across the
-#: estate (the merge commit of leynos/shared-actions PR #319). Bump the
-#: workflow and this test together.
-PINNED_SHA = "47aea18960d24f33aedc4782ec6b73e365418313"
+#: estate (leynos/shared-actions PR #334, which adds the `mode: check`
+#: coverage gate used by the CI workflow's coverage steps; the estate
+#: keeps a single repo-wide pin). Bump the workflow and this test
+#: together.
+PINNED_SHA = "927edd45ae77be4251a8a18ca9eb5613a2e32cbd"
 
 EXPECTED_USES = (
     "leynos/shared-actions/.github/workflows/mutation-cargo.yml@" + PINNED_SHA
