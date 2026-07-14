@@ -10,11 +10,11 @@ Feature: TEI body content
     And block 1 should be a paragraph with "Welcome to the show"
     And block 2 should be an utterance for "host" with "Hello listeners"
 
-  Scenario: Recording emphasised inline content
+  Scenario: Recording emphasized inline content
     Given an empty TEI body
-    When I add a paragraph emphasising "Critical"
+    When I add a paragraph emphasizing "Critical"
     Then the body should report 1 blocks
-    And block 1 should emphasise "Critical"
+    And block 1 should emphasize "Critical"
 
   Scenario: Recording a pause inline
     Given an empty TEI body
@@ -49,7 +49,7 @@ Feature: TEI body content
 
   Scenario: Rejecting empty inline emphasis
     Given an empty TEI body
-    When I attempt to add a paragraph emphasising "   "
+    When I attempt to add a paragraph emphasizing "   "
     Then body validation fails with "paragraph segments may not be empty"
 
   Scenario: Recording mixed inline content

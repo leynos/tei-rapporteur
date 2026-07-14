@@ -1,6 +1,6 @@
 //! Serialization helpers for TEI Rapporteur.
 //!
-//! This crate centralises JSON, `MessagePack`, and `JSON Schema` support for
+//! This crate centralizes JSON, `MessagePack`, and `JSON Schema` support for
 //! the workspace. The rest of the crates depend on these helpers instead of
 //! pulling in `serde_json` or `rmp-serde` directly.
 

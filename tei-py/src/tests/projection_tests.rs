@@ -23,9 +23,9 @@ const TAG_UTTERANCE: &str = "utterance";
 const TAG_DOCUMENT_END: &str = "document_end";
 
 fn example_document() -> TeiDocument {
-    let emphasised =
+    let emphasized =
         tei_core::Hi::try_new([Inline::Text("hi".into())]).expect("inline content should validate");
-    let mut paragraph = P::from_inline([Inline::Hi(emphasised)]).expect("valid paragraph");
+    let mut paragraph = P::from_inline([Inline::Hi(emphasized)]).expect("valid paragraph");
     paragraph.set_id("p1").expect("id should validate");
     let mut body = tei_core::TeiBody::default();
     body.push_paragraph(paragraph);
@@ -81,7 +81,7 @@ fn assert_round_tripped_paragraph(original: &TeiDocument, round_tripped: &TeiDoc
 fn inline_projection_uses_type_discriminator() {
     let inline = Inline::Pause(tei_core::Pause::new());
     let value: Value =
-        tei_serde::json::to_value(&PyInline::from(inline)).expect("projection should serialise");
+        tei_serde::json::to_value(&PyInline::from(inline)).expect("projection should serialize");
 
     assert_eq!(value.get("type"), Some(&json!("pause")));
     assert!(value.get("kind").is_none(), "kind should default to None");
@@ -90,7 +90,7 @@ fn inline_projection_uses_type_discriminator() {
 #[test]
 fn document_projection_tags_inline_content() {
     let document = example_document();
-    let value = document_to_value(&document).expect("projection serialises to JSON");
+    let value = document_to_value(&document).expect("projection serializes to JSON");
     let blocks = value
         .get("text")
         .and_then(|text| text.get("body"))
@@ -117,7 +117,7 @@ fn streaming_event_projection_is_tagged() {
         P::from_text_segments(["Hello"]).expect("valid paragraph"),
     ));
     let projected = py_event_from_core(event);
-    let value = tei_serde::json::to_value(&projected).expect("event should serialise");
+    let value = tei_serde::json::to_value(&projected).expect("event should serialize");
 
     assert_eq!(value.get(TAG_FIELD), Some(&json!(TAG_PARAGRAPH)));
     assert!(value.get("content").is_some());
@@ -126,11 +126,11 @@ fn streaming_event_projection_is_tagged() {
 #[test]
 fn streaming_event_discriminators_remain_aligned() {
     let start = tei_serde::json::to_value(&py_event_from_core(TeiEvent::DocumentStart))
-        .expect("document_start serialises");
+        .expect("document_start serializes");
     assert_eq!(start.get(TAG_FIELD), Some(&json!(TAG_DOCUMENT_START)));
 
     let end = tei_serde::json::to_value(&py_event_from_core(TeiEvent::DocumentEnd))
-        .expect("document_end serialises");
+        .expect("document_end serializes");
     assert_eq!(end.get(TAG_FIELD), Some(&json!(TAG_DOCUMENT_END)));
 
     let header_event = tei_serde::json::to_value(&py_event_from_core(TeiEvent::Header(
@@ -138,7 +138,7 @@ fn streaming_event_discriminators_remain_aligned() {
             tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
         ),
     )))
-    .expect("header serialises");
+    .expect("header serializes");
     assert_eq!(header_event.get(TAG_FIELD), Some(&json!(TAG_HEADER)));
 
     let mut utterance =
@@ -148,7 +148,7 @@ fn streaming_event_discriminators_remain_aligned() {
     let utterance_event = tei_serde::json::to_value(&py_event_from_core(TeiEvent::BodyBlock(
         BodyBlock::Utterance(utterance),
     )))
-    .expect("utterance serialises");
+    .expect("utterance serializes");
     assert_eq!(utterance_event.get(TAG_FIELD), Some(&json!(TAG_UTTERANCE)));
     assert_eq!(utterance_event.get("n"), Some(&json!("1")));
     assert_eq!(utterance_event.get("source"), Some(&json!(["#src1"])));
@@ -193,7 +193,7 @@ fn streaming_events_decode_into_python_event_union() {
         ];
 
         for event in events {
-            let py_event = to_pyobject(py, &event).expect("event projection should serialise");
+            let py_event = to_pyobject(py, &event).expect("event projection should serialize");
             converter
                 .call((py_event, event_type.clone()), None)
                 .expect("msgspec conversion should succeed for all PyEvent variants");
@@ -204,7 +204,7 @@ fn streaming_events_decode_into_python_event_union() {
 #[test]
 fn round_trip_document_to_value_and_back_preserves_core_structure() {
     let original = example_document();
-    let value = document_to_value(&original).expect("projection should serialise to JSON");
+    let value = document_to_value(&original).expect("projection should serialize to JSON");
     let round_tripped =
         value_to_document(&value).expect("projection JSON should round-trip into TeiDocument");
 
@@ -281,7 +281,7 @@ fn nested_division_projection_round_trips_head_and_subtype() {
     let body = tei_core::TeiBody::new([BodyBlock::Div(parent)]);
     let document = TeiDocument::new(header, tei_core::TeiText::new(body));
 
-    let value = document_to_value(&document).expect("projection should serialise to JSON");
+    let value = document_to_value(&document).expect("projection should serialize to JSON");
     assert_eq!(
         value.pointer("/text/body/blocks/0/subtype"),
         Some(&json!("chapter-markers"))

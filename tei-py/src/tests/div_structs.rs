@@ -155,7 +155,7 @@ fn streaming_div_events_decode_into_python_union() {
                 .clone(),
         ));
         let py_event =
-            pyo3_serde::to_pyobject(py, &div_event).expect("event projection should serialise");
+            pyo3_serde::to_pyobject(py, &div_event).expect("event projection should serialize");
         let decoded_event = converter
             .call((py_event, event_type), None)
             .expect("msgspec conversion should succeed");

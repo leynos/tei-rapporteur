@@ -138,7 +138,7 @@ def iter_parse(xml: str) -> TeiEventIterator:
     ...
 
 def spoken_text_segments(xml: str) -> list[SpokenTextSegment]:
-    """Extract normalised spoken text segments from complete TEI XML.
+    """Extract normalized spoken text segments from complete TEI XML.
 
     Raises:
         ValueError: On malformed XML or invalid TEI content.

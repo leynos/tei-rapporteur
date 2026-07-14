@@ -1,4 +1,4 @@
-//! Inline TEI content such as emphasised runs and pauses.
+//! Inline TEI content such as emphasized runs and pauses.
 //!
 //! Mixed content is modelled as an [`Inline`] enum so paragraphs and utterances
 //! can hold either plain text or nested inline elements.
@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 pub enum Inline {
     /// Plain text content.
     Text(String),
-    /// Emphasised content wrapped in `<hi>`.
+    /// Emphasized content wrapped in `<hi>`.
     Hi(Hi),
     /// A pause marker rendered as `<pause/>`.
     Pause(Pause),
@@ -41,7 +41,7 @@ impl Inline {
         Self::Text(content.into())
     }
 
-    /// Builds an emphasised inline node.
+    /// Builds an emphasized inline node.
     #[must_use]
     pub fn hi(content: impl IntoIterator<Item = Self>) -> Self {
         Self::Hi(Hi::new(content))
@@ -67,7 +67,7 @@ impl Inline {
     }
 }
 
-/// Emphasised inline element corresponding to `<hi>`.
+/// Emphasized inline element corresponding to `<hi>`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "json-schema", schemars(deny_unknown_fields))]
@@ -104,20 +104,20 @@ impl<'de> Deserialize<'de> for Hi {
 }
 
 impl Hi {
-    /// Builds an emphasised inline element without validating the content.
+    /// Builds an emphasized inline element without validating the content.
     #[must_use]
     pub fn new(content: impl IntoIterator<Item = Inline>) -> Self {
         Self::from_parts(None, content.into_iter().collect())
     }
 
-    /// Builds an emphasised inline element with a rendering hint without
+    /// Builds an emphasized inline element with a rendering hint without
     /// validating the content.
     #[must_use]
     pub fn with_rend(rend: impl Into<String>, content: impl IntoIterator<Item = Inline>) -> Self {
         Self::from_parts(Some(rend.into()), content.into_iter().collect())
     }
 
-    /// Builds an emphasised inline element, validating that content contains
+    /// Builds an emphasized inline element, validating that content contains
     /// visible segments.
     ///
     /// # Errors
@@ -132,7 +132,7 @@ impl Hi {
         Ok(Self::from_parts(None, collected))
     }
 
-    /// Builds an emphasised inline element with a rendering hint, validating
+    /// Builds an emphasized inline element with a rendering hint, validating
     /// that content contains visible segments.
     ///
     /// # Errors
@@ -260,7 +260,7 @@ mod tests {
     use tei_serde::json;
 
     #[fixture]
-    fn emphasised_inline() -> Inline {
+    fn emphasized_inline() -> Inline {
         Inline::text("emphasis")
     }
 
@@ -269,8 +269,8 @@ mod tests {
         Pause::new()
     }
 
-    // Asserts that deserialising an [`Inline`] value fails with a matching error.
-    fn assert_inline_deserialisation_error(
+    // Asserts that deserializing an [`Inline`] value fails with a matching error.
+    fn assert_inline_deserialization_error(
         payload: &str,
         expected_error_substring: &str,
         description: &str,
@@ -287,8 +287,8 @@ mod tests {
     }
 
     #[rstest]
-    fn hi_records_children(emphasised_inline: Inline) {
-        let hi = Hi::try_new([emphasised_inline.clone()])
+    fn hi_records_children(emphasized_inline: Inline) {
+        let hi = Hi::try_new([emphasized_inline.clone()])
             .unwrap_or_else(|error| panic!("valid emphasis: {error}"));
 
         let content = hi.content();
@@ -306,9 +306,9 @@ mod tests {
     }
 
     #[rstest]
-    fn hi_try_with_rend_records_hint(emphasised_inline: Inline) {
-        let hi = Hi::try_with_rend("stress", [emphasised_inline.clone()])
-            .unwrap_or_else(|error| panic!("valid emphasised inline: {error}"));
+    fn hi_try_with_rend_records_hint(emphasized_inline: Inline) {
+        let hi = Hi::try_with_rend("stress", [emphasized_inline.clone()])
+            .unwrap_or_else(|error| panic!("valid emphasized inline: {error}"));
 
         assert_eq!(hi.rend(), Some("stress"));
         let expected = [Inline::text("emphasis")];
@@ -339,8 +339,8 @@ mod tests {
     }
 
     #[rstest]
-    fn inline_deserialisation_reports_type_mismatch() {
-        assert_inline_deserialisation_error(
+    fn inline_deserialization_reports_type_mismatch() {
+        assert_inline_deserialization_error(
             "42",
             "did not match any variant of untagged enum Inline",
             "error message should describe variant mismatch",
@@ -348,8 +348,8 @@ mod tests {
     }
 
     #[rstest]
-    fn inline_deserialisation_reports_missing_hi_content() {
-        assert_inline_deserialisation_error(
+    fn inline_deserialization_reports_missing_hi_content() {
+        assert_inline_deserialization_error(
             r#"{"$value":[]}"#,
             "did not match any variant of untagged enum Inline",
             "error message should describe inline variant mismatch",
@@ -357,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn hi_deserialisation_reports_empty_content() {
+    fn hi_deserialization_reports_empty_content() {
         let Err(error) = json::from_str::<Hi>(r#"{"$value":[]}"#) else {
             panic!("empty hi should fail");
         };

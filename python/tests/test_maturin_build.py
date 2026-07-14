@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from maturin_compat import (
-    build_native_wheel_artifact,
+    build_native_wheel_artefact,
     installed_maturin_version,
     read_expected_maturin_version,
     read_maturin_pins,
@@ -84,7 +84,7 @@ def test_maturin_wheel_build_snapshot(tmp_path: Path) -> None:
     if sys.version_info >= (3, 15):
         pytest.skip(f"maturin {expected} does not support this Python version.")
 
-    wheel_path = build_native_wheel_artifact(root, tmp_path / "wheelhouse")
+    wheel_path = build_native_wheel_artefact(root, tmp_path / "wheelhouse")
     snapshot = wheel_build_snapshot(wheel_path)
     assert snapshot["generator"] == expected, (
         f"Expected generator {expected!r}, found {snapshot['generator']!r}"

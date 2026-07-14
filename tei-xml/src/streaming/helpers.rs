@@ -346,7 +346,7 @@ pub fn build_head(content: Vec<Inline>) -> Result<Head, TeiError> {
 ///
 /// Handles the five predefined XML entities (`lt`, `gt`, `amp`, `quot`,
 /// `apos`) and numeric character references (`&#...;`, `&#x...;`).
-/// Returns an error for unrecognised named entities.
+/// Returns an error for unrecognized named entities.
 pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> {
     let name = reference
         .decode()
@@ -361,7 +361,7 @@ pub fn resolve_entity_ref(reference: &BytesRef<'_>) -> Result<String, TeiError> 
         _ => match reference.resolve_char_ref() {
             Ok(Some(ch)) => Ok(ch.to_string()),
             Ok(None) => Err(TeiError::xml(format!(
-                "unrecognised entity reference: &{name};"
+                "unrecognized entity reference: &{name};"
             ))),
             Err(e) => Err(TeiError::xml(e.to_string())),
         },

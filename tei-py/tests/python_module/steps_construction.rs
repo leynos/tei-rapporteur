@@ -1,7 +1,7 @@
-//! Steps covering module initialisation and document construction.
+//! Steps covering module initialization and document construction.
 
 use super::state::{
-    PythonModuleState, construct_python_document, module_is_initialised, python_state,
+    PythonModuleState, construct_python_document, module_is_initialized, python_state,
 };
 use anyhow::{Context, Result};
 use pyo3::types::PyAnyMethods;
@@ -35,11 +35,11 @@ pub(super) fn div_body_document_fixture() -> Result<TeiDocument> {
     Ok(TeiDocument::new(header, text))
 }
 
-#[given("the tei_rapporteur Python module is initialised")]
-pub(super) fn module_is_initialised_step(
+#[given("the tei_rapporteur Python module is initialized")]
+pub(super) fn module_is_initialized_step(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
-    module_is_initialised(state)
+    module_is_initialized(state)
 }
 
 #[when("I construct a Document titled \"{title}\"")]
@@ -55,7 +55,7 @@ pub(super) fn i_construct_a_document_with_div_body_content(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = document_to_value(&div_body_document_fixture()?)
-        .context("serialising div fixture to JSON should succeed")?;
+        .context("serializing div fixture to JSON should succeed")?;
     with_python(|py| {
         state.with_module(py, |module| {
             let decoder = module

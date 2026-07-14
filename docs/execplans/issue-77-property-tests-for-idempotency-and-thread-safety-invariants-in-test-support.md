@@ -79,7 +79,7 @@ First, make the mechanical production refactor requested by review:
 `do_bootstrap` contains the installer sequence. `ensure_msgspec_installed`
 delegates its `Once` closure to `do_bootstrap`.
 
-Second, fix test isolation. The bootstrap mock initialises `_calls`, records
+Second, fix test isolation. The bootstrap mock initializes `_calls`, records
 each mocked `subprocess.run` invocation, and exposes an explicit
 `restore_msgspec_blocker` helper. The subprocess restore path returns a
 `PyResult` and the RAII guard calls `.expect()` so restoration failures are not

@@ -49,9 +49,9 @@ fn parse_xml_rejects_unexpected_structure() {
 }
 
 #[test]
-fn emit_xml_serialises_documents() {
+fn emit_xml_serializes_documents() {
     let document = Document::try_from_title("Wolf 359").expect("valid title should build");
-    let xml = emit_xml(&document).expect("serialising TEI should succeed");
+    let xml = emit_xml(&document).expect("serializing TEI should succeed");
     assert!(xml.contains("<title>Wolf 359</title>"));
 }
 

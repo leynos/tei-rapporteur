@@ -84,7 +84,7 @@ fn validated_state_result() -> anyhow::Result<ParseState> {
 fn validated_state() -> ParseState {
     match validated_state_result() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise guest-bios parse state: {error}"),
+        Err(error) => panic!("failed to initialize guest-bios parse state: {error}"),
     }
 }
 

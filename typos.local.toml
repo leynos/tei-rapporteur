@@ -1,0 +1,27 @@
+# Repository-specific machine literals, formal names and serialized fixture.
+
+schema = 1
+
+[oxford]
+stems = []
+
+[words]
+accepted = []
+
+[words.corrections]
+
+[patterns]
+ignore = [
+  # Cargo and GitHub workflow values are machine interfaces.
+  '(?m)^      CARGO_TERM_COLOR: always$',
+  '(?m)^    types: \[opened, reopened, synchronize, labeled, ready_for_review\]$',
+  # Upstream API terminology and the exact serialized fixture stay unchanged.
+  '(?m)^  documented model is a StAX-like streaming API for large documents; no new XML$',
+  '(?m)^    "<div type=\\"labeled-list\\">",$',
+]
+
+[files]
+exclude = [
+  # Serialized ANSI review output is retained verbatim.
+  "review.txt",
+]

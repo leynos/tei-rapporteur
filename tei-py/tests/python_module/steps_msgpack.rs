@@ -18,7 +18,7 @@ pub(super) fn i_encode_a_messagepack_document(
         .context("MessagePack fixtures must construct valid documents")?;
     let projection = tei_py::projection::PyTeiDocument::from(&document);
     let payload =
-        to_vec_named(&projection).context("serialising fixtures to MessagePack should succeed")?;
+        to_vec_named(&projection).context("serializing fixtures to MessagePack should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())
 }
@@ -40,7 +40,7 @@ pub(super) fn i_encode_a_messagepack_document_missing_required_fields(
     #[from(python_state)] state: &PythonModuleState,
 ) -> Result<()> {
     let payload = to_vec_named(&json!({ "text": {} }))
-        .context("serialising malformed MessagePack fixture should succeed")?;
+        .context("serializing malformed MessagePack fixture should succeed")?;
     state.store_msgpack_payload(payload);
     Ok(())
 }

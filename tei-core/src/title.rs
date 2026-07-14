@@ -124,7 +124,7 @@ impl TryFrom<String> for DocumentTitle {
 
 #[cfg(test)]
 mod tests {
-    //! Unit tests for document title validation and Serde behavior.
+    //! Unit tests for document title validation and Serde behaviour.
 
     use super::*;
     use rstest::rstest;
@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialisation_rejects_empty_titles() {
+    fn deserialization_rejects_empty_titles() {
         let result: Result<DocumentTitle, _> = json::from_str("\"\"");
 
         let Err(error) = result else {

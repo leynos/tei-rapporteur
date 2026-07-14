@@ -21,7 +21,7 @@ pub use paragraph::P;
 pub use utterance::Utterance;
 
 pub(crate) use validation::{
-    ensure_container_content, normalise_optional_speaker, push_validated_inline,
+    ensure_container_content, normalize_optional_speaker, push_validated_inline,
     push_validated_text_segment, set_optional_identifier, trim_preserving_original,
 };
 

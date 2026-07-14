@@ -140,7 +140,7 @@ fn build_state() -> Result<HeaderState> {
 fn validated_state() -> HeaderState {
     match build_state() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise header state: {error}"),
+        Err(error) => panic!("failed to initialize header state: {error}"),
     }
 }
 

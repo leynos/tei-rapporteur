@@ -6,7 +6,7 @@ use crate::HeaderState;
 
 #[fixture]
 pub(crate) fn validated_state() -> HeaderState {
-    build_state().expect("failed to initialise header state")
+    build_state().expect("failed to initialize header state")
 }
 
 #[fixture]

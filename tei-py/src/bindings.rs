@@ -135,7 +135,7 @@ pub(crate) mod py_exports {
         let structs = sys_modules.get_item(STRUCTS_MODULE_NAME).map_err(|_| {
             pyo3::exceptions::PyRuntimeError::new_err(
                 "tei_rapporteur.structs is not registered; \
-                 initialise the module before calling spoken_text_segments",
+                 initialize the module before calling spoken_text_segments",
             )
         })?;
         if let Ok(segment_class) = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE) {
@@ -148,7 +148,7 @@ pub(crate) mod py_exports {
     }
 
     define_py_from_error_wrapper!(
-        /// Deserialises `MessagePack` bytes into a [`Document`].
+        /// Deserializes `MessagePack` bytes into a [`Document`].
         ///
         /// # Errors
         ///
@@ -172,7 +172,7 @@ pub(crate) mod py_exports {
     );
 
     define_py_to_error_wrapper!(
-        /// Serialises a [`Document`] into `MessagePack` bytes.
+        /// Serializes a [`Document`] into `MessagePack` bytes.
         ///
         /// # Errors
         ///
@@ -245,7 +245,7 @@ pub(crate) mod py_exports {
     /// # Errors
     ///
     /// Returns [`pyo3::exceptions::PyValueError`] when the payload cannot be
-    /// deserialised into a valid [`tei_core::TeiDocument`].
+    /// deserialized into a valid [`tei_core::TeiDocument`].
     ///
     /// # Examples
     ///
@@ -270,7 +270,7 @@ pub(crate) mod py_exports {
             .map_err(map_serde_error)
     }
 
-    /// Serialises a [`Document`] into a Python `dict`/`list` tree.
+    /// Serializes a [`Document`] into a Python `dict`/`list` tree.
     ///
     /// # Errors
     ///

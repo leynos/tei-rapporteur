@@ -88,7 +88,7 @@ const ANNOTATED_SOURCE: &str = concat!(
 );
 
 #[test]
-fn normalises_insignificant_whitespace_during_round_trip() {
+fn normalizes_insignificant_whitespace_during_round_trip() {
     let document = parse_xml(PRETTY_MINIMAL_TEI).expect("pretty XML should parse");
     let emitted = emit_xml(&document).expect("parsed document should emit");
 

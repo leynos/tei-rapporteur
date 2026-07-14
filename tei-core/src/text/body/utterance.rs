@@ -9,12 +9,12 @@ use crate::text::{
 };
 
 use super::{
-    BodyContentError, ensure_container_content, normalise_optional_speaker, push_validated_inline,
+    BodyContentError, ensure_container_content, normalize_optional_speaker, push_validated_inline,
     push_validated_text_segment, set_optional_identifier,
 };
 use serde::{Deserialize, Deserializer, Serialize};
 
-fn normalise_number(number: impl Into<String>) -> Option<String> {
+fn normalize_number(number: impl Into<String>) -> Option<String> {
     let trimmed = number.into().trim().to_owned();
     (!trimmed.is_empty()).then_some(trimmed)
 }
@@ -24,7 +24,7 @@ where
     D: Deserializer<'de>,
 {
     let number = Option::<String>::deserialize(deserializer)?;
-    Ok(number.and_then(normalise_number))
+    Ok(number.and_then(normalize_number))
 }
 
 /// Spoken utterance that may reference a speaker and carry local provenance.
@@ -110,7 +110,7 @@ impl Utterance {
         S: Into<String>,
         T: Into<String>,
     {
-        let normalised_speaker = normalise_optional_speaker(speaker)?;
+        let normalized_speaker = normalize_optional_speaker(speaker)?;
         let mut content = Vec::new();
         for segment in segments {
             push_validated_text_segment(&mut content, segment, "utterance")?;
@@ -120,7 +120,7 @@ impl Utterance {
         Ok(Self {
             id: None,
             n: None,
-            speaker: normalised_speaker,
+            speaker: normalized_speaker,
             source: None,
             resp: None,
             cert: None,
@@ -143,14 +143,14 @@ impl Utterance {
     where
         S: Into<String>,
     {
-        let normalised_speaker = normalise_optional_speaker(speaker)?;
+        let normalized_speaker = normalize_optional_speaker(speaker)?;
         let collected: Vec<Inline> = content.into_iter().collect();
         ensure_container_content(&collected, "utterance")?;
 
         Ok(Self {
             id: None,
             n: None,
-            speaker: normalised_speaker,
+            speaker: normalized_speaker,
             source: None,
             resp: None,
             cert: None,
@@ -189,7 +189,7 @@ impl Utterance {
 
     /// Sets the optional free-form `@n` label.
     pub fn set_number(&mut self, number: impl Into<String>) {
-        self.n = normalise_number(number);
+        self.n = normalize_number(number);
     }
 
     /// Returns the optional free-form `@n` label.
@@ -372,7 +372,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialization_normalises_blank_number_to_none() {
+    fn deserialization_normalizes_blank_number_to_none() {
         let utterance: Utterance = from_json(r#"{"@who":"host","@n":"   ","$value":["Hello"]}"#)
             .unwrap_or_else(|error| panic!("utterance JSON: {error}"));
 

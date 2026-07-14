@@ -201,7 +201,7 @@ impl<R: BufRead> TeiPullParser<R> {
     ///
     /// Called only when `self.state` is already one of the `InParagraph`,
     /// `InUtterance`, `InEmphasis`, `InDiv`, `InHead`, `InList`, `InItem`, or
-    /// `InLabel` variants; unrecognised tag names are silently ignored.
+    /// `InLabel` variants; unrecognized tag names are silently ignored.
     fn handle_body_content_end(&mut self, name_bytes: &[u8]) -> Result<Option<TeiEvent>, TeiError> {
         match name_bytes {
             b"p" => self.finish_paragraph(),

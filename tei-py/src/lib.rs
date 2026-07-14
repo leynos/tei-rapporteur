@@ -9,7 +9,7 @@
 //! module also exposes a `structs` submodule containing `msgspec.Struct`
 //! projections of the TEI data model so Python callers can decode `MessagePack`
 //! directly into typed objects. Rust callers continue to reuse the same
-//! helpers without the `PyO3` glue, keeping validation logic centralised.
+//! helpers without the `PyO3` glue, keeping validation logic centralized.
 
 use projection::PyTeiDocument;
 use pyo3::types::PyAny;

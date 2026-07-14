@@ -114,7 +114,7 @@ impl HeaderRecorder {
     }
 
     /// Applies the out-of-scope guard, resets the buffer when a new root
-    /// `<teiHeader>` starts, and delegates serialisation and any post-step to
+    /// `<teiHeader>` starts, and delegates serialization and any post-step to
     /// `on_enter`.
     fn record_element_with_post_step<F>(&mut self, name: &str, on_enter: F) -> Result<(), TeiError>
     where

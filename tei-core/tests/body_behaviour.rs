@@ -84,13 +84,13 @@ where
     f(block)
 }
 
-/// Extracts the sole emphasised text node from a [`Hi`] inline.
-fn emphasised_text(hi: &Hi) -> Result<&str> {
+/// Extracts the sole emphasized text node from a [`Hi`] inline.
+fn emphasized_text(hi: &Hi) -> Result<&str> {
     let mut it = hi.content().iter().filter_map(Inline::as_text);
-    let actual = it.next().context("expected emphasised segment")?;
+    let actual = it.next().context("expected emphasized segment")?;
     ensure!(
         it.next().is_none(),
-        "expected a single emphasised segment, found {:?}",
+        "expected a single emphasized segment, found {:?}",
         hi.content()
     );
     Ok(actual)
@@ -121,7 +121,7 @@ fn build_state() -> Result<BodyState> {
 fn validated_state() -> BodyState {
     match build_state() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise body state: {error}"),
+        Err(error) => panic!("failed to initialize body state: {error}"),
     }
 }
 
@@ -152,8 +152,8 @@ fn i_add_a_paragraph(#[from(validated_state)] state: &BodyState, content: String
     Ok(())
 }
 
-#[when("I add a paragraph emphasising \"{content}\"")]
-fn i_add_a_paragraph_emphasising(
+#[when("I add a paragraph emphasizing \"{content}\"")]
+fn i_add_a_paragraph_emphasizing(
     #[from(validated_state)] state: &BodyState,
     content: String,
 ) -> Result<()> {
@@ -204,8 +204,8 @@ fn i_attempt_to_add_paragraph(
     Ok(())
 }
 
-#[when("I attempt to add a paragraph emphasising \"{content}\"")]
-fn i_attempt_to_add_paragraph_emphasising(
+#[when("I attempt to add a paragraph emphasizing \"{content}\"")]
+fn i_attempt_to_add_paragraph_emphasizing(
     #[from(validated_state)] state: &BodyState,
     content: String,
 ) -> Result<()> {
@@ -360,8 +360,8 @@ fn block_should_be_paragraph(
     })
 }
 
-#[then("block {index} should emphasise \"{content}\"")]
-fn block_should_emphasise(
+#[then("block {index} should emphasize \"{content}\"")]
+fn block_should_emphasize(
     #[from(validated_state)] state: &BodyState,
     index: usize,
     content: String,
@@ -371,12 +371,12 @@ fn block_should_emphasise(
             bail!("expected block {index} to be a paragraph");
         };
         let [Inline::Hi(hi)] = paragraph.content() else {
-            bail!("paragraph should contain a single emphasised inline");
+            bail!("paragraph should contain a single emphasized inline");
         };
-        let actual = emphasised_text(hi)?;
+        let actual = emphasized_text(hi)?;
         ensure!(
             actual == content,
-            "emphasised content mismatch: expected {content}, found {actual}"
+            "emphasized content mismatch: expected {content}, found {actual}"
         );
         Ok(())
     })
@@ -415,10 +415,10 @@ fn block_should_mix_inline(#[from(validated_state)] state: &BodyState, index: us
             expected_rend,
             hi.rend(),
         );
-        let actual_emphasis = emphasised_text(hi)?;
+        let actual_emphasis = emphasized_text(hi)?;
         ensure!(
             actual_emphasis == expected_emphasis,
-            "emphasised content mismatch: expected {expected_emphasis}, found {actual_emphasis}"
+            "emphasized content mismatch: expected {expected_emphasis}, found {actual_emphasis}"
         );
 
         ensure!(

@@ -39,9 +39,9 @@ impl ResponsibleParty {
 
     #[expect(
         clippy::missing_const_for_fn,
-        reason = "Normalised strings may rely on non-const standard library APIs."
+        reason = "Normalized strings may rely on non-const standard library APIs."
     )]
-    fn from_normalised(value: String) -> Self {
+    fn from_normalized(value: String) -> Self {
         Self(value)
     }
 }
@@ -166,11 +166,11 @@ impl RevisionChange {
         description: impl Into<String>,
         resp: impl Into<String>,
     ) -> Result<Self, HeaderValidationError> {
-        let normalised_description = required_text(description, "revision note")?;
+        let normalized_description = required_text(description, "revision note")?;
 
         Ok(Self {
-            description: normalised_description,
-            resp: normalize_optional_text(resp).map(ResponsibleParty::from_normalised),
+            description: normalized_description,
+            resp: normalize_optional_text(resp).map(ResponsibleParty::from_normalized),
         })
     }
 
@@ -233,23 +233,23 @@ mod tests {
     }
 
     #[test]
-    fn responsible_party_deserialisation_rejects_empty() {
+    fn responsible_party_deserialization_rejects_empty() {
         let result = json::from_str::<ResponsibleParty>("\"   \"");
 
         assert!(
             result.is_err(),
-            "empty responsibility should not deserialise"
+            "empty responsibility should not deserialize"
         );
     }
 
     #[test]
-    fn revision_change_deserialisation_rejects_empty_description() {
+    fn revision_change_deserialization_rejects_empty_description() {
         let payload = "{\"$value\": \"   \"}";
         let result = json::from_str::<RevisionChange>(payload);
 
         assert!(
             result.is_err(),
-            "empty revision note should not deserialise"
+            "empty revision note should not deserialize"
         );
     }
 }

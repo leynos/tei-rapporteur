@@ -29,6 +29,8 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
+            !**/.uv-cache/**
+            !**/.uv-tools/**
       - name: Cache whitaker-installer
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
         with:
@@ -112,6 +114,24 @@ jobs:
         run: |
           python -c "import tei_rapporteur as tr; print(f'Version: {tr.__version__}'); assert hasattr(tr, 'Document'), 'Document class not exported'; assert hasattr(tr, 'emit_title_markup'), 'emit_title_markup missing'"
           echo "SMOKE_TEST_PASSED"
+      - name: Set up Python for spelling and Mermaid tooling
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14'
+      - name: Install uv for spelling and Mermaid tooling
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7.1.4
+      - name: Enforce en-GB-oxendict spelling
+        run: make spelling
+      - name: Set up Rust for Merman
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
+        with:
+          toolchain: '1.95.0'
+      - name: Install Mermaid validation tools
+        run: |
+          uv tool install nixie-cli==1.1.0
+          cargo +1.95.0 install merman-cli --version '=0.7.0' --locked
+      - name: Validate Mermaid diagrams
+        run: make nixie
       # `cs-coverage upload` (the shared action's default mode) is only
       # accepted by CodeScene for analysed branches, typically main, so
       # it cannot run from a pull-request head; coverage-main.yml

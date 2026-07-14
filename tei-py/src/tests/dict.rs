@@ -17,7 +17,7 @@ fn wolf_document() -> TeiDocument {
 #[fixture]
 fn wolf_payload(wolf_document: TeiDocument) -> Value {
     document_to_value(&wolf_document)
-        .expect("serialising projection fixture to JSON should succeed")
+        .expect("serializing projection fixture to JSON should succeed")
 }
 
 #[fixture]
@@ -41,7 +41,7 @@ fn from_dict_rejects_missing_fields() {
     with_python(|py| {
         let payload = json!({ "text": {} });
         let py_payload =
-            to_pyobject(py, &payload).expect("serialising malformed payload should succeed");
+            to_pyobject(py, &payload).expect("serializing malformed payload should succeed");
 
         let error = from_dict(py_payload).expect_err("missing header should fail");
         assert!(
@@ -55,7 +55,7 @@ fn from_dict_rejects_missing_fields() {
 fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
     with_python(|py| {
         let mut payload =
-            document_to_value(&wolf_document).expect("serialising fixture to JSON should succeed");
+            document_to_value(&wolf_document).expect("serializing fixture to JSON should succeed");
 
         if let Some(title) = payload.pointer_mut("/header/file_desc/title") {
             *title = Value::String("   ".to_owned());
@@ -75,10 +75,10 @@ fn from_dict_rejects_blank_title(wolf_document: TeiDocument) {
 }
 
 #[rstest]
-fn to_dict_serialises_documents(bridgewater_document: Document) {
+fn to_dict_serializes_documents(bridgewater_document: Document) {
     with_python(|py| {
         let py_payload = to_dict(py, &bridgewater_document)
-            .expect("serialising document to dict should succeed");
+            .expect("serializing document to dict should succeed");
         let value: Value = from_pyobject(py_payload)
             .expect("converting PyObject back to JSON value should succeed");
         let title = value

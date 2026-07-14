@@ -76,7 +76,7 @@ fn validated_state_result() -> Result<TitleState> {
 fn validated_state() -> TitleState {
     match validated_state_result() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise title state: {error}"),
+        Err(error) => panic!("failed to initialize title state: {error}"),
     }
 }
 

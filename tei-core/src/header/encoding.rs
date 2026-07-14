@@ -280,10 +280,10 @@ mod tests {
     }
 
     #[test]
-    fn annotation_system_id_deserialisation_rejects_empty() {
+    fn annotation_system_id_deserialization_rejects_empty() {
         let result = json::from_str::<AnnotationSystemId>("\"   \"");
 
-        assert!(result.is_err(), "empty identifier should not deserialise");
+        assert!(result.is_err(), "empty identifier should not deserialize");
     }
 
     #[test]

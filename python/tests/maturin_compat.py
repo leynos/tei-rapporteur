@@ -100,7 +100,7 @@ def toolchain_available() -> bool:
     )
 
 
-def build_native_wheel_artifact(root: Path, out_dir: Path) -> Path:
+def build_native_wheel_artefact(root: Path, out_dir: Path) -> Path:
     """Build a native wheel with the pinned maturin backend."""
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -126,7 +126,7 @@ def build_native_wheel_artifact(root: Path, out_dir: Path) -> Path:
 
 
 def wheel_build_snapshot(whl_path: Path) -> dict[str, Any]:
-    """Return normalised wheel metadata and layout for compatibility checks."""
+    """Return normalized wheel metadata and layout for compatibility checks."""
 
     with zipfile.ZipFile(whl_path) as archive:
         entry_names = archive.namelist()
@@ -136,7 +136,7 @@ def wheel_build_snapshot(whl_path: Path) -> dict[str, Any]:
         metadata_payload = archive.read(metadata_name).decode("utf-8")
     generator, root_is_purelib = parse_wheel_header(wheel_payload, whl_path)
     return {
-        "entries": sorted(normalise_wheel_entry(name) for name in entry_names),
+        "entries": sorted(normalize_wheel_entry(name) for name in entry_names),
         "generator": generator,
         "metadata": parse_metadata(metadata_payload),
         "wheel": {
@@ -213,14 +213,14 @@ def header_value(headers: dict[str, list[str]], key: str) -> str | None:
     return values[0]
 
 
-def normalise_wheel_entry(name: str) -> str:
+def normalize_wheel_entry(name: str) -> str:
     """Normalize versioned or platform-specific wheel entry names."""
 
     if EXTENSION_MODULE_RE.match(name):
         return "tei_rapporteur/tei_rapporteur.cpython-<platform>.<ext>"
     if "/sboms/" in name:
         return "tei_rapporteur-<version>.dist-info/sboms/<sbom>.cyclonedx.json"
-    for suffix, normalised in DIST_INFO_SUFFIXES.items():
+    for suffix, normalized in DIST_INFO_SUFFIXES.items():
         if name.endswith(suffix):
-            return normalised
+            return normalized
     return name
