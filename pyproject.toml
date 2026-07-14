@@ -42,3 +42,6 @@ features = ["extension-module"]
 
 [tool.maturin.env]
 TEI_PY_BUILD_EXTENSION = "1"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests", "tests"]
