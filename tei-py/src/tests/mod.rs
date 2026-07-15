@@ -135,7 +135,7 @@ fn from_msgpack_rejects_truncated_payloads() {
 #[test]
 fn from_msgpack_rejects_structurally_invalid_documents() {
     let payload = to_vec_named(&json!({ "text": {} }))
-        .expect("serialising malformed document should succeed");
+        .expect("serializing malformed document should succeed");
     let error =
         from_msgpack(&payload).expect_err("missing header should surface as a decode failure");
     assert!(error.to_string().contains("missing field"));
@@ -143,7 +143,7 @@ fn from_msgpack_rejects_structurally_invalid_documents() {
 
 #[test]
 fn from_msgpack_rejects_unexpected_types() {
-    let payload = to_vec_named(&42u32).expect("serialising primitive should succeed");
+    let payload = to_vec_named(&42u32).expect("serializing primitive should succeed");
     let error = from_msgpack(&payload).expect_err("primitive payload should fail");
     assert!(
         error.to_string().contains("invalid type") || error.to_string().contains("expected struct")
@@ -151,9 +151,9 @@ fn from_msgpack_rejects_unexpected_types() {
 }
 
 #[test]
-fn to_msgpack_serialises_documents() {
+fn to_msgpack_serializes_documents() {
     let document = Document::try_from_title("Bridgewater").expect("valid document should build");
-    let payload = to_msgpack(&document).expect("serialising document should succeed");
+    let payload = to_msgpack(&document).expect("serializing document should succeed");
     let decoded = document_from_msgpack(payload.as_slice())
         .expect("round-tripping MessagePack should succeed");
     assert_eq!(decoded.title().as_str(), "Bridgewater");
@@ -163,7 +163,7 @@ fn to_msgpack_serialises_documents() {
 fn to_msgpack_handles_special_characters() {
     let document = Document::try_from_title(r#"Special <Title> & "Quotes""#)
         .expect("special characters should validate");
-    let payload = to_msgpack(&document).expect("serialising document should succeed");
+    let payload = to_msgpack(&document).expect("serializing document should succeed");
     let decoded =
         document_from_msgpack(payload.as_slice()).expect("decoding MessagePack should succeed");
     assert_eq!(decoded.title().as_str(), r#"Special <Title> & "Quotes""#);

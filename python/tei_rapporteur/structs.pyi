@@ -17,7 +17,7 @@ class InlineText(msgspec.Struct, tag="text", tag_field="type"):
 class InlineHi(
     msgspec.Struct, tag="hi", tag_field="type", omit_defaults=True
 ):
-    """Emphasised inline span."""
+    """Emphasized inline span."""
 
     content: list[Inline] = ...  # type: ignore[assignment]
     rend: str | None = None
@@ -237,7 +237,7 @@ class Episode(msgspec.Struct, omit_defaults=True):
     stand_off: StandOff | None = None
 
 class SpokenTextSegment(msgspec.Struct, omit_defaults=True):
-    """Normalised spoken text segment with source provenance."""
+    """Normalized spoken text segment with source provenance."""
 
     text: str
     locator: str

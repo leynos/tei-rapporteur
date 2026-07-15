@@ -5,6 +5,7 @@
 .idea/
 **/__pycache__/
 *.py[cod]
+*$py.class
 *.so
 .pytest_cache/
 Cargo.lock.bak
@@ -12,3 +13,10 @@ Cargo.lock.bak
 dist/
 # Memtrace daemon runtime state (PID, local index state)
 .memdb/
+
+# Local spelling-policy caches and helper tool state
+.coverage
+.typos-oxendict-base.json
+.typos-oxendict-base.toml
+.uv-cache/
+.uv-tools/

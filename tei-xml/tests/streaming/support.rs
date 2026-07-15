@@ -235,6 +235,6 @@ pub(crate) fn validated_state_result() -> anyhow::Result<StreamingState> {
 pub(crate) fn validated_state() -> StreamingState {
     match validated_state_result() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise streaming state: {error}"),
+        Err(error) => panic!("failed to initialize streaming state: {error}"),
     }
 }

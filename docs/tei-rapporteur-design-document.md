@@ -255,7 +255,7 @@ in a generic way (e.g., as untyped `extra` fields) so that the parser doesn’t
 break on unexpected input. The goal is to **accept and preserve all relevant
 information** for the intended use cases, while being forward-compatible with
 minor extensions. If an input uses a TEI construct that has not yet been
-modeled, the design should either ignore it safely or store it in a placeholder
+modelled, the design should either ignore it safely or store it in a placeholder
 structure for round-trip output, rather than erroring out.
 
 ## Architecture Overview
@@ -546,7 +546,7 @@ example, `xml:id` becomes `XmlId`, TEI pointer tokens become `Pointer`, and
 whitespace-separated pointer lists become `PointerList`. `Utterance` keeps its
 speaker reference optional, but now also carries typed provenance attributes so
 local citation hooks stay close to the `<u>` element when that is the natural
-TEI representation. Global identifiers are still modeled explicitly on each
+TEI representation. Global identifiers are still modelled explicitly on each
 element that can carry `xml:id`, allowing references between body content and
 stand-off spans. Validation ensures those identifiers remain unique within the
 document.
@@ -563,7 +563,7 @@ overlays and analytical ranges without forcing a single representation.
 
 - For attributes, the implementation can include a field like
   `#[serde(flatten)] extra_attrs: HashMap<String, String>` in each struct to
-  collect any attribute that isn’t explicitly modeled. This approach ensures
+  collect any attribute that isn’t explicitly modelled. This approach ensures
   that unknown attributes round-trip (they’ll be output again on serialization)
   even if the code doesn’t interpret them.
 
@@ -706,7 +706,7 @@ Some specifics of the parse/emit implementation:
   straightforward. The implementation does not rely on the exact prefixes from
   input; those may be normalized in output.
 
-- **Mixed Content Handling**: As shown earlier, by modeling mixed content with
+- **Mixed Content Handling**: As shown earlier, by modelling mixed content with
   enums and `$value` placeholders, Serde with quick-xml handles most cases. One
   corner is that **empty elements** like `<pause/>` need to be represented
   appropriately. The design might model `<pause>` as a unit struct or as an
@@ -1397,7 +1397,7 @@ package) and does not indicate a type error.
 
 For certain use cases, it may be desirable to parse a TEI document
 incrementally and process it element-by-element (for example, to start
-analyzing or producing output from the beginning of a large transcript before
+analysing or producing output from the beginning of a large transcript before
 the entire file is parsed, or to reduce memory usage by not holding the entire
 document tree in memory). To facilitate this, `tei-rapporteur` includes a
 design for a **pull-parser interface** that yields TEI domain objects as they
@@ -1789,7 +1789,7 @@ schema.
   the schema is curated in lockstep with the ODD to keep CI deterministic. When
   TEI tooling is available, maintainers should regenerate the schema via Roma
   or TEI Stylesheets and verify that it remains byte-for-byte identical before
-  updating the checked-in artifact.
+  updating the checked-in artefact.
 
 - The `tei-xml` crate exposes `relax_ng_schema()` and
   `write_relax_ng_schema(path)` so callers can retrieve or materialize the
@@ -1847,7 +1847,7 @@ schema.
 
 - **Evolution and Versioning**: The JSON format is versioned via published JSON
   Schema snapshots. Consumers should pin validations to a specific
-  `schemas/tei-document.schema.vX.Y.Z.json` artifact (or the root schema `$id`)
+  `schemas/tei-document.schema.vX.Y.Z.json` artefact (or the root schema `$id`)
   to ensure the accepted shape matches the workspace version that produced the
   payload. If the Serde layout requires a breaking change, the project will
   publish a new schema snapshot and document the compatibility story. The Rust

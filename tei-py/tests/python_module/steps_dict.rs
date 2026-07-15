@@ -20,7 +20,7 @@ pub(super) fn i_provide_a_dictionary_payload(
     let document = TeiDocument::from_title_str(title.as_str())
         .context("dictionary fixtures must construct valid documents")?;
     let payload =
-        document_to_value(&document).context("serialising fixtures to JSON should succeed")?;
+        document_to_value(&document).context("serializing fixtures to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
@@ -44,7 +44,7 @@ pub(super) fn i_provide_a_dictionary_payload_with_a_blank_title(
     let document = TeiDocument::from_title_str("placeholder")
         .context("placeholder title should construct a fixture")?;
     let mut payload =
-        document_to_value(&document).context("serialising placeholder document should succeed")?;
+        document_to_value(&document).context("serializing placeholder document should succeed")?;
 
     if let Some(Value::String(title)) = payload
         .get_mut("header")
@@ -77,7 +77,7 @@ pub(super) fn i_provide_a_dictionary_payload_with_duplicate_identifiers(
 
     let invalid_doc = TeiDocument::new(document.header().clone(), text);
     let payload =
-        document_to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
+        document_to_value(&invalid_doc).context("serializing fixture to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }
@@ -102,7 +102,7 @@ pub(super) fn i_provide_a_dictionary_payload_with_unknown_speaker(
 
     let invalid_doc = TeiDocument::new(header, text);
     let payload =
-        document_to_value(&invalid_doc).context("serialising fixture to JSON should succeed")?;
+        document_to_value(&invalid_doc).context("serializing fixture to JSON should succeed")?;
     state.store_dict_payload(payload);
     Ok(())
 }

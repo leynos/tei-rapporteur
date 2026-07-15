@@ -358,6 +358,26 @@ Name future guards after what they undo, compose multiple guards in one scope
 when a test patches multiple globals, and rely on reverse declaration order to
 mirror a conventional `try`/`finally` stack.
 
+## Spelling policy
+
+`make spelling` enforces en-GB-oxendict spelling over tracked text with the
+pinned Typos release. `make markdownlint` depends on that target, so prose
+checks cannot bypass the repository-wide spelling policy.
+
+The checked-in `typos.toml` is generated from the shared dictionary and the
+repository overlay in `typos.local.toml`. Do not edit generated entries by
+hand. Run `make spelling-config-write` after changing the overlay or after the
+shared dictionary is updated, and use `make spelling-config` to verify that the
+checked-in result is current. The builder keeps its downloaded shared base in
+untracked cache files and refreshes the local copy only when the published
+source is newer.
+
+Repository exceptions must protect machine interfaces, formal upstream names,
+or exact serialized fixtures. Use the narrowest anchored pattern possible and
+explain why it is required. Do not add broad word-level exceptions for prose.
+The consumer phrase checker also rejects punctuation-sensitive shared
+corrections that single-token spelling scans cannot enforce reliably.
+
 ## Workflow pins and Dependabot
 
 Dependabot owns the upgrade of GitHub Actions and reusable workflows,

@@ -123,7 +123,7 @@ fn validated_state_result() -> anyhow::Result<BenchmarkState> {
 fn validated_state() -> BenchmarkState {
     match validated_state_result() {
         Ok(state) => state,
-        Err(error) => panic!("failed to initialise benchmark state: {error}"),
+        Err(error) => panic!("failed to initialize benchmark state: {error}"),
     }
 }
 

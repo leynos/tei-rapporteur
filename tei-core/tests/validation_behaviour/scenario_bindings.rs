@@ -29,14 +29,14 @@ fn feature_scenario_names_include_scenarios_and_outlines() {
     let names = feature_scenario_names(concat!(
         "Feature: Mixed scenarios\n",
         "  Scenario: Plain scenario\n",
-        "  Scenario Outline: Parameterised scenario\n",
+        "  Scenario Outline: Parameterized scenario\n",
     ));
 
     assert_eq!(
         names,
         BTreeSet::from([
             "Plain scenario".to_owned(),
-            "Parameterised scenario".to_owned(),
+            "Parameterized scenario".to_owned(),
         ]),
     );
 }

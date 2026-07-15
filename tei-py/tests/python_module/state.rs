@@ -58,7 +58,7 @@ impl PythonModuleState {
             guard
                 .as_ref()
                 .map(|module| module.clone_ref(py))
-                .context("module must be initialised before use")?
+                .context("module must be initialized before use")?
         };
         op(module.into_bound(py))
     }
@@ -188,7 +188,7 @@ pub(super) fn construct_python_document(state: &PythonModuleState, title: &str) 
     Ok(())
 }
 
-pub(super) fn module_is_initialised(state: &PythonModuleState) -> Result<()> {
+pub(super) fn module_is_initialized(state: &PythonModuleState) -> Result<()> {
     with_python(|py| {
         // Scenarios that require typed structs assert on bootstrap outcomes in
         // their own steps; ordinary module setup keeps the dependency best-effort.

@@ -186,8 +186,8 @@ impl ProfileDesc {
     /// Returns [`HeaderValidationError::EmptyField`] when the speaker name is
     /// empty after trimming.
     pub fn add_speaker(&mut self, speaker: impl Into<String>) -> Result<(), HeaderValidationError> {
-        let normalised_speaker = SpeakerName::new(speaker)?;
-        self.speakers.push(normalised_speaker);
+        let normalized_speaker = SpeakerName::new(speaker)?;
+        self.speakers.push(normalized_speaker);
         Ok(())
     }
 
@@ -201,8 +201,8 @@ impl ProfileDesc {
         &mut self,
         language: impl Into<String>,
     ) -> Result<(), HeaderValidationError> {
-        let normalised_language = LanguageTag::new(language)?;
-        self.languages.push(normalised_language);
+        let normalized_language = LanguageTag::new(language)?;
+        self.languages.push(normalized_language);
         Ok(())
     }
 
@@ -288,16 +288,16 @@ mod tests {
     }
 
     #[test]
-    fn speaker_name_deserialisation_rejects_empty() {
+    fn speaker_name_deserialization_rejects_empty() {
         let result = json::from_str::<SpeakerName>("\"   \"");
 
-        assert!(result.is_err(), "empty speaker should not deserialise");
+        assert!(result.is_err(), "empty speaker should not deserialize");
     }
 
     #[test]
-    fn language_tag_deserialisation_rejects_empty() {
+    fn language_tag_deserialization_rejects_empty() {
         let result = json::from_str::<LanguageTag>("\"   \"");
 
-        assert!(result.is_err(), "empty language tag should not deserialise");
+        assert!(result.is_err(), "empty language tag should not deserialize");
     }
 }

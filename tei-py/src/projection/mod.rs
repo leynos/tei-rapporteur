@@ -288,13 +288,13 @@ fn pause_from_py(dur: Option<String>, kind: Option<String>) -> Inline {
 ///
 /// # Errors
 ///
-/// Returns a JSON serialisation error when the projection cannot be rendered.
+/// Returns a JSON serialization error when the projection cannot be rendered.
 pub fn document_to_value(document: &TeiDocument) -> Result<Value, tei_serde::serde_json::Error> {
     let projection = PyTeiDocument::from(document);
     tei_serde::json::to_value(&projection)
 }
 
-/// Errors surfaced during projection deserialisation.
+/// Errors surfaced during projection deserialization.
 ///
 /// These distinguish JSON decoding problems from TEI validation failures so
 /// callers can report precise failure causes back to Python.

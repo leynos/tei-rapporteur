@@ -24,7 +24,7 @@ The initial focus is **Episodic** use‑cases:
   neologisms, terms of art).
 - *Ascorbic* — accent drift detection within episodes.
 
-Lossless round‑tripping is **not** a goal; we prioritise **semantic fidelity**
+Lossless round‑tripping is **not** a goal; we prioritize **semantic fidelity**
 and ergonomic domain objects over XML trivia. Notes/comments may be embedded in
 deserialized objects for traceability.
 

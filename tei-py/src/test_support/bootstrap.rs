@@ -273,7 +273,7 @@ pub(crate) fn reset_msgspec_bootstrap_for_tests() {
 
 /// Ensures `msgspec` is importable by the embedded Python interpreter.
 ///
-/// A `Once` guarded by `OnceExt::call_once_py_attached` serialises the
+/// A `Once` guarded by `OnceExt::call_once_py_attached` serializes the
 /// bootstrap so only one thread runs the installer, avoiding the race
 /// reported in CI while detaching from Python when blocked.
 ///

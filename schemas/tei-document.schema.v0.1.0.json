@@ -178,7 +178,7 @@
           "type": "string"
         },
         {
-          "description": "Emphasised content wrapped in `<hi>`.",
+          "description": "Emphasized content wrapped in `<hi>`.",
           "$ref": "#/$defs/hi"
         },
         {
@@ -421,7 +421,7 @@
       ]
     },
     "hi": {
-      "description": "Emphasised inline element corresponding to `<hi>`.",
+      "description": "Emphasized inline element corresponding to `<hi>`.",
       "type": "object",
       "properties": {
         "$value": {

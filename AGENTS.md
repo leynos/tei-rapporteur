@@ -103,7 +103,7 @@
 - **Separate Atomic Refactors:** If refactoring is deemed necessary:
   - Perform the refactoring as a **separate, atomic commit** *after* the
     functional change commit.
-  - Ensure the refactoring adheres to the testing guidelines (behavioral tests
+  - Ensure the refactoring adheres to the testing guidelines (behavioural tests
     pass before and after, unit tests added for new units).
   - Ensure the refactoring commit itself passes all quality gates.
 
@@ -167,7 +167,7 @@ project:
 - Lint rule suppressions must be tightly scoped and include a clear reason.
 - Prefer `expect` over `allow`.
 - Use `rstest` fixtures for shared setup.
-- Replace duplicated tests with `#[rstest(...)]` parameterised cases.
+- Replace duplicated tests with `#[rstest(...)]` parameterized cases.
 - Prefer `mockall` for mocks/stubs.
 - Prefer `.expect()` over `.unwrap()` in tests. Panic on `Err` is forbidden
   outside of tests and doctests. Errors outside of tests and doctests MUST be
@@ -195,7 +195,7 @@ project:
   `into_inner()` and `to_path_buf()`; avoid attempting
   `impl From<Wrapper> for PathBuf` because of the orphan rule. Prefer explicit
   tuple structs whenever bespoke validation or tailored trait surfaces are
-  required, customising `Deref`, `AsRef`, and `TryFrom` per type. Use
+  required, customizing `Deref`, `AsRef`, and `TryFrom` per type. Use
   `the-newtype` when defining traits and needing blanket implementations that
   apply across wrappers satisfying `Newtype + AsRef/AsMut<Inner>`, or when
   establishing a coherent internal convention that keeps trait forwarding
@@ -246,7 +246,16 @@ project:
 
 ## Markdown Guidance
 
-- Validate Markdown files using `make markdownlint`.
+- Validate Markdown files using `make markdownlint`. This target also enforces
+  en-GB-oxendict spelling over tracked text.
+- `typos.toml` is generated from the shared dictionary and
+  `typos.local.toml`; never edit the generated file manually.
+- Run `make spelling-config-write` to refresh the generated configuration and
+  `make spelling-config` to verify it. The builder refreshes its untracked
+  shared-dictionary cache when the published source is newer.
+- Protect machine interfaces and formal names with narrow, anchored patterns
+  in `typos.local.toml`; prefer exact full-line matches to word-level
+  exceptions.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.

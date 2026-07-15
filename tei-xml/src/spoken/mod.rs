@@ -179,7 +179,7 @@ impl<'a> SpokenTextParser<'a> {
     ///
     /// Decodes the local name, records the element in the header recorder,
     /// builds and pushes a stack frame, and enters element/cached state. When
-    /// `is_empty` is `true`, immediately finalises the element by calling
+    /// `is_empty` is `true`, immediately finalizes the element by calling
     /// [`Self::handle_end`].
     fn handle_element(&mut self, element: &BytesStart<'_>, is_empty: bool) -> Result<(), TeiError> {
         let name = local_name(element.local_name().as_ref())?;

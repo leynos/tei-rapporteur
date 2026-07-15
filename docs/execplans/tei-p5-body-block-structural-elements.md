@@ -1247,7 +1247,7 @@ paths — they extend them. If a stage fails:
 
 Running `make test` multiple times is safe and produces the same result.
 
-## Artifacts and notes
+## Artefacts and notes
 
 ### Example TEI fragment (target input)
 

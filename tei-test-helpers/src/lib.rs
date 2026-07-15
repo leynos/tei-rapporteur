@@ -35,7 +35,7 @@ pub fn expect_markup(result: Result<String, TeiError>) -> String {
     }
 }
 
-/// Ensures behaviour-driven fixtures initialise successfully and returns them.
+/// Ensures behaviour-driven fixtures initialize successfully and returns them.
 ///
 /// Tests rely on fixture constructors that build up shared state. When those
 /// constructors fail the scenario cannot proceed, so this helper panics with a
@@ -64,7 +64,7 @@ where
     match result {
         Ok(value) => value,
         Err(error) => {
-            panic!("{context} scenarios must initialise their state successfully: {error}")
+            panic!("{context} scenarios must initialize their state successfully: {error}")
         }
     }
 }

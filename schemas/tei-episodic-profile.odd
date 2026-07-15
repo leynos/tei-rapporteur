@@ -709,7 +709,7 @@
           <!-- ============================================================ -->
 
           <elementSpec ident="hi" mode="change">
-            <desc>Marks emphasised or otherwise distinguished text.</desc>
+            <desc>Marks emphasized or otherwise distinguished text.</desc>
             <content>
               <alternate minOccurs="1" maxOccurs="unbounded">
                 <textNode/>

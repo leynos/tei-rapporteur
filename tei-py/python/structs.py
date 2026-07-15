@@ -98,7 +98,7 @@ class Episode(msgspec.Struct, omit_defaults=True):
 
 
 class SpokenTextSegment(msgspec.Struct, omit_defaults=True):
-    """Normalised spoken text segment with source provenance."""
+    """Normalized spoken text segment with source provenance."""
 
     text: str
     locator: str

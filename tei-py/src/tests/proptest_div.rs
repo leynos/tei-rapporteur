@@ -1,7 +1,7 @@
 //! Property-based round-trip tests for div-containing documents.
 //!
 //! Verifies that arbitrary `Div` structures survive both the dictionary and
-//! `MessagePack` serialisation paths without data loss.
+//! `MessagePack` serialization paths without data loss.
 
 use crate::projection::{document_to_value, value_to_document};
 use proptest::prelude::*;
@@ -98,9 +98,9 @@ proptest! {
     #[test]
     fn div_document_survives_dictionary_round_trip(doc in arb_div_document()) {
         let value = document_to_value(&doc)
-            .map_err(|e| TestCaseError::fail(format!("serialisation failed: {e}")))?;
+            .map_err(|e| TestCaseError::fail(format!("serialization failed: {e}")))?;
         let recovered = value_to_document(&value)
-            .map_err(|e| TestCaseError::fail(format!("deserialisation failed: {e}")))?;
+            .map_err(|e| TestCaseError::fail(format!("deserialization failed: {e}")))?;
 
         prop_assert_eq!(
             doc,

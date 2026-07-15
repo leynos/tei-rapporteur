@@ -25,7 +25,7 @@ pub(crate) fn ensure_container_content(
     Ok(())
 }
 
-pub(crate) fn normalise_optional_speaker<S>(
+pub(crate) fn normalize_optional_speaker<S>(
     speaker: Option<S>,
 ) -> Result<Option<Speaker>, BodyContentError>
 where
