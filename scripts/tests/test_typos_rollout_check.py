@@ -83,9 +83,8 @@ class TestPhrasePolicyChecker:
             {
                 "README.md": (
                     f"{PROHIBITED}\n{TITLE_PROHIBITED} prose\n"
-                    + "pre-hand"
-                    + "-written\n"
-                    + f"`{PROHIBITED}`\n"
+                    f"pre-{PROHIBITED}\n"
+                    f"`{PROHIBITED}`\n"
                 ),
                 "skip.md": f"{PROHIBITED}\n",
                 **policy_files(),
@@ -110,7 +109,11 @@ class TestPhrasePolicyChecker:
         """Return two and preserve the established path diagnostic."""
         initialize(
             tmp_path,
-            {"README.md": f"Prefer {PROHIBITED}.\n", **policy_files()},
+            {
+                "README.md": f"Prefer {PROHIBITED}.\n",
+                "src/example.py": f"# Prefer {PROHIBITED}.\n",
+                **policy_files(),
+            },
         )
 
         assert checker.main(["--repository", str(tmp_path)]) == 2, (
@@ -118,4 +121,24 @@ class TestPhrasePolicyChecker:
         )
         assert capsys.readouterr().out == (
             f"README.md:1:8: {PROHIBITED} -> handwritten\n"
+            f"src/example.py:1:10: {PROHIBITED} -> handwritten\n"
         ), "the diagnostic omitted its source location or correction"
+
+    def test_main_accepts_clean_repository(
+        self,
+        checker: types.ModuleType,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Return zero without diagnostics when tracked input is clean."""
+        initialize(
+            tmp_path,
+            {"src/example.py": "# Prefer handwritten.\n", **policy_files()},
+        )
+
+        assert checker.main(["--repository", str(tmp_path)]) == 0, (
+            "the command rejected clean tracked input"
+        )
+        assert capsys.readouterr().out == "", (
+            "the command reported a diagnostic for clean input"
+        )
