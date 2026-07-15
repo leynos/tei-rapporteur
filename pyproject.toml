@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin==1.13.3"]
+requires = ["maturin==1.14.1"]
 build-backend = "maturin"
 
 [project]
@@ -27,7 +27,7 @@ classifiers = [
 dev = [
     "pytest>=9.1.1,<10.0",
     # Keep in sync with .github/workflows/ci.yml.
-    "maturin==1.13.3",
+    "maturin==1.14.1",
     "pyyaml>=6",
 ]
 
