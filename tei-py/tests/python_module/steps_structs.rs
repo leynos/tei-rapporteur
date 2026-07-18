@@ -95,19 +95,11 @@ pub(super) fn i_decode_the_payload_to_an_episode(
     path = "tests/features/python_module.feature",
     name = "Round-trip MessagePack via the Episode struct"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd injects the state fixture into generated step calls"
-)]
-pub fn round_trips_via_episode_struct(python_state: PythonModuleState) {}
+pub fn round_trips_via_episode_struct(#[from(python_state)] _python_state: PythonModuleState) {}
 
 /// Scenario: Report msgspec errors for malformed payloads.
 #[scenario(
     path = "tests/features/python_module.feature",
     name = "Report msgspec errors for malformed payloads"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd injects the state fixture into generated step calls"
-)]
-pub fn episode_decoding_reports_errors(python_state: PythonModuleState) {}
+pub fn episode_decoding_reports_errors(#[from(python_state)] _python_state: PythonModuleState) {}

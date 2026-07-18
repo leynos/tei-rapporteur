@@ -87,38 +87,25 @@ pub(super) fn i_emit_the_document_to_tei_xml(
     path = "tests/features/python_module.feature",
     name = "Parse TEI XML into a Document"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd matches scenario fixtures by parameter name"
-)]
-pub fn parses_tei_xml_payloads(python_state: PythonModuleState) {}
+pub fn parses_tei_xml_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
 
 #[scenario(
     path = "tests/features/python_module.feature",
     name = "Reject malformed TEI XML payloads"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd matches scenario fixtures by parameter name"
-)]
-pub fn rejects_invalid_tei_xml_payloads(python_state: PythonModuleState) {}
+pub fn rejects_invalid_tei_xml_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
 
 #[scenario(
     path = "tests/features/python_module.feature",
     name = "Emit TEI XML for a Document"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd matches scenario fixtures by parameter name"
-)]
-pub fn emits_documents_to_tei_xml(python_state: PythonModuleState) {}
+pub fn emits_documents_to_tei_xml(#[from(python_state)] _python_state: PythonModuleState) {}
 
 #[scenario(
     path = "tests/features/python_module.feature",
     name = "Reject TEI emission when XML would contain forbidden characters"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd matches scenario fixtures by parameter name"
-)]
-pub fn rejects_emit_xml_with_control_characters(python_state: PythonModuleState) {}
+pub fn rejects_emit_xml_with_control_characters(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}

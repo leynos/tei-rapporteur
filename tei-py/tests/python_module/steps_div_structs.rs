@@ -189,8 +189,7 @@ pub(super) fn the_div_blocks_are_preserved(
     path = "tests/features/python_module.feature",
     name = "Round-trip MessagePack via Episode struct with div blocks"
 )]
-#[expect(
-    unused_variables,
-    reason = "rstest-bdd injects the state fixture into generated step calls"
-)]
-pub fn round_trips_div_blocks_via_episode_struct(python_state: PythonModuleState) {}
+pub fn round_trips_div_blocks_via_episode_struct(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
