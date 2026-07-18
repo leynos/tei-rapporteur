@@ -114,11 +114,17 @@ pub fn decodes_messagepack_documents(#[from(python_state)] _python_state: Python
 
 /// Scenario: Reject invalid `MessagePack` payloads during decoding.
 #[scenario(path = "tests/features/python_module.feature", index = 5)]
-pub fn rejects_invalid_messagepack_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_invalid_messagepack_payloads(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
 
 /// Scenario: Reject `MessagePack` payloads missing required fields.
 #[scenario(path = "tests/features/python_module.feature", index = 6)]
-pub fn rejects_missing_field_messagepack_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_missing_field_messagepack_payloads(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
 
 /// Scenario: Encode a constructed `Document` into `MessagePack` bytes.
 #[scenario(path = "tests/features/python_module.feature", index = 7)]
@@ -126,4 +132,5 @@ pub fn encodes_documents_to_messagepack(#[from(python_state)] _python_state: Pyt
 
 /// Scenario: Surface errors when `to_msgpack` is called without a `Document`.
 #[scenario(path = "tests/features/python_module.feature", index = 8)]
-pub fn rejects_to_msgpack_without_document(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_to_msgpack_without_document(#[from(python_state)] _python_state: PythonModuleState) {
+}

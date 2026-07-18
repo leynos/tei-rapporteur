@@ -280,14 +280,20 @@ pub fn decodes_dictionary_payloads(#[from(python_state)] _python_state: PythonMo
     path = "tests/features/python_module.feature",
     name = "Reject dictionary payloads missing required fields"
 )]
-pub fn rejects_incomplete_dictionary_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_incomplete_dictionary_payloads(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
 
 /// Scenario: Reject dictionary payloads with blank titles.
 #[scenario(
     path = "tests/features/python_module.feature",
     name = "Reject dictionary payloads with blank titles"
 )]
-pub fn rejects_blank_titles_in_dictionary_payloads(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_blank_titles_in_dictionary_payloads(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
 
 /// Scenario: Encode a `Document` to a dictionary payload.
 #[scenario(
@@ -308,4 +314,7 @@ pub fn rejects_to_dict_without_document(#[from(python_state)] _python_state: Pyt
     path = "tests/features/python_module.feature",
     name = "Round-trip dictionary payload with div blocks"
 )]
-pub fn round_trips_div_blocks_via_dictionary(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn round_trips_div_blocks_via_dictionary(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}

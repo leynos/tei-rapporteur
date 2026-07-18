@@ -136,4 +136,7 @@ pub fn emits_title_markup(#[from(python_state)] _python_state: PythonModuleState
     path = "tests/features/python_module.feature",
     name = "Document method escapes XML special characters"
 )]
-pub fn document_markup_escapes_special_characters(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn document_markup_escapes_special_characters(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}

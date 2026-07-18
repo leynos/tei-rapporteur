@@ -105,4 +105,7 @@ pub fn emits_documents_to_tei_xml(#[from(python_state)] _python_state: PythonMod
     path = "tests/features/python_module.feature",
     name = "Reject TEI emission when XML would contain forbidden characters"
 )]
-pub fn rejects_emit_xml_with_control_characters(#[from(python_state)] _python_state: PythonModuleState) {}
+pub fn rejects_emit_xml_with_control_characters(
+    #[from(python_state)] _python_state: PythonModuleState,
+) {
+}
