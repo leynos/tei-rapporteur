@@ -1,5 +1,8 @@
 # tei-rapporteur
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
+https://deepwiki.com/leynos/tei-rapporteur)
+
 <!-- markdownlint-disable-next-line MD036 -->
 *Podcast-grade TEI P5: ergonomic, fast, and pleasantly interoperable*
 
