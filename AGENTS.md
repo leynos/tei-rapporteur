@@ -210,8 +210,8 @@ project:
   `OnceExt::call_once_py_attached`, and Python monkeypatching conventions.
 - For the `msgspec` bootstrap, prefer the existing `Once` plus
   `OnceExt::call_once_py_attached` pattern over `#[serial]` attributes or an
-  external `Mutex`. The `Once` owns the single critical section and releases the
-  GIL while blocked threads wait.
+  external `Mutex`. The `Once` owns the single critical section and releases
+  the GIL while blocked threads wait.
 - Reserve `#[serial]` for tests that must coordinate multiple distinct statics
   or process-global side effects across separate test functions.
 - When patching Python standard-library functions in tests, use typed RAII

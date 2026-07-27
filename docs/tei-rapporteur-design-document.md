@@ -255,8 +255,8 @@ in a generic way (e.g., as untyped `extra` fields) so that the parser doesn’t
 break on unexpected input. The goal is to **accept and preserve all relevant
 information** for the intended use cases, while being forward-compatible with
 minor extensions. If an input uses a TEI construct that has not yet been
-modelled, the design should either ignore it safely or store it in a placeholder
-structure for round-trip output, rather than erroring out.
+modelled, the design should either ignore it safely or store it in a
+placeholder structure for round-trip output, rather than erroring out.
 
 ## Architecture Overview
 

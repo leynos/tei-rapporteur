@@ -196,14 +196,14 @@ snapshot without any `tei-py` API change. The diagnostic notes on
 the wrapper unless the UI test is intentionally moved to a different
 crate-owned compile-fail boundary.
 
-Only `bootstrap_msgspec` and `with_python` are documented public exports
-from this module. They are thread-safe: `bootstrap_msgspec` delegates to
-the `Once`-guarded bootstrap while attached to the Python interpreter through
-the shared import-state lock. It may run subprocess installers and mutate
-Python import state, so treat it as a bootstrap command rather than a pure
+Only `bootstrap_msgspec` and `with_python` are documented public exports from
+this module. They are thread-safe: `bootstrap_msgspec` delegates to the
+`Once`-guarded bootstrap while attached to the Python interpreter through the
+shared import-state lock. It may run subprocess installers and mutate Python
+import state, so treat it as a bootstrap command rather than a pure
 availability query. `with_python` acquires the same lock before calling
-`Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are
-hidden-public bootstrap helpers: the `msgspec` installer path uses them to call
+`Python::attach`. `run_with_kwargs` and `RunWithKwargsArgs` are hidden-public
+bootstrap helpers: the `msgspec` installer path uses them to call
 `subprocess.run`, and UI compile tests use them to lock down the crate-owned
 argument diagnostic.
 
@@ -380,15 +380,15 @@ corrections that single-token spelling scans cannot enforce reliably.
 
 ## Workflow pins and Dependabot
 
-Dependabot owns the upgrade of GitHub Actions and reusable workflows,
-including calls into `leynos/shared-actions`. Contract tests that assert a
-caller's exact commit SHA create a lockstep dependency: every time Dependabot
-opens a bump PR, the test fails until a human edits the pinned constant to
-match. That defeats the purpose of automated dependency updates and turns a
-routine bump into a manual chore.
+Dependabot owns the upgrade of GitHub Actions and reusable workflows, including
+calls into `leynos/shared-actions`. Contract tests that assert a caller's exact
+commit SHA create a lockstep dependency: every time Dependabot opens a bump PR,
+the test fails until a human edits the pinned constant to match. That defeats
+the purpose of automated dependency updates and turns a routine bump into a
+manual chore.
 
-Contract tests may still verify the *shape* of a reusable-workflow caller.
-They must not verify the specific SHA value.
+Contract tests may still verify the *shape* of a reusable-workflow caller. They
+must not verify the specific SHA value.
 
 - Do assert the workflow references the correct reusable workflow path.
 - Do assert the ref is pinned to a full 40-character commit SHA, not a
