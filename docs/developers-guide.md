@@ -413,3 +413,70 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## Mutation-testing workflow contract tests
+
+This repository runs scheduled, informational mutation testing through a thin
+caller workflow,
+[`.github/workflows/mutation-testing.yml`](../.github/workflows/mutation-testing.yml),
+which delegates to the shared reusable workflow
+`leynos/shared-actions/.github/workflows/mutation-cargo.yml`. The heavy
+lifting — running `cargo-mutants`, sharding, and summarizing survivors —
+lives in `shared-actions`; this repository carries only declarative
+configuration. The run is **informational only**: it never gates a pull
+request. Survivors are reported through the job summary and downloadable
+artefacts so they can be triaged into tests, not enforced as a blocking
+check.
+
+The workflow runs in two modes. A **daily schedule** fires a change-scoped
+run that mutates only the source files touched within the detection window,
+so quiet days are cheap no-ops. A **manual dispatch** (the Actions "Run
+workflow" control) mutates the whole workspace, fanned out across shards;
+select a branch in that control to exercise a feature branch.
+
+The caller passes a small set of configuration inputs, each carrying intent:
+
+- `paths` — the change-detection globs (`tei-core/`, `tei-serde/`,
+  `tei-xml/`, `tei-py/`) that decide whether a scheduled run has anything to
+  mutate, bounding the scheduled run to real source changes in the mutable
+  workspace crates. `tei-test-helpers`, also a workspace member, is
+  deliberately omitted from this list: it is fixture and test-support
+  scaffolding, not mutated code.
+- `exclude-globs` — example, fixture, and test-support scaffolding whose
+  surviving mutants are noise rather than genuine test gaps: the
+  `tei-test-helpers` crate wholesale, `tei-py`'s Python-embedding test
+  support, `tei-xml`'s fixture builders and generator and benchmark
+  binaries, and `tei-serde`'s schema-snapshot generator binary.
+- `extra-args` — `--all-features --test-workspace=true`, forwarded to
+  `cargo-mutants` so the mutation run matches the CI test baseline (`make
+  test` runs nextest with `--workspace --all-targets --all-features`).
+  `--test-workspace=true` runs the whole workspace's test suite against
+  every mutant, so crates covered only by a dependent crate's tests do not
+  report false survivors.
+
+The `uses:` reference pins the shared workflow to a full 40-character commit
+SHA rather than a branch or tag, so a force-push upstream cannot silently
+change what runs here. The contract test asserts only that the pin is a full
+commit SHA, not a particular value, so Dependabot bumps it automatically
+without any accompanying test edit.
+
+Because the caller is configuration rather than code, a contract test in
+`tests/workflow_contracts/mutation_testing_test.py` pins the shape it must
+uphold, failing the pull request when the caller drifts — repointing the pin
+at a branch, widening the token scope, or dropping a configuration input —
+rather than letting the breakage surface only in a scheduled run. Run it
+locally with `make test-workflow-contracts`. The test validates:
+
+- the `uses:` reference targets `mutation-cargo.yml` pinned to a full commit
+  SHA (`test_uses_reference_is_pinned_to_a_commit_sha`);
+- the `with:` block carries exactly the expected `paths`, `exclude-globs`,
+  and `extra-args` configuration
+  (`test_with_block_carries_the_caller_configuration`);
+- job permissions are least-privilege (`contents: read`, `id-token: write`)
+  and the workflow-level default token scope is empty
+  (`test_job_permissions_are_exactly_least_privilege`,
+  `test_workflow_default_permissions_are_empty`);
+- `concurrency` serializes runs per ref without cancelling one in progress
+  (`test_concurrency_serializes_per_ref_without_cancelling`); and
+- the triggers keep the daily schedule and a plain `workflow_dispatch` with
+  no legacy branch input (`test_triggers_keep_schedule_and_plain_dispatch`).
