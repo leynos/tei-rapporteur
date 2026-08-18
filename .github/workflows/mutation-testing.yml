@@ -26,7 +26,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC workflow-source resolution
-    uses: leynos/shared-actions/.github/workflows/mutation-cargo.yml@074f7d8ba75a6e5d18532b72cbe38fccbda4e9c6
+    uses: leynos/shared-actions/.github/workflows/mutation-cargo.yml@57a33fa65e329db7edc81ece661f1a2e1d39868f
     with:
       # Workspace crates live in root-level directories, not crates/;
       # tei-test-helpers is excluded from mutation so it is omitted
