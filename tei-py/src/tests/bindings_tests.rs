@@ -70,17 +70,20 @@ impl Drop for RestoreStructs<'_> {
     }
 }
 
-fn registered_module(py: Python<'_>) -> Bound<'_, PyModule> {
-    let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-    crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)
-        .expect("module registration should succeed");
-    module
+/// Allocates and registers the `tei_rapporteur` module for a test.
+///
+/// Registration is arrangement, not the assertion under test, so failures
+/// propagate to the calling test body.
+fn registered_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let module = PyModule::new(py, "tei_rapporteur")?;
+    crate::bindings_test_support::register_tei_rapporteur_module_for_tests(py, &module)?;
+    Ok(module)
 }
 
 #[test]
 fn to_dict_rejects_non_document_inputs() {
     with_python(|py| {
-        let module = registered_module(py);
+        let module = registered_module(py).expect("module registration should succeed");
 
         let to_dict = module
             .getattr("to_dict")
@@ -100,7 +103,7 @@ fn spoken_text_segments_return_msgspec_structs() {
             bootstrap_msgspec_attached(py),
             "msgspec bootstrap should succeed for spoken text struct tests"
         );
-        let module = registered_module(py);
+        let module = registered_module(py).expect("module registration should succeed");
         let extractor = module
             .getattr("spoken_text_segments")
             .expect("spoken_text_segments should be registered");

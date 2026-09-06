@@ -87,7 +87,10 @@ pub(super) fn has_uv(py: Python<'_>) -> bool {
 /// # Example
 ///
 /// ```rust,no_run
-/// use pyo3::{Python, types::PyDict};
+/// use pyo3::{
+///     Python,
+///     types::{PyAnyMethods, PyDict, PyDictMethods},
+/// };
 /// use tei_py::test_support::run_with_kwargs;
 ///
 /// Python::attach(|py| {

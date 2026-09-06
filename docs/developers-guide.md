@@ -358,6 +358,40 @@ Name future guards after what they undo, compose multiple guards in one scope
 when a test patches multiple globals, and rely on reverse declaration order to
 mirror a conventional `try`/`finally` stack.
 
+### Test helpers and fixtures must be fallible
+
+A test asserts; a helper arranges. Arrangement can fail, so every helper,
+fixture, mock installer and behaviour-driven step returns `Result` and
+propagates. Only a test body may unwrap, because a failure there is the
+verdict rather than an unreported accident.
+
+The Whitaker `no_expect_outside_tests` lint enforces this, and it is stricter
+than it first appears. Proc-macro attributes are erased before the lint sees
+the code, so an rstest `#[fixture]`, an rstest-bdd step and a `#[serial]` test
+all read as ordinary production code. Making the function fallible is the fix;
+renaming it or suppressing the lint is not.
+
+Two consequences follow for consumers:
+
+- A fixture that yields `Result<T>` must be taken under a distinct parameter
+  name, such as `#[from(wolf_document)] document_result: Result<TeiDocument>`.
+  Unwrapping into a binding of the same name trips `clippy::shadow_reuse`.
+- A step or helper that returns `Result` cannot use `assert!` or `assert_eq!`,
+  because `clippy::panic_in_result_fn` denies them. Use `anyhow::ensure!` and
+  `anyhow::Context` instead.
+
+Some contexts genuinely cannot propagate. A `prop_compose!` closure must yield
+a value, so a fallible `tei-core` constructor inside a proptest strategy has
+nowhere to send its error. Those calls go through one named panic boundary,
+`tei_test_helpers::ExpectValid::expect_valid`, rather than a scattering of
+`expect` calls. Add to that boundary only when the surrounding API forbids
+propagation, and state the reason at each use site.
+
+Python scripts embedded in test mocks use C string literals (`c"..."` and
+`cr"..."`) rather than `CString::new`. The scripts are compile-time constants,
+so the nul check is a fallible step on a value that can never fail it, and
+teardown paths running under `Drop` have no way to report the error.
+
 ## Spelling policy
 
 `make spelling` enforces en-GB-oxendict spelling over tracked text with the
@@ -377,6 +411,22 @@ or exact serialized fixtures. Use the narrowest anchored pattern possible and
 explain why it is required. Do not add broad word-level exceptions for prose.
 The consumer phrase checker also rejects punctuation-sensitive shared
 corrections that single-token spelling scans cannot enforce reliably.
+
+## Documentation tests in CI
+
+Coverage runs through `cargo llvm-cov nextest`, and nextest does not execute
+doctests. Without a separate step the examples in the public API documentation
+compile nowhere, which is how a broken `tei-test-helpers` example survived on
+`main`.
+
+- `make test-doc` runs `cargo test --doc --workspace` with warnings denied.
+- `make test` depends on it, so a local test run covers the examples.
+- CI runs the step between `make lint` and the coverage action, before the job
+  that cannot run doctests itself.
+- `tests/workflow_contracts/ci_doc_tests_test.py` asserts the `run:` body
+  invokes the target and that the step precedes coverage. It asserts the
+  command rather than the step name, because a name-matching contract passes
+  with the invocation deleted.
 
 ## Workflow pins and Dependabot
 
