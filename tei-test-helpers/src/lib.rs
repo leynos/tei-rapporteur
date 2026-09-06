@@ -110,3 +110,26 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Behavioural tests for the documented panic boundary.
+
+    use super::ExpectValid;
+
+    /// The panic boundary must name both the context and the underlying error,
+    /// because those two strings are all a failing strategy leaves behind.
+    #[test]
+    #[should_panic(expected = "generated label should be valid: empty text")]
+    fn expect_valid_panic_names_the_context_and_the_error() {
+        let result: Result<u8, &str> = Err("empty text");
+        let _value = result.expect_valid("generated label");
+    }
+
+    /// A success passes the value through untouched.
+    #[test]
+    fn expect_valid_returns_the_success_value() {
+        let result: Result<u8, &str> = Ok(7);
+        assert_eq!(result.expect_valid("generated count"), 7);
+    }
+}

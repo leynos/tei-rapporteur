@@ -362,7 +362,7 @@ mirror a conventional `try`/`finally` stack.
 
 A test asserts; a helper arranges. Arrangement can fail, so every helper,
 fixture, mock installer and behaviour-driven step returns `Result` and
-propagates. Only a test body may unwrap, because there a failure is the
+propagates. Only a test body may unwrap, because a failure there is the
 verdict rather than an unreported accident.
 
 The Whitaker `no_expect_outside_tests` lint enforces this, and it is stricter
@@ -385,7 +385,7 @@ a value, so a fallible `tei-core` constructor inside a proptest strategy has
 nowhere to send its error. Those calls go through one named panic boundary,
 `tei_test_helpers::ExpectValid::expect_valid`, rather than a scattering of
 `expect` calls. Add to that boundary only when the surrounding API forbids
-propagation, and say so where you use it.
+propagation, and state the reason at each use site.
 
 Python scripts embedded in test mocks use C string literals (`c"..."` and
 `cr"..."`) rather than `CString::new`. The scripts are compile-time constants,

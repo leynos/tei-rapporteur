@@ -16,6 +16,7 @@ Run via ``make test-workflow-contracts``.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import yaml
@@ -42,7 +43,7 @@ def _build_test_steps() -> list[dict[str, object]]:
     return steps
 
 
-def _index_of(predicate) -> int:
+def _index_of(predicate: Callable[[dict[str, object]], bool]) -> int:
     """Return the index of the first step satisfying ``predicate``."""
     for index, step in enumerate(_build_test_steps()):
         if predicate(step):

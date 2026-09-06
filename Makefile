@@ -49,7 +49,9 @@ test: test-doc ## Run tests with warnings treated as errors
 	RUSTFLAGS="-D warnings" $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
 
 test-doc: ## Run documentation tests (nextest does not execute them)
-	RUSTFLAGS="-D warnings" $(CARGO) test --doc --workspace $(BUILD_JOBS)
+	# --all-features: `tei_py::test_support` compiles only under `cfg(test)`
+	# or `feature = "test-support"`, and rustdoc sets neither for doctests.
+	RUSTFLAGS="-D warnings" $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
 
 lint: ## Build documentation and run Clippy and the Whitaker Dylint suite with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
