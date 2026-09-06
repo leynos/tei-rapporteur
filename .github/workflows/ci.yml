@@ -51,6 +51,10 @@ jobs:
           whitaker-installer
       - name: Lint
         run: make lint
+      # `cargo llvm-cov nextest` below does not execute doctests, so they are
+      # run here or they rot unnoticed.
+      - name: Doc tests
+        run: make test-doc
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57
         with:

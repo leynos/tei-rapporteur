@@ -48,7 +48,7 @@ pub fn expect_markup(result: Result<String, TeiError>) -> String {
 /// ```
 /// use tei_test_helpers::expect_validated_state;
 ///
-/// let state = expect_validated_state(Ok(42), "demo");
+/// let state = expect_validated_state(Ok::<_, std::fmt::Error>(42), "demo");
 /// assert_eq!(state, 42);
 /// ```
 ///

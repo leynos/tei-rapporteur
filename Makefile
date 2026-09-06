@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt typecheck \
+.PHONY: help all clean test test-doc build release lint fmt check-fmt typecheck \
 	markdownlint nixie validate-xml json-schema test-workflow-contracts \
 	spelling spelling-config spelling-config-write spelling-phrase-check \
 	spelling-helper-test
@@ -45,8 +45,11 @@ clean: ## Remove build artefacts
 	$(CARGO) clean
 	rm -rf .uv-cache .uv-tools
 
-test: ## Run tests with warnings treated as errors
+test: test-doc ## Run tests with warnings treated as errors
 	RUSTFLAGS="-D warnings" $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
+
+test-doc: ## Run documentation tests (nextest does not execute them)
+	RUSTFLAGS="-D warnings" $(CARGO) test --doc --workspace $(BUILD_JOBS)
 
 lint: ## Build documentation and run Clippy and the Whitaker Dylint suite with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
