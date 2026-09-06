@@ -42,12 +42,15 @@ impl Drop for RestoreImportsGuard<'_> {
 }
 
 #[fixture]
-fn registered_module() -> Py<PyModule> {
+fn registered_module() -> anyhow::Result<Py<PyModule>> {
     registered_structs_module("msgspec bootstrap should succeed for structs module tests")
 }
 
 #[rstest]
-fn structs_submodule_is_registered(#[from(registered_module)] module: Py<PyModule>) {
+fn structs_submodule_is_registered(
+    #[from(registered_module)] module_result: anyhow::Result<Py<PyModule>>,
+) {
+    let module = module_result.expect("structs module fixture should register");
     with_python(|py| {
         let bound_module = module.bind(py);
         assert!(
@@ -151,7 +154,10 @@ if "_orig_msgspec_structs_test" in globals():
 }
 
 #[rstest]
-fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<PyModule>) {
+fn episode_struct_round_trips_messagepack(
+    #[from(registered_module)] module_result: anyhow::Result<Py<PyModule>>,
+) {
+    let module = module_result.expect("structs module fixture should register");
     with_python(|py| {
         let bound_module = module.bind(py);
         let document = Document::try_from_title("Bridgewater")
@@ -205,7 +211,10 @@ fn episode_struct_round_trips_messagepack(#[from(registered_module)] module: Py<
 }
 
 #[rstest]
-fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule>) {
+fn list_block_rejects_empty_items(
+    #[from(registered_module)] module_result: anyhow::Result<Py<PyModule>>,
+) {
+    let module = module_result.expect("structs module fixture should register");
     with_python(|py| {
         let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");
@@ -228,7 +237,10 @@ fn list_block_rejects_empty_items(#[from(registered_module)] module: Py<PyModule
 }
 
 #[rstest]
-fn div_block_rejects_blank_type(#[from(registered_module)] module: Py<PyModule>) {
+fn div_block_rejects_blank_type(
+    #[from(registered_module)] module_result: anyhow::Result<Py<PyModule>>,
+) {
+    let module = module_result.expect("structs module fixture should register");
     with_python(|py| {
         let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");

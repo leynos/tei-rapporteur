@@ -68,3 +68,45 @@ where
         }
     }
 }
+
+/// Collapses a [`Result`] into its value at a documented panic boundary.
+///
+/// Some testing contexts cannot propagate an error. `proptest` strategy
+/// pipelines built with `prop_compose!` are the motivating case: the closure
+/// bodies must yield a value, so a fallible constructor has nowhere to send its
+/// error. Rather than scatter `expect` calls through those pipelines, route
+/// them through this one named boundary so that the panic is deliberate,
+/// consistently worded, and easy to find.
+///
+/// Prefer returning `Result` wherever propagation is possible; reach for this
+/// trait only where the surrounding API forbids it.
+///
+/// # Examples
+///
+/// ```
+/// use tei_test_helpers::ExpectValid;
+///
+/// let value = Ok::<_, std::fmt::Error>(7).expect_valid("generated count");
+/// assert_eq!(value, 7);
+/// ```
+pub trait ExpectValid<T> {
+    /// Returns the success value, panicking with `context` on failure.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `self` holds an error. The message names `context` so the
+    /// failing strategy or constructor is identifiable from the panic alone.
+    fn expect_valid(self, context: &str) -> T;
+}
+
+impl<T, E> ExpectValid<T> for Result<T, E>
+where
+    E: Display,
+{
+    fn expect_valid(self, context: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => panic!("{context} should be valid: {error}"),
+        }
+    }
+}

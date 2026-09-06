@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::test_support::{bootstrap_msgspec_attached, with_python};
+use anyhow::Context as _;
 use pyo3::{
     Py,
     types::{PyAnyMethods, PyModule},
@@ -21,15 +22,19 @@ mod structs_tests;
 mod validation;
 mod xml;
 
-fn registered_structs_module(bootstrap_failure: &str) -> Py<PyModule> {
+/// Registers the `tei_rapporteur` module against a bootstrapped `msgspec`.
+///
+/// Arrangement can fail, so the helper propagates rather than panicking;
+/// callers decide the verdict in their own test bodies.
+fn registered_structs_module(bootstrap_failure: &str) -> anyhow::Result<Py<PyModule>> {
     with_python(|py| {
-        assert!(bootstrap_msgspec_attached(py), "{bootstrap_failure}");
+        anyhow::ensure!(bootstrap_msgspec_attached(py), "{bootstrap_failure}");
         py.import("msgspec")
-            .expect("msgspec should import after bootstrap");
+            .context("msgspec should import after bootstrap")?;
 
-        let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
-        tei_rapporteur(py, &module).expect("module registration");
-        module.unbind()
+        let module = PyModule::new(py, "tei_rapporteur").context("module allocation")?;
+        tei_rapporteur(py, &module).context("module registration")?;
+        Ok(module.unbind())
     })
 }
 

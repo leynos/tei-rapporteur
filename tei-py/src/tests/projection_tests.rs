@@ -6,6 +6,7 @@ use crate::{
     },
     test_support::{bootstrap_msgspec_attached, with_python},
 };
+use anyhow::Result;
 use pyo3::{types::PyAnyMethods, types::PyModule};
 use pyo3_serde::to_pyobject;
 use tei_core::{
@@ -22,11 +23,10 @@ const TAG_PARAGRAPH: &str = "paragraph";
 const TAG_UTTERANCE: &str = "utterance";
 const TAG_DOCUMENT_END: &str = "document_end";
 
-fn example_document() -> TeiDocument {
-    let emphasized =
-        tei_core::Hi::try_new([Inline::Text("hi".into())]).expect("inline content should validate");
-    let mut paragraph = P::from_inline([Inline::Hi(emphasized)]).expect("valid paragraph");
-    paragraph.set_id("p1").expect("id should validate");
+fn example_document() -> Result<TeiDocument> {
+    let emphasized = tei_core::Hi::try_new([Inline::Text("hi".into())])?;
+    let mut paragraph = P::from_inline([Inline::Hi(emphasized)])?;
+    paragraph.set_id("p1")?;
     let mut body = tei_core::TeiBody::default();
     body.push_paragraph(paragraph);
     let text = tei_core::TeiText::new(body);
@@ -34,19 +34,17 @@ fn example_document() -> TeiDocument {
     let mut cite_structure = CiteStructure::new("//u[@xml:id]");
     cite_structure.add_cite_data(CiteData::new("speaker"));
     refs_decl.add_cite_structure(cite_structure);
-    let header = tei_core::TeiHeader::new(
-        tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
-    )
-    .with_encoding_desc(EncodingDesc::new().with_refs_decl(refs_decl));
+    let header = tei_core::TeiHeader::new(tei_core::FileDesc::from_title_str("Bridgewater")?)
+        .with_encoding_desc(EncodingDesc::new().with_refs_decl(refs_decl));
 
     let mut span = Span::new();
-    span.set_target(PointerList::new(["#p1"]).expect("pointer list should validate"));
-    let mut span_group = SpanGroup::new("citation").expect("group kind should validate");
+    span.set_target(PointerList::new(["#p1"])?);
+    let mut span_group = SpanGroup::new("citation")?;
     span_group.add_span(span);
     let mut stand_off = StandOff::new();
     stand_off.add_span_group(span_group);
 
-    TeiDocument::new(header, text).with_stand_off(stand_off)
+    Ok(TeiDocument::new(header, text).with_stand_off(stand_off))
 }
 
 fn assert_round_tripped_paragraph(original: &TeiDocument, round_tripped: &TeiDocument) {
@@ -89,7 +87,7 @@ fn inline_projection_uses_type_discriminator() {
 
 #[test]
 fn document_projection_tags_inline_content() {
-    let document = example_document();
+    let document = example_document().expect("example document fixture should build");
     let value = document_to_value(&document).expect("projection serializes to JSON");
     let blocks = value
         .get("text")
@@ -203,7 +201,7 @@ fn streaming_events_decode_into_python_event_union() {
 
 #[test]
 fn round_trip_document_to_value_and_back_preserves_core_structure() {
-    let original = example_document();
+    let original = example_document().expect("example document fixture should build");
     let value = document_to_value(&original).expect("projection should serialize to JSON");
     let round_tripped =
         value_to_document(&value).expect("projection JSON should round-trip into TeiDocument");
