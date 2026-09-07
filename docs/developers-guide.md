@@ -427,6 +427,12 @@ compile nowhere, which is how a broken `tei-test-helpers` example survived on
   invokes the target and that the step precedes coverage. It asserts the
   command rather than the step name, because a name-matching contract passes
   with the invocation deleted.
+- `tests/workflow_contracts/makefile_doc_tests_test.py` asserts what the target
+  does: that `test` depends on it, and that its recipe carries `--workspace`,
+  `--all-features` and `RUSTFLAGS="-D warnings"`. Without this half, deleting
+  `--all-features` passes every gate while restoring the gap, because the
+  feature-gated examples simply stop being compiled. Each assertion was
+  mutation-tested by removing exactly the token it protects.
 
 ## Workflow pins and Dependabot
 
