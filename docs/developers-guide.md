@@ -362,8 +362,8 @@ mirror a conventional `try`/`finally` stack.
 
 A test asserts; a helper arranges. Arrangement can fail, so every helper,
 fixture, mock installer and behaviour-driven step returns `Result` and
-propagates. Only a test body may unwrap, because a failure there is the
-verdict rather than an unreported accident.
+propagates. Only a test body may unwrap because a failure there is the verdict
+rather than an unreported accident.
 
 The Whitaker `no_expect_outside_tests` lint enforces this, and it is stricter
 than it first appears. Proc-macro attributes are erased before the lint sees
