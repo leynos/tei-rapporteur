@@ -11,12 +11,15 @@ use pyo3::{
 use rstest::fixture;
 
 #[fixture]
-fn registered_module() -> Py<PyModule> {
+fn registered_module() -> anyhow::Result<Py<PyModule>> {
     registered_structs_module("msgspec bootstrap should succeed for Head struct tests")
 }
 
 #[rstest::rstest]
-fn head_rejects_empty_content(#[from(registered_module)] module: Py<PyModule>) {
+fn head_rejects_empty_content(
+    #[from(registered_module)] module_result: anyhow::Result<Py<PyModule>>,
+) {
+    let module = module_result.expect("structs module fixture should register");
     with_python(|py| {
         let bound_module = module.bind(py);
         let structs = bound_module.getattr("structs").expect("structs module");

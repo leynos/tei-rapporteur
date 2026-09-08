@@ -48,7 +48,7 @@ pub fn expect_markup(result: Result<String, TeiError>) -> String {
 /// ```
 /// use tei_test_helpers::expect_validated_state;
 ///
-/// let state = expect_validated_state(Ok(42), "demo");
+/// let state = expect_validated_state(Ok::<_, std::fmt::Error>(42), "demo");
 /// assert_eq!(state, 42);
 /// ```
 ///
@@ -66,5 +66,70 @@ where
         Err(error) => {
             panic!("{context} scenarios must initialize their state successfully: {error}")
         }
+    }
+}
+
+/// Collapses a [`Result`] into its value at a documented panic boundary.
+///
+/// Some testing contexts cannot propagate an error. `proptest` strategy
+/// pipelines built with `prop_compose!` are the motivating case: the closure
+/// bodies must yield a value, so a fallible constructor has nowhere to send its
+/// error. Rather than scatter `expect` calls through those pipelines, route
+/// them through this one named boundary so that the panic is deliberate,
+/// consistently worded, and easy to find.
+///
+/// Prefer returning `Result` wherever propagation is possible; reach for this
+/// trait only where the surrounding API forbids it.
+///
+/// # Examples
+///
+/// ```
+/// use tei_test_helpers::ExpectValid;
+///
+/// let value = Ok::<_, std::fmt::Error>(7).expect_valid("generated count");
+/// assert_eq!(value, 7);
+/// ```
+pub trait ExpectValid<T> {
+    /// Returns the success value, panicking with `context` on failure.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `self` holds an error. The message names `context` so the
+    /// failing strategy or constructor is identifiable from the panic alone.
+    fn expect_valid(self, context: &str) -> T;
+}
+
+impl<T, E> ExpectValid<T> for Result<T, E>
+where
+    E: Display,
+{
+    fn expect_valid(self, context: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => panic!("{context} should be valid: {error}"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Behavioural tests for the documented panic boundary.
+
+    use super::ExpectValid;
+
+    /// The panic boundary must name both the context and the underlying error,
+    /// because those two strings are all a failing strategy leaves behind.
+    #[test]
+    #[should_panic(expected = "generated label should be valid: empty text")]
+    fn expect_valid_panic_names_the_context_and_the_error() {
+        let result: Result<u8, &str> = Err("empty text");
+        let _value = result.expect_valid("generated label");
+    }
+
+    /// A success passes the value through untouched.
+    #[test]
+    fn expect_valid_returns_the_success_value() {
+        let result: Result<u8, &str> = Ok(7);
+        assert_eq!(result.expect_valid("generated count"), 7);
     }
 }

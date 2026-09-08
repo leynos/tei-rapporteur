@@ -9,12 +9,9 @@ use pyo3::{
     Bound, Py, PyResult, Python, pyclass, pymethods,
     types::{PyAny, PyAnyMethods, PyDict, PyTuple},
 };
-use std::{
-    ffi::CString,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 pub(super) struct RunAndKwargs<'py> {
@@ -23,34 +20,40 @@ pub(super) struct RunAndKwargs<'py> {
     pub(super) globals: Bound<'py, PyDict>,
 }
 
-pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> RunAndKwargs<'_> {
+/// Installs the recording `subprocess.run` monkeypatch.
+///
+/// Arrangement can fail, so the caller decides whether a failure is the test
+/// verdict.
+pub(super) fn setup_run_and_kwargs(py: Python<'_>) -> PyResult<RunAndKwargs<'_>> {
     let globals = PyDict::new(py);
-    let patch = CString::new(concat!(
-        "import subprocess\n",
-        "_original_run = subprocess.run\n",
-        "_calls = []\n",
-        "subprocess.run = lambda *a, **kw: _calls.append((a, kw))\n",
-    ))
-    .expect("CString build");
-    py.run(patch.as_c_str(), Some(&globals), None)
-        .expect("monkeypatch subprocess.run");
-    let subprocess = py.import("subprocess").expect("import subprocess");
-    let run = subprocess.getattr("run").expect("get subprocess.run");
+    py.run(
+        cr"
+import subprocess
+
+_original_run = subprocess.run
+_calls = []
+subprocess.run = lambda *a, **kw: _calls.append((a, kw))
+",
+        Some(&globals),
+        None,
+    )?;
+    let subprocess = py.import("subprocess")?;
+    let run = subprocess.getattr("run")?;
     let kwargs = PyDict::new(py);
 
-    RunAndKwargs {
+    Ok(RunAndKwargs {
         run,
         kwargs,
         globals,
-    }
+    })
 }
 
 fn restore_subprocess_run(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResult<()> {
     // Restore `subprocess.run` and remove the bootstrap `meta_path` blocker if
     // one was installed. The blocker removal is a no-op for callers that never
     // installed it (e.g. the `run_with_kwargs` tests).
-    let restore = CString::new(
-        r#"
+    py.run(
+        cr#"
 import subprocess
 import sys
 import importlib.metadata
@@ -80,9 +83,9 @@ else:
     else:
         sys.modules["msgspec"] = _original_msgspec
 "#,
+        Some(globals),
+        None,
     )
-    .expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None)
 }
 
 fn report_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {
@@ -154,20 +157,22 @@ impl BootstrapRunCounter {
     }
 }
 
-pub(super) fn setup_bootstrap_run_counter(py: Python<'_>, count: Arc<AtomicUsize>) -> Py<PyDict> {
+/// Installs a `subprocess.run` mock that counts bootstrap invocations.
+///
+/// Arrangement can fail, so the caller decides whether a failure is the test
+/// verdict.
+pub(super) fn setup_bootstrap_run_counter(
+    py: Python<'_>,
+    count: Arc<AtomicUsize>,
+) -> PyResult<Py<PyDict>> {
     let globals = PyDict::new(py);
-    globals
-        .set_item(
-            "_counter",
-            Py::new(py, BootstrapRunCounter { count }).expect("build run counter"),
-        )
-        .expect("install run counter");
+    globals.set_item("_counter", Py::new(py, BootstrapRunCounter { count })?)?;
     // Count bootstrap subprocess calls without forcing a process-wide import
     // failure. When `msgspec` is already installed the helper should
     // short-circuit cleanly; when it is absent the mocked installer satisfies
     // the final import without touching the network.
-    let patch = CString::new(
-        r#"
+    py.run(
+        cr#"
 import subprocess
 import sys
 import types
@@ -214,26 +219,19 @@ def _mock_run(*args, **kwargs):
 subprocess.run = _mock_run
 importlib.metadata.version = _mock_metadata_version
 "#,
-    )
-    .expect("CString build");
-    py.run(patch.as_c_str(), Some(&globals), None)
-        .expect("monkeypatch subprocess.run");
+        Some(&globals),
+        None,
+    )?;
 
-    globals.unbind()
+    Ok(globals.unbind())
 }
 
-pub(super) fn recorded_call_count(globals: &Bound<'_, PyDict>) -> usize {
-    globals
-        .get_item("_calls")
-        .expect("read recorded subprocess.run calls")
-        .len()
-        .expect("count recorded subprocess.run calls")
+/// Returns the number of `subprocess.run` calls the mock recorded.
+pub(super) fn recorded_call_count(globals: &Bound<'_, PyDict>) -> PyResult<usize> {
+    globals.get_item("_calls")?.len()
 }
 
-pub(super) fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> Bound<'py, PyAny> {
-    let expr = CString::new("_calls[0][0]").expect("CString build");
-    globals
-        .py()
-        .eval(expr.as_c_str(), Some(globals), None)
-        .expect("read recorded subprocess.run positional arguments")
+/// Returns the positional arguments of the first recorded `subprocess.run` call.
+pub(super) fn recorded_args<'py>(globals: &Bound<'py, PyDict>) -> PyResult<Bound<'py, PyAny>> {
+    globals.py().eval(c"_calls[0][0]", Some(globals), None)
 }

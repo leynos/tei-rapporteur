@@ -8,11 +8,11 @@ use pyo3::{
     Bound, PyResult, Python,
     types::{PyAnyMethods, PyDict},
 };
-use std::ffi::CString;
 
 fn restore_shutil_which(py: Python<'_>, globals: &Bound<'_, PyDict>) -> PyResult<()> {
-    let restore = CString::new("import shutil\nshutil.which = orig\n").expect("CString build");
-    py.run(restore.as_c_str(), Some(globals), None)
+    // A C string literal keeps the script free of a fallible `CString`
+    // conversion that this teardown path could not propagate anyway.
+    py.run(c"import shutil\nshutil.which = orig\n", Some(globals), None)
 }
 
 fn report_restore_failure(py: Python<'_>, error: &pyo3::PyErr) {

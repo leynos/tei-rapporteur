@@ -2,59 +2,80 @@
 
 use super::*;
 use crate::test_support::{bootstrap_msgspec_attached, with_python};
-use pyo3::types::{PyAnyMethods, PyDict, PyModule};
+use anyhow::Result;
+use pyo3::{
+    Bound, Python,
+    types::{PyAny, PyAnyMethods, PyDict, PyModule},
+};
 use tei_core::{BodyBlock, Div, Head, Item, Label, List, TeiBody, TeiDocument, TeiHeader, TeiText};
 use tei_serde::msgpack::to_vec_named;
 use tei_xml::streaming::TeiEvent;
 
-fn division_fixture() -> TeiDocument {
-    let header = TeiHeader::new(
-        tei_core::FileDesc::from_title_str("Bridgewater").expect("title should validate"),
-    );
-    let mut div = Div::new("show-notes").expect("div type should validate");
-    div.set_id("div1").expect("id should validate");
-    div.set_subtype("chapter-markers")
-        .expect("subtype should validate");
-    div.set_head(Head::from_text("Chapter markers").expect("head should validate"));
-    div.push_paragraph(
-        tei_core::P::from_text_segments(["Further reading"]).expect("paragraph should validate"),
-    );
+fn division_fixture() -> Result<TeiDocument> {
+    let header = TeiHeader::new(tei_core::FileDesc::from_title_str("Bridgewater")?);
+    let mut div = Div::new("show-notes")?;
+    div.set_id("div1")?;
+    div.set_subtype("chapter-markers")?;
+    div.set_head(Head::from_text("Chapter markers")?);
+    div.push_paragraph(tei_core::P::from_text_segments(["Further reading"])?);
 
-    let mut item = Item::from_text_segments(["Transcript"]).expect("item should validate");
-    item.set_label(Label::from_text("1.").expect("label should validate"));
-    let list = List::new([item]).expect("list should validate");
-    let mut child = Div::new("segment").expect("child div type should validate");
-    child
-        .set_subtype("guest-bio")
-        .expect("child subtype should validate");
-    child.set_head(Head::from_text("Guest bios").expect("child head should validate"));
+    let mut item = Item::from_text_segments(["Transcript"])?;
+    item.set_label(Label::from_text("1.")?);
+    let list = List::new([item])?;
+    let mut child = Div::new("segment")?;
+    child.set_subtype("guest-bio")?;
+    child.set_head(Head::from_text("Guest bios")?);
     child.push_list(list);
     div.push_div(child);
 
     let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
-    TeiDocument::new(header, text)
+    Ok(TeiDocument::new(header, text))
 }
 
-fn text_value(any: &pyo3::Bound<'_, pyo3::PyAny>, attr: &str) -> String {
-    let value = match any.getattr(attr) {
-        Ok(value) => value,
-        Err(error) => panic!("{attr} should exist: {error}"),
-    };
-    match value.extract() {
-        Ok(text) => text,
-        Err(error) => panic!("{attr} should be a string: {error}"),
-    }
+fn text_value(any: &Bound<'_, PyAny>, attr: &str) -> Result<String> {
+    Ok(any.getattr(attr)?.extract()?)
 }
 
-fn first_text_content(any: &pyo3::Bound<'_, pyo3::PyAny>) -> String {
-    any.getattr("content")
-        .expect("content should exist")
-        .get_item(0)
-        .expect("first content item should exist")
-        .getattr("value")
-        .expect("text inline should expose value")
-        .extract()
-        .expect("content value should be a string")
+fn first_text_content(any: &Bound<'_, PyAny>) -> Result<String> {
+    Ok(any
+        .getattr("content")?
+        .get_item(0)?
+        .getattr("value")?
+        .extract()?)
+}
+
+/// Decodes a `MessagePack` payload into the exported `Episode` struct.
+fn decode_episode<'py>(
+    py: Python<'py>,
+    structs: &Bound<'py, PyAny>,
+    payload: &[u8],
+) -> Result<Bound<'py, PyAny>> {
+    let episode_type = structs.getattr("Episode")?;
+    let msgpack = py.import("msgspec.msgpack")?;
+    let decode_kwargs = PyDict::new(py);
+    decode_kwargs.set_item("type", episode_type)?;
+    Ok(msgpack
+        .getattr("decode")?
+        .call((payload,), Some(&decode_kwargs))?)
+}
+
+/// Returns the first body block of a decoded `Episode`.
+fn first_body_block<'py>(episode: &Bound<'py, PyAny>) -> Result<Bound<'py, PyAny>> {
+    Ok(episode
+        .getattr("text")?
+        .getattr("body")?
+        .getattr("blocks")?
+        .get_item(0)?)
+}
+
+/// Returns the first list item's label of a nested division block.
+fn nested_list_item_label<'py>(nested_div: &Bound<'py, PyAny>) -> Result<Bound<'py, PyAny>> {
+    Ok(nested_div
+        .getattr("content")?
+        .get_item(0)?
+        .getattr("items")?
+        .get_item(0)?
+        .getattr("label")?)
 }
 
 #[test]
@@ -67,32 +88,14 @@ fn episode_struct_decodes_div_blocks() {
         let module = PyModule::new(py, "tei_rapporteur").expect("module allocation");
         tei_rapporteur(py, &module).expect("module registration");
 
-        let payload = to_vec_named(&crate::projection::PyTeiDocument::from(&division_fixture()))
+        let document = division_fixture().expect("division fixture should build");
+        let payload = to_vec_named(&crate::projection::PyTeiDocument::from(&document))
             .expect("MessagePack encoding should succeed");
 
         let structs = module.getattr("structs").expect("structs module");
-        let episode_type = structs.getattr("Episode").expect("Episode class");
-        let msgpack = py
-            .import("msgspec.msgpack")
-            .expect("msgspec.msgpack import");
-        let decode_kwargs = PyDict::new(py);
-        decode_kwargs
-            .set_item("type", episode_type)
-            .expect("kwargs population");
+        let episode = decode_episode(py, &structs, &payload).expect("Episode should decode");
+        let first = first_body_block(&episode).expect("division block should exist");
 
-        let episode = msgpack
-            .getattr("decode")
-            .expect("decode function")
-            .call((payload,), Some(&decode_kwargs))
-            .expect("Episode should decode");
-        let blocks = episode
-            .getattr("text")
-            .expect("Episode should expose text")
-            .getattr("body")
-            .expect("TeiText should expose body")
-            .getattr("blocks")
-            .expect("TeiBody should expose blocks");
-        let first = blocks.get_item(0).expect("division block should exist");
         let div_block_type = structs.getattr("DivBlock").expect("DivBlock class");
         let is_div_block = first
             .is_instance(&div_block_type)
@@ -102,10 +105,15 @@ fn episode_struct_decodes_div_blocks() {
             "first block should be a structs.DivBlock instance"
         );
 
-        assert_eq!(text_value(&first, "div_type"), "show-notes");
-        assert_eq!(text_value(&first, "subtype"), "chapter-markers");
+        let div_type = text_value(&first, "div_type").expect("DivBlock should expose div_type");
+        assert_eq!(div_type, "show-notes");
+        let subtype = text_value(&first, "subtype").expect("DivBlock should expose subtype");
+        assert_eq!(subtype, "chapter-markers");
+
         let head = first.getattr("head").expect("DivBlock should expose head");
-        assert_eq!(first_text_content(&head), "Chapter markers");
+        let head_text = first_text_content(&head).expect("head should expose text content");
+        assert_eq!(head_text, "Chapter markers");
+
         let content = first
             .getattr("content")
             .expect("DivBlock should expose content");
@@ -113,18 +121,14 @@ fn episode_struct_decodes_div_blocks() {
         let nested_head = nested_div
             .getattr("head")
             .expect("nested DivBlock should expose head");
-        assert_eq!(first_text_content(&nested_head), "Guest bios");
-        let list_block = nested_div
-            .getattr("content")
-            .expect("nested content")
-            .get_item(0)
-            .expect("list block should exist");
-        let items = list_block
-            .getattr("items")
-            .expect("ListBlock should expose items");
-        let item = items.get_item(0).expect("item should exist");
-        let label = item.getattr("label").expect("Item should expose label");
-        assert_eq!(first_text_content(&label), "1.");
+        let nested_head_text =
+            first_text_content(&nested_head).expect("nested head should expose text content");
+        assert_eq!(nested_head_text, "Guest bios");
+
+        let label =
+            nested_list_item_label(&nested_div).expect("nested list item should have label");
+        let label_text = first_text_content(&label).expect("label should expose text content");
+        assert_eq!(label_text, "1.");
     });
 }
 
@@ -145,36 +149,31 @@ fn streaming_div_events_decode_into_python_union() {
             .getattr("convert")
             .expect("msgspec.convert available");
 
-        let div_event = crate::projection::py_event_from_core(TeiEvent::BodyBlock(
-            division_fixture()
-                .text()
-                .body()
-                .blocks()
-                .first()
-                .expect("fixture body block")
-                .clone(),
-        ));
+        let document = division_fixture().expect("division fixture should build");
+        let block = document
+            .text()
+            .body()
+            .blocks()
+            .first()
+            .expect("fixture body block")
+            .clone();
+        let div_event = crate::projection::py_event_from_core(TeiEvent::BodyBlock(block));
         let py_event =
             pyo3_serde::to_pyobject(py, &div_event).expect("event projection should serialize");
         let decoded_event = converter
             .call((py_event, event_type), None)
             .expect("msgspec conversion should succeed");
 
-        let div_type: String = decoded_event
-            .getattr("div_type")
-            .expect("DivEvent should expose div_type")
-            .extract()
-            .expect("div_type should be a string");
+        let div_type =
+            text_value(&decoded_event, "div_type").expect("DivEvent should expose div_type");
         assert_eq!(div_type, "show-notes");
-        let subtype: String = decoded_event
-            .getattr("subtype")
-            .expect("DivEvent should expose subtype")
-            .extract()
-            .expect("subtype should be a string");
+        let subtype =
+            text_value(&decoded_event, "subtype").expect("DivEvent should expose subtype");
         assert_eq!(subtype, "chapter-markers");
         let head = decoded_event
             .getattr("head")
             .expect("DivEvent should expose head");
-        assert_eq!(first_text_content(&head), "Chapter markers");
+        let head_text = first_text_content(&head).expect("head should expose text content");
+        assert_eq!(head_text, "Chapter markers");
     });
 }
