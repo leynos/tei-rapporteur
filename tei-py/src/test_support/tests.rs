@@ -54,7 +54,7 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
             run,
             kwargs,
             globals,
-        } = setup_run_and_kwargs(py);
+        } = setup_run_and_kwargs(py).expect("subprocess.run monkeypatch should install");
         let _restore_guard = SubprocessRestoreGuard::new(py, globals.clone());
 
         match arg_shape {
@@ -73,9 +73,11 @@ fn run_with_kwargs_accepts_supported_arg_shapes(#[case] arg_shape: RunWithKwargs
             }
         }
 
-        assert_eq!(recorded_call_count(&globals), 1);
+        let call_count =
+            recorded_call_count(&globals).expect("recorded call count should be readable");
+        assert_eq!(call_count, 1);
 
-        let args = recorded_args(&globals);
+        let args = recorded_args(&globals).expect("recorded arguments should be readable");
         match arg_shape {
             RunWithKwargsArgShape::Unit => {
                 assert_eq!(args.len().expect("count positional arguments"), 0);
@@ -180,24 +182,27 @@ fn msgspec_version_requirement_matches_declared_range(
     assert_eq!(msgspec_version_satisfies_requirement(version), expected);
 }
 
-fn setup_bootstrap_test_unlocked() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard) {
+fn setup_bootstrap_test_unlocked() -> PyResult<(Arc<AtomicUsize>, Py<PyDict>, BootstrapRestoreGuard)>
+{
     let run_count = Arc::new(AtomicUsize::new(0));
-    let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
+    let globals = Python::attach(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)))?;
     let restore_guard = BootstrapRestoreGuard::new(Python::attach(|py| globals.clone_ref(py)));
-    (run_count, globals, restore_guard)
+    Ok((run_count, globals, restore_guard))
 }
 
 /// Sets up the `subprocess.run` monkeypatch and returns a run-call counter,
 /// the `globals` dict that owns the patch, and an RAII guard that tears it
 /// down on scope exit.
-fn setup_bootstrap_test() -> (Arc<AtomicUsize>, Py<PyDict>, BootstrapTestGuard) {
+///
+/// Installing the monkeypatch can fail, so the caller decides the verdict.
+fn setup_bootstrap_test() -> PyResult<(Arc<AtomicUsize>, Py<PyDict>, BootstrapTestGuard)> {
     let import_state_lock = python_import_state_lock();
-    let (run_count, globals, restore_guard) = setup_bootstrap_test_unlocked();
+    let (run_count, globals, restore_guard) = setup_bootstrap_test_unlocked()?;
     let test_guard = BootstrapTestGuard {
         _restore_guard: restore_guard,
         _import_state_lock: import_state_lock,
     };
-    (run_count, globals, test_guard)
+    Ok((run_count, globals, test_guard))
 }
 
 /// Asserts the bootstrap was invoked at most twice across the test.
@@ -229,7 +234,8 @@ fn force_msgspec_bootstrap_path(globals: &Py<PyDict>) -> PyResult<()> {
 
 #[test]
 fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_calls() {
-    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
+    let (run_count, _globals, _restore_guard) =
+        setup_bootstrap_test().expect("bootstrap monkeypatch should install");
 
     assert!(Python::attach(ensure_msgspec_installed).is_ok());
     let first_call_count = run_count.load(Ordering::SeqCst);
@@ -246,7 +252,8 @@ fn ensure_msgspec_installed_invokes_subprocess_at_most_once_across_repeated_call
 #[test]
 fn mocked_bootstrap_scopes_reset_one_shot_state() {
     {
-        let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+        let (run_count, globals, _restore_guard) =
+            setup_bootstrap_test().expect("bootstrap monkeypatch should install");
         force_msgspec_bootstrap_path(&globals).expect("force msgspec bootstrap path");
 
         assert!(Python::attach(ensure_msgspec_installed).is_ok());
@@ -258,7 +265,8 @@ fn mocked_bootstrap_scopes_reset_one_shot_state() {
     }
 
     {
-        let (run_count, globals, _restore_guard) = setup_bootstrap_test();
+        let (run_count, globals, _restore_guard) =
+            setup_bootstrap_test().expect("bootstrap monkeypatch should install");
         force_msgspec_bootstrap_path(&globals).expect("force msgspec bootstrap path");
 
         assert!(Python::attach(ensure_msgspec_installed).is_ok());
@@ -272,7 +280,8 @@ fn mocked_bootstrap_scopes_reset_one_shot_state() {
 
 #[test]
 fn bootstrap_msgspec_reports_true_only_when_msgspec_is_importable() {
-    let (run_count, _globals, _restore_guard) = setup_bootstrap_test();
+    let (run_count, _globals, _restore_guard) =
+        setup_bootstrap_test().expect("bootstrap monkeypatch should install");
 
     // Call the function under test first; it may bootstrap msgspec as a
     // side-effect, so the importability check must come *after* the call.
@@ -294,7 +303,8 @@ fn bootstrap_msgspec_public_wrapper_smoke_test() {
 #[test]
 fn ensure_msgspec_installed_is_safe_under_concurrent_access() {
     let run_count = Arc::new(AtomicUsize::new(0));
-    let globals = with_python(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)));
+    let globals = with_python(|py| setup_bootstrap_run_counter(py, Arc::clone(&run_count)))
+        .expect("bootstrap run counter should install");
     let restore_guard = BootstrapRestoreGuard::new(with_python(|py| globals.clone_ref(py)));
 
     // Same-thread `Python::attach` calls in lock-held helpers stay direct, but

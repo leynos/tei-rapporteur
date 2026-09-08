@@ -2,12 +2,19 @@
 //!
 //! Verifies that arbitrary `Div` structures survive both the dictionary and
 //! `MessagePack` serialization paths without data loss.
+//!
+//! `prop_compose!` closures must yield a value, so the fallible `tei-core`
+//! constructors they call have nowhere to propagate an error. Every such call
+//! goes through the single documented panic boundary
+//! [`tei_test_helpers::ExpectValid::expect_valid`] rather than an ad-hoc
+//! `expect`, keeping the strategies free of scattered panics.
 
 use crate::projection::{document_to_value, value_to_document};
 use proptest::prelude::*;
 use tei_core::{
     BodyBlock, Div, Head, Item, Label, List, P, TeiBody, TeiDocument, TeiHeader, TeiText,
 };
+use tei_test_helpers::ExpectValid;
 
 fn ident_strategy() -> impl Strategy<Value = String> {
     "[a-z][a-z0-9-]{0,8}"
@@ -19,7 +26,7 @@ fn text_strategy() -> impl Strategy<Value = String> {
 
 prop_compose! {
     fn arb_label()(text in text_strategy()) -> Label {
-        Label::from_text(text).expect("strategy-generated text should produce a valid label")
+        Label::from_text(text).expect_valid("strategy-generated label text")
     }
 }
 
@@ -29,7 +36,7 @@ prop_compose! {
         label in proptest::option::of(arb_label()),
     ) -> Item {
         let mut item =
-            Item::from_text_segments([text]).expect("strategy-generated text should produce a valid item");
+            Item::from_text_segments([text]).expect_valid("strategy-generated item text");
         if let Some(l) = label {
             item.set_label(l);
         }
@@ -39,19 +46,19 @@ prop_compose! {
 
 prop_compose! {
     fn arb_list()(items in proptest::collection::vec(arb_item(), 1..4_usize)) -> List {
-        List::new(items).expect("non-empty item vec should produce a valid list")
+        List::new(items).expect_valid("strategy-generated non-empty item list")
     }
 }
 
 prop_compose! {
     fn arb_head()(text in text_strategy()) -> Head {
-        Head::from_text(text).expect("strategy-generated text should produce a valid head")
+        Head::from_text(text).expect_valid("strategy-generated head text")
     }
 }
 
 prop_compose! {
     fn arb_paragraph()(text in text_strategy()) -> P {
-        P::from_text_segments([text]).expect("strategy-generated text should produce a valid paragraph")
+        P::from_text_segments([text]).expect_valid("strategy-generated paragraph text")
     }
 }
 
@@ -63,11 +70,9 @@ prop_compose! {
         list in arb_list(),
         paragraph in proptest::option::of(arb_paragraph()),
     ) -> Div {
-        let mut div =
-            Div::new(div_type).expect("strategy-generated ident should produce a valid div type");
+        let mut div = Div::new(div_type).expect_valid("strategy-generated div type");
         if let Some(st) = subtype {
-            div.set_subtype(st)
-                .expect("strategy-generated ident should produce a valid subtype");
+            div.set_subtype(st).expect_valid("strategy-generated div subtype");
         }
         if let Some(h) = head {
             div.set_head(h);
@@ -86,8 +91,7 @@ prop_compose! {
         div in arb_div(),
     ) -> TeiDocument {
         let header = TeiHeader::new(
-            tei_core::FileDesc::from_title_str(&title)
-                .expect("strategy-generated title should validate"),
+            tei_core::FileDesc::from_title_str(&title).expect_valid("strategy-generated title"),
         );
         let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
         TeiDocument::new(header, text)
