@@ -18,6 +18,8 @@ ignore = [
   # Upstream API terminology and the exact serialized fixture stay unchanged.
   '(?m)^  documented model is a StAX-like streaming API for large documents; no new XML$',
   '(?m)^    "<div type=\\"labeled-list\\">",$',
+  # Inline code spans are masked; the shared dictionary does not mask them yet.
+  '`[^`\n]+`',
 ]
 
 [files]

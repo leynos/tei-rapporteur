@@ -251,11 +251,13 @@ project:
 
 - Validate Markdown files using `make markdownlint`. This target also enforces
   en-GB-oxendict spelling over tracked text.
-- `typos.toml` is generated from the shared dictionary and
-  `typos.local.toml`; never edit the generated file manually.
-- Run `make spelling-config-write` to refresh the generated configuration and
-  `make spelling-config` to verify it. The builder refreshes its untracked
-  shared-dictionary cache when the published source is newer.
+- Enforce spelling with `make spelling`. It regenerates `typos.toml` from the
+  live shared dictionary and the `typos.local.toml` overlay, then checks the
+  tracked text.
+- Never edit generated entries in `typos.toml` by hand; add narrow
+  repository-specific entries to `typos.local.toml` instead. The builder
+  refreshes its untracked shared-dictionary cache when the published source is
+  newer.
 - Protect machine interfaces and formal names with narrow, anchored patterns
   in `typos.local.toml`; prefer exact full-line matches to word-level
   exceptions.

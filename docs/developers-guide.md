@@ -394,23 +394,28 @@ teardown paths running under `Drop` have no way to report the error.
 
 ## Spelling policy
 
-`make spelling` enforces en-GB-oxendict spelling over tracked text with the
-pinned Typos release. `make markdownlint` depends on that target, so prose
-checks cannot bypass the repository-wide spelling policy.
+Run the spelling gate with:
 
-The checked-in `typos.toml` is generated from the shared dictionary and the
-repository overlay in `typos.local.toml`. Do not edit generated entries by
-hand. Run `make spelling-config-write` after changing the overlay or after the
-shared dictionary is updated, and use `make spelling-config` to verify that the
-checked-in result is current. The builder keeps its downloaded shared base in
-untracked cache files and refreshes the local copy only when the published
-source is newer.
+```bash
+make spelling
+```
+
+It enforces en-GB-oxendict spelling over tracked text. `make markdownlint`
+depends on that target, so prose checks cannot bypass the repository-wide
+spelling policy.
+
+`typos.toml` is regenerated on every run from the live shared dictionary and
+the repository overlay in `typos.local.toml`. Never edit generated entries by
+hand; add narrow repository-specific entries to the overlay instead. Because
+the dictionary is live, `typos.toml` must never be drift checked in continuous
+integration. The builder keeps its downloaded shared base in untracked cache
+files and refreshes the local copy only when the published source is newer.
 
 Repository exceptions must protect machine interfaces, formal upstream names,
 or exact serialized fixtures. Use the narrowest anchored pattern possible and
 explain why it is required. Do not add broad word-level exceptions for prose.
-The consumer phrase checker also rejects punctuation-sensitive shared
-corrections that single-token spelling scans cannot enforce reliably.
+The gate also rejects punctuation-sensitive shared phrase corrections that
+single-token spelling scans cannot enforce reliably.
 
 ## Documentation tests in CI
 
