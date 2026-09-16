@@ -22,6 +22,10 @@
     "CRUSH.md",
     "**/dist/**",
     "**/.uv-cache/**",
-    "**/.uv-tools/**"
+    "**/.uv-tools/**",
+    ".git/**",
+    ".claude/**",
+    ".grepai/**",
+    ".memdb/**"
   ]
 }
