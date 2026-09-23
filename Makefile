@@ -64,7 +64,7 @@ check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
 	$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
 
-test-workflow-contracts: ## Validate the mutation-testing caller contract
+test-workflow-contracts: ## Validate the workflow contracts, including the CV-005 CodeScene shape
 	uv run --no-project --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
 
 typecheck: ## Typecheck all workspace crates
