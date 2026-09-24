@@ -12,7 +12,14 @@ import re
 import typing as typ
 
 from .loading import Document, WorkflowReadingError
-from .reading import PULL_REQUEST_TRIGGERS, jobs, texts, trigger_filters, triggers
+from .reading import (
+    PULL_REQUEST_TRIGGERS,
+    jobs,
+    steps,
+    texts,
+    trigger_filters,
+    triggers,
+)
 
 #: Where a same-repository reusable workflow lives.
 WORKFLOW_DIRECTORY: typ.Final[str] = ".github/workflows/"
@@ -138,6 +145,32 @@ def pull_request_closure(
     return reachable(documents, seeds, repository)
 
 
+def local_actions(document: Document) -> list[str]:
+    """Return the step-level `uses:` references naming an action in this tree.
+
+    A local composite action runs in its caller's job, with the caller's
+    secrets, but this contract reads workflows only. Its steps would sit
+    outside every closure rule, so a reachable one is refused rather than
+    read as compliant.
+
+    Examples
+    --------
+    >>> local_actions({"jobs": {"a": {"steps": [{"uses": "./.github/actions/x"}]}}})
+    ['./.github/actions/x']
+    >>> local_actions({"jobs": {"a": {"steps": [{"uses": "actions/checkout@v4"}]}}})
+    []
+
+    """
+    references = (
+        step.get("uses") for job in jobs(document).values() for step in steps(job)
+    )
+    return [
+        reference
+        for reference in references
+        if isinstance(reference, str) and reference.startswith(("./", "$/"))
+    ]
+
+
 def reachable(
     documents: dict[str, Document], seeds: list[str], repository: str
 ) -> dict[str, Document]:
@@ -150,7 +183,8 @@ def reachable(
     Raises
     ------
     WorkflowReadingError
-        If a call names a workflow this tree does not hold.
+        If a call names a workflow this tree does not hold, or a reached
+        workflow runs a local action, whose steps this contract cannot read.
 
     """
     pending = list(seeds)
@@ -161,6 +195,9 @@ def reachable(
             continue
         if name not in documents:
             message = f"a workflow calls {name}, which does not exist"
+            raise WorkflowReadingError(message)
+        if actions := local_actions(documents[name]):
+            message = f"{name} runs local actions {actions!r}, which are not read"
             raise WorkflowReadingError(message)
         found[name] = documents[name]
         pending.extend(called_workflows(documents[name], repository))

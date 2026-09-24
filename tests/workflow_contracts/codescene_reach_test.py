@@ -266,6 +266,17 @@ def test_a_call_to_a_missing_local_workflow_is_refused() -> None:
         _findings(texts)
 
 
+@pytest.mark.parametrize("spelling", ["./", "$/"])
+def test_a_reachable_local_action_is_refused(spelling: str) -> None:
+    """A local action runs `cs-coverage` in a step this contract cannot read."""
+    probe = (
+        "on: [pull_request]\njobs:\n  a:\n    runs-on: x\n    steps:\n"
+        f"      - uses: {spelling}.github/actions/measure\n"
+    )
+    with pytest.raises(WorkflowReadingError, match="local actions"):
+        _findings(tree(extra={"probe.yml": probe}))
+
+
 def test_another_repository_is_not_followed() -> None:
     """A cross-repository call is out of this tree and is not a local callee."""
     callee = local_callee("leynos/other/.github/workflows/x.yml@main", REPOSITORY)
