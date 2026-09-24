@@ -67,17 +67,10 @@ jobs:
           output-path: coverage.xml
           format: cobertura
           with-ratchet: 'true'
-      - name: Check coverage against CodeScene gates
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: github.event_name == 'pull_request' && env.CS_ACCESS_TOKEN != ''
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@dbe2e22ceaf498d85512679ccded38be9dbe7777
-        with:
-          format: cobertura
-          mode: check
-          project-url: https://api.codescene.io/v2/projects/72456
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+          # Pull requests ratchet against the baseline coverage-main.yml
+          # writes on main and never contact CodeScene; that workflow is the
+          # one publisher. tests/workflow_contracts holds the shape.
+          publish-artefact: 'false'
       - name: Install jing for XML validation
         run: sudo apt-get update && sudo apt-get install -y jing
       - name: Validate XML fixtures against Relax NG schema
