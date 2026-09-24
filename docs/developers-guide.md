@@ -439,6 +439,30 @@ compile nowhere, which is how a broken `tei-test-helpers` example survived on
   feature-gated examples simply stop being compiled. Each assertion was
   mutation-tested by removing exactly the token it protects.
 
+## The test suite runs once per pull request
+
+The coverage action detects a mixed Rust-and-Python project, so the coverage
+step runs the Rust suite through `cargo llvm-cov nextest` and the Python suite
+through pytest over the `testpaths` in `pyproject.toml`. That run syncs the
+`dev` group, so the pinned maturin is present and
+`python/tests/test_maturin_build.py` runs rather than skips. No other step runs
+the suite: `build-test` used to run that file a second time, and the step was
+removed.
+
+- `tests/workflow_contracts/suite_runs_once_test.py` refuses any workflow step
+  that runs pytest, `cargo test`, `cargo nextest`, `cargo llvm-cov`, or `make`
+  with no target or a suite target, beside the coverage step.
+- Its command reader, `tests/workflow_contracts/suite_commands.py`, splits a
+  `run:` body at shell separators and reads each segment's program before its
+  arguments, unwrapping `uv run`, `uvx` and `python -m`. `echo pytest` is not a
+  suite run, while `make lint&&pytest` is.
+- The contract also requires the unguarded coverage step, `python/tests` in
+  `testpaths`, and maturin in the `dev` group, the three facts that make
+  coverage run the maturin tests.
+- `make test-doc` and `make test-workflow-contracts` are not suite runs:
+  coverage cannot run doctests, and the contracts run without the project
+  installed.
+
 ## CodeScene coverage publication
 
 Main owns CodeScene. `.github/workflows/coverage-main.yml` is the one

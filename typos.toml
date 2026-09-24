@@ -33,6 +33,7 @@ locale = "en-gb"
 extend-ignore-re = [
     "(?m)^      CARGO_TERM_COLOR: always$",
     "(?m)^    \"<div type=\\\\\"labeled-list\\\\\">\",$",
+    "(?m)^    \\{\"--config\", \"-Z\", \"-C\", \"--manifest-path\", \"--color\", \"--target-dir\"\\}$",
     "(?m)^    types: \\[opened, reopened, synchronize, labeled, ready_for_review\\]$",
     "(?m)^  documented model is a StAX-like streaming API for large documents; no new XML$",
     "(?s)```.*?```",
