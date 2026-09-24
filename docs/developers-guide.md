@@ -453,12 +453,15 @@ removed.
   that runs pytest, `cargo test`, `cargo nextest`, `cargo llvm-cov`, or `make`
   with no target or a suite target, beside the coverage step.
 - Its command reader, `tests/workflow_contracts/suite_commands.py`, splits a
-  `run:` body at shell separators and reads each segment's program before its
-  arguments, unwrapping `uv run`, `uvx` and `python -m`. `echo pytest` is not a
-  suite run, while `make lint&&pytest` is.
-- The contract also requires the unguarded coverage step, `python/tests` in
-  `testpaths`, and maturin in the `dev` group, the three facts that make
-  coverage run the maturin tests.
+  `run:` body at the shell separators outside quotes, escapes and comments,
+  reads a line continuation as a space, and reads each segment's program before
+  its arguments, unwrapping `env`, `uv run`, `uvx` and `python -m`.
+  `echo pytest` and `echo 'pre;pytest;post'` are not suite runs, while
+  `make lint&&pytest` is.
+- The contract also requires an unfiltered `pull_request` trigger, the
+  unguarded coverage step, `python/tests` in `testpaths`, and maturin in the
+  `dev` group, the facts that make coverage run the maturin tests on every pull
+  request.
 - `make test-doc` and `make test-workflow-contracts` are not suite runs:
   coverage cannot run doctests, and the contracts run without the project
   installed.

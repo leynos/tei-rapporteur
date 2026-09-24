@@ -15,7 +15,8 @@ These tests hold the split:
   ``suite_commands`` recognizes: pytest however wrapped, ``cargo test``,
   ``cargo nextest``, ``cargo llvm-cov``, or ``make`` with no target or a
   suite target;
-- ``build-test`` runs the coverage action in one unguarded step;
+- ``ci.yml`` runs on every pull request, and ``build-test`` runs the coverage
+  action in one unguarded step;
 - ``pyproject.toml`` points pytest at ``python/tests`` and keeps maturin in
   the ``dev`` group, which is what makes coverage run the maturin tests.
 
@@ -62,6 +63,15 @@ def _build_test() -> dict:
     return job
 
 
+def _ci_triggers() -> dict:
+    """Return ``ci.yml``'s triggers, read under ``on`` or its boolean form."""
+    document = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    value = document.get("on", document.get(True))
+    if isinstance(value, dict):
+        return value
+    return dict.fromkeys(value if isinstance(value, list) else [value])
+
+
 def _pyproject() -> dict:
     """Parse the repository's ``pyproject.toml``."""
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -84,6 +94,13 @@ def _pyproject() -> dict:
         ("cargo +nightly nextest run", True),
         ("cargo llvm-cov nextest --lcov", True),
         ("RUSTFLAGS='-D warnings' cargo test", True),
+        ("env RUN_ACT_VALIDATION=1 make test", True),
+        ("python3.13 -m pytest", True),
+        ("make \\\ntest", True),
+        ("make lint # then\nmake test", True),
+        ("echo 'pre;make test;post'", False),
+        ('echo "a && pytest"', False),
+        ("# make test", False),
         ("make test-doc", False),
         ("make test-workflow-contracts", False),
         ("maturin build --release --out dist", False),
@@ -117,6 +134,15 @@ def test_build_test_runs_coverage_on_every_event() -> None:
     ]
     assert len(steps) == 1, "build-test must run the coverage action once"
     assert "if" not in steps[0], "the coverage step must run on every event"
+
+
+def test_ci_runs_on_every_pull_request() -> None:
+    """Require ``ci.yml``'s pull-request trigger, with no branch or path filter."""
+    triggers = _ci_triggers()
+    assert "pull_request" in triggers, "ci.yml must run on pull requests"
+    trigger = triggers["pull_request"] or {}
+    filters = sorted(set(trigger) - {"types"})
+    assert not filters, f"filters {filters} would skip some pull requests"
 
 
 def test_coverage_collects_the_python_tests() -> None:
