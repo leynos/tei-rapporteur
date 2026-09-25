@@ -455,12 +455,17 @@ removed.
 - Its command reader, `tests/workflow_contracts/suite_commands.py`, splits a
   `run:` body at the shell separators outside quotes, escapes and comments,
   reads a line continuation as a space, and reads each segment's program before
-  its arguments, unwrapping `env`, `uv run`, `uvx` and `python -m`.
-  `echo pytest` and `echo 'pre;pytest;post'` are not suite runs, while
-  `make lint&&pytest` is.
-- The contract also requires an unfiltered `pull_request` trigger, the
-  unguarded coverage step, `python/tests` in `testpaths`, and maturin in the
-  `dev` group, the facts that make coverage run the maturin tests on every pull
+  its arguments. It looks through reserved words such as `then` and `do`,
+  subshell parentheses, the wrappers `env`, `timeout`, `nice`, `command` and
+  `exec`, and `uv run`, `uvx` and `python -m`, and it reads the string after
+  `sh -c` or `bash -c` as a command. `echo pytest`, `echo 'pre;pytest;post'` and
+  `make test#notes` are not suite runs, while `make lint&&pytest` and
+  `if true; then make test; fi` are.
+- The contract also requires an unfiltered `pull_request` trigger whose
+  declared `types` keep `opened`, `synchronize` and `reopened`, the unguarded
+  coverage step, `python/tests` in `testpaths`, and the build backend's maturin
+  pin in the `dev` group. Those are the facts that make coverage run the
+  maturin tests, against the backend the wheel build uses, on every pull
   request.
 - `make test-doc` and `make test-workflow-contracts` are not suite runs:
   coverage cannot run doctests, and the contracts run without the project

@@ -39,6 +39,9 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 COVERAGE_ACTION = "leynos/shared-actions/.github/actions/generate-coverage@"
 PYTHON_TESTS = "python/tests"
+#: The pull-request activity types GitHub runs by default; a declared
+#: ``types`` list replaces that default, so it must keep all three.
+DEFAULT_PULL_REQUEST_TYPES = frozenset({"opened", "synchronize", "reopened"})
 #: A requirement naming maturin itself, not a longer package name.
 MATURIN_REQUIREMENT = re.compile(r"maturin(?![\w.-])")
 
@@ -101,6 +104,13 @@ def _pyproject() -> dict:
         ("echo 'pre;make test;post'", False),
         ('echo "a && pytest"', False),
         ("# make test", False),
+        ("if true; then make test; fi", True),
+        ("while true; do pytest; done", True),
+        ("(cd python && pytest)", True),
+        ("timeout 30m make test", True),
+        ("sh -c 'uv run pytest'", True),
+        ("NAME=foo#bar make test", True),
+        ("make test#notes", False),
         ("make test-doc", False),
         ("make test-workflow-contracts", False),
         ("maturin build --release --out dist", False),
@@ -143,6 +153,10 @@ def test_ci_runs_on_every_pull_request() -> None:
     trigger = triggers["pull_request"] or {}
     filters = sorted(set(trigger) - {"types"})
     assert not filters, f"filters {filters} would skip some pull requests"
+    types = set(trigger.get("types") or DEFAULT_PULL_REQUEST_TYPES)
+    assert DEFAULT_PULL_REQUEST_TYPES <= types, (
+        f"pull_request.types {sorted(types)} would skip some pull requests"
+    )
 
 
 def test_coverage_collects_the_python_tests() -> None:
@@ -154,7 +168,17 @@ def test_coverage_collects_the_python_tests() -> None:
 
 
 def test_the_dev_group_carries_maturin() -> None:
-    """Require maturin in the ``dev`` group, so coverage runs its tests."""
-    group = _pyproject().get("dependency-groups", {}).get("dev") or []
+    """Require the build backend's maturin pin in the ``dev`` group.
+
+    Without maturin the coverage run skips the maturin tests, and with a
+    different version it would test a backend the wheel build does not use.
+    """
+    pyproject = _pyproject()
+    group = pyproject.get("dependency-groups", {}).get("dev") or []
+    backend = pyproject.get("build-system", {}).get("requires") or []
     pinned = [spec for spec in group if MATURIN_REQUIREMENT.match(str(spec))]
+    built = [spec for spec in backend if MATURIN_REQUIREMENT.match(str(spec))]
     assert pinned, "without maturin the coverage run skips the maturin tests"
+    assert pinned == built, (
+        f"the dev group's {pinned} must match the build backend's {built}"
+    )
