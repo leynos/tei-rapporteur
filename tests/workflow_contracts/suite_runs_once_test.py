@@ -146,6 +146,20 @@ def test_build_test_runs_coverage_on_every_event() -> None:
     assert "if" not in steps[0], "the coverage step must run on every event"
 
 
+def _activity_types(trigger: dict) -> set[str]:
+    """Return the activity types a pull-request trigger runs on.
+
+    An absent ``types`` means GitHub's default. A declared one, even empty,
+    replaces the default, and a single type may be written as a scalar.
+    """
+    if "types" not in trigger:
+        return set(DEFAULT_PULL_REQUEST_TYPES)
+    declared = trigger["types"]
+    if isinstance(declared, str):
+        return {declared}
+    return set(declared or [])
+
+
 def test_ci_runs_on_every_pull_request() -> None:
     """Require ``ci.yml``'s pull-request trigger, with no branch or path filter."""
     triggers = _ci_triggers()
@@ -153,7 +167,7 @@ def test_ci_runs_on_every_pull_request() -> None:
     trigger = triggers["pull_request"] or {}
     filters = sorted(set(trigger) - {"types"})
     assert not filters, f"filters {filters} would skip some pull requests"
-    types = set(trigger.get("types") or DEFAULT_PULL_REQUEST_TYPES)
+    types = _activity_types(trigger)
     assert DEFAULT_PULL_REQUEST_TYPES <= types, (
         f"pull_request.types {sorted(types)} would skip some pull requests"
     )
@@ -182,3 +196,65 @@ def test_the_dev_group_carries_maturin() -> None:
     assert pinned == built, (
         f"the dev group's {pinned} must match the build backend's {built}"
     )
+
+
+#: Commands that run the suite, and commands that do not, for the bounded
+#: properties below. None contains a single quote, so each can be quoted whole.
+SUITE_RUNS = ("make test", "make", "cargo test", "pytest -q", "uv run pytest")
+HARMLESS = ("make lint", "echo ok", "cargo build")
+#: Every way a command can follow another on one ``run:`` body.
+JOINERS = (";", " ; ", "&&", " || ", " | ", "\n")
+#: Every prefix the reader must look through to the command behind it.
+PREFIXES = ("", "X=1 ", "env X=1 ", "timeout 5m ", "then ", "do ", "( ")
+
+
+def _compositions(commands: tuple[str, ...]) -> list[str]:
+    """Return each harmless command joined to each command behind each prefix."""
+    return [
+        f"{first}{joiner}{prefix}{command}"
+        for first in HARMLESS
+        for joiner in JOINERS
+        for prefix in PREFIXES
+        for command in commands
+    ]
+
+
+def test_a_suite_run_is_found_wherever_it_is_joined() -> None:
+    """Find a suite run after any joiner and behind any prefix, exhaustively."""
+    missed = [line for line in _compositions(SUITE_RUNS) if not runs_suite(line)]
+    assert not missed, missed
+
+
+def test_nothing_is_found_in_harmless_or_quoted_text() -> None:
+    """Find no suite run in harmless commands, or in any command quoted whole."""
+    harmless = [line for line in _compositions(HARMLESS) if runs_suite(line)]
+    quoted = [
+        line
+        for line in _compositions(SUITE_RUNS)
+        if runs_suite(f"echo '{line}'") or runs_suite(f'printf "%s" "{line}"')
+    ]
+    assert not harmless, harmless
+    assert not quoted, quoted
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ('make "test', False),
+        ("echo 'make test", False),
+        ("echo a\\;make test", False),
+        ("echo a \\&\\& make test", False),
+        ("make lint \\", False),
+        ("make lint\\\n", False),
+        ("\\\nmake test", True),
+        ("\n\n;;\n", False),
+        ("", False),
+    ],
+)
+def test_malformed_and_escaped_input(command: str, *, expected: bool) -> None:
+    """Read unterminated quotes, escaped separators and stray breaks safely.
+
+    An unterminated quote makes ``shlex`` fail, so the reader falls back to
+    splitting on whitespace; the quoted word then names no suite target.
+    """
+    assert runs_suite(command) is expected, command
