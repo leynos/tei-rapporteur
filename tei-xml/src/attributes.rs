@@ -162,7 +162,7 @@ mod tests {
     enum AttributeFragment {
         Text(String),
         Whitespace(char),
-        Entity(&'static str, char),
+        Entity(&'static str),
     }
 
     impl AttributeFragment {
@@ -170,31 +170,65 @@ mod tests {
             match self {
                 Self::Text(value) => value.clone(),
                 Self::Whitespace(ch) => ch.to_string(),
-                Self::Entity(name, _) => format!("&{name};"),
+                Self::Entity(name) => format!("&{name};"),
+            }
+        }
+    }
+
+    fn normalized_value(fragments: &[AttributeFragment]) -> String {
+        let raw_value = fragments
+            .iter()
+            .map(AttributeFragment::raw)
+            .collect::<String>();
+        normalized_raw_attribute_value(&raw_value)
+    }
+
+    fn normalized_raw_attribute_value(raw_value: &str) -> String {
+        let mut normalized = String::new();
+        let mut chars = raw_value.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            match ch {
+                '\r' => {
+                    let _ = chars.next_if_eq(&'\n');
+                    normalized.push(' ');
+                }
+                '\n' | '\t' => normalized.push(' '),
+                '&' => {
+                    let entity = chars
+                        .by_ref()
+                        .take_while(|next| *next != ';')
+                        .collect::<String>();
+                    normalized.push(match entity.as_str() {
+                        "quot" => '"',
+                        "apos" => '\'',
+                        "lt" => '<',
+                        "gt" => '>',
+                        _ => '&',
+                    });
+                }
+                _ => normalized.push(ch),
             }
         }
 
-        fn normalized(&self) -> String {
-            match self {
-                Self::Text(value) => value.clone(),
-                Self::Whitespace(_) => " ".to_owned(),
-                Self::Entity(_, ch) => ch.to_string(),
-            }
-        }
+        normalized
+    }
+
+    fn escaped_attribute_value(value: &str) -> String {
+        value
+            .replace('&', "&amp;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
     }
 
     fn attribute_fragment_strategy() -> impl Strategy<Value = AttributeFragment> {
         prop_oneof![
             "[A-Za-z0-9,.;:!? -]{0,16}".prop_map(AttributeFragment::Text),
-            prop::sample::select(vec!['\t', '\n']).prop_map(AttributeFragment::Whitespace),
-            prop::sample::select(vec![
-                ("quot", '"'),
-                ("apos", '\''),
-                ("lt", '<'),
-                ("gt", '>'),
-                ("amp", '&'),
-            ])
-            .prop_map(|(name, ch)| AttributeFragment::Entity(name, ch)),
+            prop::sample::select(vec!['\t', '\n', '\r']).prop_map(AttributeFragment::Whitespace),
+            prop::sample::select(vec!["quot", "apos", "lt", "gt", "amp"])
+                .prop_map(AttributeFragment::Entity),
         ]
     }
 
@@ -204,10 +238,7 @@ mod tests {
             fragments in prop::collection::vec(attribute_fragment_strategy(), 0..24)
         ) {
             let raw_value = fragments.iter().map(AttributeFragment::raw).collect::<String>();
-            let expected = fragments
-                .iter()
-                .map(AttributeFragment::normalized)
-                .collect::<String>();
+            let expected = normalized_value(&fragments);
             let element = BytesStart::from_content(
                 format!(r#"tag value="{raw_value}""#),
                 3,
@@ -217,6 +248,55 @@ mod tests {
                 .expect("attribute extraction must succeed");
 
             prop_assert_eq!(actual, Some(expected));
+        }
+
+        #[test]
+        fn normalized_attribute_values_are_idempotent(
+            fragments in prop::collection::vec(attribute_fragment_strategy(), 0..24)
+        ) {
+            let normalized_value = normalized_value(&fragments);
+            let raw_value = escaped_attribute_value(&normalized_value);
+            let element = BytesStart::from_content(
+                format!(r#"tag value="{raw_value}""#),
+                3,
+            );
+
+            let actual = extract_normalized_attribute(&element, b"value")
+                .expect("attribute extraction must succeed");
+
+            prop_assert_eq!(actual, Some(normalized_value));
+        }
+
+        #[test]
+        fn normalized_attributes_cache_returns_stable_values(
+            attributes in prop::collection::btree_map(
+                "[A-Za-z][A-Za-z0-9_-]{0,24}",
+                prop::collection::vec(attribute_fragment_strategy(), 0..12),
+                0..12,
+            )
+        ) {
+            let content = attributes
+                .iter()
+                .map(|(name, fragments)| {
+                    let raw_value = fragments.iter().map(AttributeFragment::raw).collect::<String>();
+                    format!(r#"{name}="{raw_value}""#)
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            let element = BytesStart::from_content(format!("tag {content}"), 3);
+            let normalized_attributes = NormalizedAttributes::from_element(&element)
+                .expect("attribute collection must succeed");
+
+            for (name, fragments) in attributes {
+                let expected = normalized_value(&fragments);
+
+                prop_assert_eq!(normalized_attributes.get(name.as_bytes()), Some(expected.clone()));
+                prop_assert_eq!(normalized_attributes.get(name.as_bytes()), Some(expected.clone()));
+                prop_assert_eq!(normalized_attributes.get(name.as_bytes()), Some(expected));
+            }
+
+            prop_assert_eq!(normalized_attributes.get(b"missing"), None);
+            prop_assert_eq!(normalized_attributes.get(b"missing"), None);
         }
     }
 }
