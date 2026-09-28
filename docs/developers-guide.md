@@ -439,6 +439,38 @@ compile nowhere, which is how a broken `tei-test-helpers` example survived on
   feature-gated examples simply stop being compiled. Each assertion was
   mutation-tested by removing exactly the token it protects.
 
+## The test suite runs once per pull request
+
+The coverage action detects a mixed Rust-and-Python project, so the coverage
+step runs the Rust suite through `cargo llvm-cov nextest` and the Python suite
+through pytest over the `testpaths` in `pyproject.toml`. That run syncs the
+`dev` group, so the pinned maturin is present and
+`python/tests/test_maturin_build.py` runs rather than skips. No other step runs
+the suite: `build-test` used to run that file a second time, and the step was
+removed.
+
+- `tests/workflow_contracts/suite_runs_once_test.py` refuses any workflow step
+  that runs pytest, `cargo test`, `cargo nextest`, `cargo llvm-cov`, or `make`
+  with no target or a suite target, beside the coverage step.
+- Its command reader, `tests/workflow_contracts/suite_commands.py`, splits a
+  `run:` body at the shell separators outside quotes, escapes and comments,
+  reads a line continuation as a space, and reads each segment's program before
+  its arguments. It looks through reserved words such as `then` and `do`,
+  subshell parentheses, the wrappers `env`, `timeout`, `nice`, `command` and
+  `exec`, and `uv run`, `uvx` and `python -m`, and it reads the string after
+  `sh -c` or `bash -c` as a command. `echo pytest`, `echo 'pre;pytest;post'` and
+  `make test#notes` are not suite runs, while `make lint&&pytest` and
+  `if true; then make test; fi` are.
+- The contract also requires an unfiltered `pull_request` trigger whose
+  declared `types` keep `opened`, `synchronize` and `reopened`, the unguarded
+  coverage step, `python/tests` in `testpaths`, and the build backend's maturin
+  pin in the `dev` group. Those are the facts that make coverage run the
+  maturin tests, against the backend the wheel build uses, on every pull
+  request.
+- `make test-doc` and `make test-workflow-contracts` are not suite runs:
+  coverage cannot run doctests, and the contracts run without the project
+  installed.
+
 ## CodeScene coverage publication
 
 Main owns CodeScene. `.github/workflows/coverage-main.yml` is the one

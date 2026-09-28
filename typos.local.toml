@@ -14,6 +14,8 @@ accepted = []
 ignore = [
   # Cargo and GitHub workflow values are machine interfaces.
   '(?m)^      CARGO_TERM_COLOR: always$',
+  # Cargo's `--color` option, which the suite-once contract's reader skips.
+  '(?m)^    \{"--config", "-Z", "-C", "--manifest-path", "--color", "--target-dir"\}$',
   '(?m)^    types: \[opened, reopened, synchronize, labeled, ready_for_review\]$',
   # Upstream API terminology and the exact serialized fixture stay unchanged.
   '(?m)^  documented model is a StAX-like streaming API for large documents; no new XML$',
