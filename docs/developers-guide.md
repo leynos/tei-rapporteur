@@ -400,6 +400,10 @@ Run the spelling gate with:
 make spelling
 ```
 
+`TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
+`typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
+together with the regenerated `typos.toml`, never on its own.
+
 It enforces en-GB-oxendict spelling over tracked text. `make markdownlint`
 depends on that target, so prose checks cannot bypass the repository-wide
 spelling policy.
