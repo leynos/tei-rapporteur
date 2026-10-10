@@ -36,7 +36,7 @@ tei-test-helpers = { path = "../tei-test-helpers" }
 trybuild = "1"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { version = "0.29.3", features = ["resolve-config"] }
 
 [[test]]
 name = "python_module"
