@@ -18,11 +18,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@7d751eded578e48dacf43ab173d5820e6437c474
+        uses: leynos/shared-actions/.github/actions/setup-rust@cfcc379e29be516160f499864ae82720842359af
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@0606ca899ce2995a0c4bc78e660e80832e6e8855
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@cfcc379e29be516160f499864ae82720842359af
         with:
           version: "0.6.1"
 
@@ -33,7 +33,7 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install Whitaker Dylint suite
-        uses: leynos/shared-actions/.github/actions/install-whitaker@7d751eded578e48dacf43ab173d5820e6437c474
+        uses: leynos/shared-actions/.github/actions/install-whitaker@cfcc379e29be516160f499864ae82720842359af
       - name: Lint
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are
@@ -41,7 +41,7 @@ jobs:
       - name: Doc tests
         run: make test-doc
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@8a83824b29dfe8f861714b544dc85fb925ed010c
+        uses: leynos/shared-actions/.github/actions/generate-coverage@cfcc379e29be516160f499864ae82720842359af
         with:
           # The shared action detects this repository as a mixed
           # Rust-and-Python project (root Cargo.toml plus root
