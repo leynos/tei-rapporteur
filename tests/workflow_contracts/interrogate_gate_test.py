@@ -82,7 +82,8 @@ def test_the_flags_demand_a_full_exact_report() -> None:
     assert flags[flags.index("--fail-under") + 1] == "100"
     assert "-vv" in flags
     assert flags[flags.index("--ext") + 1] == "pyi"
-    assert not [flag for flag in flags if flag.startswith("--ignore")]
+    relaxing = [f for f in flags if f.startswith(("--ignore", "--exclude", "-e"))]
+    assert not relaxing, f"no ignore or exclude flag may relax the gate: {relaxing}"
 
 
 def test_every_python_directory_is_a_target() -> None:
@@ -114,7 +115,11 @@ def test_ci_installs_uv_before_it_runs_make_lint() -> None:
 def _run_target(tmp_path: Path, script: str) -> subprocess.CompletedProcess[str]:
     """Run `make interrogate` with the tool replaced by a stub script."""
     stub = tmp_path / "stub.sh"
-    stub.write_text("#!/bin/sh\n" + textwrap.dedent(script), encoding="utf-8")
+    stub.write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$@" > "$(dirname "$0")/args.txt"\n'
+        + textwrap.dedent(script),
+        encoding="utf-8",
+    )
     stub.chmod(0o755)
     make = shutil.which("make")
     assert make
@@ -130,6 +135,15 @@ def test_the_target_passes_when_the_tool_reports_no_gap(tmp_path: Path) -> None:
     """A clean report and a zero status pass."""
     result = _run_target(tmp_path, "echo '| f.py | COVERED |'\nexit 0\n")
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "| f.py | COVERED |" in result.stdout
+
+
+def test_the_target_passes_the_configured_flags_and_targets(tmp_path: Path) -> None:
+    """The tool receives exactly the configured flags, then the targets."""
+    _run_target(tmp_path, "exit 0\n")
+    received = (tmp_path / "args.txt").read_text(encoding="utf-8").split()
+    expected = _variable("INTERROGATE_FLAGS").split() + _variable("INTERROGATE_TARGETS").split()
+    assert received == expected
 
 
 def test_the_target_fails_when_the_tool_fails(tmp_path: Path) -> None:
