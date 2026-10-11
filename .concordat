@@ -1,0 +1,9 @@
+language:
+  rust:
+    surfaces:
+      - path: Cargo.toml
+      - path: tei-core/Cargo.toml
+      - path: tei-py/Cargo.toml
+      - path: tei-serde/Cargo.toml
+      - path: tei-test-helpers/Cargo.toml
+      - path: tei-xml/Cargo.toml
