@@ -25,8 +25,6 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 MAKEFILE = ROOT / "Makefile"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
-SOURCE_SUFFIXES = (".py", ".pyi")
-PRUNED = {".git", "target", ".venv", ".uv-cache", ".uv-tools", "node_modules"}
 
 
 def _makefile_text() -> str:
@@ -51,15 +49,18 @@ def _prerequisites(target: str) -> list[str]:
 
 
 def _python_directories() -> set[str]:
-    """Return the top-level paths that hold Python source the repository owns."""
-    found: set[str] = set()
-    for path in ROOT.rglob("*"):
-        relative = path.relative_to(ROOT)
-        if PRUNED & set(relative.parts) or path.suffix not in SOURCE_SUFFIXES:
-            continue
-        parent = relative.parts[:-1]
-        found.add("/".join(parent) if parent else relative.name)
-    return found
+    """Return the paths that hold Python source Git tracks.
+
+    Git is the authority on what the repository owns: a walk would also see
+    the virtual environments CI creates beside the sources.
+    """
+    listed = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        ["git", "-C", str(ROOT), "ls-files", "*.py", "*.pyi"],  # noqa: S607 - git from PATH
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    return {str(Path(name).parent) if "/" in name else name for name in listed}
 
 
 def test_lint_depends_on_interrogate() -> None:
