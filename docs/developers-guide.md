@@ -453,6 +453,17 @@ through pytest over the `testpaths` in `pyproject.toml`. That run syncs the
 the suite: `build-test` used to run that file a second time, and the step was
 removed.
 
+- `tests/workflow_contracts/interrogate_gate_test.py` asserts the Python
+  docstring-coverage gate. `make lint` depends on the `interrogate` target,
+  which runs `interrogate` 1.7.0 through `uv tool run` at `--fail-under 100`
+  with `-vv` and `--ext pyi` (so the `.pyi` stubs are covered) and no ignore
+  flag, over every directory that holds Python source (`python`,
+  `tei-py/python` and `tests`; a new Python directory must be added to
+  `INTERROGATE_TARGETS`). The target fails on any `MISSED` row, because
+  interrogate rounds its percentage to one decimal and so passes a lone gap in
+  a large repository; the contract runs the target against a stub tool to prove
+  that, and to prove a failing tool status is kept. It also requires CI to
+  install uv before the step that runs `make lint`.
 - `tests/workflow_contracts/suite_runs_once_test.py` refuses any workflow step
   that runs pytest, `cargo test`, `cargo nextest`, `cargo llvm-cov`, or `make`
   with no target or a suite target, beside the coverage step.

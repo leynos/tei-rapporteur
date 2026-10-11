@@ -1,6 +1,6 @@
 .PHONY: help all clean test test-doc build release lint fmt check-fmt typecheck \
 	markdownlint nixie validate-xml json-schema test-workflow-contracts \
-	spelling
+	spelling interrogate
 
 APP ?= tei-rapporteur
 CARGO ?= cargo
@@ -34,6 +34,18 @@ TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
 TYPOS_CONFIG_BUILDER = $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
+# Interrogate measures docstring presence over every Python file the repository
+# owns: the Python package, the type-stub sources and the workflow-contract
+# tests. Ruff owns docstring style, but this repository does not run it.
+INTERROGATE_VERSION ?= 1.7.0
+INTERROGATE_TARGETS ?= python tei-py/python tests
+# Level 2 prints a MISSED row per undocumented definition, which the
+# `interrogate` target fails on: the rounded percentage alone passes a lone gap.
+INTERROGATE_FLAGS ?= -vv --ext pyi --fail-under 100
+# No `--python` pin: asking uv for a managed interpreter downloads one, and
+# the PyO3 crates then link against it instead of the runner's Python.
+INTERROGATE = $(UV_ENV) $(UV) tool run \
+	--from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
@@ -57,10 +69,22 @@ test-doc: ## Run documentation tests (nextest does not execute them)
 	# or `feature = "test-support"`, and rustdoc sets neither for doctests.
 	RUSTFLAGS="-D warnings" $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
 
-lint: ## Build documentation and run Clippy and the Whitaker Dylint suite with warnings denied
+lint: interrogate ## Build documentation, run Clippy and the Whitaker Dylint suite with warnings denied, and enforce Python docstring coverage
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
 	$(CARGO) clippy $(CLIPPY_FLAGS)
 	RUSTFLAGS="-D warnings" $(WHITAKER) --all -- --all-targets --all-features
+
+# Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
+# passes a lone gap in a large repository; fail on any MISSED row as well.
+interrogate: ## Enforce complete Python docstring coverage
+	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_TARGETS))"; \
+	  status=$$?; \
+	  printf '%s\n' "$$report"; \
+	  test "$$status" -eq 0 || exit "$$status"; \
+	  if printf '%s\n' "$$report" | grep -q '| *MISSED |'; then \
+	    printf '%s\n' 'interrogate: undocumented definitions remain; see the MISSED rows above' >&2; \
+	    exit 1; \
+	  fi
 
 fmt: ## Format Rust and Markdown sources
 	$(CARGO) fmt --all
