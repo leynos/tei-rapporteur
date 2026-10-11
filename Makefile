@@ -41,7 +41,7 @@ INTERROGATE_VERSION ?= 1.7.0
 INTERROGATE_TARGETS ?= python tei-py/python tests
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` target fails on: the rounded percentage alone passes a lone gap.
-INTERROGATE_FLAGS ?= -vv --fail-under 100
+INTERROGATE_FLAGS ?= -vv --ext pyi --fail-under 100
 INTERROGATE = $(UV_ENV) $(UV) tool run --python 3.14 \
 	--from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
