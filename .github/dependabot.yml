@@ -33,6 +33,15 @@ updates:
       rstest-bdd:
         patterns:
           - "rstest-bdd*"
+      # pyo3, its build-time config crate and the serde-pyobject bridge (renamed
+      # pyo3-serde in tei-py/Cargo.toml; Dependabot matches the published name)
+      # share PyO3 types and release against one PyO3 generation, so one bumped
+      # alone breaks the others. It must precede the catch-all too.
+      pyo3:
+        patterns:
+          - "pyo3"
+          - "pyo3-build-config"
+          - "serde-pyobject"
       minor-and-patch:
         patterns:
           - "*"
