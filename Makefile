@@ -42,7 +42,9 @@ INTERROGATE_TARGETS ?= python tei-py/python tests
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` target fails on: the rounded percentage alone passes a lone gap.
 INTERROGATE_FLAGS ?= -vv --ext pyi --fail-under 100
-INTERROGATE = $(UV_ENV) $(UV) tool run --python 3.14 \
+# No `--python` pin: asking uv for a managed interpreter downloads one, and
+# the PyO3 crates then link against it instead of the runner's Python.
+INTERROGATE = $(UV_ENV) $(UV) tool run \
 	--from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
