@@ -34,6 +34,9 @@ jobs:
           globs: '**/*.md'
       - name: Install Whitaker Dylint suite
         uses: leynos/shared-actions/.github/actions/install-whitaker@cfcc379e29be516160f499864ae82720842359af
+      - name: Install uv for the docstring-coverage gate
+        # `make lint` runs interrogate through `uv tool run`.
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Lint
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are

@@ -133,7 +133,11 @@ project:
     ```
 
     linting every target with all features enabled and denying all Clippy
-    warnings.
+    warnings. It first runs the `interrogate` target, which enforces complete
+    Python docstring coverage: every definition in `python`, `tei-py/python`
+    and `tests` carries a docstring, and the run fails on any `MISSED` row
+    because interrogate rounds its percentage to one decimal. A new Python
+    directory is added to `INTERROGATE_TARGETS` in the `Makefile`.
   - `make test` executes:
 
     ```sh

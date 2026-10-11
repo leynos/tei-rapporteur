@@ -78,7 +78,9 @@ Use the Makefile targets to work with the entire workspace:
 - `make test` runs all unit tests and the behaviour tests powered by
   `rstest-bdd`.
 - `make check-fmt`, `make lint`, and `make fmt` mirror the repository quality
-  gates described in `AGENTS.md`.
+  gates described in `AGENTS.md`. `make lint` also runs `make interrogate`,
+  which requires a docstring on every Python definition under `python`,
+  `tei-py/python` and `tests`.
 - `make json-schema` regenerates the published `TeiDocument` JSON Schema
   snapshots under `schemas/`.
 - `make validate-xml` generates XML fixtures and validates them against the TEI
