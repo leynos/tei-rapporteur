@@ -305,7 +305,7 @@ mod tests {
             .expect("empty paragraph should finish");
 
         let segments = collector.finish().expect("collector should finish");
-        assert!(segments.is_empty());
+        assert_eq!(segments, [] as [tei_core::SpokenTextSegment; 0]);
     }
 
     #[test]
