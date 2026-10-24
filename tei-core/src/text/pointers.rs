@@ -109,6 +109,14 @@ impl TryFrom<String> for Pointer {
     }
 }
 
+impl std::str::FromStr for Pointer {
+    type Err = PointerValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
+    }
+}
+
 impl TryFrom<&str> for Pointer {
     type Error = PointerValidationError;
 
@@ -218,6 +226,14 @@ impl TryFrom<String> for PointerList {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::parse_attribute(value)
+    }
+}
+
+impl std::str::FromStr for PointerList {
+    type Err = PointerListValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
     }
 }
 
@@ -337,6 +353,14 @@ impl TryFrom<String> for Certainty {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::new(value)
+    }
+}
+
+impl std::str::FromStr for Certainty {
+    type Err = CertaintyValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
     }
 }
 

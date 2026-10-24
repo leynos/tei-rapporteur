@@ -106,6 +106,14 @@ impl AsRef<str> for DocumentTitle {
     }
 }
 
+impl std::str::FromStr for DocumentTitle {
+    type Err = DocumentTitleError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
+    }
+}
+
 impl TryFrom<&str> for DocumentTitle {
     type Error = DocumentTitleError;
 

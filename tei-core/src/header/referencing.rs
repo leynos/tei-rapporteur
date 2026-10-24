@@ -110,7 +110,7 @@ pub struct CiteStructure {
         default,
         skip_serializing_if = "Vec::is_empty"
     )]
-    children: Vec<CiteStructure>,
+    children: Vec<Self>,
 }
 
 impl CiteStructure {

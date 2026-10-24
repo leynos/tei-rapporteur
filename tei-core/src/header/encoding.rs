@@ -214,6 +214,14 @@ impl TryFrom<String> for AnnotationSystemId {
     }
 }
 
+impl std::str::FromStr for AnnotationSystemId {
+    type Err = HeaderValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
+    }
+}
+
 impl TryFrom<&str> for AnnotationSystemId {
     type Error = HeaderValidationError;
 
