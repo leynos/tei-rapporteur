@@ -52,9 +52,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/setup-rust@0f3047d45d1371d8ae700c69e7bed42c4f8862a1
       - name: Generate coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/generate-coverage@0f3047d45d1371d8ae700c69e7bed42c4f8862a1
         with:
           # The shared action detects this repository as a mixed
           # Rust-and-Python project (root Cargo.toml plus root
@@ -75,7 +75,7 @@ jobs:
         # main's. The token goes straight to the input rather than through
         # `env`, which the composite uploader would hand to its nested steps.
         if: steps.codescene-token.outputs.available == 'true' && github.ref == 'refs/heads/main'
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@0f3047d45d1371d8ae700c69e7bed42c4f8862a1
         with:
           format: cobertura
           path: coverage.xml
