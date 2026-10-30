@@ -36,7 +36,7 @@ jobs:
         uses: leynos/shared-actions/.github/actions/install-whitaker@5a99aed78ce68dcebd3052b75c31e6f173162b1e
       - name: Install uv for the docstring-coverage gate
         # `make lint` runs interrogate through `uv tool run`.
-        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Lint
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are
@@ -66,7 +66,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install uv
-        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa  # v10.3.1
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e  # v10.3.2
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Install maturin
@@ -113,7 +113,7 @@ jobs:
         with:
           python-version: '3.14'
       - name: Install uv for spelling and Mermaid tooling
-        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Enforce en-GB-oxendict spelling
         run: make spelling
       - name: Set up Rust for Merman
