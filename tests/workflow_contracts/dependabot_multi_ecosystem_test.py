@@ -30,6 +30,7 @@ CONFIG_PATH = Path(__file__).resolve().parents[2] / ".github" / "dependabot.yml"
 
 #: The group the two stanzas join.
 GROUP = "maturin-pyo3"
+EXPECTED_LIMIT = 5
 
 #: What each ecosystem offers to that group. The Cargo stanza also offers the
 #: PyO3 build-time crate and the serde-pyobject bridge, which release against
@@ -86,14 +87,20 @@ def test_the_group_carries_the_pull_request_bound_not_its_entries() -> None:
     """Bound the group; Dependabot rejects the bound on an entry that joins it."""
     groups = _document()["multi-ecosystem-groups"]
     limit = groups[GROUP].get("open-pull-requests-limit")
-    assert isinstance(limit, int), f"the {GROUP} group needs an integer bound; got {limit!r}"
-    assert limit > 0, f"the {GROUP} group needs a positive bound; got {limit!r}"
+    assert type(limit) is int, (
+        f"the {GROUP} group needs an integer bound; got {limit!r}"
+    )
+    assert limit == EXPECTED_LIMIT, (
+        f"the {GROUP} group is bounded at {EXPECTED_LIMIT}; got {limit!r}"
+    )
     carrying = [
         entry["package-ecosystem"]
         for entry in _group_entries()
         if "open-pull-requests-limit" in entry
     ]
-    assert not carrying, f"Dependabot rejects the bound on {carrying}; set it on the group"
+    assert not carrying, (
+        f"Dependabot rejects the bound on {carrying}; set it on the group"
+    )
 
 
 @pytest.mark.parametrize(("ecosystem", "members"), sorted(MEMBERS.items()))
