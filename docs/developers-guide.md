@@ -569,3 +569,22 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## Dependabot grouping for the extension build
+
+maturin (the `uv` stanza) and PyO3 (the `cargo` stanza) are versioned
+independently yet build one extension, so an update to either alone cannot be
+built against the other. Both stanzas join the `maturin-pyo3` multi-ecosystem
+group, defined at the top of `.github/dependabot.yml` with its own daily
+schedule, so the pair arrives in a single pull request where one CI run builds
+both. The `uv` stanza offers `maturin`; the `cargo` stanza offers `pyo3`,
+`pyo3-build-config` and `serde-pyobject`, which release against one PyO3
+generation (the `pyo3` single-ecosystem group keeps them together within
+Cargo). A group coordinates the update; it cannot choose compatible versions,
+and it never rewrites a pinned literal.
+
+`tests/workflow_contracts/dependabot_multi_ecosystem_test.py` holds the shape:
+the group is defined with a daily schedule, the two stanzas join it with
+exactly those members, and no other stanza joins a multi-ecosystem group. The
+Concordat `dependency-family-contracts` rule reads the group as protecting the
+maturin and PyO3 tuple (DF-002).
