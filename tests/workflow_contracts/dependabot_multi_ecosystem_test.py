@@ -53,7 +53,7 @@ def test_the_group_carries_the_pull_request_bound_not_its_entries() -> None:
     """Bound the group; Dependabot rejects the bound on an entry that joins it."""
     groups = _document()["multi-ecosystem-groups"]
     limit = groups[GROUP].get("open-pull-requests-limit")
-    assert isinstance(limit, int)
+    assert isinstance(limit, int), f"the {GROUP} group needs an integer bound; got {limit!r}"
     assert limit > 0, f"the {GROUP} group needs a positive bound; got {limit!r}"
     carrying = [
         ecosystem
