@@ -588,7 +588,7 @@ not processed (cuprum's first run of this arrangement showed it). So `cargo` and
 `uv` each have two entries. The group entry, listed first, offers `maturin` for
 `uv` and `pyo3`, `pyo3-build-config` and `serde-pyobject` for `cargo` (they
 release against one PyO3 generation) and carries no groups. The plain entry is
-the stanza as it was, with its own groups (`rstest-bdd`, the catch-alls), and
+the stanza as it was, with its own groups (`rstest-bdd` and the catch-all), and
 gains an `ignore` of the same names, so the pair is handled once.
 
 `tests/workflow_contracts/dependabot_multi_ecosystem_test.py` holds the shape:
