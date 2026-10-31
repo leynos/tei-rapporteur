@@ -7,8 +7,13 @@ request, so when both have one a single CI run builds both. It does not hold
 back a bump when only one of the two has an update, and a group cannot choose
 compatible versions: it coordinates the update without proving it.
 
-A mistake here is silent, because Dependabot reports nothing for a stanza that
-names a group the file never defines. These tests read the checked-in
+Dependabot builds one job per entry, and an entry that joins a group runs only
+that group, over the dependencies its ``patterns`` take (cuprum's first run of
+the arrangement showed it: the entry's own groups, ignore rules and every other
+dependency were not processed). So each of the two ecosystems has two entries,
+the group entry and a plain entry that ignores the pair so that it is handled
+once. A mistake here is silent, because Dependabot reports nothing for a stanza
+that names a group the file never defines. These tests read the checked-in
 configuration back and hold it to the arrangement.
 
 Run via ``make test-workflow-contracts``.
@@ -42,29 +47,32 @@ def _document() -> dict[str, object]:
     return document
 
 
-def _stanzas() -> dict[str, dict[str, object]]:
-    """Return each update stanza keyed by its package ecosystem."""
+def _entries() -> list[dict[str, object]]:
+    """Return every ``updates`` entry, in order."""
     updates = _document().get("updates")
     assert isinstance(updates, list), "the configuration must declare `updates`"
-    return {str(stanza["package-ecosystem"]): stanza for stanza in updates}
+    return updates
 
 
-def test_the_group_carries_the_pull_request_bound_not_its_entries() -> None:
-    """Bound the group; Dependabot rejects the bound on an entry that joins it."""
-    groups = _document()["multi-ecosystem-groups"]
-    limit = groups[GROUP].get("open-pull-requests-limit")
-    assert isinstance(limit, int), f"the {GROUP} group needs an integer bound; got {limit!r}"
-    assert limit > 0, f"the {GROUP} group needs a positive bound; got {limit!r}"
-    carrying = [
-        ecosystem
-        for ecosystem, stanza in _stanzas().items()
-        if "multi-ecosystem-group" in stanza and "open-pull-requests-limit" in stanza
+def _group_entries() -> list[dict[str, object]]:
+    """Return the entries that join a multi-ecosystem group."""
+    return [entry for entry in _entries() if "multi-ecosystem-group" in entry]
+
+
+def _plain_entry(ecosystem: str) -> dict[str, object]:
+    """Return the one entry for *ecosystem* that does not join a group."""
+    plain = [
+        entry
+        for entry in _entries()
+        if entry["package-ecosystem"] == ecosystem
+        and "multi-ecosystem-group" not in entry
     ]
-    assert not carrying, f"Dependabot rejects the bound on {carrying}; set it on the group"
+    assert len(plain) == 1, f"{ecosystem} needs exactly one plain entry"
+    return plain[0]
 
 
 def test_the_group_is_defined_with_a_daily_schedule() -> None:
-    """Define the group the two stanzas join, on the estate's daily cadence."""
+    """Define the group the two entries join, on the estate's daily cadence."""
     groups = _document().get("multi-ecosystem-groups")
     assert isinstance(groups, dict), "`multi-ecosystem-groups` must be defined"
     assert GROUP in groups, f"{GROUP!r} must be defined; got {sorted(groups)}"
@@ -74,29 +82,58 @@ def test_the_group_is_defined_with_a_daily_schedule() -> None:
     )
 
 
+def test_the_group_carries_the_pull_request_bound_not_its_entries() -> None:
+    """Bound the group; Dependabot rejects the bound on an entry that joins it."""
+    groups = _document()["multi-ecosystem-groups"]
+    limit = groups[GROUP].get("open-pull-requests-limit")
+    assert isinstance(limit, int), f"the {GROUP} group needs an integer bound; got {limit!r}"
+    assert limit > 0, f"the {GROUP} group needs a positive bound; got {limit!r}"
+    carrying = [
+        entry["package-ecosystem"]
+        for entry in _group_entries()
+        if "open-pull-requests-limit" in entry
+    ]
+    assert not carrying, f"Dependabot rejects the bound on {carrying}; set it on the group"
+
+
 @pytest.mark.parametrize(("ecosystem", "members"), sorted(MEMBERS.items()))
-def test_each_half_of_the_extension_build_joins_the_group(
+def test_each_half_of_the_extension_build_has_one_group_entry(
     ecosystem: str, members: list[str]
 ) -> None:
-    """Name the group and the members in the stanza, or the pair arrives split."""
-    stanza = _stanzas()[ecosystem]
-    assert stanza.get("multi-ecosystem-group") == GROUP, (
-        f"the {ecosystem} stanza must join {GROUP!r}; "
-        f"got {stanza.get('multi-ecosystem-group')!r}"
+    """Name the group and the members in one entry per ecosystem, with no groups."""
+    entries = [
+        entry for entry in _group_entries() if entry["package-ecosystem"] == ecosystem
+    ]
+    assert len(entries) == 1, (
+        f"{ecosystem} needs exactly one entry joining {GROUP!r}; got {len(entries)}"
     )
-    assert stanza.get("patterns") == members, (
-        f"the {ecosystem} stanza must offer exactly {members} to the group; "
-        f"got {stanza.get('patterns')!r}"
+    (entry,) = entries
+    assert entry["multi-ecosystem-group"] == GROUP, (
+        f"the {ecosystem} group entry must join {GROUP!r}"
+    )
+    assert entry.get("patterns") == members, (
+        f"the {ecosystem} group entry must offer exactly {members}; "
+        f"got {entry.get('patterns')!r}"
+    )
+    assert "groups" not in entry, (
+        f"the {ecosystem} group entry runs only the group, so it carries no `groups`"
     )
 
 
-def test_no_other_stanza_joins_a_multi_ecosystem_group() -> None:
+@pytest.mark.parametrize(("ecosystem", "members"), sorted(MEMBERS.items()))
+def test_the_plain_entry_ignores_what_the_group_entry_handles(
+    ecosystem: str, members: list[str]
+) -> None:
+    """Keep the pair out of the plain entry, which handles everything else."""
+    ignored = [rule["dependency-name"] for rule in _plain_entry(ecosystem)["ignore"]]
+    assert ignored == members, (
+        f"the plain {ecosystem} entry must ignore exactly {members}; got {ignored}"
+    )
+
+
+def test_only_the_extension_build_ecosystems_join_a_group() -> None:
     """Keep the group to the two halves of the extension build."""
-    joined = {
-        ecosystem
-        for ecosystem, stanza in _stanzas().items()
-        if "multi-ecosystem-group" in stanza
-    }
+    joined = {entry["package-ecosystem"] for entry in _group_entries()}
     assert joined == set(MEMBERS), (
         f"only {sorted(MEMBERS)} may join {GROUP!r}; got {sorted(joined)}"
     )

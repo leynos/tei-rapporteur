@@ -572,22 +572,31 @@ as a test assertion on the SHA string.
 
 ## Dependabot grouping for the extension build
 
-maturin (the `uv` stanza) and PyO3 (the `cargo` stanza) are versioned
+maturin (the `uv` ecosystem) and PyO3 (the `cargo` ecosystem) are versioned
 independently yet build one extension, so an update to either alone cannot be
-built against the other. Both stanzas join the `maturin-pyo3` multi-ecosystem
-group, defined at the top of `.github/dependabot.yml` with its own daily
-schedule, so the available updates for the pair arrive in one pull request and,
-when both have one, a single CI run builds them together. A bump is not held
-back when only one of the two has an update. The `uv` stanza offers `maturin`;
-the `cargo` stanza offers `pyo3`, `pyo3-build-config` and `serde-pyobject`,
-which release against one PyO3 generation (the `pyo3` single-ecosystem group
-keeps them together within Cargo). A group coordinates the update; it cannot
-choose compatible versions, and it never rewrites a pinned literal.
+built against the other. A multi-ecosystem group, `maturin-pyo3`, defined at
+the top of `.github/dependabot.yml` with its own daily schedule and
+`open-pull-requests-limit` (Dependabot rejects that key on an entry that joins
+a group), puts the available updates for the pair into one pull request. When
+both have one, a single CI run builds them together; a bump is not held back
+when only one of the two has an update, and a group cannot choose compatible
+versions.
+
+An entry that joins a group runs only that group, over the dependencies its
+`patterns` take: its own groups, ignore rules and every other dependency are
+not processed (cuprum's first run of this arrangement showed it). So `cargo` and
+`uv` each have two entries. The group entry, listed first, offers `maturin` for
+`uv` and `pyo3`, `pyo3-build-config` and `serde-pyobject` for `cargo` (they
+release against one PyO3 generation) and carries no groups. The plain entry is
+the stanza as it was, with its own groups (`rstest-bdd`, the catch-alls), and
+gains an `ignore` of the same names, so the pair is handled once.
 
 `tests/workflow_contracts/dependabot_multi_ecosystem_test.py` holds the shape:
-the group is defined with a daily schedule, the two stanzas join it with
-exactly those members, and no other stanza joins a multi-ecosystem group. The
-Concordat `dependency-family-contracts` rule (DF-002) accepts a shared
+the group is defined with a daily schedule and carries the bound, each
+ecosystem has exactly one group entry offering exactly those names with no
+groups, the plain entries ignore them, and no other ecosystem joins a group.
+Concordat's `dependency-family-contracts` rule (DF-002) accepts a shared
 multi-ecosystem group as one way to protect an independently versioned pair,
-beside an upper bound or an `ignore` rule
-(<https://github.com/leynos/concordat/pull/334>).
+and reads the first entry that processes each package
+(<https://github.com/leynos/concordat/pull/334>,
+<https://github.com/leynos/concordat/pull/338>).
