@@ -49,6 +49,20 @@ def _stanzas() -> dict[str, dict[str, object]]:
     return {str(stanza["package-ecosystem"]): stanza for stanza in updates}
 
 
+def test_the_group_carries_the_pull_request_bound_not_its_entries() -> None:
+    """Bound the group; Dependabot rejects the bound on an entry that joins it."""
+    groups = _document()["multi-ecosystem-groups"]
+    limit = groups[GROUP].get("open-pull-requests-limit")
+    assert isinstance(limit, int)
+    assert limit > 0, f"the {GROUP} group needs a positive bound; got {limit!r}"
+    carrying = [
+        ecosystem
+        for ecosystem, stanza in _stanzas().items()
+        if "multi-ecosystem-group" in stanza and "open-pull-requests-limit" in stanza
+    ]
+    assert not carrying, f"Dependabot rejects the bound on {carrying}; set it on the group"
+
+
 def test_the_group_is_defined_with_a_daily_schedule() -> None:
     """Define the group the two stanzas join, on the estate's daily cadence."""
     groups = _document().get("multi-ecosystem-groups")
