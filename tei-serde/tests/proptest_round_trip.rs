@@ -32,7 +32,7 @@ proptest! {
         prop_assert_eq!(doc, decoded, "JSON round-trip should preserve equality");
     }
 
-    /// MessagePack round-trip: struct -> bytes -> struct should be equal.
+    /// `MessagePack` round-trip: struct -> bytes -> struct should be equal.
     #[test]
     fn msgpack_round_trip_preserves_equality(doc in valid_tei_document_strategy()) {
         let bytes = tei_serde::msgpack::to_vec_named(&doc)
@@ -59,7 +59,7 @@ proptest! {
         prop_assert_eq!(doc, decoded, "XML round-trip should preserve equality");
     }
 
-    /// Cross-format consistency: JSON and MessagePack should decode to equal values.
+    /// Cross-format consistency: JSON and `MessagePack` should decode to equal values.
     #[test]
     fn json_and_msgpack_produce_equal_results(doc in valid_tei_document_strategy()) {
         let json_string = tei_serde::json::to_string(&doc)

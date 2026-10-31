@@ -86,7 +86,7 @@ pub enum ParserState {
         /// The parent state to return to after closing `</hi>`.
         ///
         /// Uses `Option` to enable explicit ownership transfer via `.take()`.
-        parent: Option<Box<ParserState>>,
+        parent: Option<Box<Self>>,
         /// Optional `rend` attribute for rendering hint.
         rend: Option<String>,
         /// Accumulated inline content within the emphasis.
@@ -108,7 +108,7 @@ pub enum ParserState {
         /// This is distinct from `TeiPullParser::pending_div_state`, which is
         /// only used while a direct paragraph or utterance child is being
         /// assembled.
-        parent_div: Option<Box<ParserState>>,
+        parent_div: Option<Box<Self>>,
         /// Accumulated content.
         content: Vec<DivContent>,
     },
@@ -116,7 +116,7 @@ pub enum ParserState {
     /// Inside a `<head>` element within a `<div>`.
     InHead {
         /// The parent div state to return to after closing `</head>`.
-        parent_div: Option<Box<ParserState>>,
+        parent_div: Option<Box<Self>>,
         /// Accumulated inline content.
         content: Vec<Inline>,
     },
@@ -124,7 +124,7 @@ pub enum ParserState {
     /// Inside a `<list>` element within a `<div>`, accumulating items.
     InList {
         /// The parent div state to return to after closing `</list>`.
-        parent_div: Option<Box<ParserState>>,
+        parent_div: Option<Box<Self>>,
         /// Optional `xml:id` for the list.
         list_id: Option<String>,
         /// Accumulated items.
@@ -134,7 +134,7 @@ pub enum ParserState {
     /// Inside an `<item>` element, accumulating inline content.
     InItem {
         /// The parent list state to return to after closing `</item>`.
-        parent_list: Option<Box<ParserState>>,
+        parent_list: Option<Box<Self>>,
         /// Optional `xml:id`.
         item_id: Option<String>,
         /// Optional `@n` attribute.
@@ -150,7 +150,7 @@ pub enum ParserState {
     /// Inside a `<label>` element within an `<item>`.
     InLabel {
         /// The parent item state to return to after closing `</label>`.
-        parent_item: Option<Box<ParserState>>,
+        parent_item: Option<Box<Self>>,
         /// Accumulated inline content.
         content: Vec<Inline>,
     },

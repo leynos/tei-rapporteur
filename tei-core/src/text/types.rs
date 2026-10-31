@@ -101,6 +101,14 @@ impl TryFrom<String> for XmlId {
     }
 }
 
+impl std::str::FromStr for XmlId {
+    type Err = IdentifierValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
+    }
+}
+
 impl TryFrom<&str> for XmlId {
     type Error = IdentifierValidationError;
 
@@ -185,6 +193,14 @@ impl TryFrom<String> for Speaker {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::new(value)
+    }
+}
+
+impl std::str::FromStr for Speaker {
+    type Err = SpeakerValidationError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::try_from(value)
     }
 }
 

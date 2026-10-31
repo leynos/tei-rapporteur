@@ -382,6 +382,16 @@ items. `@source` on `Item` is not part of the public body model yet; it may be
 considered later if callers need stricter provenance semantics beyond the
 current correspondence link.
 
+### Annotation system identifiers
+
+`AnnotationSystemId` names an annotation system declared in the header. Besides
+`AnnotationSystemId::new` and `TryFrom<&str>`, it parses with `str::parse`
+through its `FromStr` implementation, so
+`"morphology".parse::<AnnotationSystemId>()` works. The identifier is trimmed
+of surrounding whitespace; the parse fails with
+`HeaderValidationError::EmptyField` (field `annotation system`) when nothing
+remains after trimming. All three entry points share the same rules.
+
 ## Text Encoding Initiative (TEI) Episodic Profile schema
 
 The TEI Episodic Profile is formally documented in an ODD (One Document Does it
