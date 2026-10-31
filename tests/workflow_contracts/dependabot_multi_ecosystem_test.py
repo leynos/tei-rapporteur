@@ -144,3 +144,33 @@ def test_only_the_extension_build_ecosystems_join_a_group() -> None:
     assert joined == set(MEMBERS), (
         f"only {sorted(MEMBERS)} may join {GROUP!r}; got {sorted(joined)}"
     )
+
+
+@pytest.mark.parametrize("ecosystem", sorted(MEMBERS))
+def test_both_entries_of_an_ecosystem_describe_the_same_directory(
+    ecosystem: str,
+) -> None:
+    """Point the group entry and the plain entry at the same manifest."""
+    directories = [
+        entry["directory"]
+        for entry in _entries()
+        if entry["package-ecosystem"] == ecosystem
+    ]
+    assert directories == ["/", "/"], (
+        f"the {ecosystem} entries must both describe '/'; got {directories}"
+    )
+
+
+@pytest.mark.parametrize("ecosystem", sorted(MEMBERS))
+def test_the_plain_entry_keeps_the_minor_and_patch_catch_all(ecosystem: str) -> None:
+    """Keep every other dependency on the catch-all group the stanza had."""
+    group = _plain_entry(ecosystem).get("groups", {}).get("minor-and-patch")
+    assert group is not None, f"the plain {ecosystem} entry must keep `minor-and-patch`"
+    assert group.get("patterns") == ["*"], (
+        f"the {ecosystem} catch-all must take every dependency; "
+        f"got {group.get('patterns')!r}"
+    )
+    assert group.get("update-types") == ["minor", "patch"], (
+        f"the {ecosystem} catch-all must take minor and patch updates; "
+        f"got {group.get('update-types')!r}"
+    )
