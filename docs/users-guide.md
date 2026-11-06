@@ -385,12 +385,13 @@ current correspondence link.
 ### Annotation system identifiers
 
 `AnnotationSystemId` names an annotation system declared in the header. Besides
-`AnnotationSystemId::new` and `TryFrom<&str>`, it parses with `str::parse`
-through its `FromStr` implementation, so
+`AnnotationSystemId::new`, `TryFrom<&str>` and `TryFrom<String>` (the owned
+conversion, which delegates to `AnnotationSystemId::new`), it parses with
+`str::parse` through its `FromStr` implementation, so
 `"morphology".parse::<AnnotationSystemId>()` works. The identifier is trimmed
 of surrounding whitespace; the parse fails with
 `HeaderValidationError::EmptyField` (field `annotation system`) when nothing
-remains after trimming. All three entry points share the same rules.
+remains after trimming. Every entry point shares the same rules.
 
 ## Text Encoding Initiative (TEI) Episodic Profile schema
 
