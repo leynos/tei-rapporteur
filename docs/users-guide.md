@@ -74,7 +74,9 @@ available today and how to exercise it.
 
 Use the Makefile targets to work with the entire workspace:
 
-- `make build` compiles every crate in debug mode.
+- `make build` compiles every crate in debug mode. On Linux it links with
+  `mold`, so install it first (see the "Build standard" section of the
+  developer guide).
 - `make test` runs all unit tests and the behaviour tests powered by
   `rstest-bdd`.
 - `make check-fmt`, `make lint`, and `make fmt` mirror the repository quality

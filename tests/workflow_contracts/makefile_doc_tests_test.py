@@ -99,6 +99,12 @@ def test_documentation_tests_activate_every_feature() -> None:
 def test_documentation_tests_deny_warnings() -> None:
     """A warning in an example is a defect, not a note."""
     command = _doc_test_command()
-    assert 'RUSTFLAGS="-D warnings"' in command, (
+    match = re.search(r"\$\((?P<name>[A-Z_]+RUSTFLAGS)\)", command)
+    assert match, "test-doc must assign RUSTFLAGS through a gate variable"
+    definition = re.search(
+        rf"^{match.group('name')}\s*[:?]?=(?P<value>.*)$", _read_makefile(), re.MULTILINE
+    )
+    assigned = re.search(r'(?<![A-Z_])RUSTFLAGS="([^"]*)"', definition.group("value") if definition else "")
+    assert assigned and "-D warnings" in assigned.group(1), (
         "test-doc must deny warnings, matching every other compiling gate"
     )

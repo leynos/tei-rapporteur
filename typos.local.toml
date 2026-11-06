@@ -22,6 +22,11 @@ ignore = [
   '(?m)^    "<div type=\\"labeled-list\\">",$',
   # Inline code spans are masked; the shared dictionary does not mask them yet.
   '`[^`\n]+`',
+  # The external Linux linker name, in its flag, variable and input forms.
+  "-Clink-arg=-fuse-ld=mold",
+  "STANDARD_MOLD_FLAG",
+  "install-mold",
+  "sudo apt-get install mold",
 ]
 
 [files]
