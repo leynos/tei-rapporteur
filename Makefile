@@ -5,6 +5,31 @@
 APP ?= tei-rapporteur
 CARGO ?= cargo
 BUILD_JOBS ?=
+# The build standard: every `rustflags` source in `.cargo/config.toml` carries
+# the parallel frontend, and the Linux source adds `mold`. Assigning `RUSTFLAGS`
+# replaces those sources outright, so the targets that assign it restate the
+# flags here. The recipes add them to any inherited `RUSTFLAGS` (setup-rust
+# exports one in CI) instead of replacing it. `make release` adds neither
+# standard flag; coverage takes neither only when its caller exports
+# `RUSTFLAGS`, as setup-rust does in CI.
+STANDARD_THREADS_FLAG ?= -Zthreads=8
+STANDARD_MOLD_FLAG ?= -Clink-arg=-fuse-ld=mold
+BUILD_HOST_OS ?= $(shell uname -s)
+# mold is added only when the machine doing the build is Linux (only Make can
+# tell whether it has mold) and the compilation target is Linux too, which is
+# the host unless `CARGO_BUILD_TARGET` names another triple. Android triples
+# contain `-linux-` but report `target_os = "android"`, so they are not Linux.
+STANDARD_TARGET_IS_LINUX = $(if $(CARGO_BUILD_TARGET),$(or $(filter host-tuple,$(CARGO_BUILD_TARGET)),$(and $(findstring -linux-,$(CARGO_BUILD_TARGET)),$(if $(findstring -android,$(CARGO_BUILD_TARGET)),,yes))),yes)
+STANDARD_RUSTFLAGS = $(STANDARD_THREADS_FLAG)$(if $(filter Linux,$(BUILD_HOST_OS)),$(if $(STANDARD_TARGET_IS_LINUX), $(STANDARD_MOLD_FLAG)))
+# Release builds add neither standard flag: assigning `RUSTFLAGS`, even to an
+# empty inherited value, displaces every `rustflags` source in the
+# configuration, and a caller's own value passes through untouched.
+RELEASE_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS-}"
+# Debug builds keep a caller's exported flags and add the standard ones,
+# since an inherited `RUSTFLAGS` would otherwise displace the configuration.
+DEBUG_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)"
+# Gate targets also deny warnings.
+GATE_RUSTFLAGS = RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }-D warnings $(STANDARD_RUSTFLAGS)"
 CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
 RUSTDOC_FLAGS ?= --cfg docsrs -D warnings
 MDLINT ?= markdownlint-cli2
@@ -50,10 +75,10 @@ INTERROGATE = $(UV_ENV) $(UV) tool run \
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
 build: ## Build all workspace crates in debug mode
-	$(CARGO) build --workspace $(BUILD_JOBS)
+	$(DEBUG_RUSTFLAGS) $(CARGO) build --workspace $(BUILD_JOBS)
 
 release: ## Build all workspace crates in release mode
-	$(CARGO) build --workspace --release $(BUILD_JOBS)
+	$(RELEASE_RUSTFLAGS) $(CARGO) build --workspace --release $(BUILD_JOBS)
 
 all: build spelling ## Build the workspace and enforce spelling
 
@@ -62,16 +87,16 @@ clean: ## Remove build artefacts
 	rm -rf .uv-cache .uv-tools
 
 test: test-doc ## Run tests with warnings treated as errors
-	RUSTFLAGS="-D warnings" $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
+	$(GATE_RUSTFLAGS) $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
 
 test-doc: ## Run documentation tests (nextest does not execute them)
 	# --all-features: `tei_py::test_support` compiles only under `cfg(test)`
 	# or `feature = "test-support"`, and rustdoc sets neither for doctests.
-	RUSTFLAGS="-D warnings" $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
+	$(GATE_RUSTFLAGS) $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
 
 lint: interrogate ## Build documentation, run Clippy and the Whitaker Dylint suite with warnings denied, and enforce Python docstring coverage
-	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
-	$(CARGO) clippy $(CLIPPY_FLAGS)
+	$(GATE_RUSTFLAGS) RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
+	$(GATE_RUSTFLAGS) $(CARGO) clippy $(CLIPPY_FLAGS)
 	RUSTFLAGS="-D warnings" $(WHITAKER) --all -- --all-targets --all-features
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
@@ -100,7 +125,7 @@ test-workflow-contracts: ## Validate the workflow contracts, including the CV-00
 	uv run --no-project --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
 
 typecheck: ## Typecheck all workspace crates
-	RUSTFLAGS="-D warnings" $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
+	$(GATE_RUSTFLAGS) $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
 
 markdownlint: spelling ## Lint Markdown files
 	@if [ -n "$(MDLINT_BIN)" ]; then \
