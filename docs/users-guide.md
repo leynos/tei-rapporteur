@@ -396,15 +396,18 @@ remains after trimming. Every entry point shares the same rules.
 ### Parsing validated values from strings
 
 The other validated newtypes parse with `str::parse` through `FromStr`
-implementations that delegate to their existing constructors, so the string
-route accepts and rejects exactly what the constructor does. These types
-support it: `DivType`, `DivSubtype`, `Pointer`, `PointerList`, `Certainty`,
-`XmlId`, `Speaker` and `DocumentTitle`. For example,
+implementations that delegate to their existing validation (`PointerList` goes
+through its attribute parser), so the string route applies the same rules as
+the constructors. These types support it: `DivType`, `DivSubtype`, `Pointer`,
+`PointerList`, `Certainty`, `XmlId`, `Speaker` and `DocumentTitle`. For example,
 `"ref1".parse::<Pointer>()` and `"high".parse::<Certainty>()` work.
-`PointerList` reads the whitespace-separated attribute format, so
-`"#a #b".parse::<PointerList>()` yields two pointers, and it fails with
-`PointerListValidationError::Empty` when the input trims to nothing or
-`PointerListValidationError::InvalidPointer` when any token is invalid.
+`PointerList` parses the whitespace-separated attribute format, so
+`"#a #b".parse::<PointerList>()` yields two pointers. Parsing splits the input
+on whitespace first, so a token is never invalid by construction and the parse
+fails only with `PointerListValidationError::Empty` when the input trims to
+nothing. `PointerList::new` is different: it takes already-separated values, so
+`PointerList::new(["#a #b"])` rejects the single value that contains whitespace
+with `PointerListValidationError::InvalidPointer`.
 
 ## Text Encoding Initiative (TEI) Episodic Profile schema
 
