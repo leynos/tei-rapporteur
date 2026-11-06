@@ -24,7 +24,6 @@ note: required by a bound in `run_with_kwargs`
   --> src/test_support/bootstrap.rs
    |
    | pub fn run_with_kwargs<'py, A>(
-   |        --------------- required by a bound in this function
 ...
    |     A: RunWithKwargsArgs<'py>,
    |        ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `run_with_kwargs`

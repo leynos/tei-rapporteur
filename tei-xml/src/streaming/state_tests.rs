@@ -36,7 +36,8 @@ impl ParserStateTestExt for ParserState {
         )
     }
     fn take_content(&mut self) -> Vec<Inline> {
-        self.content_mut().map(std::mem::take).unwrap_or_default()
+        self.content_mut()
+            .map_or_else(Default::default, std::mem::take)
     }
 }
 
@@ -133,7 +134,7 @@ fn header_buffer_accumulation() {
     match state {
         ParserState::InHeader { depth, buffer } => {
             assert_eq!(depth, 1);
-            assert!(buffer.is_empty());
+            assert_eq!(buffer, [] as [u8; 0]);
         }
         _ => panic!("expected InHeader state"),
     }

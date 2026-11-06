@@ -63,7 +63,7 @@ pub(crate) struct PyCiteStructure {
         skip_serializing_if = "Vec::is_empty",
         default
     )]
-    pub(crate) cite_structures: Vec<PyCiteStructure>,
+    pub(crate) cite_structures: Vec<Self>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

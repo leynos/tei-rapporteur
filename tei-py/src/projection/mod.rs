@@ -33,7 +33,7 @@ pub(crate) enum PyInline {
     Hi {
         #[serde(skip_serializing_if = "Option::is_none")]
         rend: Option<String>,
-        content: Vec<PyInline>,
+        content: Vec<Self>,
     },
     #[serde(rename = "pause")]
     Pause {
@@ -132,7 +132,7 @@ pub(crate) enum PyDivContent {
         subtype: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         head: Option<PyHead>,
-        content: Vec<PyDivContent>,
+        content: Vec<Self>,
     },
 }
 

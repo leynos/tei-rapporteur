@@ -270,7 +270,7 @@ mod tests {
 
     fn expect_title_error(result: Result<String, TeiError>) -> DocumentTitleError {
         match result {
-            Ok(value) => panic!("expected invalid title, got {value}",),
+            Ok(value) => panic!("expected invalid title, got {value}"),
             Err(TeiError::DocumentTitle(error)) => error,
             Err(other) => panic!("expected document title error, received {other}"),
         }

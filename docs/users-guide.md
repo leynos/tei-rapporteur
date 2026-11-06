@@ -382,6 +382,33 @@ items. `@source` on `Item` is not part of the public body model yet; it may be
 considered later if callers need stricter provenance semantics beyond the
 current correspondence link.
 
+### Annotation system identifiers
+
+`AnnotationSystemId` names an annotation system declared in the header. Besides
+`AnnotationSystemId::new`, `TryFrom<&str>` and `TryFrom<String>` (the owned
+conversion, which delegates to `AnnotationSystemId::new`), it parses with
+`str::parse` through its `FromStr` implementation, so
+`"morphology".parse::<AnnotationSystemId>()` works. The identifier is trimmed
+of surrounding whitespace; the parse fails with
+`HeaderValidationError::EmptyField` (field `annotation system`) when nothing
+remains after trimming. Every entry point shares the same rules.
+
+### Parsing validated values from strings
+
+The other validated newtypes parse with `str::parse` through `FromStr`
+implementations that delegate to their existing validation (`PointerList` goes
+through its attribute parser), so the string route applies the same rules as
+the constructors. These types support it: `DivType`, `DivSubtype`, `Pointer`,
+`PointerList`, `Certainty`, `XmlId`, `Speaker` and `DocumentTitle`. For example,
+`"ref1".parse::<Pointer>()` and `"high".parse::<Certainty>()` work.
+`PointerList` parses the whitespace-separated attribute format, so
+`"#a #b".parse::<PointerList>()` yields two pointers. Parsing splits the input
+on whitespace first, so a token is never invalid by construction and the parse
+fails only with `PointerListValidationError::Empty` when the input trims to
+nothing. `PointerList::new` is different: it takes already-separated values, so
+`PointerList::new(["#a #b"])` rejects the single value that contains whitespace
+with `PointerListValidationError::InvalidPointer`.
+
 ## Text Encoding Initiative (TEI) Episodic Profile schema
 
 The TEI Episodic Profile is formally documented in an ODD (One Document Does it

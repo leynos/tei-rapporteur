@@ -14,8 +14,7 @@ fn jing_available() -> bool {
     Command::new("jing")
         .arg("--help")
         .output()
-        .map(|output| output.status.success() || output.status.code() == Some(1))
-        .unwrap_or(false)
+        .is_ok_and(|output| output.status.success() || output.status.code() == Some(1))
 }
 
 /// Runs jing validation and returns the result.

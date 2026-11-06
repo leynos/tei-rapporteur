@@ -122,6 +122,14 @@ macro_rules! impl_div_string_type {
             }
         }
 
+        impl std::str::FromStr for $name {
+            type Err = $error;
+
+            fn from_str(value: &str) -> Result<Self, Self::Err> {
+                Self::try_from(value)
+            }
+        }
+
         impl TryFrom<&str> for $name {
             type Error = $error;
 

@@ -135,20 +135,18 @@ pub fn generate_benchmark_xml(config: &BenchFixtureConfig) -> Result<String, Tei
 
 /// Generates body blocks according to the configuration.
 #[expect(
-    clippy::integer_division,
     clippy::integer_division_remainder_used,
-    reason = "Integer division and modulo are intentional for distributing paragraphs and cycling speakers"
+    reason = "Modulo is intentional for distributing paragraphs and cycling speakers"
 )]
 fn generate_body_blocks(config: &BenchFixtureConfig) -> Result<Vec<BodyBlock>, TeiError> {
     let mut blocks = Vec::with_capacity(config.total_blocks());
     let speakers = ["host", "guest1", "guest2"];
 
     // Calculate paragraph insertion interval, clamping to at least 1 to preserve interspersing
-    let paragraph_interval = if config.paragraph_count > 0 {
-        (config.utterance_count / config.paragraph_count).max(1)
-    } else {
-        usize::MAX
-    };
+    let paragraph_interval = config
+        .utterance_count
+        .checked_div(config.paragraph_count)
+        .map_or(usize::MAX, |interval| interval.max(1));
 
     let mut paragraph_index = 0;
     for utterance_index in 0..config.utterance_count {

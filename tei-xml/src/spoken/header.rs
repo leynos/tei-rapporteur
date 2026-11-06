@@ -276,7 +276,7 @@ mod tests {
         recorder.record_cdata(b"cdata");
         recorder.record_general_ref(b"amp");
 
-        assert!(recorder.xml.is_empty());
+        assert_eq!(recorder.xml, [] as [u8; 0]);
     }
 
     #[test]
