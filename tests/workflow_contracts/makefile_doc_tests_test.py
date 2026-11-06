@@ -104,6 +104,7 @@ def test_documentation_tests_deny_warnings() -> None:
     definition = re.search(
         rf"^{match.group('name')}\s*[:?]?=(?P<value>.*)$", _read_makefile(), re.MULTILINE
     )
-    assert definition and "-D warnings" in definition.group("value"), (
+    assigned = re.search(r'RUSTFLAGS="([^"]*)"', definition.group("value") if definition else "")
+    assert assigned and "-D warnings" in assigned.group(1), (
         "test-doc must deny warnings, matching every other compiling gate"
     )
