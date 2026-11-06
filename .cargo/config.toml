@@ -24,7 +24,10 @@ embed-metadata = false
 rustflags = ["-Zthreads=8"]
 
 # `mold` ships for Linux only, so the linker flag is gated behind a target
-# `cfg`. macOS and Windows fall through to `[build] rustflags` above and use
-# their platform default linker.
+# `cfg`. Cargo matches it against the compilation target, not the host: a macOS
+# or Windows host building for Linux gets the flag from this table unless the
+# caller assigns `RUSTFLAGS`, which replaces every source here. A build for
+# macOS or Windows falls through to `[build] rustflags` above and uses the
+# platform default linker.
 [target.'cfg(target_os = "linux")']
 rustflags = ["-Zthreads=8", "-Clink-arg=-fuse-ld=mold"]
