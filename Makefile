@@ -15,8 +15,8 @@ BUILD_JOBS ?=
 STANDARD_THREADS_FLAG ?= -Zthreads=8
 STANDARD_MOLD_FLAG ?= -Clink-arg=-fuse-ld=mold
 BUILD_HOST_OS ?= $(shell uname -s)
-# mold is added only when the machine doing the build is Linux (only Make can
-# tell whether it has mold) and the compilation target is Linux too, which is
+# `mold` is added only when the machine doing the build is Linux (only Make can
+# tell whether it has `mold`) and the compilation target is Linux too, which is
 # the host unless `CARGO_BUILD_TARGET` names another triple. Android triples
 # contain `-linux-` but report `target_os = "android"`, so they are not Linux.
 STANDARD_TARGET_IS_LINUX = $(if $(CARGO_BUILD_TARGET),$(or $(filter host-tuple,$(CARGO_BUILD_TARGET)),$(and $(findstring -linux-,$(CARGO_BUILD_TARGET)),$(if $(findstring -android,$(CARGO_BUILD_TARGET)),,yes))),yes)
