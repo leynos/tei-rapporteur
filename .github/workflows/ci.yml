@@ -18,25 +18,25 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/setup-rust@872f59f53717b5bebe8e24b2f4a7496b089a939a
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@872f59f53717b5bebe8e24b2f4a7496b089a939a
         with:
           version: "0.6.1"
 
       - name: Format
         run: make check-fmt
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff
+        uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34
         with:
           globs: '**/*.md'
       - name: Install Whitaker Dylint suite
-        uses: leynos/shared-actions/.github/actions/install-whitaker@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/install-whitaker@872f59f53717b5bebe8e24b2f4a7496b089a939a
       - name: Install uv for the docstring-coverage gate
         # `make lint` runs interrogate through `uv tool run`.
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Lint
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are
@@ -44,7 +44,7 @@ jobs:
       - name: Doc tests
         run: make test-doc
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@d5fded1107ee6822fdbf9539d81ff18ce6ce073a
+        uses: leynos/shared-actions/.github/actions/generate-coverage@872f59f53717b5bebe8e24b2f4a7496b089a939a
         with:
           # The shared action detects this repository as a mixed
           # Rust-and-Python project (root Cargo.toml plus root
@@ -62,11 +62,11 @@ jobs:
       - name: Validate XML fixtures against Relax NG schema
         run: make validate-xml
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.11'
       - name: Install uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Install maturin
@@ -109,11 +109,11 @@ jobs:
           python -c "import tei_rapporteur as tr; print(f'Version: {tr.__version__}'); assert hasattr(tr, 'Document'), 'Document class not exported'; assert hasattr(tr, 'emit_title_markup'), 'emit_title_markup missing'"
           echo "SMOKE_TEST_PASSED"
       - name: Set up Python for spelling and Mermaid tooling
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14'
       - name: Install uv for spelling and Mermaid tooling
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Enforce en-GB-oxendict spelling
         run: make spelling
       - name: Set up Rust for Merman

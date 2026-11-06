@@ -569,3 +569,34 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## Dependabot grouping for the extension build
+
+maturin (the `uv` ecosystem) and PyO3 (the `cargo` ecosystem) are versioned
+independently yet build one extension, so an update to either alone cannot be
+built against the other. A multi-ecosystem group, `maturin-pyo3`, defined at
+the top of `.github/dependabot.yml` with its own daily schedule and
+`open-pull-requests-limit` (Dependabot rejects that key on an entry that joins
+a group), puts the available updates for the pair into one pull request. When
+both have one, a single CI run builds them together; a bump is not held back
+when only one of the two has an update, and a group cannot choose compatible
+versions.
+
+An entry that joins a group runs only that group, over the dependencies its
+`patterns` take: its own groups, ignore rules and every other dependency are
+not processed (cuprum's first run of this arrangement showed it). So `cargo` and
+`uv` each have two entries. The group entry, listed first, offers `maturin` for
+`uv` and `pyo3`, `pyo3-build-config` and `serde-pyobject` for `cargo` (they
+release against one PyO3 generation) and carries no groups. The plain entry is
+the stanza as it was, with its own groups (`rstest-bdd` and the catch-all), and
+gains an `ignore` of the same names, so the pair is handled once.
+
+`tests/workflow_contracts/dependabot_multi_ecosystem_test.py` holds the shape:
+the group is defined with a daily schedule and carries the bound, each
+ecosystem has exactly one group entry offering exactly those names with no
+groups, the plain entries ignore them, and no other ecosystem joins a group.
+Concordat's `dependency-family-contracts` rule (DF-002) accepts a shared
+multi-ecosystem group as one way to protect an independently versioned pair,
+and reads the first entry that processes each package
+(<https://github.com/leynos/concordat/pull/334>,
+<https://github.com/leynos/concordat/pull/338>).
