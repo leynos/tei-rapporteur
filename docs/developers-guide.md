@@ -25,6 +25,21 @@ that contribute no words. Do not count a nested `<seg>` twice: inline
 segmentation contributes to its enclosing spoken block unless it is standalone
 in a spoken context.
 
+## Fetching dependencies before tests
+
+Tests and the coverage run can start their own `cargo`. Cargo resolves
+dependencies while it holds the package-cache lock in `$CARGO_HOME`, so a nested
+`cargo` that resolves cold can wait on another repository's build for many
+minutes. The fix is to fetch once, before any test starts:
+
+- `make test` depends on the `fetch` target, which runs
+  `cargo fetch --locked`. A failed fetch stops the run.
+- `ci.yml` and `coverage-main.yml` run `cargo fetch --locked` as an
+  unconditional step before the doc-test and coverage steps, with no `|| true`.
+
+Prepare a direct or offline run with `cargo fetch --locked` first. The estate
+lint rule `nested-cargo-offline-tests` checks both.
+
 ## XML attribute extraction
 
 `tei-xml/src/attributes.rs` owns shared `quick-xml` attribute extraction for

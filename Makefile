@@ -1,4 +1,4 @@
-.PHONY: help all clean test test-doc build release lint fmt check-fmt typecheck \
+.PHONY: help all clean fetch test test-doc build release lint fmt check-fmt typecheck \
 	markdownlint nixie validate-xml json-schema test-workflow-contracts \
 	spelling interrogate
 
@@ -86,7 +86,10 @@ clean: ## Remove build artefacts
 	$(CARGO) clean
 	rm -rf .uv-cache .uv-tools
 
-test: test-doc ## Run tests with warnings treated as errors
+fetch: ## Download the locked dependencies once, so nested cargo runs offline
+	$(CARGO) fetch --locked
+
+test: fetch test-doc ## Run tests with warnings treated as errors
 	$(GATE_RUSTFLAGS) $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
 
 test-doc: ## Run documentation tests (nextest does not execute them)

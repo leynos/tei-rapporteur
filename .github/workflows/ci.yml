@@ -43,6 +43,9 @@ jobs:
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are
       # run here or they rot unnoticed.
+      - name: Fetch dependencies
+        # Tests start their own cargo offline; fetch once so none resolves cold.
+        run: cargo fetch --locked
       - name: Doc tests
         run: make test-doc
       - name: Test and Measure Coverage
