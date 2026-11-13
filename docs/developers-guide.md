@@ -279,10 +279,9 @@ implementation recovers from a poisoned state by calling
 Any test that inserts, replaces, or removes a `sys.modules` entry must restore
 the registry to its exact pre-test state on scope exit, including panic unwind
 on LLVM (Cranelift does not run destructors while unwinding; see "Cranelift
-backend support").
-Manual `del_item` or `set_item` calls in test teardown are forbidden; they are
-silently skipped when the test panics and leak state into every subsequent
-in-process test.
+backend support"). Manual `del_item` or `set_item` calls in test teardown are
+forbidden; they are silently skipped when the test panics and leak state into
+every subsequent in-process test.
 
 Use an RAII guard that snapshots the entry in its constructor and restores it in
 `Drop`. The canonical pattern in `tei-py` is `RestoreStructs` in
@@ -373,10 +372,10 @@ existing restore function. On LLVM, this guarantees cleanup during panic
 unwinding, which a final manual `restore_*` call at the end of a test body
 cannot provide. Cranelift does not run destructors while unwinding, so a test
 that needs cleanup after a caught panic must run under LLVM, for example with
-`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`.
-Name future guards after what they undo, compose multiple guards in one scope
-when a test patches multiple globals, and rely on reverse declaration order to
-mirror a conventional `try`/`finally` stack.
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`. Name future guards after what they
+undo, compose multiple guards in one scope when a test patches multiple
+globals, and rely on reverse declaration order to mirror a conventional
+`try`/`finally` stack.
 
 ### Test helpers and fixtures must be fallible
 
