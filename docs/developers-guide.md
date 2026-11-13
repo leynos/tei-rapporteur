@@ -277,7 +277,9 @@ implementation recovers from a poisoned state by calling
 ### Restoring `sys.modules` entries with RAII guards
 
 Any test that inserts, replaces, or removes a `sys.modules` entry must restore
-the registry to its exact pre-test state on scope exit, including panic unwind.
+the registry to its exact pre-test state on scope exit, including panic unwind
+on LLVM (Cranelift does not run destructors while unwinding; see "Cranelift
+backend support").
 Manual `del_item` or `set_item` calls in test teardown are forbidden; they are
 silently skipped when the test panics and leak state into every subsequent
 in-process test.
@@ -367,8 +369,11 @@ Tests that monkeypatch Python standard-library functions must bind restoration
 to RAII guards. `SubprocessRestoreGuard` restores `subprocess.run`, and
 `ShutilRestoreGuard` restores `shutil.which`; both carry the `Python<'py>` GIL
 token and globals dictionary, then delegate their `Drop` implementation to the
-existing restore function. This guarantees cleanup during panic unwinding,
-which a final manual `restore_*` call at the end of a test body cannot provide.
+existing restore function. On LLVM, this guarantees cleanup during panic
+unwinding, which a final manual `restore_*` call at the end of a test body
+cannot provide. Cranelift does not run destructors while unwinding, so a test
+that needs cleanup after a caught panic must run under LLVM, for example with
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`.
 Name future guards after what they undo, compose multiple guards in one scope
 when a test patches multiple globals, and rely on reverse declaration order to
 mirror a conventional `try`/`finally` stack.
@@ -656,6 +661,12 @@ profile is unaffected, and the coverage steps select LLVM with
 `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`, since `-Cinstrument-coverage` is
 LLVM-only. Cranelift does not run destructors while unwinding, so a test must
 not depend on a caught panic releasing a guard.
+
+Whitaker runs on its own toolchain, which the `rust-toolchain.toml` component
+does not reach, so a local Whitaker install needs the component too:
+`whitaker-installer --cranelift` installs it, and the same command upgrades an
+existing installation. CI passes `cranelift: 'true'` to the `install-whitaker`
+action.
 
 ### Development build footprint
 
