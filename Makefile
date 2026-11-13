@@ -42,7 +42,7 @@ MDTABLEFIX ?= mdtablefix
 MDTABLEFIX_SELECT = --git --include-untracked
 MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 NIXIE ?= nixie
-WHITAKER ?= whitaker
+USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin
 FIXTURES_DIR ?= target/fixtures
 TIME_BIN ?= /usr/bin/time
 TIME_ARGS ?= -v
@@ -100,7 +100,7 @@ test-doc: ## Run documentation tests (nextest does not execute them)
 lint: interrogate ## Build documentation, run Clippy and the Whitaker Dylint suite with warnings denied, and enforce Python docstring coverage
 	$(GATE_RUSTFLAGS) RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
 	$(GATE_RUSTFLAGS) $(CARGO) clippy $(CLIPPY_FLAGS)
-	RUSTFLAGS="-D warnings" $(WHITAKER) --all -- --all-targets --all-features
+	PATH="$${XDG_BIN_HOME:-$(HOME)/.local/bin}:$(USER_BIN_PATH):$(PATH)" CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm RUSTFLAGS="-D warnings" whitaker --all -- --all-targets --all-features
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
 # passes a lone gap in a large repository; fail on any MISSED row as well.

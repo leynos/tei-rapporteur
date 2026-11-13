@@ -646,9 +646,10 @@ adds `mold` only for a Linux host. The `mold` flag also needs a GCC driver of
 12.1 or newer; with an older GCC, upgrade it or select clang as the linker
 driver with `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang`.
 
-`make lint` runs Whitaker with `RUSTFLAGS="-D warnings"` alone, because it runs
-under the toolchain its installer manages and takes none of the development
-standard.
+`make lint` runs Whitaker with `RUSTFLAGS="-D warnings"` alone and the LLVM
+backend selected, because it runs under the toolchain its installer manages and
+takes none of the development standard. The recipe puts the user's
+`~/.local/bin` (or `XDG_BIN_HOME`) first on `PATH`.
 
 ### Cranelift backend support
 
