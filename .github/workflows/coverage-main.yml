@@ -58,6 +58,9 @@ jobs:
         run: cargo fetch --locked
       - name: Generate coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@203eedc136c14c28041e92c06a929383807b3a3f
+        env:
+          # Coverage instrumentation is LLVM-only (BD-007).
+          CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
         with:
           # The shared action detects this repository as a mixed
           # Rust-and-Python project (root Cargo.toml plus root
