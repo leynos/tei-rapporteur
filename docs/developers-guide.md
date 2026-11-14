@@ -278,10 +278,10 @@ implementation recovers from a poisoned state by calling
 
 Any test that inserts, replaces, or removes a `sys.modules` entry must restore
 the registry to its exact pre-test state on scope exit, including panic unwind
-on LLVM (Cranelift does not run destructors while unwinding; see "Cranelift
-backend support"). Manual `del_item` or `set_item` calls in test teardown are
-forbidden; they are silently skipped when the test panics and leak state into
-every subsequent in-process test.
+on LLVM, the default backend (Cranelift does not run destructors while
+unwinding; see "Cranelift backend support"). Manual `del_item` or `set_item`
+calls in test teardown are forbidden; they are silently skipped when the test
+panics and leak state into every subsequent in-process test.
 
 Use an RAII guard that snapshots the entry in its constructor and restores it in
 `Drop`. The canonical pattern in `tei-py` is `RestoreStructs` in
@@ -653,20 +653,22 @@ takes none of the development standard. The recipe puts the user's
 
 ### Cranelift backend support
 
-The development profile uses Cranelift (`[profile.dev] codegen-backend` in
-`.cargo/config.toml`), with `rustc-codegen-cranelift-preview` in
-`rust-toolchain.toml`. The full suite (nextest and doc tests) passes under it,
-measured on `nightly-2026-10-23`. Release builds use LLVM, as the `release`
-profile is unaffected, and the coverage steps select LLVM with
-`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`, since `-Cinstrument-coverage` is
-LLVM-only. Cranelift does not run destructors while unwinding, so a test must
-not depend on a caught panic releasing a guard.
+The estate standard is LLVM, so LLVM is the default backend here. The Cranelift
+selection in `.cargo/config.toml` is commented out; the
+`rustc-codegen-cranelift-preview` component stays in `rust-toolchain.toml` for
+an opt-in. See the
+[concordat decision record](https://github.com/leynos/concordat/blob/main/docs/adrs/adr-0004-cranelift-is-not-part-of-the-rust-build-standard.md),
+with review due 14 May 2027. An inherited `CARGO_PROFILE_*_CODEGEN_BACKEND`
+variable can still select Cranelift. Cranelift does not run destructors while
+unwinding, so under an opt-in no test may rely on a caught panic releasing a
+guard; the coverage steps keep selecting LLVM with
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`.
 
 Whitaker runs on its own toolchain, which the `rust-toolchain.toml` component
-does not reach, so a local Whitaker install needs the component too:
-`whitaker-installer --cranelift` installs it, and the same command upgrades an
-existing installation. CI passes `cranelift: 'true'` to the `install-whitaker`
-action.
+does not reach, and `make lint` runs it on LLVM. The Cranelift component is
+needed there only for an opt-in: `whitaker-installer --cranelift` installs it,
+and the same command upgrades an existing installation. CI keeps passing
+`cranelift: 'true'` to the `install-whitaker` action.
 
 ### Minimum supported Rust version
 

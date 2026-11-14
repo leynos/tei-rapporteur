@@ -37,8 +37,8 @@ jobs:
       - name: Install Whitaker Dylint suite
         uses: leynos/shared-actions/.github/actions/install-whitaker@203eedc136c14c28041e92c06a929383807b3a3f
         with:
-          # The lint suite's toolchain reads .cargo/config.toml, so it needs
-          # the Cranelift component too.
+          # The Cranelift component stays installed so the opt-in selection in
+          # .cargo/config.toml still works for the lint suite's toolchain.
           cranelift: 'true'
       - name: Install uv for the docstring-coverage gate
         # `make lint` runs interrogate through `uv tool run`.
