@@ -224,12 +224,12 @@ these best practices when working on the project:
     validating Rust formatting across the workspace and Markdown formatting
     across tracked and untracked (not ignored) documents without modifying
     files.
-  - `make lint` runs the `interrogate` target first, then the following
-    commands:
+  - `make lint` depends on the `interrogate` target and then runs the
+    following commands:
 
     ```sh
     cargo doc --workspace --no-deps
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features -- -D warnings
     whitaker --all -- --all-targets --all-features
     ```
 
@@ -246,17 +246,18 @@ these best practices when working on the project:
     and the run fails on any `MISSED` row because interrogate rounds its
     percentage to one decimal. A new Python directory is added to
     `INTERROGATE_TARGETS` in the `Makefile`.
-  - `make test` runs `cargo fetch --locked` and then the following commands:
+  - `make test` depends on the `fetch` and `test-doc` targets. `fetch` runs
+    `cargo fetch --locked`, and `test-doc` runs
+    `cargo test --doc --workspace --all-features`. The recipe then runs:
 
     ```sh
-    cargo test --doc --workspace --all-features
     cargo nextest run --workspace --all-targets --all-features
     ```
 
-    It runs the documentation tests first, because nextest does not execute
-    doctests. Both test stages add `-D warnings` and the build standard flags
-    to any inherited `RUSTFLAGS`, as described for `make lint`. `cargo-nextest`
-    is required: the target has no fallback to `cargo test`.
+    Documentation tests run in their own stage because nextest does not
+    execute doctests. Both test recipes add `-D warnings` and the build
+    standard flags to any inherited `RUSTFLAGS`, as described for `make lint`.
+    `cargo-nextest` is required: the target has no fallback to `cargo test`.
   - Use `make fmt` to apply formatting fixes reported by the formatter check.
     It runs `cargo fmt --all`, `mdtablefix --in-place`, and
     `markdownlint-cli2 --fix` over Markdown files.
