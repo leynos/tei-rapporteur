@@ -659,15 +659,16 @@ selection in `.cargo/config.toml` is commented out; the
 an opt-in. See the
 [concordat decision record](https://github.com/leynos/concordat/blob/main/docs/adrs/adr-0004-cranelift-is-not-part-of-the-rust-build-standard.md),
 with review due 14 May 2027. An inherited `CARGO_PROFILE_*_CODEGEN_BACKEND`
-variable can still select Cranelift. Cranelift does not unwind, so no test may
-rely on a caught panic under an opt-in; the coverage steps keep selecting LLVM
-with `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`.
+variable can still select Cranelift. Cranelift does not run destructors while
+unwinding, so under an opt-in no test may rely on a caught panic releasing a
+guard; the coverage steps keep selecting LLVM with
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`.
 
 Whitaker runs on its own toolchain, which the `rust-toolchain.toml` component
-does not reach, so a local Whitaker install needs the component too:
-`whitaker-installer --cranelift` installs it, and the same command upgrades an
-existing installation. CI passes `cranelift: 'true'` to the `install-whitaker`
-action.
+does not reach, and `make lint` runs it on LLVM. The Cranelift component is
+needed there only for an opt-in: `whitaker-installer --cranelift` installs it,
+and the same command upgrades an existing installation. CI keeps passing
+`cranelift: 'true'` to the `install-whitaker` action.
 
 ### Minimum supported Rust version
 
