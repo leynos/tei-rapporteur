@@ -138,3 +138,28 @@ jobs:
           cargo +1.95.0 install merman-cli --version '=0.7.0' --locked
       - name: Validate Mermaid diagrams
         run: make nixie
+
+  msrv:
+    # The declared `rust-version` must still build every target. The check
+    # runs on that stable toolchain from outside the checkout: stable Cargo
+    # refuses the nightly-only keys in `.cargo/config.toml`, and it discovers
+    # that file from the working directory, not from `--manifest-path`.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install the declared MSRV toolchain
+        run: |
+          msrv="$(sed -n 's/^rust-version *= *"\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          test -n "$msrv"
+          echo "MSRV=${msrv}" >> "$GITHUB_ENV"
+          rustup toolchain install "$msrv" --profile minimal --no-self-update
+      - name: Check all targets on the MSRV
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/msrv-target
+        run: |
+          cd "$RUNNER_TEMP"
+          cargo "+${MSRV}" check --workspace --all-targets --locked --manifest-path "$GITHUB_WORKSPACE/Cargo.toml"

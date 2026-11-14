@@ -668,6 +668,19 @@ does not reach, so a local Whitaker install needs the component too:
 existing installation. CI passes `cranelift: 'true'` to the `install-whitaker`
 action.
 
+### Minimum supported Rust version
+
+`[workspace.package] rust-version` in the root `Cargo.toml` declares the
+minimum supported Rust version (MSRV), `1.88`, and every crate inherits it with
+`rust-version.workspace = true`. It is the lowest stable release on which
+`cargo check --workspace --all-targets --locked` succeeds: with the locked
+dependencies, `proptest` 1.12.0 and `trybuild` 1.0.122 require 1.88, and Cargo
+refuses 1.87. Raise it when a dependency bump raises that floor. The `msrv` job
+in `ci.yml` runs the check on that toolchain from outside the checkout
+(`cd "$RUNNER_TEMP"` with `--manifest-path`), because stable Cargo refuses the
+nightly-only keys in `.cargo/config.toml` and discovers that file from the
+working directory.
+
 ### Development build footprint
 
 The development profile sets `incremental = false` and `debug = 0` in
