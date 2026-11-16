@@ -50,21 +50,24 @@ fn structural_show_notes_div(child: Div) -> Result<Div> {
     Ok(div)
 }
 
-fn schema_has_variant(
-    schema: &serde_json::Value,
-    variant_path: &str,
-    expected_property_path: &str,
-    expected_ref_suffix: &str,
-) -> bool {
+/// A `oneOf` variant the schema must offer: where the list sits, which property of a variant
+/// holds the reference, and what that reference must end with.
+struct ExpectedVariant<'a> {
+    list_path: &'a str,
+    property_path: &'a str,
+    ref_suffix: &'a str,
+}
+
+fn schema_has_variant(schema: &serde_json::Value, expected: &ExpectedVariant<'_>) -> bool {
     schema
-        .pointer(variant_path)
+        .pointer(expected.list_path)
         .and_then(serde_json::Value::as_array)
         .is_some_and(|variants| {
             variants.iter().any(|variant| {
                 variant
-                    .pointer(expected_property_path)
+                    .pointer(expected.property_path)
                     .and_then(serde_json::Value::as_str)
-                    .is_some_and(|reference| reference.ends_with(expected_ref_suffix))
+                    .is_some_and(|reference| reference.ends_with(expected.ref_suffix))
             })
         })
 }
@@ -113,51 +116,45 @@ fn assert_schema_definitions(schema: &serde_json::Value) -> Result<()> {
 }
 
 fn assert_schema_variants(schema: &serde_json::Value) -> Result<()> {
-    ensure!(
-        schema_has_variant(
-            schema,
+    for (list_path, property_path, ref_suffix, message) in [
+        (
             "/$defs/BodyBlock/oneOf",
             "/properties/div/$ref",
             "#/$defs/div",
+            "BodyBlock schema should include the `div` variant",
         ),
-        "BodyBlock schema should include the `div` variant"
-    );
-    ensure!(
-        schema_has_variant(
-            schema,
+        (
             "/$defs/DivContent/oneOf",
             "/properties/p/$ref",
             "#/$defs/p",
+            "DivContent schema should include the `p` variant",
         ),
-        "DivContent schema should include the `p` variant"
-    );
-    ensure!(
-        schema_has_variant(
-            schema,
+        (
             "/$defs/DivContent/oneOf",
             "/properties/u/$ref",
             "#/$defs/u",
+            "DivContent schema should include the `u` variant",
         ),
-        "DivContent schema should include the `u` variant"
-    );
-    ensure!(
-        schema_has_variant(
-            schema,
+        (
             "/$defs/DivContent/oneOf",
             "/properties/list/$ref",
             "#/$defs/list",
+            "DivContent schema should include the `list` variant",
         ),
-        "DivContent schema should include the `list` variant"
-    );
-    ensure!(
-        schema_has_variant(
-            schema,
+        (
             "/$defs/DivContent/oneOf",
             "/properties/div/$ref",
             "#/$defs/div",
+            "DivContent schema should include the nested `div` variant",
         ),
-        "DivContent schema should include the nested `div` variant"
-    );
+    ] {
+        let expected = ExpectedVariant {
+            list_path,
+            property_path,
+            ref_suffix,
+        };
+        ensure!(schema_has_variant(schema, &expected), "{message}");
+    }
     ensure!(
         schema_property_references(
             schema,

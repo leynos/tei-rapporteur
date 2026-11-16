@@ -129,10 +129,10 @@ fn assert_decoded_div_blocks(module: &Bound<'_, PyAny>, episode: &Bound<'_, PyAn
     let div = decoded_root_div(episode, &types)?;
     assert_decoded_root_div(&div)?;
 
-    let nested_div = decoded_nested_div(&div, &types)?;
+    let nested_div = decoded_child(&div, ChildKind::NestedDiv, &types)?;
     assert_decoded_nested_div(&nested_div)?;
 
-    let list_block = decoded_list_block(&nested_div, &types)?;
+    let list_block = decoded_child(&nested_div, ChildKind::ListBlock, &types)?;
     assert_decoded_list_item(&list_block, &types)
 }
 
@@ -185,34 +185,38 @@ fn decoded_root_div<'py>(
     Ok(div)
 }
 
-/// Returns the second child of `div`, which must be a nested `DivBlock`.
-fn decoded_nested_div<'py>(
-    div: &Bound<'py, PyAny>,
-    types: &DivStructTypes<'py>,
-) -> Result<Bound<'py, PyAny>> {
-    BlockExpectation {
-        content_missing: "DivBlock should expose content",
-        index: 1,
-        expected_type: &types.div_block,
-        missing: "nested div should exist",
-        wrong_type: "nested block should be a DivBlock",
-    }
-    .child_of(div)
+/// The decoded children the steps look for under a division.
+#[derive(Clone, Copy)]
+enum ChildKind {
+    /// The nested `DivBlock`, second child of the root division.
+    NestedDiv,
+    /// The `ListBlock`, first child of the nested division.
+    ListBlock,
 }
 
-/// Returns the first child of `nested_div`, which must be a `ListBlock`.
-fn decoded_list_block<'py>(
-    nested_div: &Bound<'py, PyAny>,
+/// Returns the `kind` child of `parent`, which must be an instance of its struct type.
+fn decoded_child<'py>(
+    parent: &Bound<'py, PyAny>,
+    kind: ChildKind,
     types: &DivStructTypes<'py>,
 ) -> Result<Bound<'py, PyAny>> {
-    BlockExpectation {
-        content_missing: "nested DivBlock should expose content",
-        index: 0,
-        expected_type: &types.list_block,
-        missing: "list block should exist",
-        wrong_type: "nested content should be a ListBlock",
-    }
-    .child_of(nested_div)
+    let expectation = match kind {
+        ChildKind::NestedDiv => BlockExpectation {
+            content_missing: "DivBlock should expose content",
+            index: 1,
+            expected_type: &types.div_block,
+            missing: "nested div should exist",
+            wrong_type: "nested block should be a DivBlock",
+        },
+        ChildKind::ListBlock => BlockExpectation {
+            content_missing: "nested DivBlock should expose content",
+            index: 0,
+            expected_type: &types.list_block,
+            missing: "list block should exist",
+            wrong_type: "nested content should be a ListBlock",
+        },
+    };
+    expectation.child_of(parent)
 }
 
 #[then("the DivBlock, nested DivBlock, ListBlock, Item, and Label text are preserved")]
