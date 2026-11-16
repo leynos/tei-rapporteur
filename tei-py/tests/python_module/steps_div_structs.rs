@@ -138,6 +138,10 @@ fn assert_decoded_div_blocks(module: &Bound<'_, PyAny>, episode: &Bound<'_, PyAn
 
 /// Expectations for one decoded block: its type and the messages that name it.
 struct BlockExpectation<'a, 'py> {
+    /// Failure context when the parent exposes no `content`.
+    content_missing: &'a str,
+    /// Which child of `content` to take.
+    index: usize,
     /// The struct type the block must be an instance of.
     expected_type: &'a Bound<'py, PyAny>,
     /// Failure context when the block is missing.
@@ -147,9 +151,14 @@ struct BlockExpectation<'a, 'py> {
 }
 
 impl<'py> BlockExpectation<'_, 'py> {
-    /// Takes `block` if it is present, requiring it to be of the expected type.
-    fn require(&self, block: PyResult<Bound<'py, PyAny>>) -> Result<Bound<'py, PyAny>> {
-        let found = block.context(self.missing.to_owned())?;
+    /// Takes the expected child of `parent`'s `content`, requiring its type.
+    fn child_of(&self, parent: &Bound<'py, PyAny>) -> Result<Bound<'py, PyAny>> {
+        let content = parent
+            .getattr("content")
+            .context(self.content_missing.to_owned())?;
+        let found = content
+            .get_item(self.index)
+            .context(self.missing.to_owned())?;
         ensure_instance(&found, self.expected_type, self.wrong_type)?;
         Ok(found)
     }
@@ -167,12 +176,13 @@ fn decoded_root_div<'py>(
         .context("TeiText should expose body")?
         .getattr("blocks")
         .context("TeiBody should expose blocks")?;
-    BlockExpectation {
-        expected_type: &types.div_block,
-        missing: "division block should exist",
-        wrong_type: "top-level block should be a DivBlock",
-    }
-    .require(blocks.get_item(0))
+    let div = blocks.get_item(0).context("division block should exist")?;
+    ensure_instance(
+        &div,
+        &types.div_block,
+        "top-level block should be a DivBlock",
+    )?;
+    Ok(div)
 }
 
 /// Returns the second child of `div`, which must be a nested `DivBlock`.
@@ -180,15 +190,14 @@ fn decoded_nested_div<'py>(
     div: &Bound<'py, PyAny>,
     types: &DivStructTypes<'py>,
 ) -> Result<Bound<'py, PyAny>> {
-    let content = div
-        .getattr("content")
-        .context("DivBlock should expose content")?;
     BlockExpectation {
+        content_missing: "DivBlock should expose content",
+        index: 1,
         expected_type: &types.div_block,
         missing: "nested div should exist",
         wrong_type: "nested block should be a DivBlock",
     }
-    .require(content.get_item(1))
+    .child_of(div)
 }
 
 /// Returns the first child of `nested_div`, which must be a `ListBlock`.
@@ -196,15 +205,14 @@ fn decoded_list_block<'py>(
     nested_div: &Bound<'py, PyAny>,
     types: &DivStructTypes<'py>,
 ) -> Result<Bound<'py, PyAny>> {
-    let content = nested_div
-        .getattr("content")
-        .context("nested DivBlock should expose content")?;
     BlockExpectation {
+        content_missing: "nested DivBlock should expose content",
+        index: 0,
         expected_type: &types.list_block,
         missing: "list block should exist",
         wrong_type: "nested content should be a ListBlock",
     }
-    .require(content.get_item(0))
+    .child_of(nested_div)
 }
 
 #[then("the DivBlock, nested DivBlock, ListBlock, Item, and Label text are preserved")]
