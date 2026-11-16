@@ -247,6 +247,15 @@ pub fn document_with_nested_divs() -> Result<TeiDocument, TeiError> {
     let file_desc = FileDesc::from_title_str("Nested Division Fixture")?;
     let header = TeiHeader::new(file_desc);
 
+    let parent = nested_parent_div(nested_child_div()?)?;
+
+    let body = TeiBody::new([BodyBlock::Div(parent)]);
+    let text = TeiText::new(body);
+    Ok(TeiDocument::new(header, text))
+}
+
+/// Builds the inner `ch1` division, with a heading and one spoken utterance.
+fn nested_child_div() -> Result<Div, TeiError> {
     let mut child = Div::new("segment")?;
     child.set_id("ch1")?;
     child.set_subtype("chapter-marker")?;
@@ -255,16 +264,17 @@ pub fn document_with_nested_divs() -> Result<TeiDocument, TeiError> {
         Some("host"),
         ["Welcome back."],
     )?);
+    Ok(child)
+}
 
+/// Builds the outer `seg1` division that contains `child`.
+fn nested_parent_div(child: Div) -> Result<Div, TeiError> {
     let mut parent = Div::new("segment")?;
     parent.set_id("seg1")?;
     parent.set_subtype("chapter-markers")?;
     parent.set_head(Head::from_text("Chapter markers")?);
     parent.push_div(child);
-
-    let body = TeiBody::new([BodyBlock::Div(parent)]);
-    let text = TeiText::new(body);
-    Ok(TeiDocument::new(header, text))
+    Ok(parent)
 }
 
 /// Returns an iterator over all fixture builders with their names.

@@ -263,14 +263,31 @@ pub struct RawDivAttrs {
 /// Builds a Div from raw attributes and child content.
 pub fn build_div(attrs: RawDivAttrs, content: Vec<DivContent>) -> Result<Div, TeiError> {
     let mut div = Div::new(attrs.div_type).map_err(|e| TeiError::xml(e.to_string()))?;
-    if let Some(subtype_value) = attrs.subtype {
+    apply_div_attributes(&mut div, attrs.subtype, attrs.id, attrs.head)?;
+    push_div_content(&mut div, content);
+    Ok(div)
+}
+
+/// Applies the optional subtype, `xml:id` and head to `div`, in that order.
+fn apply_div_attributes(
+    div: &mut Div,
+    subtype: Option<String>,
+    id: Option<String>,
+    head: Option<Head>,
+) -> Result<(), TeiError> {
+    if let Some(subtype_value) = subtype {
         div.set_subtype(subtype_value)
             .map_err(|e| TeiError::xml(e.to_string()))?;
     }
-    apply_id(&mut div, attrs.id, Div::set_id)?;
-    if let Some(heading) = attrs.head {
+    apply_id(div, id, Div::set_id)?;
+    if let Some(heading) = head {
         div.set_head(heading);
     }
+    Ok(())
+}
+
+/// Appends each child to `div` in document order.
+fn push_div_content(div: &mut Div, content: Vec<DivContent>) {
     for item in content {
         match item {
             DivContent::Paragraph(p) => div.push_paragraph(p),
@@ -279,7 +296,6 @@ pub fn build_div(attrs: RawDivAttrs, content: Vec<DivContent>) -> Result<Div, Te
             DivContent::Div(nested_div) => div.push_div(nested_div),
         }
     }
-    Ok(div)
 }
 
 /// Builds a List from optional ID and items.
@@ -310,7 +326,13 @@ pub fn build_item(attrs: RawItemAttrs, content: Vec<Inline>) -> Result<Item, Tei
     }
     .map_err(|e| TeiError::xml(e.to_string()))?;
 
-    apply_id(&mut item, attrs.id, Item::set_id)?;
+    apply_item_attributes(&mut item, attrs)?;
+    Ok(item)
+}
+
+/// Applies the optional `xml:id`, `n`, `corresp` and label to `item`, in that order.
+fn apply_item_attributes(item: &mut Item, attrs: RawItemAttrs) -> Result<(), TeiError> {
+    apply_id(item, attrs.id, Item::set_id)?;
 
     if let Some(number) = attrs.n {
         item.set_n(number)
@@ -325,7 +347,7 @@ pub fn build_item(attrs: RawItemAttrs, content: Vec<Inline>) -> Result<Item, Tei
         item.set_label(lbl);
     }
 
-    Ok(item)
+    Ok(())
 }
 
 /// Builds a Label from inline content.

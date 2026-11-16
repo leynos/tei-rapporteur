@@ -28,24 +28,31 @@ impl SegmentCollector {
         element: &BytesStart<'_>,
         frame: &ElementFrame,
     ) -> Result<(), TeiError> {
-        match name {
-            U => self.start_segment(SegmentStart::new(
-                SegmentKind::Utterance,
-                name,
-                element,
-                frame,
-            )?),
-            P | AB | L => {
-                self.start_segment(SegmentStart::new(SegmentKind::Block, name, element, frame)?);
-            }
-            // Standalone <seg> starts a segment, but nested <seg> contributes
-            // to the enclosing spoken block and must not be counted twice.
-            SEG if self.active_segments.is_empty() => self.start_segment_without_marking_parent(
-                SegmentStart::new(SegmentKind::Block, name, element, frame)?,
-            ),
-            _ => {}
+        let Some((kind, marks_parent)) = self.segment_kind_for(name) else {
+            return Ok(());
+        };
+        let request = SegmentStart::new(kind, name, element, frame)?;
+        if marks_parent {
+            self.start_segment(request);
+        } else {
+            self.start_segment_without_marking_parent(request);
         }
         Ok(())
+    }
+
+    /// Classifies an element name as a spoken segment, if it starts one.
+    ///
+    /// Returns the segment kind and whether starting it marks the enclosing
+    /// segment as having a child spoken block.
+    fn segment_kind_for(&self, name: &str) -> Option<(SegmentKind, bool)> {
+        match name {
+            U => Some((SegmentKind::Utterance, true)),
+            P | AB | L => Some((SegmentKind::Block, true)),
+            // Standalone <seg> starts a segment, but nested <seg> contributes
+            // to the enclosing spoken block and must not be counted twice.
+            SEG if self.active_segments.is_empty() => Some((SegmentKind::Block, false)),
+            _ => None,
+        }
     }
 
     fn start_segment(&mut self, request: SegmentStart) {
