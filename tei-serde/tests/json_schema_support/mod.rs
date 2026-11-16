@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 /// let schema = tei_serde::schema::tei_document_schema().to_value();
 /// let validator = compile_validator(&schema)?;
 /// let instance = tei_serde::json::to_value(&document)?;
-/// assert!(validator.is_valid(&instance));
+/// assert!(validator.is_valid(&instance), "instance should satisfy the schema");
 /// ```
 ///
 /// An invalid schema, such as `{"type": 42}`, yields an `Err` whose message reads
