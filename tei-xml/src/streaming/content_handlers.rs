@@ -147,10 +147,7 @@ impl<R: BufRead> TeiPullParser<R> {
         name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes != b"div" {
-            return Err(unexpected_empty_element_error(name_bytes, "InBody"));
-        }
-        let div = Self::build_empty_div(element)?;
+        let div = Self::empty_div_in(name_bytes, element, "InBody")?;
         Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
     }
 
@@ -160,12 +157,23 @@ impl<R: BufRead> TeiPullParser<R> {
         name_bytes: &[u8],
         element: &BytesStart<'_>,
     ) -> Result<Option<TeiEvent>, TeiError> {
-        if name_bytes != b"div" {
-            return Err(unexpected_empty_element_error(name_bytes, "InDiv"));
-        }
-        let div = Self::build_empty_div(element)?;
-        content.push(DivContent::Div(div));
+        content.push(DivContent::Div(Self::empty_div_in(
+            name_bytes, element, "InDiv",
+        )?));
         Ok(None)
+    }
+
+    /// Builds the division an empty `<div/>` stands for, rejecting any other
+    /// element name as unexpected in `state_name`.
+    fn empty_div_in(
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+        state_name: &str,
+    ) -> Result<tei_core::Div, TeiError> {
+        if name_bytes != b"div" {
+            return Err(unexpected_empty_element_error(name_bytes, state_name));
+        }
+        Self::build_empty_div(element)
     }
 
     /// Handles CDATA sections.
