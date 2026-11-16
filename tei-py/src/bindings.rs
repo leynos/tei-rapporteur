@@ -131,13 +131,22 @@ pub(crate) mod py_exports {
     }
 
     fn spoken_text_segment_class(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        cached_segment_class(&registered_structs_module(py)?)
+    }
+
+    /// Looks up the registered `tei_rapporteur.structs` module in `sys.modules`.
+    fn registered_structs_module(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         let sys_modules = py.import("sys")?.getattr("modules")?;
-        let structs = sys_modules.get_item(STRUCTS_MODULE_NAME).map_err(|_| {
+        sys_modules.get_item(STRUCTS_MODULE_NAME).map_err(|_| {
             pyo3::exceptions::PyRuntimeError::new_err(
                 "tei_rapporteur.structs is not registered; \
                  initialize the module before calling spoken_text_segments",
             )
-        })?;
+        })
+    }
+
+    /// Returns the segment class cached on `structs`, caching it first if needed.
+    fn cached_segment_class<'py>(structs: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         if let Ok(segment_class) = structs.getattr(SPOKEN_TEXT_SEGMENT_CLASS_CACHE) {
             Ok(segment_class)
         } else {

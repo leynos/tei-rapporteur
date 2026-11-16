@@ -13,12 +13,14 @@ use tei_xml::streaming::TeiEvent;
 
 fn division_fixture() -> Result<TeiDocument> {
     let header = TeiHeader::new(tei_core::FileDesc::from_title_str("Bridgewater")?);
-    let mut div = Div::new("show-notes")?;
-    div.set_id("div1")?;
-    div.set_subtype("chapter-markers")?;
-    div.set_head(Head::from_text("Chapter markers")?);
-    div.push_paragraph(tei_core::P::from_text_segments(["Further reading"])?);
+    let div = division_with_child(division_guest_bios_child()?)?;
 
+    let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
+    Ok(TeiDocument::new(header, text))
+}
+
+/// Builds the `guest-bio` division: a heading and a list with one labelled item.
+fn division_guest_bios_child() -> Result<Div> {
     let mut item = Item::from_text_segments(["Transcript"])?;
     item.set_label(Label::from_text("1.")?);
     let list = List::new([item])?;
@@ -26,10 +28,18 @@ fn division_fixture() -> Result<TeiDocument> {
     child.set_subtype("guest-bio")?;
     child.set_head(Head::from_text("Guest bios")?);
     child.push_list(list);
-    div.push_div(child);
+    Ok(child)
+}
 
-    let text = TeiText::new(TeiBody::new([BodyBlock::Div(div)]));
-    Ok(TeiDocument::new(header, text))
+/// Builds the `show-notes` division that holds a paragraph and `child`.
+fn division_with_child(child: Div) -> Result<Div> {
+    let mut div = Div::new("show-notes")?;
+    div.set_id("div1")?;
+    div.set_subtype("chapter-markers")?;
+    div.set_head(Head::from_text("Chapter markers")?);
+    div.push_paragraph(tei_core::P::from_text_segments(["Further reading"])?);
+    div.push_div(child);
+    Ok(div)
 }
 
 fn text_value(any: &Bound<'_, PyAny>, attr: &str) -> Result<String> {

@@ -142,21 +142,33 @@ impl<R: BufRead> TeiPullParser<R> {
         let name_bytes: &[u8] = name.as_ref();
 
         match BodyChildKind::from_tag(name_bytes) {
-            BodyChildKind::Paragraph => {
-                let id = extract_xml_id(element)?;
-                self.state = ParserState::in_paragraph(id);
-            }
-            BodyChildKind::Utterance => {
-                let attrs = extract_utterance_attrs(element)?;
-                self.state = ParserState::in_utterance(attrs);
-            }
-            BodyChildKind::Div => {
-                let attrs = extract_div_attrs(element, None)?;
-                self.state = ParserState::in_div(attrs.div_type, attrs.subtype, attrs.id);
-            }
+            BodyChildKind::Paragraph => self.enter_body_paragraph(element)?,
+            BodyChildKind::Utterance => self.enter_body_utterance(element)?,
+            BodyChildKind::Div => self.enter_body_div(element)?,
             BodyChildKind::Other => {}
         }
         Ok(None)
+    }
+
+    /// Enters a paragraph that is a direct child of the body.
+    fn enter_body_paragraph(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let id = extract_xml_id(element)?;
+        self.state = ParserState::in_paragraph(id);
+        Ok(())
+    }
+
+    /// Enters an utterance that is a direct child of the body.
+    fn enter_body_utterance(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let attrs = extract_utterance_attrs(element)?;
+        self.state = ParserState::in_utterance(attrs);
+        Ok(())
+    }
+
+    /// Enters a division that is a direct child of the body.
+    fn enter_body_div(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let attrs = extract_div_attrs(element, None)?;
+        self.state = ParserState::in_div(attrs.div_type, attrs.subtype, attrs.id);
+        Ok(())
     }
 
     /// Handles start elements for inline content (emphasis).
@@ -183,37 +195,57 @@ impl<R: BufRead> TeiPullParser<R> {
         let name_bytes: &[u8] = name.as_ref();
 
         match DivChildKind::from_tag(name_bytes) {
-            DivChildKind::Head => {
-                self.validate_head_placement()?;
-                let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_head(current_state);
-            }
-            DivChildKind::Paragraph => {
-                let id = extract_xml_id(element)?;
-                let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_paragraph(id);
-                self.pending_div_state = Some(Box::new(current_state));
-            }
-            DivChildKind::Utterance => {
-                let attrs = extract_utterance_attrs(element)?;
-                let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_utterance(attrs);
-                self.pending_div_state = Some(Box::new(current_state));
-            }
-            DivChildKind::List => {
-                let list_id = extract_xml_id(element)?;
-                let current_state = std::mem::take(&mut self.state);
-                self.state = ParserState::in_list(current_state, list_id);
-            }
-            DivChildKind::NestedDiv => {
-                let attrs = extract_div_attrs(element, None)?;
-                let current_state = std::mem::take(&mut self.state);
-                self.state =
-                    ParserState::nested_div(current_state, attrs.div_type, attrs.subtype, attrs.id);
-            }
+            DivChildKind::Head => self.enter_div_head()?,
+            DivChildKind::Paragraph => self.enter_div_paragraph(element)?,
+            DivChildKind::Utterance => self.enter_div_utterance(element)?,
+            DivChildKind::List => self.enter_div_list(element)?,
+            DivChildKind::NestedDiv => self.enter_nested_div(element)?,
             DivChildKind::Other => {}
         }
         Ok(None)
+    }
+
+    /// Enters the head of the current division, which must be its first child.
+    fn enter_div_head(&mut self) -> Result<(), TeiError> {
+        self.validate_head_placement()?;
+        let current_state = std::mem::take(&mut self.state);
+        self.state = ParserState::in_head(current_state);
+        Ok(())
+    }
+
+    /// Enters a paragraph inside the current division, parking the division state.
+    fn enter_div_paragraph(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let id = extract_xml_id(element)?;
+        let current_state = std::mem::take(&mut self.state);
+        self.state = ParserState::in_paragraph(id);
+        self.pending_div_state = Some(Box::new(current_state));
+        Ok(())
+    }
+
+    /// Enters an utterance inside the current division, parking the division state.
+    fn enter_div_utterance(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let attrs = extract_utterance_attrs(element)?;
+        let current_state = std::mem::take(&mut self.state);
+        self.state = ParserState::in_utterance(attrs);
+        self.pending_div_state = Some(Box::new(current_state));
+        Ok(())
+    }
+
+    /// Enters a list inside the current division.
+    fn enter_div_list(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let list_id = extract_xml_id(element)?;
+        let current_state = std::mem::take(&mut self.state);
+        self.state = ParserState::in_list(current_state, list_id);
+        Ok(())
+    }
+
+    /// Enters a division nested inside the current division.
+    fn enter_nested_div(&mut self, element: &BytesStart<'_>) -> Result<(), TeiError> {
+        let attrs = extract_div_attrs(element, None)?;
+        let current_state = std::mem::take(&mut self.state);
+        self.state =
+            ParserState::nested_div(current_state, attrs.div_type, attrs.subtype, attrs.id);
+        Ok(())
     }
 
     /// Validates that a head appears at most once and before any div content.

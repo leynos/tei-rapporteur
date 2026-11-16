@@ -339,6 +339,18 @@ pub fn rejects_hi_nodes_with_unknown_properties(
 }
 
 fn structural_document() -> Result<TeiDocument> {
+    let div = structural_show_notes_div(structural_guest_bios_div()?)?;
+
+    Ok(TeiDocument::new(
+        TeiHeader::new(
+            tei_core::FileDesc::from_title_str("fixture").context("title should validate")?,
+        ),
+        TeiText::new(TeiBody::new([BodyBlock::Div(div)])),
+    ))
+}
+
+/// Builds the nested `guest-bio` division: a heading, an utterance and a labelled list.
+fn structural_guest_bios_div() -> Result<Div> {
     let mut item = Item::from_text_segments(["Reference"]).context("item should validate")?;
     item.set_label(Label::from_text("1.").context("label should validate")?);
     let list = List::new([item]).context("list should validate")?;
@@ -352,20 +364,18 @@ fn structural_document() -> Result<TeiDocument> {
             .context("utterance should validate")?,
     );
     child.push_list(list);
+    Ok(child)
+}
 
+/// Builds the outer `show-notes` division that holds an introduction and `child`.
+fn structural_show_notes_div(child: Div) -> Result<Div> {
     let mut div = Div::new("show-notes").context("div should validate")?;
     div.set_subtype("chapter-markers")
         .context("subtype should validate")?;
     div.set_head(Head::from_text("Chapter markers").context("head should validate")?);
     div.push_paragraph(P::from_text_segments(["Intro"]).context("paragraph should validate")?);
     div.push_div(child);
-
-    Ok(TeiDocument::new(
-        TeiHeader::new(
-            tei_core::FileDesc::from_title_str("fixture").context("title should validate")?,
-        ),
-        TeiText::new(TeiBody::new([BodyBlock::Div(div)])),
-    ))
+    Ok(div)
 }
 
 fn schema_has_variant(

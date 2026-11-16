@@ -104,33 +104,68 @@ impl<R: BufRead> TeiPullParser<R> {
             ParserState::InLabel { content, .. } => {
                 handle_inline_empty_element(content, name_bytes, element, "InLabel")
             }
-            ParserState::AwaitingBody if name_bytes == b"body" => {
-                self.state = ParserState::DocumentComplete;
-                Ok(Some(TeiEvent::DocumentEnd))
-            }
-            ParserState::AwaitingBody => {
-                Err(unexpected_empty_element_error(name_bytes, "AwaitingBody"))
-            }
-            ParserState::InBody if name_bytes == b"div" => {
-                let div = Self::build_empty_div(element)?;
-                Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
-            }
-            ParserState::InList { .. } => Err(unexpected_empty_element_error(name_bytes, "InList")),
-            ParserState::InDiv { content, .. } if name_bytes == b"div" => {
-                let div = Self::build_empty_div(element)?;
-                content.push(DivContent::Div(div));
-                Ok(None)
-            }
-            ParserState::InBody => Err(unexpected_empty_element_error(name_bytes, "InBody")),
-            ParserState::InDiv { .. } => Err(unexpected_empty_element_error(name_bytes, "InDiv")),
-            ParserState::Initial
-            | ParserState::AwaitingRoot
-            | ParserState::AwaitingHeader
-            | ParserState::AwaitingText
-            | ParserState::AfterBody
-            | ParserState::DocumentComplete
-            | ParserState::Error => Ok(None),
+            _ => self.handle_structural_empty_element(element),
         }
+    }
+
+    /// Handles an empty element in the states that do not hold inline content:
+    /// the body, lists and divisions, and the states around them.
+    fn handle_structural_empty_element(
+        &mut self,
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        let name = element.local_name();
+        let name_bytes = name.as_ref();
+
+        match &mut self.state {
+            ParserState::AwaitingBody => self.handle_empty_element_awaiting_body(name_bytes),
+            ParserState::InBody => Self::handle_empty_element_in_body(name_bytes, element),
+            ParserState::InList { .. } => Err(unexpected_empty_element_error(name_bytes, "InList")),
+            ParserState::InDiv { content, .. } => {
+                Self::handle_empty_element_in_div(content, name_bytes, element)
+            }
+            // Header and inline states are handled by `handle_empty_element`;
+            // the remaining states ignore empty elements.
+            _ => Ok(None),
+        }
+    }
+
+    /// Handles an empty element while awaiting the body: only `<body/>` is valid.
+    fn handle_empty_element_awaiting_body(
+        &mut self,
+        name_bytes: &[u8],
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes != b"body" {
+            return Err(unexpected_empty_element_error(name_bytes, "AwaitingBody"));
+        }
+        self.state = ParserState::DocumentComplete;
+        Ok(Some(TeiEvent::DocumentEnd))
+    }
+
+    /// Handles an empty element directly inside the body: only `<div/>` is valid.
+    fn handle_empty_element_in_body(
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes != b"div" {
+            return Err(unexpected_empty_element_error(name_bytes, "InBody"));
+        }
+        let div = Self::build_empty_div(element)?;
+        Ok(Some(TeiEvent::BodyBlock(BodyBlock::Div(div))))
+    }
+
+    /// Handles an empty element inside a division: only a nested `<div/>` is valid.
+    fn handle_empty_element_in_div(
+        content: &mut Vec<DivContent>,
+        name_bytes: &[u8],
+        element: &BytesStart<'_>,
+    ) -> Result<Option<TeiEvent>, TeiError> {
+        if name_bytes != b"div" {
+            return Err(unexpected_empty_element_error(name_bytes, "InDiv"));
+        }
+        let div = Self::build_empty_div(element)?;
+        content.push(DivContent::Div(div));
+        Ok(None)
     }
 
     /// Handles CDATA sections.
