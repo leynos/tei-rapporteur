@@ -440,6 +440,28 @@ explain why it is required. Do not add broad word-level exceptions for prose.
 The gate also rejects punctuation-sensitive shared phrase corrections that
 single-token spelling scans cannot enforce reliably.
 
+## JSON Schema test helpers
+
+`tei-serde/tests/json_schema_support/mod.rs` holds the validator helpers that
+two integration-test files share: `json_schema_behaviour.rs` (the BDD
+scenarios) and `json_schema_structure.rs` (the structural body definitions).
+Each file declares the module with `mod json_schema_support;`; Cargo does not
+build a directory's `mod.rs` as a test target of its own, so nothing else
+compiles it.
+
+- `compile_validator(schema)` turns a schema value into a `jsonschema`
+  validator and fails with a message naming the problem when the schema is
+  itself invalid.
+- `collect_validation_errors(errors)` drains a validator's error iterator into
+  `ValidationErrorRecord` values (message, instance path and schema path), so a
+  test can assert on, or print, every violation instead of the first.
+
+The helpers are for the schema tests only. Compose them as the two files do:
+compile the published schema once, validate the serialized instance with
+`validator.iter_errors(&instance)`, and pass the iterator to
+`collect_validation_errors`. A new schema test file should declare the same
+module rather than copy the helpers.
+
 ## Documentation tests in CI
 
 Coverage runs through `cargo llvm-cov nextest`, and nextest does not execute
