@@ -18,13 +18,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@203eedc136c14c28041e92c06a929383807b3a3f
+        uses: leynos/shared-actions/.github/actions/setup-rust@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         with:
           install-mold: 'true'
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@203eedc136c14c28041e92c06a929383807b3a3f
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         with:
           version: "0.6.1"
 
@@ -35,7 +35,7 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install Whitaker Dylint suite
-        uses: leynos/shared-actions/.github/actions/install-whitaker@203eedc136c14c28041e92c06a929383807b3a3f
+        uses: leynos/shared-actions/.github/actions/install-whitaker@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         with:
           # The Cranelift component stays installed so the opt-in selection in
           # .cargo/config.toml still works for the lint suite's toolchain.
@@ -53,7 +53,7 @@ jobs:
       - name: Doc tests
         run: make test-doc
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@203eedc136c14c28041e92c06a929383807b3a3f
+        uses: leynos/shared-actions/.github/actions/generate-coverage@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         env:
           # Coverage instrumentation is LLVM-only (BD-007).
           CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
