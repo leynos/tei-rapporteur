@@ -93,29 +93,38 @@ fn cstring(value: &str, label: &str) -> PyResult<CString> {
         .map_err(|error| PyValueError::new_err(format!("embedded NUL byte in {label}: {error}")))
 }
 
+/// Tolerate only a missing `msgspec` module, warning that the structs are unavailable.
 fn handle_structs_import_error(py: Python<'_>, error: pyo3::PyErr) -> PyResult<()> {
-    if error.is_instance_of::<PyModuleNotFoundError>(py) {
-        let missing_module = error
-            .value(py)
-            .getattr("name")
-            .ok()
-            .and_then(|name| name.extract::<String>().ok());
-
-        if missing_module.as_deref() == Some("msgspec") {
-            // msgspec missing; skip registering structs while leaving core bindings intact.
-            let warnings = py.import("warnings")?;
-            warnings.call_method1(
-                "warn",
-                (
-                    "msgspec not installed; tei_rapporteur.structs unavailable",
-                    py.get_type::<PyRuntimeWarning>(),
-                ),
-            )?;
-            Ok(())
-        } else {
-            Err(error)
-        }
+    if is_missing_msgspec(py, &error) {
+        // msgspec missing; skip registering structs while leaving core bindings intact.
+        warn_structs_unavailable(py)
     } else {
         Err(error)
     }
+}
+
+/// Tell whether `error` reports that the `msgspec` module cannot be imported.
+fn is_missing_msgspec(py: Python<'_>, error: &pyo3::PyErr) -> bool {
+    if !error.is_instance_of::<PyModuleNotFoundError>(py) {
+        return false;
+    }
+    let missing_module = error
+        .value(py)
+        .getattr("name")
+        .ok()
+        .and_then(|name| name.extract::<String>().ok());
+    missing_module.as_deref() == Some("msgspec")
+}
+
+/// Emit a `RuntimeWarning` that `tei_rapporteur.structs` is unavailable.
+fn warn_structs_unavailable(py: Python<'_>) -> PyResult<()> {
+    let warnings = py.import("warnings")?;
+    warnings.call_method1(
+        "warn",
+        (
+            "msgspec not installed; tei_rapporteur.structs unavailable",
+            py.get_type::<PyRuntimeWarning>(),
+        ),
+    )?;
+    Ok(())
 }
