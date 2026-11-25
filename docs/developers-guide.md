@@ -673,6 +673,19 @@ backend selected, because it runs under the toolchain its installer manages and
 takes none of the development standard. The recipe puts the user's
 `~/.local/bin` (or `XDG_BIN_HOME`) first on `PATH`.
 
+### Cognitive complexity
+
+Cognitive complexity is not gated by Clippy. Clippy's `cognitive_complexity`
+scores code after macro expansion, so it counts branching a macro generated,
+and neither `Cargo.toml` nor `clippy.toml` enables it. Whitaker's experimental
+`macro_aware_cognitive_complexity` gates it at `max_complexity = 9`,
+CodeScene's ceiling. `dylint.toml` opts in with
+`[whitaker] experimental = ["macro_aware_cognitive_complexity"]`. Fix a finding
+by extracting named helpers, never by raising the threshold. A Whitaker suite
+installed before the lint existed (v0.2.12 or earlier) does not register it and
+silently leaves the gate inactive, so rerun `whitaker-installer --cranelift` to
+refresh the suite after updating a checkout.
+
 ### Cranelift backend support
 
 The estate standard is LLVM, so LLVM is the default backend here. The Cranelift

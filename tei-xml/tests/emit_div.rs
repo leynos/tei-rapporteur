@@ -209,10 +209,6 @@ fn round_trips_div_paragraph_content() {
 }
 
 #[test]
-#[expect(
-    clippy::cognitive_complexity,
-    reason = "integration test validates complete round-trip behaviour"
-)]
 fn round_trips_div_list_content() {
     let document = parse_xml(COMPLEX_DIV).expect("test fixture should parse");
     let xml = emit_xml(&document).expect("document should emit");
