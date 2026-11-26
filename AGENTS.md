@@ -246,9 +246,11 @@ these best practices when working on the project:
     and the run fails on any `MISSED` row because interrogate rounds its
     percentage to one decimal. A new Python directory is added to
     `INTERROGATE_TARGETS` in the `Makefile`.
-  - `make test` depends on the `fetch` and `test-doc` targets. `fetch` runs
-    `cargo fetch --locked`, and `test-doc` runs
-    `cargo test --doc --workspace --all-features`. The recipe then runs:
+  - `make test` depends on the `fetch` and `warm-test-builds` targets and runs
+    `test-doc` after the nextest pass. `fetch` runs `cargo fetch --locked`,
+    `warm-test-builds` builds the test binaries and runs the trybuild binary
+    once so the timed pass finds its build tree warm, and `test-doc` runs
+    `cargo test --doc --workspace --all-features`. The recipe runs:
 
     ```sh
     cargo nextest run --workspace --all-targets --all-features
