@@ -1,4 +1,4 @@
-.PHONY: help all clean fetch test test-doc build release lint fmt check-fmt typecheck \
+.PHONY: help all clean fetch test test-doc warm-test-builds build release lint fmt check-fmt typecheck \
 	markdownlint nixie validate-xml json-schema test-workflow-contracts \
 	spelling interrogate
 
@@ -92,7 +92,16 @@ fetch: ## Download the locked dependencies once, so nested cargo runs offline
 test: fetch test-doc ## Run tests with warnings treated as errors
 	$(GATE_RUSTFLAGS) $(CARGO) nextest run --workspace --all-targets --all-features $(BUILD_JOBS)
 
-test-doc: ## Run documentation tests (nextest does not execute them)
+# Pay for the nested builds before the timed run: build the test binaries with
+# the run's own flags, then run the trybuild binary (`tei-py/tests/ui.rs`) once,
+# because a plain `--no-run` leaves trybuild's own build tree
+# (<target>/tests/trybuild) empty. `test-doc` needs it as a prerequisite so it
+# runs before every test of `make test`; keep these flags in step with `test`.
+warm-test-builds: ## Build the test binaries and run the trybuild binary once, before the timed run
+	$(GATE_RUSTFLAGS) $(CARGO) nextest run --workspace --all-targets --all-features --no-run $(BUILD_JOBS)
+	$(GATE_RUSTFLAGS) $(CARGO) nextest run --workspace --all-features -E 'binary(ui)' $(BUILD_JOBS)
+
+test-doc: warm-test-builds ## Run documentation tests (nextest does not execute them)
 	# --all-features: `tei_py::test_support` compiles only under `cfg(test)`
 	# or `feature = "test-support"`, and rustdoc sets neither for doctests.
 	$(GATE_RUSTFLAGS) $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
