@@ -1,4 +1,34 @@
 # .config/nextest.toml
+
+# Setup scripts are experimental in the nextest versions the CI lane may
+# install, so the configuration opts in; newer versions accept the entry.
+experimental = ["setup-scripts"]
+
+# The `ui` trybuild test compiles its fixtures' dependency tree in
+# `<target>/tests/trybuild`, a tree that no plain build fills. On a cold target
+# directory its timed body pays for all of that. This script runs the same test
+# once, before any test starts and outside the timed body, so the timed run
+# reuses the result. It uses the features `make test` runs nextest with
+# (`--all-features`), and the `RUSTFLAGS` the gate exports reach it too. A
+# failing run fails the script, and nextest then reports that failure rather
+# than running the suite.
+#
+# The rule is selected by the `ui` binary alone, so the script runs only in a
+# run that selects that test. The test needs the `test-support` feature, so a run
+# on default features (the coverage action's) never selects it and never runs the
+# script, and a run that filters the UI test out (`--lib`) does not either.
+#
+# Setup time counts towards the run-wide `global-timeout`, which is why the
+# allowance is the test's own 300 seconds and not more: the work moves out of
+# the timed body and is not added to the run.
+[scripts.setup.warm-ui]
+command = "cargo test --offline --locked -p tei-py --all-features --test ui -- --test-threads=1"
+slow-timeout = { period = "300s", terminate-after = 1, grace-period = "10s" }
+
+[[profile.default.scripts]]
+filter = "binary(=ui)"
+setup = "warm-ui"
+
 [profile.default]
 # Kill any test once it crosses 60s.
 slow-timeout = { period = "60s", terminate-after = 1, grace-period = "5s" }
