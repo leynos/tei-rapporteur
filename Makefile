@@ -46,31 +46,39 @@ USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin
 FIXTURES_DIR ?= target/fixtures
 TIME_BIN ?= /usr/bin/time
 TIME_ARGS ?= -v
+# Every uv call goes through the vendored helper, which cleans the environment,
+# uses the global uv cache, runs offline first and goes online at most once. See
+# https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
+# `scripts/uv_gate.py` is the shared-actions helper, vendored byte for byte, so
+# update it by copying the canonical file, never by editing it here.
+UV_GATE ?= python3 scripts/uv_gate.py
 UV ?= uv
-UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
+PYTEST_VERSION ?= 9.2.0
+PYYAML_VERSION ?= 6.0.3
 # The CV-005 CodeScene contracts live in shared-actions and run from a full
 # commit, so a fix is a pin bump. `.github/cv005.toml` holds this repository's
 # only parameters.
 CV005_CONTRACTS_REF ?= a38feb9be25755c30eca5bda96bd3786a5b89c6b
-CV005_CONTRACTS = $(UV_ENV) $(UV) tool run --python 3.13 \
-	--from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' \
-	cv005-contracts
+CV005_CONTRACTS = $(UV_GATE) tool --python 3.13 --from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' -- cv005-contracts
 TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
-TYPOS_CONFIG_BUILDER = $(UV_ENV) $(UV) tool run --python 3.14 --from \
+# The spelling builder runs directly, at a release tag, because
+# `spelling-config-baseline` requires exactly that shape and the helper refuses
+# a Git spec that is not a full commit.
+TYPOS_CONFIG_BUILDER = $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
 # Interrogate measures docstring presence over every Python file the repository
 # owns: the Python package, the type-stub sources and the workflow-contract
 # tests. Ruff owns docstring style, but this repository does not run it.
 INTERROGATE_VERSION ?= 1.7.0
-INTERROGATE_TARGETS ?= python tei-py/python tests
+INTERROGATE_TARGETS ?= python scripts tei-py/python tests
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` target fails on: the rounded percentage alone passes a lone gap.
 INTERROGATE_FLAGS ?= -vv --ext pyi --fail-under 100
 # No `--python` pin: asking uv for a managed interpreter downloads one, and
 # the PyO3 crates then link against it instead of the runner's Python.
-INTERROGATE = $(UV_ENV) $(UV) tool run \
-	--from 'interrogate==$(INTERROGATE_VERSION)' interrogate
+INTERROGATE = $(UV_GATE) tool \
+	--from 'interrogate==$(INTERROGATE_VERSION)' -- interrogate
 
 MDLINT_BIN := $(shell command -v $(MDLINT) 2>/dev/null || true)
 
@@ -125,7 +133,8 @@ check-fmt: ## Verify formatting
 
 test-workflow-contracts: ## Validate the workflow contracts, including the CV-005 CodeScene shape
 	$(CV005_CONTRACTS) check --repository .
-	uv run --no-project --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
+	$(UV_GATE) tool --python 3.13 --from 'pytest==$(PYTEST_VERSION)' --with 'pyyaml==$(PYYAML_VERSION)' \
+		-- pytest tests/workflow_contracts -q
 
 typecheck: ## Typecheck all workspace crates
 	$(GATE_RUSTFLAGS) $(CARGO) check --workspace --all-targets --all-features $(BUILD_JOBS)
