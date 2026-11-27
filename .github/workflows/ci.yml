@@ -47,6 +47,8 @@ jobs:
       - name: Install uv for the docstring-coverage gate
         # `make lint` runs interrogate through `uv tool run`.
         uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: Install the YAML lint tools
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@ab6505246c6b043b742a225e428e00448c0a37af
       - name: Lint
         run: make lint
       # `cargo llvm-cov nextest` below does not execute doctests, so they are

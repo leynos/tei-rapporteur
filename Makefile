@@ -97,7 +97,7 @@ test-doc: ## Run documentation tests (nextest does not execute them)
 	# or `feature = "test-support"`, and rustdoc sets neither for doctests.
 	$(GATE_RUSTFLAGS) $(CARGO) test --doc --workspace --all-features $(BUILD_JOBS)
 
-lint: interrogate ## Build documentation, run Clippy and the Whitaker Dylint suite with warnings denied, and enforce Python docstring coverage
+lint: interrogate yamllint actionlint ## Build documentation, run Clippy and the Whitaker Dylint suite with warnings denied, and enforce Python docstring coverage
 	$(GATE_RUSTFLAGS) RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
 	$(GATE_RUSTFLAGS) $(CARGO) clippy $(CLIPPY_FLAGS)
 	PATH="$${XDG_BIN_HOME:-$(HOME)/.local/bin}:$(USER_BIN_PATH):$(PATH)" CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm RUSTFLAGS="-D warnings" whitaker --all -- --all-targets --all-features
@@ -176,3 +176,18 @@ bench-memory: ## Measure peak memory usage during parsing (GNU time required; se
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
+
+YAMLLINT ?= yamllint
+ACTIONLINT ?= actionlint
+
+.PHONY: yamllint actionlint
+
+# yamllint reads `.yamllint.yml`, which extends `.yamllint-estate.yml`, and
+# resolves that path against the current directory, so run it from the root.
+yamllint: SHELL := bash
+yamllint: .SHELLFLAGS := -eo pipefail -c
+yamllint: ## Lint every tracked YAML file strictly
+	git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+
+actionlint: ## Lint the GitHub Actions workflows, including their shell scripts
+	$(ACTIONLINT)
