@@ -13,6 +13,11 @@ experimental = ["setup-scripts"]
 # failing run fails the script, and nextest then reports that failure rather
 # than running the suite.
 #
+# The rule is selected by the `ui` binary alone, so the script runs only in a
+# run that selects that test. The test needs the `test-support` feature, so a run
+# on default features (the coverage action's) never selects it and never runs the
+# script, and a run that filters the UI test out (`--lib`) does not either.
+#
 # Setup time counts towards the run-wide `global-timeout`, which is why the
 # allowance is the test's own 300 seconds and not more: the work moves out of
 # the timed body and is not added to the run.
@@ -21,7 +26,7 @@ command = "cargo test --offline --locked -p tei-py --all-features --test ui -- -
 slow-timeout = { period = "300s", terminate-after = 1, grace-period = "10s" }
 
 [[profile.default.scripts]]
-filter = "package(tei-py)"
+filter = "binary(=ui)"
 setup = "warm-ui"
 
 [profile.default]
