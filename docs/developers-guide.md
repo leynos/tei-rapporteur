@@ -470,7 +470,9 @@ compile nowhere, which is how a broken `tei-test-helpers` example survived on
 `main`.
 
 - `make test-doc` runs `cargo test --doc --workspace` with warnings denied.
-- `make test` depends on it, so a local test run covers the examples.
+- `make test` runs it after the nextest pass, so a local test run covers the
+  examples. It does not depend on `warm-test-builds`, which needs nextest that
+  this CI step does not install.
 - CI runs the step between `make lint` and the coverage action, before the job
   that cannot run doctests itself.
 - `tests/workflow_contracts/ci_doc_tests_test.py` asserts the `run:` body
