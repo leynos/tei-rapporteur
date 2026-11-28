@@ -46,8 +46,9 @@ USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin
 FIXTURES_DIR ?= target/fixtures
 TIME_BIN ?= /usr/bin/time
 TIME_ARGS ?= -v
-# Every uv call goes through the vendored helper, which cleans the environment,
-# uses the global uv cache, runs offline first and goes online at most once. See
+# Every uv call but the spelling builder's goes through the vendored helper,
+# which cleans the environment, uses the global uv cache, runs offline first and
+# goes online at most once. See
 # https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
 # `scripts/uv_gate.py` is the shared-actions helper, vendored byte for byte, so
 # update it by copying the canonical file, never by editing it here.
